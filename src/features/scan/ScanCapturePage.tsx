@@ -2,7 +2,8 @@ import { useCallback, useEffect, useRef, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { Icon } from '@/components/Icon'
 import { captureScanLocation, useScan } from '@/features/scan/scan-store'
-import { resizeImage } from '@/features/scan/image-processing'
+import { ACCEPTED_IMAGE_ATTR, resizeImage } from '@/features/scan/image-processing'
+import { deriveMalaysiaStatusState, isReportEligible } from '@/features/scan/malaysia-status'
 import { getAdapter } from '@/features/scan/plant-model-adapter'
 import { api } from '@/services/api-client'
 import type { SpeciesDetail } from '@/types'
@@ -89,7 +90,7 @@ export function ScanCapturePage() {
       if (requestId === imageRequestRef.current) {
         setQuality({
           ok: false,
-          reason: error instanceof Error && error.message.startsWith('Photo is too large')
+          reason: error instanceof Error
             ? error.message
             : 'Could not process this image. Try another photo.',
         })
@@ -186,18 +187,11 @@ export function ScanCapturePage() {
     try {
       const adapter = getAdapter()
       await adapter.detect(bitmap)
-      const identifyPromise = adapter.identify(imageBlob, (loaded, total) => {
+      const result = await adapter.identify(imageBlob, (loaded, total) => {
         if (requestId === analysisRequestRef.current) {
           setModelProgress(Math.round((loaded / total) * 100))
         }
       })
-      const result = await Promise.race<Awaited<ReturnType<typeof adapter.identify>>>([
-        identifyPromise,
-        new Promise((_, reject) => setTimeout(
-          () => reject(new Error('Plant analysis timed out after 15 seconds. Retake the photo and try again.')),
-          15_000,
-        )),
-      ])
       if (!mountedRef.current || requestId !== analysisRequestRef.current) return
 
       let detail: SpeciesDetail | null = null
@@ -210,7 +204,11 @@ export function ScanCapturePage() {
         }
       }
 
-      setResult({ ...result, reportable: Boolean(detail?.reportable ?? detail) }, detail)
+      const reportable = result.outcome === 'target'
+        && isReportEligible(deriveMalaysiaStatusState(result))
+        && detail?.isInvasive === true
+        && detail.reportable === true
+      setResult({ ...result, reportable }, detail)
       navigate('/scan/result', { replace: true })
     } catch {
       if (requestId === analysisRequestRef.current) {
@@ -248,12 +246,12 @@ export function ScanCapturePage() {
   return (
     <div className="scan-capture">
       <input
-        ref={cameraRef} type="file" accept="image/jpeg,image/png,image/webp" capture="environment"
+        ref={cameraRef} type="file" accept={ACCEPTED_IMAGE_ATTR} capture="environment"
         onChange={(event) => void handleFile(event, 'camera')} hidden
         aria-label="Take photo"
       />
       <input
-        ref={galleryRef} type="file" accept="image/jpeg,image/png,image/webp"
+        ref={galleryRef} type="file" accept={ACCEPTED_IMAGE_ATTR}
         onChange={(event) => void handleFile(event, 'gallery')} hidden
         aria-label="Choose photo from gallery"
       />
@@ -313,11 +311,10 @@ export function ScanCapturePage() {
             className="scan-capture__gallery"
           >
             <Icon name="ImagePlus" size={16} color="var(--body)" />
-            Choose a photo instead
+            Identify a gallery photo
           </button>
           <p className="scan-capture__gallery-note">
-            Use this when the camera isn't available — e.g. on a desktop
-            browser or if camera permission is blocked.
+            Gallery photos can be identified, but field reports require a fresh camera capture.
           </p>
         </section>
       ) : (
