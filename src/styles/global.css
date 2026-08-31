@@ -1,0 +1,205 @@
+@import '@fontsource/inter/latin-400.css';
+@import '@fontsource/inter/latin-500.css';
+@import '@fontsource/inter/latin-600.css';
+@import '@fontsource/inter/latin-700.css';
+@import '@fontsource/ibm-plex-mono/latin-400.css';
+@import '@fontsource/ibm-plex-mono/latin-500.css';
+@import '@fontsource/ibm-plex-mono/latin-600.css';
+@import './tokens.css';
+@import './sheets.css';
+
+:root {
+  /* Scan-only bottom nav: 60px button + 8px padding + 10px offset + safe-area. */
+  --mobile-nav-clearance: calc(96px + env(safe-area-inset-bottom));
+  --map-mobile-bottom-clearance: 32px;
+  --map-legend-bottom: 40px;
+}
+
+* { margin: 0; padding: 0; box-sizing: border-box; }
+
+html, body, #root { height: 100%; min-height: 100%; }
+
+body {
+  font-family: var(--font-sans);
+  color: var(--ink);
+  background: var(--bg);
+  line-height: 1.5;
+  -webkit-font-smoothing: antialiased;
+}
+
+::selection { background: var(--green-border); color: var(--deep); }
+input, textarea { caret-color: var(--green); }
+* { scrollbar-color: var(--control-border) var(--bg-alt); scrollbar-width: thin; }
+
+button, input, textarea, select { font: inherit; color: inherit; }
+button:disabled, input:disabled { opacity: 0.6; cursor: not-allowed; }
+
+:focus-visible {
+  outline: 2px solid var(--green);
+  outline-offset: 2px;
+  border-radius: 4px;
+}
+
+/* Future navigation items remain visible, but they cannot receive focus or
+   clicks. The aria-disabled attribute also explains the state to screen readers. */
+[aria-disabled='true'] {
+  opacity: 0.45;
+  cursor: not-allowed;
+  pointer-events: none;
+}
+
+.mono {
+  font-family: var(--font-mono);
+  font-variant-numeric: tabular-nums;
+  letter-spacing: 0;
+}
+
+/* Icon-only controls keep their compact glyphs while exposing a comfortable
+   touch target. Map pins grow around the SVG without moving the pin tip. */
+button[aria-label] { min-width: 44px; min-height: 44px; }
+.map-pin {
+  min-width: 44px !important;
+  min-height: 44px !important;
+  display: flex !important;
+  align-items: flex-end;
+  justify-content: center;
+}
+.map-pin:focus-visible { border-radius: 50%; }
+.maplibregl-ctrl-group button {
+  min-width: 44px !important;
+  min-height: 44px !important;
+}
+
+button:not(:disabled), a[href] { transition: filter 140ms ease-out, opacity 140ms ease-out; }
+button:not(:disabled):active, a[href]:active { filter: brightness(0.96); }
+
+.field-shell { border-color: var(--control-border) !important; }
+.field-shell:focus-within {
+  border-color: var(--green) !important;
+  box-shadow: 0 0 0 3px var(--green-light);
+}
+.field-control { min-width: 0; width: 100%; }
+.radio-card:focus-within {
+  outline: 2px solid var(--green);
+  outline-offset: 2px;
+}
+input[type='search']::-webkit-search-cancel-button { display: none; }
+
+/* Lazy route bundles keep the current application shell visible while the next
+   page downloads. The indicator gives both visual users and screen readers a
+   clear loading state without changing the page layout. */
+.route-loading {
+  min-height: min(50vh, 360px);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  color: var(--muted);
+  font-size: 14px;
+  font-weight: 500;
+}
+.route-loading__indicator {
+  width: 16px;
+  height: 16px;
+  border: 2px solid var(--green-border);
+  border-top-color: var(--green);
+  border-radius: 50%;
+  animation: route-loading-spin 700ms linear infinite;
+}
+@keyframes route-loading-spin { to { transform: rotate(360deg); } }
+
+.sr-only {
+  position: absolute; width: 1px; height: 1px;
+  padding: 0; margin: -1px; overflow: hidden;
+  clip: rect(0 0 0 0); white-space: nowrap; border: 0;
+}
+
+/* The skip link stays outside the viewport until a keyboard user focuses it. */
+.skip-link {
+  position: absolute; top: 8px; left: 8px;
+  padding: 8px 14px; background: var(--green); color: #fff;
+  border-radius: var(--r-button); font-weight: 600; font-size: 14px;
+  text-decoration: none; transform: translateY(-140%);
+  transition: transform 150ms ease-out;
+  z-index: 1000;
+}
+.skip-link:focus { transform: translateY(0); outline: none; }
+
+/* Keep text scaling enabled. Mobile form controls use 16px text below so iOS
+   Safari does not zoom the whole page when an input receives focus. */
+html { -webkit-text-size-adjust: 100%; text-size-adjust: 100%; }
+
+/* Components provide their own pressed state, so the browser's extra tap flash
+   is disabled to avoid showing two feedback effects at the same time. */
+a, button, [role='button'], [role='link'] {
+  -webkit-tap-highlight-color: transparent;
+}
+
+/* Match MapLibre controls to the application's border and corner styles. The
+   mobile rules also keep bottom controls above the raised scan button. */
+.maplibregl-ctrl-group {
+  border-radius: 14px !important;
+  border: 1px solid rgba(255, 255, 255, 0.72) !important;
+  background: rgba(255, 255, 255, 0.88) !important;
+  box-shadow: 0 10px 28px rgba(20,40,30,0.16) !important;
+  backdrop-filter: saturate(1.2) blur(14px);
+  -webkit-backdrop-filter: saturate(1.2) blur(14px);
+  overflow: hidden;
+}
+.maplibregl-ctrl-group button { background-color: transparent !important; }
+.maplibregl-ctrl-group button:hover { background-color: rgba(241, 244, 240, 0.9) !important; }
+.maplibregl-ctrl-group button + button { border-top: 1px solid var(--border) !important; }
+.maplibregl-ctrl-attrib.maplibregl-compact {
+  min-height: 24px !important;
+  border-radius: 999px !important;
+  box-shadow: 0 2px 6px rgba(20,40,30,0.14) !important;
+}
+.maplibregl-ctrl-attrib-button {
+  background-color: var(--surface) !important;
+}
+.maplibregl-ctrl-bottom-right,
+.maplibregl-ctrl-bottom-left {
+  bottom: 8px !important;
+}
+@media (max-width: 899.98px) {
+  :root {
+    /* Scan FAB is centered, so legend and attribution can sit on the same
+       bottom edge on either side of it without overlapping. */
+    --map-mobile-bottom-clearance: calc(14px + env(safe-area-inset-bottom));
+    --map-legend-bottom: calc(14px + env(safe-area-inset-bottom));
+  }
+  .maplibregl-ctrl-bottom-right,
+  .maplibregl-ctrl-bottom-left { bottom: var(--map-mobile-bottom-clearance) !important; }
+  .maplibregl-ctrl-bottom-right { right: 10px !important; }
+  .maplibregl-ctrl-attrib:not(.maplibregl-compact) {
+    max-width: min(44vw, 220px);
+    padding: 3px 5px !important;
+    border-radius: 6px;
+    background: rgba(255, 255, 255, 0.88) !important;
+    box-shadow: 0 6px 18px rgba(20, 40, 30, 0.1);
+    backdrop-filter: saturate(1.1) blur(10px);
+    -webkit-backdrop-filter: saturate(1.1) blur(10px);
+    font-size: 12px !important;
+    line-height: 1.25 !important;
+    text-align: right;
+    white-space: normal;
+  }
+  .maplibregl-ctrl-attrib:not(.maplibregl-compact) a { white-space: normal; }
+  .maplibregl-ctrl-top-right { top: 8px !important; right: 8px !important; }
+  input, textarea, select { font-size: 16px !important; }
+}
+
+@media (max-width: 379px) {
+  .manual-coordinate-grid { grid-template-columns: 1fr !important; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  /* Remove movement for users who enable reduced motion in their system settings. */
+  *, *::before, *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+  .invatrace-skeleton { animation-duration: 1.2s !important; }
+}

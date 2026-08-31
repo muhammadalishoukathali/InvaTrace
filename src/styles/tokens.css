@@ -1,0 +1,59 @@
+/* Shared InvaTrace colors, spacing, sizes, corners, and shadows. Components
+   use these values instead of adding slightly different one-off styles. */
+:root {
+  --green: #1B7A50;
+  --green-dark: #166341;
+  --deep: #12402C;
+  --green-light: #EFF6F1;
+  --green-border: #D3E7DA;
+  --amber: #D9880F;
+  --amber-text: #935600;
+  --amber-light: #FEF3E2;
+  --amber-border: #F0D9A8;
+  --red: #C2412D;
+  --red-text: #A93625;
+  --red-light: #FBEAE6;
+  --red-border: #F0CFC8;
+
+  --ink: #16201B;
+  --body: #4B5A52;
+  --muted: #65736C;
+  --icon: #8B978F;
+
+  --surface: #FFFFFF;
+  --bg: #F4F6F3;
+  --bg-alt: #EDF0EC;
+  --border: #E2E7E1;
+  --control-border: #8B978F;
+  --hover: #F1F4F0;
+
+  /* Inverted liquid-glass navigation surface. These stay green-tinted so the
+     floating mobile island belongs to the conservation palette. */
+  --nav-glass: rgba(12, 42, 29, 0.84);
+  --nav-glass-text: #F5FFF9;
+  --nav-glass-muted: #B3C8BC;
+  --nav-glass-accent: #7DE0AD;
+  --nav-glass-focus: #C8F4DC;
+
+  --r-chip: 99px;
+  --r-card: 12px;
+  --r-input: 11px;
+  --r-button: 9px;
+  --r-sheet: 20px;
+
+  --h-compact: 34px;
+  --h-chip: 44px;
+  --h-nav: 44px;
+  --h-primary: 46px;
+
+  --shadow-sm: 0 1px 2px rgba(20, 40, 30, 0.16);
+  --shadow-md: 0 1px 3px rgba(20, 40, 30, 0.28);
+  --shadow-sheet: 0 -8px 24px rgba(20, 40, 30, 0.18);
+  --shadow-nav: 0 16px 42px rgba(9, 35, 23, 0.28), 0 3px 10px rgba(7, 25, 17, 0.22);
+
+  --sidebar-w: 248px;
+  --tabbar-h: 60px;
+
+  --font-sans: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  --font-mono: 'IBM Plex Mono', ui-monospace, SFMono-Regular, Menlo, monospace;
+}
