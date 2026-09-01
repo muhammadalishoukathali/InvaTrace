@@ -1,0 +1,15 @@
+node_modules
+dist
+.env
+.DS_Store
+tsconfig.tsbuildinfo
+test-results
+playwright-report
+public/models/pulih-model1-v4
+vendor/PULIH_Model1_v4_FP16_Web_Kit
+backend/.venv
+backend/.pytest_cache
+backend/.ruff_cache
+.pytest_cache
+**/__pycache__
+*.py[cod]
