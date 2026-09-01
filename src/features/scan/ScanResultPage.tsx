@@ -24,9 +24,7 @@ export function ScanResultPage() {
     const {
       imageBlob, imageUrl: url, observedAt, captureId, captureSource: source,
     } = useScan.getState()
-    if (!imageBlob || !url || !observedAt || !captureId) return
-    const trusted = source === 'camera' || source === 'gallery'
-    if (!trusted) return
+    if (!imageBlob || !url || !observedAt || !captureId || source !== 'camera') return
     useReportDraft.getState().beginFromScan({
       result, imageBlob, imageUrl: url, observedAt, captureId,
     })
@@ -35,22 +33,14 @@ export function ScanResultPage() {
 
   const statusState = deriveMalaysiaStatusState(result)
   const statusUncertain = statusState === 'status_uncertain'
-  const clientReportEligible = isReportEligible(statusState)
-  // AC 1.2.3: when the server has an explicit report/action gate, honour it
-  // over the client-side derivation. Absent flag falls back to the derived
-  // state so unknown species stay report-blocked.
-  const serverReportEligible = speciesDetail?.reportEligible
-  const reportEligible = serverReportEligible === undefined
-    ? clientReportEligible
-    : serverReportEligible
-  // Both camera capture and file-picker upload are trusted for the report
-  // flow. Desktop testers and users without camera permission would otherwise
-  // hit a dead-end when the identification succeeds but Report never appears.
-  const trustedCapture = captureSource === 'camera' || captureSource === 'gallery'
-  const canReport = trustedCapture
+  const reportEligible = isReportEligible(statusState)
+    && speciesDetail?.isInvasive === true
+    && speciesDetail.reportable === true
+  const canReport = captureSource === 'camera'
     && !statusUncertain
     && reportEligible
-    && (result.outcome === 'uncertain' || (result.outcome === 'target' && result.reportable))
+    && result.outcome === 'target'
+    && result.reportable
 
   return (
     <div style={{ padding: 16, maxWidth: 520, margin: '0 auto', paddingBottom: 32 }}>
@@ -90,24 +80,8 @@ export function ScanResultPage() {
           scientificName={result.scientificName}
           speciesName={result.speciesName}
           plantId={result.speciesId}
-          // AC 1.2.3: when the server marks this species non-eligible for
-          // action, the guidance panel must never expose the active-removal
-          // path regardless of the user's permission selection.
-          actionEligible={speciesDetail?.actionEligible}
+          actionEligible={speciesDetail?.reportable === true}
         />
-      )}
-
-      {/* AC 1.2.2 — quiet caption line for reviewed month + source. */}
-      {(speciesDetail?.statusReviewedAt || speciesDetail?.statusSourceId) && (
-        <p style={{
-          marginTop: 10,
-          fontSize: 11.5, color: 'var(--muted)', lineHeight: 1.55,
-          wordBreak: 'break-word',
-        }}>
-          {speciesDetail.statusReviewedAt && `Malaysia status reviewed ${humanReviewedDate(speciesDetail.statusReviewedAt)}`}
-          {speciesDetail.statusReviewedAt && speciesDetail.statusSourceId && ' · '}
-          {speciesDetail.statusSourceId}
-        </p>
       )}
 
       <ModelInfo version={result.modelVersion} />
@@ -135,6 +109,12 @@ export function ScanResultPage() {
           </button>
         )}
       </div>
+
+      {captureSource === 'gallery' && result.outcome !== 'other_plant' && (
+        <p style={{ marginTop: 10, color: 'var(--muted)', fontSize: 12.5, lineHeight: 1.5, textAlign: 'center' }}>
+          Identification is complete. Capture a fresh camera photo to create a field report.
+        </p>
+      )}
 
     </div>
   )
@@ -369,20 +349,6 @@ function UnsupportedTargetResult({ result }: { result: IdentifyResult }) {
 function firstSentence(text: string): string {
   const match = text.match(/^.*?[.!?](?=\s|$)/)
   return match ? match[0] : text
-}
-
-/** ISO-8601 date to "Month YYYY". Falls back to input if unparseable. */
-function humanReviewedDate(iso: string): string {
-  const match = iso.match(/^(\d{4})-(\d{2})/)
-  if (!match) return iso
-  const [, year, monthNum] = match
-  const monthIndex = Number(monthNum) - 1
-  if (monthIndex < 0 || monthIndex > 11) return iso
-  const months = [
-    'January', 'February', 'March', 'April', 'May', 'June',
-    'July', 'August', 'September', 'October', 'November', 'December',
-  ]
-  return `${months[monthIndex]} ${year}`
 }
 
 function ConfidenceBand({ confidence }: { confidence: number }) {
