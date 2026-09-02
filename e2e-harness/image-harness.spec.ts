@@ -93,7 +93,7 @@ async function runImage(page: Page, group: 'with_exif' | 'stripped', img: typeof
     await page.screenshot({ path: path.join(SCREENSHOT_DIR, screenshotName), fullPage: true })
   } catch (e) {
     row.error = String(e).slice(0, 200)
-    try { await page.screenshot({ path: path.join(SCREENSHOT_DIR, screenshotName), fullPage: true }) } catch {}
+    try { await page.screenshot({ path: path.join(SCREENSHOT_DIR, screenshotName), fullPage: true }) } catch { /* screenshot best-effort */ }
   }
   appendResult(row)
 }

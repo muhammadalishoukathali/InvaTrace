@@ -191,11 +191,21 @@ def restore(
     request: Request,
     session: Session = Depends(get_session),
 ) -> RestoreResponse:
-    rate_limiter.check("profile_restore", body.profile_id)
-    rate_limiter.check("profile_restore_ip", client_address(request))
+    # AC 2.1.4 — count only failed restore attempts. Pre-check the sliding
+    # window without recording, then record a failure on any of the reject
+    # paths below and clear the counter on success.
+    client_ip = client_address(request)
+    rate_limiter.check_pre_failure("profile_restore", body.profile_id)
+    rate_limiter.check_pre_failure("profile_restore_ip", client_ip)
+
+    def _fail_generic() -> ApiProblem:
+        rate_limiter.record_failure("profile_restore", body.profile_id)
+        rate_limiter.record_failure("profile_restore_ip", client_ip)
+        return ApiProblem(400, "restore_failed", GENERIC_RESTORE_ERROR)
+
     token_hash = keyed_hash(body.installation_token)
     if session.scalar(select(Installation.id).where(Installation.token_hash == token_hash)):
-        raise ApiProblem(400, "restore_failed", GENERIC_RESTORE_ERROR)
+        raise _fail_generic()
 
     profile = session.scalar(
         select(Profile).where(Profile.public_id == body.profile_id).with_for_update()
@@ -225,7 +235,7 @@ def restore(
 
     if not profile or not matched_code:
         session.rollback()
-        raise ApiProblem(400, "restore_failed", GENERIC_RESTORE_ERROR)
+        raise _fail_generic()
 
     now = utcnow()
     # Conditional UPDATE on used_at IS NULL — if two requests race to spend
@@ -238,7 +248,7 @@ def restore(
     )
     if result.rowcount != 1:
         session.rollback()
-        raise ApiProblem(400, "restore_failed", GENERIC_RESTORE_ERROR)
+        raise _fail_generic()
     installation = Installation(
         profile_id=profile.id,
         token_hash=token_hash,
@@ -256,6 +266,10 @@ def restore(
         {"profileId": profile.public_id},
     )
     session.commit()
+    # AC 2.1.4 — success clears any prior failure counters so a genuine user
+    # who mistyped once is not still one attempt from a lockout.
+    rate_limiter.record_success("profile_restore", body.profile_id)
+    rate_limiter.record_success("profile_restore_ip", client_ip)
     return RestoreResponse(
         access_token=issue_access_token(profile.id, installation.id),
         profile=profile_response(profile),

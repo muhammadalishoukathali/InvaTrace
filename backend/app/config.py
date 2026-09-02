@@ -36,6 +36,10 @@ class Settings(BaseSettings):
     location_privacy_key: str = "development-only-location-key-change-me"
     access_token_ttl_minutes: int = Field(default=15, ge=1, le=60)
     rate_limit_enabled: bool = True
+    # AC 2.3.3 — env-backed sliding submission rate limits.
+    report_create_burst_limit: int = Field(default=10, ge=1, le=10_000)
+    report_create_ip_burst_limit: int = Field(default=30, ge=1, le=10_000)
+    report_create_burst_window_seconds: int = Field(default=600, ge=1, le=86_400)
 
     # S3-compatible object storage config. Two endpoints because MinIO/R2 need a
     # different host for server-side calls (internal) vs the presigned URLs we

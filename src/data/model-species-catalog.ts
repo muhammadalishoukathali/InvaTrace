@@ -26,8 +26,29 @@ export interface ModelSpeciesCatalog {
   classes: ModelSpeciesClass[]
 }
 
+// AC 1.2.2 — classes we have not yet backed with reviewed Malaysian
+// invasive-status evidence. "PULIH v4 approved recognition category" is
+// the model's own recognition metadata, not a Malaysian status source, so
+// the classes below are downgraded to status_uncertain until proper
+// evidence lands. Consumers (frontend + backend) treat status_uncertain
+// as not-reportable and not-action-eligible.
+const _DEFERRED_STATUS_LABELS = new Set([
+  'miconia_crenata',
+  'sphagneticola_trilobata',
+  'lantana_camara',
+])
+
+const _rawCatalog = catalogJson as ModelSpeciesCatalog
+
 /** Single source of truth for every label the bundled PULIH model can emit. */
-export const modelSpeciesCatalog = catalogJson as ModelSpeciesCatalog
+export const modelSpeciesCatalog: ModelSpeciesCatalog = {
+  ..._rawCatalog,
+  classes: _rawCatalog.classes.map((item) => (
+    _DEFERRED_STATUS_LABELS.has(item.machine_label)
+      ? { ...item, malaysia_status: 'status_requires_expert_review', status_source: '' }
+      : item
+  )),
+}
 
 // machine_label in the JSON uses underscores, but species IDs elsewhere in the app
 // (routes, plant_id in the guidance dataset) use hyphens, so we index on the hyphenated

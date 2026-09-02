@@ -572,6 +572,10 @@ test('private detector can scan, analyse, and submit', async ({ page, context })
   await expect(page).toHaveURL(/\/report$/)
   await expect(page.getByText(/Accurate to ~15 m/)).toBeVisible()
   await page.getByRole('button', { name: 'Continue' }).click()
+  // AC 4.1.1 wizard requires an explicit extent selection before the
+  // Continue button on the extent step unlocks; the radio input is
+  // visually replaced by the wrapping label, so click the label itself.
+  await page.getByText('Single plant', { exact: true }).click()
   await page.getByRole('button', { name: 'Continue' }).click()
   await page.getByRole('checkbox', { name: /accurate/i }).check()
   await page.getByRole('checkbox', { name: /personal information/i }).check()

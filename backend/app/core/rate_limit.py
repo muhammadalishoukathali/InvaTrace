@@ -1,15 +1,33 @@
-"""Redis-backed rate limiting, one fixed window per (scope, identity) pair.
+"""Redis-backed rate limiting.
 
-Fairly blunt fixed-window counters rather than a sliding log — good enough
-for our traffic and much cheaper to reason about. The important behavioural
-detail is fail_closed: in production, if Redis is down we reject requests
-rather than let them through unlimited (see RateLimiter.check below).
+Two algorithms supported per scope:
+
+* ``fixed`` — a single INCR-and-EXPIRE counter per (scope, identity) window.
+  Cheap and predictable. Used for scopes where "N requests in the last
+  window_seconds" is a good enough approximation and burstiness at window
+  edges is acceptable.
+
+* ``sliding`` — a sorted set of per-request timestamps. Each recorded
+  attempt is ZADDed with ``score=now``; ``ZREMRANGEBYSCORE`` drops anything
+  older than ``window_seconds`` before the count is taken. Enforces the
+  literal "no more than N in the preceding window" that AC 2.1.4 and AC
+  2.3.3 require without the fixed-window doubling at window boundaries.
+
+Restoration (AC 2.1.4) counts *failed* restore attempts only, so identity.py
+uses ``check_pre_failure`` before doing work and ``record_failure`` /
+``record_success`` after — successful restores never age the failure state.
+
+In production Redis outages fail closed (503) rather than let traffic
+through unmetered.
 """
 
 from __future__ import annotations
 
 import hashlib
+import time
+import uuid
 from dataclasses import dataclass
+from typing import Literal
 
 from fastapi import Request
 from redis import Redis
@@ -18,35 +36,66 @@ from redis.exceptions import RedisError
 from app.config import get_settings
 from app.core.errors import ApiProblem
 
+Algorithm = Literal["fixed", "sliding"]
+
 
 @dataclass(frozen=True)
 class Limit:
     requests: int
     window_seconds: int
+    algorithm: Algorithm = "fixed"
 
 
-# one entry per rate-limited scope in the app — request counts and windows
-# were picked to make abuse expensive without getting in the way of a normal
-# volunteer submitting a handful of sightings on a walk
-LIMITS = {
-    "profile_start": Limit(10, 60),
-    "profile_bootstrap": Limit(30, 60),
-    "profile_restore": Limit(5, 15 * 60),
-    "profile_restore_ip": Limit(5, 15 * 60),
-    "recovery_rotate": Limit(5, 60 * 60),
-    "installation_revoke": Limit(20, 60 * 60),
-    "upload_presign": Limit(30, 60),
-    "report_create_burst": Limit(10, 10 * 60),
-    "report_create_ip_burst": Limit(30, 10 * 60),
-    "report_create_daily": Limit(50, 24 * 60 * 60),
-    "sightings_read": Limit(120, 60),
-}
+def _build_limits() -> dict[str, Limit]:
+    settings = get_settings()
+    return {
+        "profile_start": Limit(10, 60),
+        "profile_bootstrap": Limit(30, 60),
+        # AC 2.1.4 — sliding, counted per *failed* restore attempt only. The
+        # restore router calls ``check_pre_failure`` before doing work and
+        # ``record_failure`` / ``record_success`` after.
+        "profile_restore": Limit(5, 15 * 60, algorithm="sliding"),
+        "profile_restore_ip": Limit(5, 15 * 60, algorithm="sliding"),
+        "recovery_rotate": Limit(5, 60 * 60),
+        "installation_revoke": Limit(20, 60 * 60),
+        "upload_presign": Limit(30, 60),
+        # AC 2.3.3 — env-backed sliding submission limits.
+        "report_create_burst": Limit(
+            settings.report_create_burst_limit,
+            settings.report_create_burst_window_seconds,
+            algorithm="sliding",
+        ),
+        "report_create_ip_burst": Limit(
+            settings.report_create_ip_burst_limit,
+            settings.report_create_burst_window_seconds,
+            algorithm="sliding",
+        ),
+        "report_create_daily": Limit(50, 24 * 60 * 60),
+        "sightings_read": Limit(120, 60),
+    }
+
+
+# Populated lazily so tests can override settings before the module is imported.
+LIMITS: dict[str, Limit] = {}
+
+
+def _limit_for(scope: str) -> Limit:
+    if not LIMITS:
+        LIMITS.update(_build_limits())
+    return LIMITS[scope]
+
+
+def reload_limits() -> None:
+    """Rebuild the LIMITS map from current settings; used by tests that flip
+    the report_* env vars."""
+    LIMITS.clear()
+    LIMITS.update(_build_limits())
 
 
 def client_address(request: Request) -> str:
-    # best-effort IP for the *_ip scoped limits — falls back to "unknown" rather
-    # than raising, since we'd rather rate-limit a weird proxy setup too
-    # aggressively than crash the request over it
+    # best-effort IP for the *_ip scoped limits. Real client address must
+    # already have been unwrapped from X-Forwarded-For by the trusted-proxy
+    # middleware in main.py — this reads Starlette's resolved client.host.
     return request.client.host if request.client else "unknown"
 
 
@@ -54,8 +103,6 @@ class RateLimiter:
     def __init__(self) -> None:
         settings = get_settings()
         self.enabled = settings.rate_limit_enabled
-        # only production fails closed — local/staging shouldn't grind to a
-        # halt just because someone's Redis container isn't running
         self.fail_closed = settings.app_env == "production"
         self.redis = Redis.from_url(settings.redis_url, decode_responses=True)
 
@@ -66,30 +113,22 @@ class RateLimiter:
         # might dump for debugging
         return hashlib.sha256(value.encode("utf-8")).hexdigest()
 
-    def check(self, scope: str, identity: str) -> None:
-        """Raise ApiProblem(429) if this scope+identity is over its limit for the
-        current window, otherwise just increment the counter and return.
-        """
-        if not self.enabled:
-            return
-        limit = LIMITS[scope]
-        key = f"invatrace:limit:{scope}:{self._safe_key(identity)}"
+    def _key(self, scope: str, identity: str) -> str:
+        return f"invatrace:limit:{scope}:{self._safe_key(identity)}"
+
+    # ---- fixed-window primitives ---------------------------------------
+
+    def _fixed_incr(self, scope: str, identity: str, limit: Limit) -> None:
+        key = self._key(scope, identity)
         try:
-            # INCR+TTL in one pipeline so we're not making two round trips, and
-            # transaction=True keeps them atomic against a concurrent request
             pipeline = self.redis.pipeline(transaction=True)
             pipeline.incr(key)
             pipeline.ttl(key)
             count, ttl = pipeline.execute()
             if ttl < 0:
-                # key was just created by the INCR above and has no expiry yet —
-                # this is the first request in a fresh window, so start the clock
                 self.redis.expire(key, limit.window_seconds)
                 ttl = limit.window_seconds
         except RedisError as error:
-            # production: no Redis means no ability to enforce limits, and letting
-            # traffic through unmetered is worse than a degraded response — fail
-            # closed. Non-prod: don't let a dev's local Redis outage block them.
             if self.fail_closed:
                 raise ApiProblem(
                     503, "rate_limit_unavailable", "Service temporarily unavailable"
@@ -103,8 +142,117 @@ class RateLimiter:
                 headers={"Retry-After": str(max(1, int(ttl)))},
             )
 
+    # ---- sliding-window primitives ------------------------------------
+
+    def _sliding_count(self, scope: str, identity: str, limit: Limit) -> tuple[int, int]:
+        """Return (current_count, retry_after_seconds) for the sliding key.
+
+        The oldest surviving member's timestamp determines Retry-After: the
+        client has to wait until that member ages out of the window before
+        another attempt is allowed.
+        """
+        key = self._key(scope, identity)
+        now = time.time()
+        cutoff = now - limit.window_seconds
+        try:
+            pipeline = self.redis.pipeline(transaction=True)
+            pipeline.zremrangebyscore(key, "-inf", cutoff)
+            pipeline.zrange(key, 0, 0, withscores=True)
+            pipeline.zcard(key)
+            _, oldest, count = pipeline.execute()
+        except RedisError as error:
+            if self.fail_closed:
+                raise ApiProblem(
+                    503, "rate_limit_unavailable", "Service temporarily unavailable"
+                ) from error
+            return 0, 0
+        retry_after = 0
+        if oldest:
+            _, score = oldest[0]
+            retry_after = max(1, int(score + limit.window_seconds - now))
+        return int(count), retry_after
+
+    def _sliding_add(self, scope: str, identity: str, limit: Limit) -> None:
+        key = self._key(scope, identity)
+        now = time.time()
+        member = f"{now:.6f}:{uuid.uuid4().hex}"
+        try:
+            pipeline = self.redis.pipeline(transaction=True)
+            pipeline.zadd(key, {member: now})
+            pipeline.expire(key, limit.window_seconds)
+            pipeline.execute()
+        except RedisError as error:
+            if self.fail_closed:
+                raise ApiProblem(
+                    503, "rate_limit_unavailable", "Service temporarily unavailable"
+                ) from error
+
+    def _sliding_clear(self, scope: str, identity: str) -> None:
+        key = self._key(scope, identity)
+        try:
+            self.redis.delete(key)
+        except RedisError:
+            # Clearing on success is best-effort; a failure just means the
+            # failure counter will age out naturally.
+            return
+
+    # ---- public API ----------------------------------------------------
+
+    def check(self, scope: str, identity: str) -> None:
+        """Record an attempt against ``(scope, identity)`` and raise 429 if
+        the resulting count exceeds the configured limit. This is the "count
+        every request" path used by submission and read scopes.
+        """
+        if not self.enabled:
+            return
+        limit = _limit_for(scope)
+        if limit.algorithm == "sliding":
+            self._sliding_add(scope, identity, limit)
+            count, retry_after = self._sliding_count(scope, identity, limit)
+            if count > limit.requests:
+                raise ApiProblem(
+                    429,
+                    "rate_limited",
+                    "Too many requests. Try again later.",
+                    headers={"Retry-After": str(max(1, retry_after))},
+                )
+            return
+        self._fixed_incr(scope, identity, limit)
+
+    def check_pre_failure(self, scope: str, identity: str) -> None:
+        """Count-only precheck for scopes that record on failure. Raises 429
+        if the identity is already over its limit from previously recorded
+        failures within the current sliding window.
+        """
+        if not self.enabled:
+            return
+        limit = _limit_for(scope)
+        count, retry_after = self._sliding_count(scope, identity, limit)
+        if count >= limit.requests:
+            raise ApiProblem(
+                429,
+                "rate_limited",
+                "Too many attempts. Try again later.",
+                headers={"Retry-After": str(max(1, retry_after))},
+            )
+
+    def record_failure(self, scope: str, identity: str) -> None:
+        """Register a failed attempt in the sliding-window key so subsequent
+        ``check_pre_failure`` calls see it."""
+        if not self.enabled:
+            return
+        self._sliding_add(scope, identity, _limit_for(scope))
+
+    def record_success(self, scope: str, identity: str) -> None:
+        """Clear the sliding-window failure state after a successful attempt.
+        AC 2.1.4 — a successful restore must not leave stale failure counters
+        that push a genuine user toward the 429 threshold.
+        """
+        if not self.enabled:
+            return
+        self._sliding_clear(scope, identity)
+
     def ping(self) -> bool:
-        # used by the health check endpoint, not by request handling itself
         if not self.enabled:
             return True
         try:

@@ -58,6 +58,7 @@ def create_scan(
         confidence=body.confidence,
         model_version=body.model_version,
         image_sha256=image_hash,
+        capture_source=body.capture_source,
     )
     session.add(scan)
     session.commit()
@@ -73,5 +74,6 @@ def _to_response(scan: Scan) -> ScanResponse:
         outcome=scan.outcome,
         confidence=float(scan.confidence),
         model_version=scan.model_version,
+        capture_source=scan.capture_source,
         created_at=scan.created_at,
     )

@@ -357,7 +357,12 @@ function naturalIdentificationNote(note: string): string {
 }
 
 function decisionToPermission(decision: GuidanceDecision | null): PermissionChoice {
-  if (!decision) return 'none'
+  // AC 3.1.2 — until the user has made an explicit permission choice for
+  // this scan, treat the plant as "protected land or permission unknown".
+  // Observation / photography / location / reporting guidance is shown
+  // immediately from that path; active actions stay locked behind an
+  // explicit permission selection plus the later safety gates.
+  if (!decision) return 'unknown'
   return decision.choice === 'protected_or_unsure' ? 'unknown' : 'explicit_permission'
 }
 
@@ -476,29 +481,90 @@ function PermissionGate({
       )}
 
       {permission === 'explicit_permission' && stopConditions.length > 0 && (
-        <div style={{ marginTop: 12 }}>
-          <div style={{ fontSize: 12, fontWeight: 700, color: 'var(--red)', textTransform: 'uppercase', letterSpacing: '0.04em' }}>
-            Stop and leave the plant if any of these apply
-          </div>
-          <SourcedList items={stopConditions} tone="danger" />
-          <label
-            style={{
-              marginTop: 8, display: 'flex', gap: 8, alignItems: 'flex-start',
-              fontSize: 12.5, color: 'var(--body)', lineHeight: 1.5,
-            }}
-          >
-            <input
-              type="checkbox"
-              checked={stopConditionsClear}
-              onChange={(event) => setStopConditionsClear(event.target.checked)}
-            />
-            <span>I have read the stop conditions and none of them apply here.</span>
-          </label>
-          <p style={{ marginTop: 6, fontSize: 11.5, color: 'var(--muted)' }}>
-            If any item applies, leave this unchecked and report the plant without disturbing it.
-          </p>
-        </div>
+        <StopConditionsGate
+          conditions={stopConditions}
+          allClear={stopConditionsClear}
+          setAllClear={setStopConditionsClear}
+        />
       )}
+    </div>
+  )
+}
+
+// AC 3.2.2 — each stop condition is an explicit selectable item. Selecting
+// any condition immediately hides active steps (setAllClear(false)) and the
+// "None of these apply here" confirmation is disabled until every trigger is
+// cleared. Prevents the previous "one bulk none-apply checkbox" from
+// silently unlocking active steps when one specific condition does apply.
+function StopConditionsGate({
+  conditions,
+  allClear,
+  setAllClear,
+}: {
+  conditions: { text: string; source_ids: string[] }[] | string[]
+  allClear: boolean
+  setAllClear: (value: boolean) => void
+}) {
+  const [triggered, setTriggered] = useState<Set<number>>(new Set())
+  const anyTriggered = triggered.size > 0
+  useEffect(() => {
+    if (anyTriggered && allClear) setAllClear(false)
+  }, [anyTriggered, allClear, setAllClear])
+  const toggle = (index: number) => {
+    const next = new Set(triggered)
+    if (next.has(index)) next.delete(index)
+    else next.add(index)
+    setTriggered(next)
+  }
+  return (
+    <div style={{ marginTop: 12 }} role="group" aria-label="Stop conditions">
+      <div style={{ fontSize: 12, fontWeight: 700, color: 'var(--red)', textTransform: 'uppercase', letterSpacing: '0.04em' }}>
+        Stop and leave the plant if any of these apply
+      </div>
+      <ul style={{ marginTop: 8, padding: 0, listStyle: 'none', display: 'flex', flexDirection: 'column', gap: 6 }}>
+        {conditions.map((condition, index) => {
+          const text = typeof condition === 'string' ? condition : condition.text
+          const isOn = triggered.has(index)
+          return (
+            <li key={index}>
+              <label style={{
+                display: 'flex', gap: 8, alignItems: 'flex-start',
+                fontSize: 12.5, color: 'var(--body)', lineHeight: 1.5,
+                padding: '8px 10px', borderRadius: 'var(--r-input)',
+                background: isOn ? 'var(--red-light)' : 'var(--bg-alt)',
+                border: `1px solid ${isOn ? 'var(--red-border)' : 'var(--border)'}`,
+                cursor: 'pointer',
+              }}>
+                <input
+                  type="checkbox"
+                  checked={isOn}
+                  onChange={() => toggle(index)}
+                  aria-label={`This condition applies: ${text}`}
+                />
+                <span><strong>This applies:</strong> {text}</span>
+              </label>
+            </li>
+          )
+        })}
+      </ul>
+      {anyTriggered && (
+        <p role="alert" style={{ marginTop: 8, fontSize: 12, color: 'var(--red-text)', lineHeight: 1.5 }}>
+          A stop condition applies. Do not disturb the plant. Report the sighting for review.
+        </p>
+      )}
+      <label style={{
+        marginTop: 10, display: 'flex', gap: 8, alignItems: 'flex-start',
+        fontSize: 12.5, color: 'var(--body)', lineHeight: 1.5,
+        opacity: anyTriggered ? 0.5 : 1,
+      }}>
+        <input
+          type="checkbox"
+          checked={allClear}
+          disabled={anyTriggered}
+          onChange={(event) => setAllClear(event.target.checked)}
+        />
+        <span>None of these apply here.</span>
+      </label>
     </div>
   )
 }
@@ -757,6 +823,11 @@ function SourceLine({ ids, inline }: { ids: string[]; inline?: boolean }) {
 
 function SafetyPolicyFooter({ plant }: { plant: PlantGuidance }) {
   const policy = plantGuidanceDataset.safety_policy
+  // AC 3.1.4 + 3.2.4 — display dataset review date and content version so
+  // the user can see the provenance of the guidance they are following.
+  const reviewLabel = plantGuidanceDataset.last_reviewed
+    ? `Guidance last reviewed ${plantGuidanceDataset.last_reviewed}`
+    : 'Guidance review date unavailable'
   return (
     <details
       style={{
@@ -770,6 +841,9 @@ function SafetyPolicyFooter({ plant }: { plant: PlantGuidance }) {
       <summary style={{ cursor: 'pointer', fontSize: 12.5, fontWeight: 600, color: 'var(--body)' }}>
         Safety notes and sources
       </summary>
+      <p style={{ marginTop: 6, fontSize: 11.5, color: 'var(--muted)' }}>
+        <strong>{reviewLabel}</strong> · Content version {plantGuidanceDataset.content_version} · Plant {plant.plant_id}
+      </p>
       <div style={{ marginTop: 10, fontSize: 12, color: 'var(--body)', lineHeight: 1.6 }}>
         <p><strong>Identification:</strong> A photo can suggest a species, but it cannot confirm one. If the result is unclear, photograph and report the plant without disturbing it.</p>
         <p style={{ marginTop: 6 }}><strong>Permission:</strong> Being outside a mapped protected area does not give you permission to remove a plant. Removal steps only appear after you confirm approval from the land or waterbody manager.</p>

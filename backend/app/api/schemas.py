@@ -243,6 +243,8 @@ class SpeciesDetail(ApiModel):
     status_source_id: str | None = None
     status_reviewed_at: datetime | None = None
     general_information: str | None = None
+    # AC 1.2.3 — canonical "do not act" message tailored per Malaysia status.
+    safety_message: str | None = None
     action_eligible: bool
     report_eligible: bool
 
@@ -258,6 +260,9 @@ class ScanCreateRequest(ApiModel):
     confidence: float = Field(ge=0, le=1)
     model_version: Annotated[str, StringConstraints(min_length=1, max_length=120)]
     image_sha256_hex: Annotated[str, StringConstraints(pattern=r"^[0-9a-fA-F]{64}$")] | None = None
+    # AC 2.2.1 — capture source recorded at classification time so the later
+    # report submission can be checked against it.
+    capture_source: Literal["camera", "gallery"] | None = None
 
 
 class ScanResponse(ApiModel):
@@ -267,6 +272,7 @@ class ScanResponse(ApiModel):
     outcome: Outcome
     confidence: float
     model_version: str
+    capture_source: Literal["camera", "gallery"] | None = None
     created_at: datetime
 
 
@@ -314,6 +320,11 @@ class ReportSubmissionDetails(ApiModel):
 
 
 class ReportSubmission(ReportSubmissionDetails):
+    # Early comparison value only — the server re-hashes the uploaded bytes
+    # and rejects any mismatch (see reports.create_report). Never trusted
+    # alone, and never echoed back in ReportResponse.submission.
+    image_sha256: Annotated[str, StringConstraints(pattern=r"^[0-9a-fA-F]{64}$")] | None = None
+
     @field_validator("model_version", "notes")
     @classmethod
     def reject_controls(cls, value: str) -> str:
@@ -387,6 +398,15 @@ class SightingResponse(ApiModel):
     last_reported_at: datetime
     place: PlaceAssociation
     thumbnail_url: str | None
+    # AC 4.2.2 — confidence associated with the representative (max across
+    # currently-linked reports) so the detail panel can show how confident
+    # the classifier was overall. Nullable for legacy rows lacking reports.
+    confidence: float | None = None
+    # AC 4.3.1 — nearest OSM feature stored at publication time. Rendered
+    # first in the detail panel; a live client lookup is non-authoritative.
+    nearest_feature_type: str | None = None
+    nearest_feature_name: str | None = None
+    nearest_feature_distance_m: float | None = None
     screening_method: Literal["deterministic_rules"] = "deterministic_rules"
 
 

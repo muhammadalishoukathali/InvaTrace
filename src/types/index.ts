@@ -140,6 +140,12 @@ export interface SpeciesDetail {
   // Review metadata for the species' Malaysia-status record.
   statusReviewedAt?: string
   statusSourceId?: string
+  // AC 1.2.3 — short paragraph shown on every accepted supported label
+  // so information-only and status-uncertain outcomes also get sourced
+  // general context, and a fixed safety message explaining why the app
+  // is not offering active guidance.
+  generalInformation?: string | null
+  safetyMessage?: string | null
   /** Curated specimen photo used for visual comparison. */
   referenceImageUrl?: string
   referenceImageCredit?: string
@@ -261,6 +267,15 @@ export interface Sighting {
   lastReportedAt: string
   place: PlaceAssociation
   thumbnailUrl: string | null
+  /** AC 4.2.2 — representative model confidence for the aggregated sighting
+   *  (max across currently-linked reports). Null when no linked report has a
+   *  recorded confidence value. */
+  confidence: number | null
+  /** AC 4.3.1 — server-stored nearest named OSM feature within 5 km, or null
+   *  when no allow-listed feature exists in range. */
+  nearestFeatureType: string | null
+  nearestFeatureName: string | null
+  nearestFeatureDistanceM: number | null
   screeningMethod: 'deterministic_rules'
 }
 

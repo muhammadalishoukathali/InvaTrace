@@ -19,6 +19,29 @@ from sqlalchemy.orm import Session
 from app.db.models import MonitoredArea, MonitoredPlace, Trail
 
 
+# AC 4.3.1 — only these OSM feature classes count toward the stored nearest
+# result. Anything else in the imported data (roads, farmland, water) is
+# ignored so the surfaced label is genuinely useful for a field volunteer.
+_TRAIL_CATEGORIES = {"path", "footway", "track"}
+_AREA_CATEGORIES = {"park", "forest", "wood"}
+_NEAREST_RADIUS_M = 5_000
+
+
+@dataclass(frozen=True)
+class NearestOsmFeature:
+    """AC 4.3.1 — stored nearest named OSM feature within 5 km of a sighting.
+
+    ``distance_m`` is the PostGIS geography distance from the report point to
+    the feature geometry, rounded to two decimal places. `feature_type` is the
+    OSM ``highway``/``leisure``/``landuse``/``natural`` tag value that put
+    the feature into the allow-list (path/footway/track/park/forest/wood).
+    """
+
+    feature_type: str
+    name: str
+    distance_m: float
+
+
 @dataclass(frozen=True)
 class AssociatedPlace:
     display_name: str
@@ -91,3 +114,86 @@ def associate_place(
     if seeded:
         return AssociatedPlace(seeded[0].name, None, None, None, None, "seed")
     return AssociatedPlace("Reported location, Malaysia", None, None, None, None, "fallback")
+
+
+def nearest_osm_feature(
+    session: Session, *, latitude: float, longitude: float
+) -> NearestOsmFeature | None:
+    """Return the actual nearest named OSM feature within 5 km of the point,
+    across both trail lines (path/footway/track) and area polygons (park/
+    forest/wood). Returns ``None`` when no allow-listed named feature falls
+    inside the search radius; the caller (report screening → sighting
+    publication) leaves the stored columns unset in that case, and the
+    detail panel shows "No named trail, park or forest found nearby".
+
+    PostGIS distance is measured against the imported feature geometry, not
+    against a reduced/public location — the stored value is authoritative;
+    a live client lookup is only ever enrichment (AC 4.3.1).
+    """
+    point = func.ST_SetSRID(func.ST_MakePoint(longitude, latitude), 4326)
+    geography = cast(point, Geography("POINT", srid=4326))
+    candidates: list[NearestOsmFeature] = []
+
+    trail_row = session.execute(
+        select(
+            Trail.name,
+            Trail.metadata_json,
+            func.ST_Distance(Trail.geometry, geography),
+        )
+        .where(
+            Trail.name.is_not(None),
+            func.ST_DWithin(Trail.geometry, geography, _NEAREST_RADIUS_M),
+        )
+        .order_by(func.ST_Distance(Trail.geometry, geography))
+        .limit(1)
+    ).first()
+    if trail_row and trail_row[0]:
+        category = _categorise(trail_row[1] or {}, _TRAIL_CATEGORIES)
+        if category is not None:
+            candidates.append(
+                NearestOsmFeature(category, trail_row[0], round(float(trail_row[2]), 2))
+            )
+
+    area_row = session.execute(
+        select(
+            MonitoredArea.name,
+            MonitoredArea.metadata_json,
+            func.ST_Distance(MonitoredArea.geometry, geography),
+        )
+        .where(
+            MonitoredArea.name.is_not(None),
+            func.ST_DWithin(MonitoredArea.geometry, geography, _NEAREST_RADIUS_M),
+        )
+        .order_by(func.ST_Distance(MonitoredArea.geometry, geography))
+        .limit(1)
+    ).first()
+    if area_row and area_row[0]:
+        category = _categorise(area_row[1] or {}, _AREA_CATEGORIES)
+        if category is not None:
+            candidates.append(
+                NearestOsmFeature(category, area_row[0], round(float(area_row[2]), 2))
+            )
+
+    if not candidates:
+        return None
+    # Tie-break: shortest distance wins; equal distances prefer trail (path)
+    # over area because a named trail is more specific field-guidance context.
+    candidates.sort(key=lambda feature: (feature.distance_m, feature.feature_type not in _TRAIL_CATEGORIES))
+    return candidates[0]
+
+
+def _categorise(metadata: dict, allowed: set[str]) -> str | None:
+    """OSM tags land in metadata_json under mixed key names by importer
+    version; try the common tag keys and return the first allowed value."""
+    for key in ("highway", "leisure", "landuse", "natural", "category", "type"):
+        raw = metadata.get(key)
+        if isinstance(raw, str) and raw in allowed:
+            return raw
+    tags = metadata.get("tags")
+    if isinstance(tags, dict):
+        for key, value in tags.items():
+            if isinstance(value, str) and value in allowed and key in {
+                "highway", "leisure", "landuse", "natural"
+            }:
+                return value
+    return None

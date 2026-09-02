@@ -261,8 +261,8 @@
       "scientific_name": "Miconia crenata",
       "display_name": "Miconia crenata",
       "recognition_category": "common_invasive",
-      "malaysia_status": "invasive",
-      "status_source": "PULIH v4 approved recognition category"
+      "malaysia_status": "status_requires_expert_review",
+      "status_source": null
     },
     {
       "class_index": 29,
@@ -270,8 +270,8 @@
       "scientific_name": "Sphagneticola trilobata",
       "display_name": "Sphagneticola trilobata",
       "recognition_category": "common_invasive",
-      "malaysia_status": "invasive",
-      "status_source": "PULIH v4 approved recognition category"
+      "malaysia_status": "status_requires_expert_review",
+      "status_source": null
     },
     {
       "class_index": 30,
@@ -279,8 +279,8 @@
       "scientific_name": "Lantana camara",
       "display_name": "Lantana camara",
       "recognition_category": "common_invasive",
-      "malaysia_status": "invasive",
-      "status_source": "PULIH v4 approved recognition category"
+      "malaysia_status": "status_requires_expert_review",
+      "status_source": null
     }
   ],
   "content_notice": "Recognition metadata is not removal advice. Add separately reviewed look-alike and safe-action content before public release."

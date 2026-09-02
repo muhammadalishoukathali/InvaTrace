@@ -48,7 +48,7 @@ from app.domain.evidence_screening import (
     perceptual_distance,
     screen_image,
 )
-from app.domain.place_association import associate_place
+from app.domain.place_association import associate_place, nearest_osm_feature
 from app.domain.validation import POLICY_VERSION, ValidationDecision, ValidationInput, evaluate
 from app.services.storage import storage
 
@@ -332,6 +332,29 @@ def process_job(job_id: str) -> None:
                 merge_target=merge_target,
                 published_sighting=published_sighting,
             )
+            # AC 2.3.2 — dedicated merge audit event carrying who/when/why so
+            # the decision is inspectable independently of the general
+            # screening-completed event above.
+            if decision.status == "merged" and merge_target is not None:
+                session.add(
+                    AuditEvent(
+                        event_type="report.merged_into_sighting",
+                        acting_profile_id=report.profile_id,
+                        subject_type="sighting",
+                        subject_id=str(merge_target.id),
+                        metadata_json={
+                            "reportId": str(report.id),
+                            "distanceM": merge_distance_m,
+                            "windowMinutes": get_settings().screening_duplicate_window_minutes,
+                            "radiusM": get_settings().screening_duplicate_radius_max_m,
+                            "trigger": (
+                                "owner_species_replay"
+                                if merge_distance_m == 0.0
+                                else "same_owner_nearby"
+                            ),
+                        },
+                    )
+                )
             _notify_resolution(session, report)
             _update_trust(session, report, published_sighting)
             job.status = "completed"
@@ -496,20 +519,23 @@ def _find_merge_target(
     report: Report,
     species_id: str,
 ) -> tuple[Sighting | None, float | None]:
-    """AC 2.3.2: same species + within 25 m + within 10 min → merge with existing sighting."""
+    """AC 2.3.2: same owner + same species + stored-coordinate distance ≤ 25 m
+    + within 10 min → merge with existing sighting. The radius is exactly 25 m
+    regardless of the client-reported GPS accuracy — expanding by accuracy
+    silently created merges across other users' reports that happened to sit
+    inside the fuzz zone."""
     settings = get_settings()
-    # AC-literal 25 m radius, expanded when reported accuracy is worse than that.
-    radius_m = max(settings.screening_duplicate_radius_max_m, report.location_accuracy_m or 0)
+    radius_m = settings.screening_duplicate_radius_max_m
     window_minutes = settings.screening_duplicate_window_minutes
-    # A Sighting only exists if a prior report was screened; use its updated_at as
-    # the recency proxy (updated on create and on every merge). This dodges the
-    # race where a first report is still `processing` when the second lands.
     cutoff = datetime.now(UTC) - timedelta(minutes=window_minutes)
     candidate_row = session.execute(
         select(Sighting, func.ST_Distance(Sighting.location, report.location))
         .where(
             Sighting.species_id == species_id,
             Sighting.status == "screened",
+            # AC 2.3.2 — merge only into sightings owned by the same anonymous
+            # profile; cross-owner near-coincidences must stay distinct on the map.
+            Sighting.source_profile_id == report.profile_id,
             Sighting.updated_at >= cutoff,
             func.ST_DWithin(Sighting.location, report.location, radius_m),
         )
@@ -550,6 +576,19 @@ def _publish_decision(
         longitude=float(report.longitude),
         accuracy_m=report.location_accuracy_m,
     )
+    # AC 4.3.1 — nearest named OSM feature within 5 km, stored so the map/
+    # detail panel does not depend on a live Overpass round-trip. Failure
+    # to compute is non-fatal: the field just stays null and the panel
+    # shows "No named trail, park or forest found nearby" (AC 4.3.2).
+    nearest = None
+    try:
+        nearest = nearest_osm_feature(
+            session,
+            latitude=float(report.latitude),
+            longitude=float(report.longitude),
+        )
+    except Exception:  # noqa: BLE001 — best-effort enrichment
+        log.exception("nearest_osm.failed", report_id=str(report.id))
     sighting = Sighting(
         species_id=species.id,
         source_profile_id=report.profile_id,
@@ -562,6 +601,9 @@ def _publish_decision(
         area_id=place.area_id,
         trail_id=place.trail_id,
         place_label=place.display_name,
+        nearest_feature_type=nearest.feature_type if nearest else None,
+        nearest_feature_name=nearest.name if nearest else None,
+        nearest_feature_distance_m=nearest.distance_m if nearest else None,
     )
     session.add(sighting)
     session.flush()  # need sighting.id before we can build its thumbnail key

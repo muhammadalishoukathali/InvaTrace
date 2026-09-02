@@ -26,7 +26,6 @@ interface Overflow {
   offendingSelectors: string[]
   screenshot: string
 }
-const findings: Overflow[] = []
 
 const REPORT_JSON = path.join(OUT, 'report.json')
 if (!fs.existsSync(REPORT_JSON)) fs.writeFileSync(REPORT_JSON, '[]')

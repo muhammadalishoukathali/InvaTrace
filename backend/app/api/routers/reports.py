@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import hashlib
 import uuid
 from datetime import timedelta
 
@@ -127,30 +128,50 @@ def create_report(
     metadata = storage.head(grant.object_key)
     if metadata.size_bytes != grant.size_bytes or metadata.content_type != grant.content_type:
         raise ApiProblem(409, "upload_mismatch", "The uploaded image does not match its grant.")
+    # AC release blocker + AC 2.3.1 — recompute SHA-256 from the uploaded bytes.
+    # Any client-supplied imageSha256 is checked as an early comparison but never
+    # trusted alone; the server-computed hash is what gets persisted and used for
+    # duplicate detection.
+    server_hash = hashlib.sha256(storage.get_bytes(grant.object_key)).digest()
+    if body.image_sha256 is not None:
+        client_hash = bytes.fromhex(body.image_sha256)
+        if client_hash != server_hash:
+            raise ApiProblem(
+                422,
+                "image_hash_mismatch",
+                "The image hash does not match the uploaded bytes.",
+            )
     species = session.get(Species, body.species_id) if body.species_id else None
     if body.species_id and not species:
         raise ApiProblem(400, "unknown_species", "The species is not supported.")
-    # AC 2.2.1 — if the client persisted a scan for this capture, re-read it and reject
-    # any submission that tries to swap the species from what the model actually returned.
+    # AC 2.2.1 — a report must be tied to a scan owned by the same profile.
+    # A missing scan is a client bug (the app must persist the scan before
+    # enabling the Report button), so reject with a field-specific 422 rather
+    # than silently accepting the report on weaker cross-checks.
     scan_record = session.scalar(
         select(Scan).where(
             Scan.capture_id == body.capture_id,
             Scan.profile_id == auth.profile.id,
         )
     )
-    if scan_record is not None:
-        if scan_record.outcome != body.outcome:
-            raise ApiProblem(
-                422,
-                "scan_outcome_mismatch",
-                "Report outcome does not match the recorded scan.",
-            )
-        if (scan_record.predicted_species_id or None) != (body.species_id or None):
-            raise ApiProblem(
-                422,
-                "scan_species_mismatch",
-                "Report species does not match the recorded scan.",
-            )
+    if scan_record is None:
+        raise ApiProblem(
+            422,
+            "scan_missing",
+            "The scan for this capture must be persisted before submitting a report.",
+        )
+    if scan_record.outcome != body.outcome:
+        raise ApiProblem(422, "scan_outcome_mismatch", "Report outcome does not match the recorded scan.")
+    if (scan_record.predicted_species_id or None) != (body.species_id or None):
+        raise ApiProblem(422, "scan_species_mismatch", "Report species does not match the recorded scan.")
+    if abs(float(scan_record.confidence) - float(body.confidence)) > 1e-4:
+        raise ApiProblem(422, "scan_confidence_mismatch", "Report confidence does not match the recorded scan.")
+    if scan_record.model_version != body.model_version:
+        raise ApiProblem(422, "scan_model_version_mismatch", "Report model version does not match the recorded scan.")
+    if scan_record.capture_source is not None and scan_record.capture_source != body.capture_source:
+        raise ApiProblem(422, "scan_capture_source_mismatch", "Report capture source does not match the recorded scan.")
+    if scan_record.image_sha256 is not None and scan_record.image_sha256 != server_hash:
+        raise ApiProblem(422, "scan_image_hash_mismatch", "Report image hash does not match the recorded scan.")
     if body.outcome == "target" and species and not species.reportable:
         raise ApiProblem(
             422,
@@ -180,6 +201,7 @@ def create_report(
         profile_id=auth.profile.id,
         species_id=body.species_id,
         status="processing",
+        scan_id=scan_record.id,
         photo_key=evidence_key,
         outcome=body.outcome,
         confidence=body.confidence,
@@ -196,6 +218,7 @@ def create_report(
         consent_no_pii=body.consent.no_pii,
         submitter_trust=auth.profile.trust_level,
         idempotency_key=idempotency_key,
+        content_sha256=server_hash,
     )
     session.add(report)
     session.flush()
