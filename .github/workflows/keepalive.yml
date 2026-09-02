@@ -1,0 +1,13 @@
+name: keepalive
+on:
+  schedule:
+    - cron: '*/10 * * * *'
+  workflow_dispatch:
+jobs:
+  ping:
+    runs-on: ubuntu-latest
+    steps:
+      - run: |
+          for url in https://invatrace-api.onrender.com/health https://invatrace-web.onrender.com; do
+            curl -fsS -o /dev/null -w "%{http_code} $url\n" -m 60 "$url" || true
+          done
