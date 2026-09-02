@@ -136,11 +136,14 @@ export async function submitReport(
 ): Promise<SubmitOutcome> {
   const ownerProfileId = usePrivateAccess.getState().profile?.id
   if (!ownerProfileId) throw new Error('Private access must be ready before submitting a report.')
-  const queuedId = crypto.randomUUID()
-  // Hash the raw capture once so the server can
-  // reject exact duplicates from this identity. Hash lives on the submission
-  // only; the raw bytes never leave the device beyond the presigned upload.
+  // Derive the queue id (which becomes the report-create Idempotency-Key) from
+  // the scan's stable captureId, not a fresh UUID per call. A second Submit
+  // click after a slow network — or a re-entry into the wizard for the same
+  // scan — then hits the server with the same key and replays the original
+  // response instead of creating a second Report row. Different profile / photo
+  // still yields a different key via the sha256 mix-in.
   const imageSha256 = await sha256Hex(imageBlob)
+  const queuedId = await deriveQueuedId(submission.captureId, ownerProfileId, imageSha256)
   let photoKey = ''
   try {
     photoKey = await uploadImage(imageBlob, queuedId)
@@ -163,6 +166,15 @@ export async function submitReport(
     notifyQueueChanged()
     return { status: 'queued', queuedId, error: error instanceof Error ? error.message : String(error) }
   }
+}
+
+async function deriveQueuedId(captureId: string, profileId: string, imageSha256: string): Promise<string> {
+  const bytes = new TextEncoder().encode(`${captureId}|${profileId}|${imageSha256}`)
+  const digest = await crypto.subtle.digest('SHA-256', bytes)
+  const hex = Array.from(new Uint8Array(digest))
+    .map((b) => b.toString(16).padStart(2, '0'))
+    .join('')
+  return `${hex.slice(0, 8)}-${hex.slice(8, 12)}-${hex.slice(12, 16)}-${hex.slice(16, 20)}-${hex.slice(20, 32)}`
 }
 
 async function sha256Hex(blob: Blob): Promise<string> {
