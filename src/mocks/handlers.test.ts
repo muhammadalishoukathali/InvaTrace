@@ -47,8 +47,8 @@ describe('reported sighting species labels', () => {
     }
     expect(response.status).toBe(200)
     expect(body.items).toHaveLength(31)
-    expect(body.items.filter((item) => item.isInvasive)).toHaveLength(16)
-    expect(body.items.filter((item) => !item.isInvasive)).toHaveLength(15)
+    expect(body.items.filter((item) => item.isInvasive)).toHaveLength(13)
+    expect(body.items.filter((item) => !item.isInvasive)).toHaveLength(18)
     expect(new Set(body.items.map((item) => item.id))).toEqual(new Set(
       modelSpeciesCatalog.classes.map((item) => item.machine_label.replaceAll('_', '-')),
     ))
@@ -59,14 +59,14 @@ describe('reported sighting species labels', () => {
     expect(results.map((result) => result.speciesId)).toEqual(
       modelSpeciesCatalog.classes.map((item) => item.machine_label.replaceAll('_', '-')),
     )
-    expect(results.filter((result) => result.outcome === 'target')).toHaveLength(16)
-    expect(results.filter((result) => result.outcome === 'other_plant')).toHaveLength(15)
+    expect(results.filter((result) => result.outcome === 'target')).toHaveLength(13)
+    expect(results.filter((result) => result.outcome === 'other_plant')).toHaveLength(18)
     expect(developmentIdentifyResultForHash(31).outcome).toBe('uncertain')
   })
 
   it('derives map filters and guidance status from the model catalogue', () => {
     const invasive = modelSpeciesCatalog.classes.filter((item) => item.malaysia_status === 'invasive')
-    expect(MAP_FILTER_SPECIES).toHaveLength(16)
+    expect(MAP_FILTER_SPECIES).toHaveLength(13)
     expect(MAP_FILTER_SPECIES.map((item) => item.id)).toEqual(
       invasive.map((item) => item.machine_label.replaceAll('_', '-')),
     )

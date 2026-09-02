@@ -39,6 +39,12 @@ interface ScanState {
   speciesDetail: SpeciesDetail | null
   location: ScanLocation | null
   locationStatus: 'idle' | 'locating' | 'ok' | 'denied' | 'unavailable' | 'timeout'
+  // AC 2.2.1 — the Report button must stay disabled until the scan has been
+  // successfully persisted server-side. 'pending' is the initial state after
+  // a scan finishes but before /api/v1/scans returns; 'ok' unlocks reporting;
+  // 'failed' surfaces a retry action.
+  scanPersistStatus: 'pending' | 'ok' | 'failed'
+  setScanPersistStatus: (s: 'pending' | 'ok' | 'failed') => void
 
   setImage: (
     url: string,
@@ -93,6 +99,8 @@ export const useScan = create<ScanState>((set, get) => ({
   speciesDetail: null,
   location: null,
   locationStatus: 'idle',
+  scanPersistStatus: 'pending',
+  setScanPersistStatus: (s) => set({ scanPersistStatus: s }),
 
   setImage: (url, bitmap, blob, captureSource, captureId, observedAt) => {
     const previous = get()
@@ -104,7 +112,8 @@ export const useScan = create<ScanState>((set, get) => ({
     previous.imageBitmap?.close()
     set({ imageUrl: url, imageBitmap: bitmap, imageBlob: blob,
           captureSource, captureId, observedAt,
-          quality: null, result: null, speciesDetail: null })
+          quality: null, result: null, speciesDetail: null,
+          scanPersistStatus: 'pending' })
   },
 
   setQuality: (q) => set({ quality: q }),
@@ -139,6 +148,7 @@ export const useScan = create<ScanState>((set, get) => ({
       captureSource: null, captureId: null, observedAt: null,
       quality: null, result: null, speciesDetail: null,
       location: null, locationStatus: 'idle',
+      scanPersistStatus: 'pending',
     })
   },
 }))

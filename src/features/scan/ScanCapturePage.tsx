@@ -5,6 +5,7 @@ import { captureScanLocation, useScan } from '@/features/scan/scan-store'
 import { resizeImage } from '@/features/scan/image-processing'
 import { getAdapter } from '@/features/scan/plant-model-adapter'
 import { api } from '@/services/api-client'
+import { applyServerAcceptance, fetchModelConfig } from '@/services/model-config'
 import type { SpeciesDetail } from '@/types'
 import './scan-capture.css'
 
@@ -135,12 +136,15 @@ export function ScanCapturePage() {
       if (requestId === imageRequestRef.current) setQuality(qualityResult)
     } catch (error) {
       if (requestId === imageRequestRef.current) {
-        setQuality({
-          ok: false,
-          reason: error instanceof Error && error.message.startsWith('Photo is too large')
-            ? error.message
-            : 'Could not process this image. Try another photo.',
-        })
+        // AC 1.1.1 — preserve every specific message from resizeImage()
+        // (empty file, oversized file, unsupported MIME, invalid image)
+        // instead of collapsing to a generic "Could not process" copy.
+        // Rejected input must not create a scan-history record; setImage
+        // was never called on this path, so scan-store stays untouched.
+        const message = error instanceof Error && error.message
+          ? error.message
+          : 'Could not process this image. Try another photo.'
+        setQuality({ ok: false, reason: message })
       }
     } finally {
       if (requestId === imageRequestRef.current) setChecking(false)
@@ -239,19 +243,32 @@ export function ScanCapturePage() {
           setModelProgress(Math.round((loaded / total) * 100))
         }
       })
-      const result = await Promise.race<Awaited<ReturnType<typeof adapter.identify>>>([
+      const rawResult = await Promise.race<Awaited<ReturnType<typeof adapter.identify>>>([
         identifyPromise,
         new Promise((_, reject) => setTimeout(
-          // A first scan may need to download about 30 MiB of model data and
-          // initialize the WASM runtime. Keep a timeout so stalled work ends.
+          // AC 1.1.2 — under normal low traffic the user-visible inference
+          // deadline is 15 s. The `requestId` guard above already discards
+          // a late result from an expired attempt so the user cannot land
+          // on a stale result screen after the timeout fires.
           () => reject(new Error('Plant analysis timed out. Retake the photo and try again.')),
-          60_000,
+          15_000,
         )),
       ])
       if (!mountedRef.current || requestId !== analysisRequestRef.current) return
 
+      // AC 1.1.3 — cross-check the classifier's own open-set decision
+      // against the server-authoritative acceptance threshold, supported
+      // version list, and label allow-list. A missing model-config
+      // response (server unreachable, schema drift) forces uncertain so
+      // the UI hides reporting and guidance.
+      const serverConfig = await fetchModelConfig()
+      const result = applyServerAcceptance(rawResult, serverConfig)
+
       let detail: SpeciesDetail | null = null
-      if (result.outcome === 'target' && result.speciesId) {
+      // AC 1.2.3 — retrieve species detail for every accepted supported
+      // label so information-only and status-uncertain results also get
+      // their sourced general information + Malaysian status displayed.
+      if (result.speciesId) {
         try {
           detail = await api<SpeciesDetail>(`/api/v1/species/${result.speciesId}`)
         } catch {
@@ -261,13 +278,15 @@ export function ScanCapturePage() {
       }
 
       setResult({ ...result, reportable: Boolean(detail?.reportable ?? detail) }, detail)
-      // AC 2.2.1 — persist the model result server-side so a later report submission
-      // cannot silently change the species. Fire-and-forget: if it fails the report
-      // path still works, but with weaker anti-spoofing guarantees.
-      void (async () => {
+      // AC 2.2.1 — persist the model result server-side and await it before
+      // navigating to the result screen. The Report button on that screen
+      // reads scanPersistStatus and stays disabled until this returns 'ok';
+      // a failure surfaces a retry action rather than silently continuing
+      // with weaker validation.
+      const { captureId, captureSource, setScanPersistStatus } = useScan.getState()
+      if (captureId) {
+        setScanPersistStatus('pending')
         try {
-          const { captureId } = useScan.getState()
-          if (!captureId) return
           const hashHex = await sha256HexOfBlob(imageBlob)
           await api('/api/v1/scans', {
             method: 'POST',
@@ -278,12 +297,14 @@ export function ScanCapturePage() {
               confidence: result.confidence,
               modelVersion: result.modelVersion,
               imageSha256Hex: hashHex,
+              captureSource,
             }),
           })
+          setScanPersistStatus('ok')
         } catch {
-          // Non-fatal — user can still submit; backend just won't enforce species mismatch.
+          setScanPersistStatus('failed')
         }
-      })()
+      }
       navigate('/scan/result', { replace: true, state: location.state })
     } catch {
       if (requestId === analysisRequestRef.current) {

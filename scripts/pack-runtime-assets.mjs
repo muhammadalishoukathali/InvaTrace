@@ -7,6 +7,12 @@
 // asset changes, and it keeps the raw binaries out of git history entirely.
 // restore-runtime-assets.mjs is the inverse of this and runs automatically
 // before dev/build to put the real files back on disk.
+import { createHash } from 'node:crypto'
+import { mkdir, readFile, readdir, rm, writeFile } from 'node:fs/promises'
+import { dirname, extname, join, relative, resolve } from 'node:path'
+import { fileURLToPath } from 'node:url'
+import { gzipSync } from 'node:zlib'
+
 const projectRoot = resolve(dirname(fileURLToPath(import.meta.url)), '..')
 const packedRoot = join(projectRoot, 'assets', 'runtime-packed')
 // Keep each part comfortably under common host file-size limits (e.g.

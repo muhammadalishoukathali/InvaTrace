@@ -344,6 +344,11 @@ export function ThreatMapPage() {
         return true
       })
     : []
+  // AC 4.2.3 — visible result count reflects the filtered set. Kept distinct
+  // from the count of active filters (`species.length + statuses.length + risks.length`)
+  // so a user cannot confuse "3 filters active" with "3 reports shown".
+  const filtersActive = species.length + statuses.length + risks.length + (search.trim() ? 1 : 0)
+  const resultCountLabel = `Showing ${filtered.length} ${filtered.length === 1 ? 'report' : 'reports'}`
 
   return (
     <div style={{
@@ -377,6 +382,26 @@ export function ThreatMapPage() {
         )}
         <MapLegend />
         <MapAttribution />
+        {/* AC 4.2.3 — visible result count. Announces to assistive tech via
+            aria-live so screen readers hear the count change after a filter. */}
+        <div
+          role="status"
+          aria-live="polite"
+          style={{
+            position: 'absolute', top: 12, left: 12, zIndex: 5,
+            padding: '6px 10px', borderRadius: 'var(--r-chip)',
+            background: 'var(--surface)', border: '1px solid var(--border)',
+            fontSize: 12, fontWeight: 600, color: 'var(--body)',
+            boxShadow: '0 2px 6px rgba(0,0,0,0.08)',
+          }}
+        >
+          {resultCountLabel}
+          {filtersActive > 0 && (
+            <span style={{ marginLeft: 6, color: 'var(--muted)', fontWeight: 500 }}>
+              · {filtersActive} filter{filtersActive === 1 ? '' : 's'} active
+            </span>
+          )}
+        </div>
         {locationNotice && (
           <div
             className={`map-location-notice map-location-notice--${locationNotice.tone}`}
@@ -528,7 +553,7 @@ function AccessibleSightingList({
       <ul>
         {items.map((s) => {
           const statusLabel = s.status === 'screened'
-            ? 'Community report — not expert validated'
+            ? 'Community report - not expert validated'
             : 'Removed'
           const tierLabel = PIN_TIERS[pinTier(s)].label
           return (
@@ -573,7 +598,7 @@ function pinElement(s: Sighting): HTMLElement {
   const el = document.createElement('button')
   el.type = 'button'
   const statusLabel = s.status === 'screened'
-    ? 'Community report — not expert validated'
+    ? 'Community report - not expert validated'
     : 'Removed'
   const tier = pinTier(s)
   const tierInfo = PIN_TIERS[tier]

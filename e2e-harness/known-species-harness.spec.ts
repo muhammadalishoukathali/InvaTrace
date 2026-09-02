@@ -88,7 +88,7 @@ async function run(page: Page, img: typeof IMAGES[number]) {
     await page.screenshot({ path: path.join(SHOT_DIR, row.screenshot as string), fullPage: true })
   } catch (e) {
     row.error = String(e).slice(0, 200)
-    try { await page.screenshot({ path: path.join(SHOT_DIR, row.screenshot as string), fullPage: true }) } catch {}
+    try { await page.screenshot({ path: path.join(SHOT_DIR, row.screenshot as string), fullPage: true }) } catch { /* screenshot best-effort */ }
   }
   appendResult(row)
 }

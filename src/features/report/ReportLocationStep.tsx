@@ -79,9 +79,13 @@ export function ReportLocationStep() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [scanLocStatus])
 
-  const withinAccuracy = accuracy !== null && accuracy <= 100
+  // AC 4.1.2 — the CSV does not define a 100 m accuracy cutoff. Only require
+  // a finite non-negative accuracy value and valid Malaysia coordinates.
+  // Poor accuracy is surfaced as a soft warning below, never as a hard block.
+  const hasFiniteAccuracy = accuracy !== null && Number.isFinite(accuracy) && accuracy >= 0
   const withinMalaysia = inMalaysia(loc)
-  const canProceed = !!loc && withinAccuracy && withinMalaysia
+  const canProceed = !!loc && hasFiniteAccuracy && withinMalaysia
+  const accuracyWarning = hasFiniteAccuracy && accuracy != null && accuracy > 100
 
   return (
     <div style={{ padding: 16, maxWidth: 520, margin: '0 auto', display: 'flex', flexDirection: 'column', gap: 16 }}>
@@ -122,15 +126,15 @@ export function ReportLocationStep() {
                })()} />
         )}
 
-        {loc && !withinAccuracy && (
+        {loc && accuracyWarning && (
           <div style={{ marginTop: 12 }}>
             <Row icon="AlertTriangle" tint="var(--amber)"
-                 title="A more accurate GPS fix is needed"
-                 body="Move to an open area and use the location button again. Reports require accuracy within 100 metres." />
+                 title="Location fix is approximate"
+                 body="Reported accuracy is above 100 m. You can still submit, but a fresh fix in an open area will give reviewers a more useful location." />
           </div>
         )}
 
-        {loc && withinAccuracy && !withinMalaysia && (
+        {loc && hasFiniteAccuracy && !withinMalaysia && (
           <div style={{ marginTop: 12 }}>
             <Row icon="AlertTriangle" tint="var(--amber)"
                  title="Location is outside Malaysia"

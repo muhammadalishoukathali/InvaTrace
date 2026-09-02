@@ -22,7 +22,7 @@ import './scan-result.css'
 export function ScanResultPage() {
   const navigate = useNavigate()
   const location = useLocation()
-  const { imageUrl, result, speciesDetail, captureSource, captureId } = useScan()
+  const { imageUrl, result, speciesDetail, captureSource, captureId, scanPersistStatus } = useScan()
   const [reportBlocked, setReportBlocked] = useState<string | null>(null)
 
   if (!result) {
@@ -71,9 +71,13 @@ export function ScanResultPage() {
   // flow. Desktop testers and users without camera permission would otherwise
   // hit a dead-end when the identification succeeds but Report never appears.
   const trustedCapture = captureSource === 'camera' || captureSource === 'gallery'
+  // AC 2.2.1 — the Report button stays disabled until the server-side scan
+  // record was persisted. Retryable failure surfaces its own control below.
+  const scanReady = scanPersistStatus === 'ok'
   const canReport = trustedCapture
     && !statusUncertain
     && reportEligible
+    && scanReady
     && (result.outcome === 'uncertain' || (result.outcome === 'target' && result.reportable))
 
   return (

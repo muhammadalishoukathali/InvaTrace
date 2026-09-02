@@ -334,6 +334,10 @@ class Scan(Base):
     __table_args__ = (
         CheckConstraint("outcome IN ('target','other_plant','uncertain')", name="scan_outcome"),
         CheckConstraint("confidence >= 0 AND confidence <= 1", name="scan_confidence"),
+        CheckConstraint(
+            "capture_source IS NULL OR capture_source IN ('camera','gallery')",
+            name="scan_capture_source",
+        ),
     )
 
     id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
@@ -348,6 +352,10 @@ class Scan(Base):
     confidence: Mapped[Decimal] = mapped_column(Numeric(6, 5), nullable=False)
     model_version: Mapped[str] = mapped_column(String(120), nullable=False)
     image_sha256: Mapped[bytes | None] = mapped_column(LargeBinary(32))
+    # AC 2.2.1 — persisted on the scan (rather than only on the report) so the
+    # report's capture_source can be cross-checked against what the client
+    # said at classification time.
+    capture_source: Mapped[str | None] = mapped_column(String(20), nullable=True)
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), server_default=func.now(), nullable=False
     )
@@ -401,6 +409,12 @@ class Report(Base):
     )
     capture_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), index=True, nullable=False)
     capture_source: Mapped[str] = mapped_column(String(20), nullable=False)
+    # AC 2.2.1 — every report is tied back to the scan the classifier produced
+    # for that capture, so create_report can re-verify species/outcome/model
+    # version/hash instead of trusting the submitted body alone.
+    scan_id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("scans.id", ondelete="RESTRICT"), index=True, nullable=False
+    )
     # both indexed — the screening worker uses these to catch exact and
     # near-duplicate photo replays, see app/domain/evidence_screening.py
     content_sha256: Mapped[bytes | None] = mapped_column(LargeBinary(32), index=True)
@@ -478,6 +492,12 @@ class Sighting(Base):
         String(380), default="Reported location, Malaysia", nullable=False
     )
     thumbnail_key: Mapped[str | None] = mapped_column(String(500))
+    # AC 4.3.1 — nearest OSM feature within 5 km computed at publication time
+    # by app.domain.place_association.nearest_osm_feature. Nullable so a
+    # sighting outside the 5 km search radius still publishes cleanly.
+    nearest_feature_type: Mapped[str | None] = mapped_column(String(30))
+    nearest_feature_name: Mapped[str | None] = mapped_column(String(200))
+    nearest_feature_distance_m: Mapped[float | None] = mapped_column(Numeric(8, 2))
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), server_default=func.now(), nullable=False
     )

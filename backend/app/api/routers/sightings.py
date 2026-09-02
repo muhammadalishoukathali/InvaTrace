@@ -45,6 +45,7 @@ def serialize_sighting(
     last_reported_at: datetime | None,
     area_name: str | None,
     trail_name: str | None,
+    confidence: float | None = None,
 ) -> SightingResponse:
     lat, lng, reduced = public_coordinates(
         sighting_id=str(sighting.id),
@@ -81,6 +82,14 @@ def serialize_sighting(
         thumbnail_url=storage.presign_get(sighting.thumbnail_key)
         if sighting.thumbnail_key
         else None,
+        confidence=confidence,
+        nearest_feature_type=sighting.nearest_feature_type,
+        nearest_feature_name=sighting.nearest_feature_name,
+        nearest_feature_distance_m=(
+            float(sighting.nearest_feature_distance_m)
+            if sighting.nearest_feature_distance_m is not None
+            else None
+        ),
     )
 
 
@@ -134,6 +143,10 @@ def list_sightings(
     # only want currently-active links counted toward report_count.
     count_expr = func.count(Report.id).filter(ReportSightingLink.active.is_(True))
     latest_expr = func.max(Report.observed_at).filter(ReportSightingLink.active.is_(True))
+    # AC 4.2.2 — representative confidence per aggregated sighting = the
+    # highest confidence across currently-linked reports. Defined consistently
+    # for both list and detail endpoints.
+    confidence_expr = func.max(Report.confidence).filter(ReportSightingLink.active.is_(True))
     statement = (
         select(
             Sighting,
@@ -142,20 +155,24 @@ def list_sightings(
             latest_expr,
             MonitoredArea.name,
             Trail.name,
+            confidence_expr,
         )
         .join(Species, Species.id == Sighting.species_id)
         .outerjoin(MonitoredArea, MonitoredArea.id == Sighting.area_id)
         .outerjoin(Trail, Trail.id == Sighting.trail_id)
         .outerjoin(ReportSightingLink, ReportSightingLink.sighting_id == Sighting.id)
         .outerjoin(Report, Report.id == ReportSightingLink.report_id)
-        .where(Sighting.status.in_(["screened", "removed"]))
+        # AC 4.2.1 — Iteration 1 public map/list expose only `screened`
+        # sightings. `removed` stays in the DB for forward compatibility but
+        # is not surfaced through the public API until the AC is amended.
+        .where(Sighting.status == "screened")
         .group_by(Sighting.id, Species.id, MonitoredArea.name, Trail.name)
         .order_by(Sighting.updated_at.desc(), Sighting.id.desc())
     )
     if species:
         statement = statement.where(Sighting.species_id.in_(species))
     if status:
-        allowed = {"screened", "removed"}
+        allowed = {"screened"}
         if not set(status).issubset(allowed):
             raise ApiProblem(400, "invalid_filter", "The status filter is invalid.")
         statement = statement.where(Sighting.status.in_(status))
@@ -178,7 +195,11 @@ def list_sightings(
     rows = session.execute(statement.offset(offset).limit(limit)).all()
     return SightingListResponse(
         items=[
-            serialize_sighting(row[0], row[1], int(row[2]), row[3], row[4], row[5]) for row in rows
+            serialize_sighting(
+                row[0], row[1], int(row[2]), row[3], row[4], row[5],
+                confidence=float(row[6]) if row[6] is not None else None,
+            )
+            for row in rows
         ],
         next_cursor=encode_cursor(offset, len(rows), limit),
     )
@@ -209,6 +230,7 @@ def sighting_detail(
             func.max(Report.observed_at).filter(ReportSightingLink.active.is_(True)),
             MonitoredArea.name,
             Trail.name,
+            func.max(Report.confidence).filter(ReportSightingLink.active.is_(True)),
         )
         .join(Species, Species.id == Sighting.species_id)
         .outerjoin(MonitoredArea, MonitoredArea.id == Sighting.area_id)
@@ -217,13 +239,17 @@ def sighting_detail(
         .outerjoin(Report, Report.id == ReportSightingLink.report_id)
         .where(
             Sighting.id == parsed_id,
-            Sighting.status.in_(["screened", "removed"]),
+            # AC 4.2.1 — Iteration 1 public detail also excludes `removed`.
+            Sighting.status == "screened",
         )
         .group_by(Sighting.id, Species.id, MonitoredArea.name, Trail.name)
     ).first()
     if not row:
         raise ApiProblem(404, "sighting_not_found", "Not found")
-    summary = serialize_sighting(row[0], row[1], int(row[2]), row[3], row[4], row[5])
+    summary = serialize_sighting(
+        row[0], row[1], int(row[2]), row[3], row[4], row[5],
+        confidence=float(row[6]) if row[6] is not None else None,
+    )
     return SightingDetailResponse(
         **summary.model_dump(),
         recommended_action=action_summary(row[1]),

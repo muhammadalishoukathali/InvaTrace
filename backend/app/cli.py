@@ -22,8 +22,7 @@ from sqlalchemy import select
 from app.config import get_settings
 from app.db.base import SessionLocal
 from app.db.models import AuditEvent, Profile
-from app.osm_import import import_malaysia_pbf
-from app.seed import seed_development_data
+from app.seed import load_reference_data, seed_demo_data, seed_development_data
 from app.services.upload_cleanup import remove_expired_uploads, remove_pending_objects
 from app.workers.verification import run_worker
 
@@ -76,7 +75,15 @@ def main() -> None:
     modules yet."""
     parser = argparse.ArgumentParser(prog="invatrace")
     commands = parser.add_subparsers(dest="command", required=True)
-    commands.add_parser("seed", help="seed factual development species and public map data")
+    commands.add_parser("seed", help="deprecated: run load-reference-data + seed-demo-data (development only)")
+    commands.add_parser(
+        "load-reference-data",
+        help="idempotently load the 31-class species catalogue and MonitoredPlace anchors (prod-safe)",
+    )
+    commands.add_parser(
+        "seed-demo-data",
+        help="insert sample sightings for local development (never runs in production)",
+    )
     worker = commands.add_parser("worker", help="run the deterministic report-screening worker")
     worker.add_argument("--once", action="store_true")
     access = commands.add_parser(
@@ -109,9 +116,29 @@ def main() -> None:
     cleanup_worker.add_argument("--interval-seconds", type=int)
     args = parser.parse_args()
     if args.command == "seed":
+        # Legacy dev entry point — rejects prod so a stray call cannot inject
+        # demo sightings into a live database (AC Phase 5 deployment split).
+        if get_settings().app_env == "production":
+            raise SystemExit(
+                "`invatrace seed` is development-only. "
+                "Run `invatrace load-reference-data` in production instead."
+            )
         with SessionLocal() as session:
             seed_development_data(session)
         print("Development data is ready.")
+    elif args.command == "load-reference-data":
+        with SessionLocal() as session:
+            load_reference_data(session)
+        print("Reference data loaded.")
+    elif args.command == "seed-demo-data":
+        if get_settings().app_env == "production":
+            raise SystemExit(
+                "Refusing to seed demo data in production. "
+                "Use `invatrace load-reference-data` for prod reference rows."
+            )
+        with SessionLocal() as session:
+            seed_demo_data(session)
+        print("Demo data seeded.")
     elif args.command == "worker":
         run_worker(once=args.once)
     elif args.command == "set-profile-access":
@@ -119,6 +146,10 @@ def main() -> None:
     elif args.command == "import-osm":
         if not args.confirm_malaysia_clipped:
             raise SystemExit("Refusing import without --confirm-malaysia-clipped.")
+        # Lazy import so the rest of the CLI (worker, seed, cleanup) does not
+        # pull in the pyosmium native extension, which the API/worker images
+        # do not need at runtime.
+        from app.osm_import import import_malaysia_pbf
         with SessionLocal() as session:
             imported = import_malaysia_pbf(
                 session, source_path=args.path.resolve(), source_date=args.source_date

@@ -11,6 +11,22 @@ const url = (p: string) => `*${p}`
 
 const mockReports: Report[] = []
 const mockReportIdempotency = new Map<string, { request: string; response: Report }>()
+
+interface MockScan {
+  id: string
+  profileId: string
+  captureId: string
+  predictedSpeciesId: string | null
+  outcome: 'target' | 'other_plant' | 'uncertain'
+  confidence: number
+  modelVersion: string
+  imageSha256Hex: string | null
+  captureSource: 'camera' | 'gallery' | null
+  createdAt: string
+}
+// AC 2.2.1 — MSW mirror of /api/v1/scans persistence so the browser mock can
+// enforce the same scan → report consistency rules FastAPI does.
+const mockScans: MockScan[] = []
 const mockUploadIdempotency = new Map<string, {
   request: string
   response: { uploadId: string; uploadUrl: string; photoKey: string; expiresAt: string }
@@ -426,6 +442,19 @@ export const handlers = [
     return new HttpResponse(null, { status: 204, headers: { 'Cache-Control': 'no-store', Pragma: 'no-cache' } })
   }),
 
+  // AC 1.1.3 — server-authoritative model configuration. Frontend fetches
+  // this once and gates classifier acceptance on the returned threshold +
+  // supported versions. Values mirror backend defaults.
+  http.get(url('/api/v1/model-config'), () =>
+    HttpResponse.json({
+      modelVersion: 'oe_v4_31class_web_fp16',
+      supportedVersions: ['oe_v4_31class_web_fp16'],
+      acceptanceThreshold: 0.5,
+      thresholdVersion: 'oe_v4_31class_web_fp16@0.5000',
+      configVersion: 'oe_v4_31class_web_fp16@0.5000',
+    }),
+  ),
+
   http.get(url('/api/v1/species'), () =>
     HttpResponse.json({
       items: modelSpeciesCatalog.classes.map((species) => ({
@@ -466,6 +495,65 @@ export const handlers = [
       statusSourceId: modelSpecies.status_source,
       referenceImageUrl: modelReferenceImageUrl(modelSpecies),
       referenceImageCredit: 'Species reference image',
+    })
+  }),
+
+  // AC 3.1.1 — canonical guidance endpoint mirror. Returns an observe-and-
+  // report-only stub for anything the mock catalogue does not treat as
+  // reportable invasive (matching the real backend's safe fallback).
+  http.get(url('/api/v1/species/:id/guidance'), ({ params }) => {
+    const id = params.id as string
+    const modelSpecies = findModelSpecies({ speciesId: id })
+    if (!modelSpecies) {
+      return HttpResponse.json({ detail: 'Species not found.' }, { status: 404 })
+    }
+    const invasive = modelSpecies.malaysia_status === 'invasive'
+    const now = new Date().toISOString()
+    if (!invasive) {
+      return HttpResponse.json({
+        actionMode: 'report_only',
+        guidanceMode: 'report_only',
+        plantId: id,
+        contentVersion: 'observe-and-report-fallback-v1',
+        lastReviewed: null,
+        title: 'Observe and report',
+        summary: 'No reviewed removal guidance is available for this plant. Please observe and report.',
+        validMonths: [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12],
+        steps: [],
+        doNotDo: ['Do not attempt removal without reviewed guidance', 'Do not disturb the plant'],
+        ppe: [],
+        decontamination: [],
+        stopConditions: [],
+        spreadPrevention: [],
+        prohibitedActions: [],
+        sources: [],
+        revision: 'observe-and-report-fallback-v1',
+      })
+    }
+    return HttpResponse.json({
+      actionMode: 'active_guidance',
+      guidanceMode: 'active_guidance',
+      plantId: id,
+      contentVersion: 'mock-guide-v1',
+      lastReviewed: now,
+      title: `Field guidance for ${modelSpecies.display_name}`,
+      summary: 'Follow reviewed steps and stop conditions before taking any action.',
+      validMonths: [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12],
+      steps: [
+        { order: 1, action: 'Photograph the plant from multiple angles before touching it.', safe: true },
+        { order: 2, action: 'Confirm the site manager has approved removal for this specific plant.', safe: true },
+      ],
+      doNotDo: ['Do not disturb the plant if any stop condition applies.'],
+      ppe: ['Gloves', 'Long sleeves'],
+      decontamination: ['Rinse tools with clean water before leaving the site.'],
+      stopConditions: [
+        'A protected native species is growing within one metre.',
+        'Rain is falling or the ground is waterlogged.',
+      ],
+      spreadPrevention: ['Bag all plant fragments before transport.'],
+      prohibitedActions: [],
+      sources: [{ id: 'msw-source-1', title: 'Mock reference', publisher: 'InvaTrace', url: null }],
+      revision: 'mock-guide-v1',
     })
   }),
 
@@ -530,6 +618,54 @@ export const handlers = [
   // Accept the temporary upload request without contacting external storage.
   http.put('https://mock-s3.local/*', () => HttpResponse.text('', { status: 200 })),
 
+  http.post(url('/api/v1/scans'), async ({ request }) => {
+    if (!hasActiveSession(request)) return sessionUnavailable()
+    const session = sessionForRequest(request)!
+    const body = (await request.json()) as {
+      captureId: string
+      predictedSpeciesId: string | null
+      outcome: 'target' | 'other_plant' | 'uncertain'
+      confidence: number
+      modelVersion: string
+      imageSha256Hex?: string | null
+      captureSource?: 'camera' | 'gallery' | null
+    }
+    if (body.outcome === 'target' && !body.predictedSpeciesId) {
+      return HttpResponse.json({ code: 'scan_missing_species', detail: 'Target scans must include predictedSpeciesId.' }, { status: 422 })
+    }
+    if (body.outcome !== 'target' && body.predictedSpeciesId != null) {
+      return HttpResponse.json({ code: 'scan_species_not_allowed', detail: 'Only target scans may include predictedSpeciesId.' }, { status: 422 })
+    }
+    const existing = mockScans.find((s) => s.profileId === session.profile.id && s.captureId === body.captureId)
+    if (existing) {
+      return HttpResponse.json({
+        id: existing.id, captureId: existing.captureId,
+        predictedSpeciesId: existing.predictedSpeciesId, outcome: existing.outcome,
+        confidence: existing.confidence, modelVersion: existing.modelVersion,
+        captureSource: existing.captureSource, createdAt: existing.createdAt,
+      }, { status: 201 })
+    }
+    const scan: MockScan = {
+      id: crypto.randomUUID(),
+      profileId: session.profile.id,
+      captureId: body.captureId,
+      predictedSpeciesId: body.predictedSpeciesId,
+      outcome: body.outcome,
+      confidence: body.confidence,
+      modelVersion: body.modelVersion,
+      imageSha256Hex: body.imageSha256Hex ?? null,
+      captureSource: body.captureSource ?? null,
+      createdAt: new Date().toISOString(),
+    }
+    mockScans.push(scan)
+    return HttpResponse.json({
+      id: scan.id, captureId: scan.captureId,
+      predictedSpeciesId: scan.predictedSpeciesId, outcome: scan.outcome,
+      confidence: scan.confidence, modelVersion: scan.modelVersion,
+      captureSource: scan.captureSource, createdAt: scan.createdAt,
+    }, { status: 201 })
+  }),
+
   http.post(url('/api/v1/reports'), async ({ request }) => {
     if (shouldInject('expireSession')) {
       const token = bearerToken(request)
@@ -562,6 +698,32 @@ export const handlers = [
     }
 
     const submission = (await request.json()) as ReportSubmission
+    // AC 2.2.1 — the scan for this capture must have been persisted via
+    // /api/v1/scans first; enforce the same consistency the real backend does.
+    const scan = mockScans.find(
+      (s) => s.profileId === session.profile.id && s.captureId === submission.captureId,
+    )
+    if (!scan) {
+      return HttpResponse.json({ code: 'scan_missing', detail: 'The scan for this capture must be persisted before submitting a report.' }, { status: 422 })
+    }
+    if (scan.outcome !== submission.outcome) {
+      return HttpResponse.json({ code: 'scan_outcome_mismatch', detail: 'Report outcome does not match the recorded scan.' }, { status: 422 })
+    }
+    if ((scan.predictedSpeciesId ?? null) !== (submission.speciesId ?? null)) {
+      return HttpResponse.json({ code: 'scan_species_mismatch', detail: 'Report species does not match the recorded scan.' }, { status: 422 })
+    }
+    if (Math.abs(scan.confidence - submission.confidence) > 1e-4) {
+      return HttpResponse.json({ code: 'scan_confidence_mismatch', detail: 'Report confidence does not match the recorded scan.' }, { status: 422 })
+    }
+    if (scan.modelVersion !== submission.modelVersion) {
+      return HttpResponse.json({ code: 'scan_model_version_mismatch', detail: 'Report model version does not match the recorded scan.' }, { status: 422 })
+    }
+    if (scan.captureSource && scan.captureSource !== submission.captureSource) {
+      return HttpResponse.json({ code: 'scan_capture_source_mismatch', detail: 'Report capture source does not match the recorded scan.' }, { status: 422 })
+    }
+    if (scan.imageSha256Hex && submission.imageSha256 && scan.imageSha256Hex !== submission.imageSha256) {
+      return HttpResponse.json({ code: 'scan_image_hash_mismatch', detail: 'Report image hash does not match the recorded scan.' }, { status: 422 })
+    }
     const idempotencyScope = `${session.profile.id}:${idempotencyKey}`
     const serialized = JSON.stringify(submission)
     const existing = mockReportIdempotency.get(idempotencyScope)
@@ -821,7 +983,19 @@ function jitter(id: string): { dLat: number; dLng: number } {
   }
 }
 
-const SEED: Omit<Sighting, 'location' | 'precisionReduced' | 'lastReportedAt' | 'place' | 'thumbnailUrl' | 'screeningMethod'>[] = [
+const SEED: Omit<
+  Sighting,
+  | 'location'
+  | 'precisionReduced'
+  | 'lastReportedAt'
+  | 'place'
+  | 'thumbnailUrl'
+  | 'screeningMethod'
+  | 'confidence'
+  | 'nearestFeatureType'
+  | 'nearestFeatureName'
+  | 'nearestFeatureDistanceM'
+>[] = [
   { id: 's-01', speciesId: 'mikania-micrantha', speciesName: 'Mikania micrantha', latinName: 'Mikania micrantha', status: 'screened', risk: 'high', reportCount: 4 },
   { id: 's-02', speciesId: 'mikania-micrantha', speciesName: 'Mikania micrantha', latinName: 'Mikania micrantha', status: 'screened', risk: 'high', reportCount: 2 },
   { id: 's-03', speciesId: 'mikania-micrantha', speciesName: 'Mikania micrantha', latinName: 'Mikania micrantha', status: 'screened', risk: 'high', reportCount: 1 },
@@ -866,6 +1040,10 @@ const SIGHTINGS: Sighting[] = SEED.map((sighting, index) => {
     // Stand-in per-sighting upload retained in the API contract. The public
     // detail sheet intentionally ignores it and uses reviewed species media.
     thumbnailUrl: `/reference-images/${sighting.speciesId.replaceAll('-', '_')}.jpg`,
+    confidence: 0.75 + (index % 5) * 0.04,
+    nearestFeatureType: 'path',
+    nearestFeatureName: PLACES[index].name.split(' · ').at(-1) ?? PLACES[index].name,
+    nearestFeatureDistanceM: 20 + index * 5,
     screeningMethod: 'deterministic_rules',
     lastReportedAt: new Date(Date.now() - (index + 1) * 3600 * 1000).toISOString(),
   }
@@ -920,6 +1098,10 @@ function publishReportSighting(report: Report): string {
       displayName: '', areaName: null, trailName: null, source: 'fallback',
     },
     thumbnailUrl: null,
+    confidence: report.submission.confidence,
+    nearestFeatureType: hasNearbyPlace ? 'path' : null,
+    nearestFeatureName: hasNearbyPlace ? (closestPlace!.place.name.split(' · ').at(-1) ?? closestPlace!.place.name) : null,
+    nearestFeatureDistanceM: hasNearbyPlace ? Math.round(closestPlace!.distance) : null,
     screeningMethod: 'deterministic_rules',
   })
   return sightingId

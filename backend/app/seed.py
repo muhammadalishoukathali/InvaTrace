@@ -418,10 +418,15 @@ SIGHTING_SEED = [
 LEGACY_SEED_SPECIES_IDS = {"clidemia-hirta"}
 
 
-def seed_development_data(session: Session) -> None:
-    """Upserts species/places/sightings and cleans up species ids we used to
-    seed but have since dropped from the model catalog. Called from the
-    `seed` CLI command - safe to run against an already-seeded database."""
+def load_reference_data(session: Session) -> None:
+    """AC Phase 5 — production-safe reference data loader.
+
+    Upserts the 31-class species catalogue (Malaysian status, guidance
+    metadata, review dates) and hand-seeded MonitoredPlace anchors used by
+    the place-association fallback. Idempotent: existing rows are updated
+    in place rather than duplicated. Safe to run repeatedly in production
+    pre-deploy; contains no demo reports/sightings.
+    """
     for values in SPECIES:
         existing = session.get(Species, values["id"])
         if existing:
@@ -439,6 +444,31 @@ def seed_development_data(session: Session) -> None:
                     longitude=Decimal(str(longitude)),
                 )
             )
+    session.flush()
+    # Retire species ids that used to be in the catalogue. Only drop them if
+    # no user data references them, so a production catalogue refresh never
+    # deletes anything a real report or sighting depends on.
+    for species_id in LEGACY_SEED_SPECIES_IDS:
+        species = session.get(Species, species_id)
+        has_sighting = session.scalar(
+            select(Sighting.id).where(Sighting.species_id == species_id).limit(1)
+        )
+        has_report = session.scalar(
+            select(Report.id).where(Report.species_id == species_id).limit(1)
+        )
+        if species and not has_sighting and not has_report:
+            session.delete(species)
+    session.commit()
+
+
+def seed_demo_data(session: Session) -> None:
+    """AC Phase 5 — development-only demo data.
+
+    Inserts example sightings around Bukit Kiara so a fresh dev database
+    has content on the map. Must never run in production; the CLI enforces
+    that with an ``app_env == "production"`` refusal. Depends on
+    ``load_reference_data`` having populated the species catalogue first.
+    """
     centre_lat, centre_lng = 3.1497, 101.6412
     actions = {
         "screened": "Rule-screened report. Follow the reviewed guidance for this species.",
@@ -466,19 +496,15 @@ def seed_development_data(session: Session) -> None:
                 created_at=datetime.now(UTC) - timedelta(hours=index + 1),
                 **values,
             ))
-    session.flush()
-    # Species ids that used to be in the seed but got dropped from the model
-    # catalog - only remove them from the DB if nothing real (a sighting or a
-    # user's report) references them, so we never delete data someone actually
-    # created just because our seed script changed.
-    for species_id in LEGACY_SEED_SPECIES_IDS:
-        species = session.get(Species, species_id)
-        has_sighting = session.scalar(
-            select(Sighting.id).where(Sighting.species_id == species_id).limit(1)
-        )
-        has_report = session.scalar(
-            select(Report.id).where(Report.species_id == species_id).limit(1)
-        )
-        if species and not has_sighting and not has_report:
-            session.delete(species)
     session.commit()
+
+
+def seed_development_data(session: Session) -> None:
+    """Back-compat convenience wrapper: reference data then demo data.
+
+    Existing callers (tests, `invatrace seed`) keep working. Production
+    deploys should call ``load_reference_data`` directly instead — the CLI
+    refuses ``seed`` and ``seed-demo-data`` in production for that reason.
+    """
+    load_reference_data(session)
+    seed_demo_data(session)

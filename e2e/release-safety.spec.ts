@@ -33,8 +33,11 @@ test('gallery scans can be reported and reveal guidance only after a permission 
   await chooseSyntheticGalleryPhoto(page)
 
   await expect(page.getByRole('button', { name: /Report sighting/i })).toBeVisible()
-  await expect(page.getByText('Choose one option above to see what you can safely do here.')).toBeVisible()
-  await expect(page.getByText('Protected land or no permission')).toHaveCount(0)
+  // AC 3.1.2 — the panel defaults to `protected_or_permission_unknown`,
+  // so observation / photography / reporting guidance is visible
+  // immediately. Active-guidance copy for the authorised-site path must
+  // still stay hidden until the user explicitly picks explicit permission.
+  await expect(page.getByText('Protected land or no permission')).toBeVisible()
   await expect(page.getByText('If the land manager has approved it')).toHaveCount(0)
 
   await page.getByRole('radio', { name: /protected land, or I am not sure/i }).check()

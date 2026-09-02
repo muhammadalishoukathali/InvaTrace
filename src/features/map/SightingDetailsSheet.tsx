@@ -91,6 +91,11 @@ export function SightingDetailsSheet() {
             </div>
           ) : (
             <>
+              {/* AC 4.2.2 — published evidence image comes first via a
+                  presigned thumbnailUrl. The catalogue reference photo
+                  below is a labelled "reference" fallback, never a
+                  substitute for the reporter's actual evidence. */}
+              <EvidenceThumbnail thumbnailUrl={data.thumbnailUrl} speciesName={data.speciesName} />
               <PlantReferenceMedia latinName={data.latinName} speciesName={data.speciesName} />
 
               <header className="pin-sheet__heading">
@@ -109,7 +114,7 @@ export function SightingDetailsSheet() {
                 <p className="pin-sheet__status-note">
                   {data.status === 'removed'
                     ? 'Marked removed · retained for follow-up'
-                    : 'Community-screened · not expert verified'}
+                    : 'Community report - not expert validated'}
                 </p>
               </header>
 
@@ -117,9 +122,21 @@ export function SightingDetailsSheet() {
                 <h3 id="sighting-record-heading">Report information</h3>
                 <dl>
                   <MetaRow label="Reported" value={formatTime(data.lastReportedAt)} />
+                  {/* AC 4.2.2 — model confidence displayed with the report. */}
+                  {typeof data.confidence === 'number' && (
+                    <MetaRow
+                      label="Model confidence"
+                      value={`${Math.round(data.confidence * 100)}%`}
+                      sub="Highest confidence across linked reports"
+                    />
+                  )}
                   <MetaRow label="Near"
                     value={nearbyPlaceLabel(data, nearestOsm)}
-                    sub={nearestOsm ? 'Live place data from OpenStreetMap' : undefined} />
+                    sub={
+                      data.nearestFeatureName
+                        ? 'Recorded at publication time from OpenStreetMap'
+                        : nearestOsm ? 'Live place data from OpenStreetMap' : undefined
+                    } />
                   <MetaRow label="Coordinates"
                     value={`${data.location.lat.toFixed(coordinateDecimals)}, ${data.location.lng.toFixed(coordinateDecimals)}`}
                     sub={data.precisionReduced ? 'Approximate location for privacy' : undefined} mono />
@@ -161,6 +178,30 @@ export function SightingDetailsSheet() {
   )
 }
 
+/** AC 4.2.2 — the actual reporter-submitted photo, served via a short-lived
+ *  presigned URL from the sightings API. Rendered above the catalogue
+ *  reference so the panel shows the evidence first. Absent thumbnailUrl
+ *  falls back silently to the reference-image row below. */
+function EvidenceThumbnail({
+  thumbnailUrl, speciesName,
+}: { thumbnailUrl: string | null; speciesName: string }) {
+  if (!thumbnailUrl) return null
+  return (
+    <figure className="pin-sheet__reference">
+      <img
+        className="pin-sheet__photo"
+        src={thumbnailUrl}
+        alt={`Reporter photo of ${speciesName}`}
+        loading="lazy"
+      />
+      <figcaption>
+        <span>Community report evidence</span>
+        <span>Uploaded by a reporter · not expert validated</span>
+      </figcaption>
+    </figure>
+  )
+}
+
 /** Uses the reviewed species image, never a reporter's uploaded photo. */
 function PlantReferenceMedia({ latinName, speciesName }: { latinName: string; speciesName: string }) {
   const guidance = findPlantGuidance({
@@ -197,10 +238,27 @@ function MetaRow({ label, value, sub, mono }: {
   )
 }
 
+// AC 4.3.1 — the stored nearest feature (computed by the backend at
+// publication time) is authoritative and rendered first. The live Overpass
+// fetch is retained as non-authoritative enrichment; it is only used when
+// the server did not persist a nearest feature. AC 4.3.2 — no server value
+// and no live match → exact "No named trail, park or forest found nearby".
 function nearbyPlaceLabel(
   data: SightingDetail,
   nearestOsm: Awaited<ReturnType<typeof fetchNearestOsmFeature>> | undefined,
 ): string {
+  if (data.nearestFeatureName && data.nearestFeatureType) {
+    const kind = OSM_FEATURE_LABEL[data.nearestFeatureType]
+      ?? OSM_FEATURE_LABEL[`highway_${data.nearestFeatureType}`]
+      ?? OSM_FEATURE_LABEL[`leisure_${data.nearestFeatureType}`]
+      ?? OSM_FEATURE_LABEL[`landuse_${data.nearestFeatureType}`]
+      ?? OSM_FEATURE_LABEL[`natural_${data.nearestFeatureType}`]
+      ?? data.nearestFeatureType
+    const distance = data.nearestFeatureDistanceM != null
+      ? `, about ${Math.round(data.nearestFeatureDistanceM)} m away`
+      : ''
+    return `${data.nearestFeatureName} · ${kind}${distance}`
+  }
   if (nearestOsm) {
     const kind = OSM_FEATURE_LABEL[nearestOsm.featureType] ?? 'feature'
     return `${nearestOsm.featureName} · ${kind}, about ${nearestOsm.distanceM} m away`
@@ -220,7 +278,7 @@ function formatReportCount(count: number): string {
 }
 
 function sightingSummaryLabel(data: SightingDetail): string {
-  const status = data.status === 'removed' ? 'removed' : 'community-screened, not expert verified'
+  const status = data.status === 'removed' ? 'removed' : 'Community report - not expert validated'
   return `${densityLabel(PIN_TIERS[pinTier(data)].label)}, ${formatReportCount(data.reportCount)}, ${status}`
 }
 

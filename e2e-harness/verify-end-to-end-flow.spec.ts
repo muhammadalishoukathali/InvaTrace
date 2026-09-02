@@ -109,7 +109,7 @@ for (const choice of ['protected', 'explicit'] as const) {
     const reportPosts: Array<{ status: number; body: string }> = []
     page.on('response', async (r) => {
       if (r.url().endsWith('/api/v1/reports') && r.request().method() === 'POST') {
-        try { reportPosts.push({ status: r.status(), body: await r.text() }) } catch {}
+        try { reportPosts.push({ status: r.status(), body: await r.text() }) } catch { /* response body optional */ }
       }
     })
 

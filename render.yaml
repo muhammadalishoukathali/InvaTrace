@@ -7,6 +7,12 @@ services:
     rootDir: backend
     dockerfilePath: ./Dockerfile
     healthCheckPath: /health
+    # AC Phase 5 — every deploy runs Alembic to head, then idempotently
+    # loads the 31-class reference catalogue (species / Malaysian status /
+    # guidance metadata / MonitoredPlace anchors). load-reference-data
+    # refuses to insert demo sightings so a production DB never gets seeded
+    # with sample data by accident.
+    preDeployCommand: alembic upgrade head && python -m app.cli load-reference-data
     envVars:
       - key: APP_ENV
         value: production
@@ -36,6 +42,13 @@ services:
         sync: false
       - key: S3_FORCE_PATH_STYLE
         value: "true"
+      # AC 2.3.3 — env-backed sliding submission rate limits.
+      - key: REPORT_CREATE_BURST_LIMIT
+        value: "10"
+      - key: REPORT_CREATE_IP_BURST_LIMIT
+        value: "30"
+      - key: REPORT_CREATE_BURST_WINDOW_SECONDS
+        value: "600"
 
   - type: worker
     name: invatrace-verification-worker
@@ -94,3 +107,99 @@ services:
         value: invatrace-photos
       - key: S3_FORCE_PATH_STYLE
         value: "true"
+
+  # AC Phase 5 — expired-upload / pending-deletion sweep. The deployment
+  # readiness checklist requires either a cleanup worker or an equivalent
+  # scheduled process; this runs on a fixed interval alongside the
+  # verification worker.
+  - type: worker
+    name: invatrace-cleanup-worker
+    runtime: docker
+    plan: free
+    region: singapore
+    rootDir: backend
+    dockerfilePath: ./Dockerfile
+    dockerCommand: python -m app.cli cleanup-worker
+    envVars:
+      - key: APP_ENV
+        value: production
+      - key: DATABASE_URL
+        fromService:
+          type: web
+          name: invatrace-api
+          envVarKey: DATABASE_URL
+      - key: REDIS_URL
+        fromService:
+          type: web
+          name: invatrace-api
+          envVarKey: REDIS_URL
+      - key: JWT_SECRET
+        fromService:
+          type: web
+          name: invatrace-api
+          envVarKey: JWT_SECRET
+      - key: CREDENTIAL_HASH_KEY
+        fromService:
+          type: web
+          name: invatrace-api
+          envVarKey: CREDENTIAL_HASH_KEY
+      - key: LOCATION_PRIVACY_KEY
+        fromService:
+          type: web
+          name: invatrace-api
+          envVarKey: LOCATION_PRIVACY_KEY
+      - key: S3_ENDPOINT_URL
+        fromService:
+          type: web
+          name: invatrace-api
+          envVarKey: S3_ENDPOINT_URL
+      - key: S3_ACCESS_KEY_ID
+        fromService:
+          type: web
+          name: invatrace-api
+          envVarKey: S3_ACCESS_KEY_ID
+      - key: S3_SECRET_ACCESS_KEY
+        fromService:
+          type: web
+          name: invatrace-api
+          envVarKey: S3_SECRET_ACCESS_KEY
+      - key: S3_REGION
+        value: auto
+      - key: S3_BUCKET
+        value: invatrace-photos
+      - key: S3_FORCE_PATH_STYLE
+        value: "true"
+
+  # AC Phase 5 — frontend PWA static site. Vite build output goes to dist/,
+  # served with SPA rewrites so the React Router owns every non-asset URL.
+  # VITE_API_BASE_URL must point at the invatrace-api service; every VITE_
+  # var below bakes into the bundle so nothing here should be secret.
+  - type: web
+    name: invatrace-web
+    runtime: static
+    plan: free
+    region: singapore
+    buildCommand: npm ci && npm run build
+    staticPublishPath: ./dist
+    pullRequestPreviewsEnabled: false
+    routes:
+      - type: rewrite
+        source: /*
+        destination: /index.html
+    envVars:
+      # Set this in the Render dashboard to the full https URL of the
+      # invatrace-api service (e.g. https://invatrace-api.onrender.com).
+      # Cannot be auto-derived from fromService because hostport omits the
+      # scheme and Vite requires a full URL for the API client.
+      - key: VITE_API_BASE_URL
+        sync: false
+      - key: VITE_ENABLE_MOCKS
+        value: "false"
+      - key: VITE_ENABLE_FAKE_MODEL
+        value: "false"
+      - key: VITE_ENABLE_REAL_MODEL
+        value: "true"
+      - key: VITE_RELEASE_ID
+        sync: false
+      - key: VITE_MODEL_MANIFEST_URL
+        value: /models/model-manifest.json
