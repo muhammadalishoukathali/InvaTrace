@@ -48,9 +48,14 @@ export function ReportPreviewStep() {
     }
   }
 
+  // AC 4.1.2 — accuracy is a soft warning at the location step, not a hard
+  // block. Match that here: require a finite non-negative accuracy value but
+  // don't second-guess a fix the user already accepted.
+  const hasFiniteAccuracy = draft.locationAccuracyM !== null
+    && Number.isFinite(draft.locationAccuracyM)
+    && draft.locationAccuracyM >= 0
   const canSubmit = !!draft.location
-    && draft.locationAccuracyM !== null
-    && draft.locationAccuracyM <= 100
+    && hasFiniteAccuracy
     && !!draft.extent
     && !!imageBlob
     && draft.consentAccurate
