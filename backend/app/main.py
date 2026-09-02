@@ -9,8 +9,10 @@ this file.
 
 from __future__ import annotations
 
+import asyncio
 import re
 import uuid
+from contextlib import asynccontextmanager
 
 import structlog
 from fastapi import FastAPI, Request
@@ -45,6 +47,50 @@ log = structlog.get_logger("invatrace.api")
 REQUEST_ID_PATTERN = re.compile(r"^[A-Za-z0-9._:-]{8,100}$")
 
 
+async def _run_worker_loop(name: str, sync_step, poll_seconds: float) -> None:
+    """Wrap a blocking sync worker step in an asyncio loop. Each iteration runs
+    in a worker thread (SQLAlchemy Session, time.sleep, etc. are blocking), so
+    the API event loop stays responsive."""
+    while True:
+        try:
+            await asyncio.to_thread(sync_step)
+        except Exception:
+            log.exception("in_process_worker_step_failed", worker=name)
+        await asyncio.sleep(poll_seconds)
+
+
+@asynccontextmanager
+async def _lifespan(app: FastAPI):
+    """Optionally spawn verification + cleanup workers inside the API process.
+    Enabled by RUN_WORKERS_IN_API=1 for free-tier deploys that can't run a
+    separate worker service."""
+    settings = get_settings()
+    tasks: list[asyncio.Task] = []
+    if settings.run_workers_in_api:
+        from app.cli import cleanup_uploads_once
+        from app.workers.verification import run_worker
+
+        tasks.append(asyncio.create_task(
+            _run_worker_loop("verification", lambda: run_worker(once=True), settings.worker_poll_seconds),
+            name="invatrace.verification-worker",
+        ))
+        tasks.append(asyncio.create_task(
+            _run_worker_loop("cleanup", lambda: cleanup_uploads_once(500), settings.upload_cleanup_interval_seconds),
+            name="invatrace.cleanup-worker",
+        ))
+        log.info("in_process_workers_started")
+    try:
+        yield
+    finally:
+        for task in tasks:
+            task.cancel()
+        for task in tasks:
+            try:
+                await task
+            except (asyncio.CancelledError, Exception):
+                pass
+
+
 def create_app() -> FastAPI:
     """Assemble the FastAPI app. Called once at import time to build the
     module-level `app` object below - keeping it in a function (rather than
@@ -56,6 +102,7 @@ def create_app() -> FastAPI:
         docs_url="/docs",
         redoc_url=None,
         openapi_url="/openapi.json",
+        lifespan=_lifespan,
     )
     app.add_middleware(
         CORSMiddleware,

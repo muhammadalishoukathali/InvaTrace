@@ -70,6 +70,12 @@ class Settings(BaseSettings):
     worker_poll_seconds: float = Field(default=2, ge=0.1, le=60)
     worker_max_attempts: int = Field(default=5, ge=1, le=20)
     worker_job_lease_seconds: int = Field(default=300, ge=30, le=3600)
+    # Free-tier deploys don't get a separate worker service; when true the API
+    # process spawns the verification + cleanup loops as background asyncio
+    # tasks (each hop runs in a thread so its blocking DB calls don't block
+    # the event loop). Off by default so tests / dev with the standalone
+    # `invatrace worker` CLI don't double-run.
+    run_workers_in_api: bool = False
 
     @field_validator("cors_origins", "e1_model_versions", mode="before")
     @classmethod
