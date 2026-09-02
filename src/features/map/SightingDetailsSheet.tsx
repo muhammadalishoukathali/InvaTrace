@@ -165,10 +165,10 @@ export function SightingDetailsSheet() {
 
         {data && (
           <footer className="pin-sheet__footer">
-            <button type="button" disabled aria-label="Open directions (not available yet)"
-              className="pin-sheet__directions">
-              <Icon name="Navigation" size={16} color="currentColor" />
-              Directions unavailable
+            <button type="button" disabled aria-label="Directions not available yet"
+              className="pin-sheet__directions" title="Coming in a later release">
+              <Icon name="Navigation" size={14} color="currentColor" />
+              Directions coming soon
             </button>
           </footer>
         )}
