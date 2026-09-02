@@ -46,7 +46,7 @@ by unit / contract tests.
 
 
 
-Source of truth: `claude-code-ac-remediation-handoff.md` (33 ACs).
+Source of truth: `ac-remediation-handoff.md` (33 ACs).
 
 Phased so each phase ends deployable and each PR has a bounded review cost.
 Do not merge a later phase without the earlier phases green under real backend.

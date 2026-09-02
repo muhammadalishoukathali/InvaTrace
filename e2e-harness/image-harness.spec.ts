@@ -8,7 +8,7 @@ import { test, expect, Page } from '@playwright/test'
 import fs from 'node:fs'
 import path from 'node:path'
 
-const SCRATCH = '/private/tmp/claude-501/-Users-moham-Desktop-fyp/9f1badaf-b850-435c-b805-9a4bc574cb5c/scratchpad'
+const SCRATCH = process.env.HARNESS_SCRATCH ?? path.resolve('e2e-harness/.scratch')
 const REPORT_DIR = path.join(SCRATCH, 'reports')
 const SCREENSHOT_DIR = path.join(REPORT_DIR, 'screenshots')
 const RESULTS_JSON = path.join(REPORT_DIR, 'results.json')

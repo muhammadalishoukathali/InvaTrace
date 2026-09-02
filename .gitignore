@@ -29,3 +29,4 @@ backend/.ruff_cache
 .impeccable/review
 **/__pycache__
 *.py[cod]
+e2e-harness/.scratch/
