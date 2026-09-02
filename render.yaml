@@ -171,7 +171,6 @@ services:
   - type: web
     name: invatrace-web
     runtime: static
-    plan: free
     buildCommand: npm ci && npm run build
     staticPublishPath: ./dist
     pullRequestPreviewsEnabled: false
