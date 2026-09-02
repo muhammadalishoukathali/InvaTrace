@@ -46,35 +46,45 @@ services:
     dockerfilePath: ./Dockerfile
     dockerCommand: python -m app.cli worker
     envVars:
-      - fromService:
+      - key: APP_ENV
+        value: production
+      - key: DATABASE_URL
+        fromService:
           type: web
           name: invatrace-api
           envVarKey: DATABASE_URL
-      - fromService:
+      - key: REDIS_URL
+        fromService:
           type: web
           name: invatrace-api
           envVarKey: REDIS_URL
-      - fromService:
+      - key: JWT_SECRET
+        fromService:
           type: web
           name: invatrace-api
           envVarKey: JWT_SECRET
-      - fromService:
+      - key: CREDENTIAL_HASH_KEY
+        fromService:
           type: web
           name: invatrace-api
           envVarKey: CREDENTIAL_HASH_KEY
-      - fromService:
+      - key: LOCATION_PRIVACY_KEY
+        fromService:
           type: web
           name: invatrace-api
           envVarKey: LOCATION_PRIVACY_KEY
-      - fromService:
+      - key: S3_ENDPOINT_URL
+        fromService:
           type: web
           name: invatrace-api
           envVarKey: S3_ENDPOINT_URL
-      - fromService:
+      - key: S3_ACCESS_KEY_ID
+        fromService:
           type: web
           name: invatrace-api
           envVarKey: S3_ACCESS_KEY_ID
-      - fromService:
+      - key: S3_SECRET_ACCESS_KEY
+        fromService:
           type: web
           name: invatrace-api
           envVarKey: S3_SECRET_ACCESS_KEY
@@ -84,5 +94,3 @@ services:
         value: invatrace-photos
       - key: S3_FORCE_PATH_STYLE
         value: "true"
-      - key: APP_ENV
-        value: production
