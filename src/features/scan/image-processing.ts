@@ -52,7 +52,7 @@ export async function resizeImage(file: Blob): Promise<{ bitmap: ImageBitmap; ur
   if (!isAcceptedImageType(file)) {
     throw new Error('Unsupported image format. Use JPEG, PNG or WebP.')
   }
-  const bitmap = await createImageBitmap(file)
+  const bitmap = await createImageBitmap(file, { imageOrientation: 'from-image' })
   let blob: Blob
   try {
     if (bitmap.width < 1 || bitmap.height < 1) throw new Error('Photo has invalid dimensions.')
@@ -73,7 +73,7 @@ export async function resizeImage(file: Blob): Promise<{ bitmap: ImageBitmap; ur
   // Re-decode the JPEG we just produced rather than reusing the original
   // bitmap, so the ImageBitmap we hand back actually matches the blob's
   // pixels (and dimensions) that get uploaded/stored alongside it.
-  const resized = await createImageBitmap(blob)
+  const resized = await createImageBitmap(blob, { imageOrientation: 'from-image' })
   const url = URL.createObjectURL(blob)
   return { bitmap: resized, url, blob }
 }
