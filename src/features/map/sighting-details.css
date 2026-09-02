@@ -412,26 +412,28 @@
 
 .pin-sheet__directions {
   width: 100%;
-  min-height: 44px;
+  min-height: 40px;
   padding: 0 12px;
-  border-radius: var(--r-button);
-  background: transparent;
+  border-radius: var(--r-pill, 999px);
+  background: var(--hover, rgba(0,0,0,0.04));
   color: var(--muted);
-  font-size: 12.5px;
+  font-size: 12px;
+  font-weight: 500;
+  letter-spacing: 0.01em;
   text-decoration: none;
   display: flex;
   align-items: center;
   justify-content: center;
-  gap: 7px;
-  border: 0;
+  gap: 6px;
+  border: 1px dashed var(--border);
   transition: background-color 180ms ease, transform 120ms ease;
 }
 
 .pin-sheet__directions:disabled {
-  background: transparent;
+  background: var(--hover, rgba(0,0,0,0.03));
   color: var(--muted);
-  border: 0;
-  opacity: 1;
+  border: 1px dashed var(--border);
+  opacity: 0.85;
   cursor: not-allowed;
 }
 
