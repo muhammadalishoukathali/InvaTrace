@@ -5,6 +5,12 @@
 // chunks the app can serve from public/models/pulih-model1-v4/. Doing this on
 // every run means the served model is always freshly re-verified against the
 // vendor kit rather than trusting whatever was left in public/ from before.
+import { createHash } from 'node:crypto'
+import { cp, mkdir, readFile, rm, writeFile } from 'node:fs/promises'
+import { dirname, join, relative, resolve } from 'node:path'
+import { fileURLToPath } from 'node:url'
+import { restoreRuntimeAssets } from './restore-runtime-assets.mjs'
+
 const projectRoot = resolve(dirname(fileURLToPath(import.meta.url)), '..')
 const kitRoot = join(projectRoot, 'vendor', 'PULIH_Model1_v4_FP16_Web_Kit')
 const modelRoot = join(kitRoot, 'model')
