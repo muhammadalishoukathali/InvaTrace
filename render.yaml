@@ -7,12 +7,6 @@ services:
     rootDir: backend
     dockerfilePath: ./Dockerfile
     healthCheckPath: /health
-    # AC Phase 5 — every deploy runs Alembic to head, then idempotently
-    # loads the 31-class reference catalogue (species / Malaysian status /
-    # guidance metadata / MonitoredPlace anchors). load-reference-data
-    # refuses to insert demo sightings so a production DB never gets seeded
-    # with sample data by accident.
-    preDeployCommand: alembic upgrade head && python -m app.cli load-reference-data
     envVars:
       - key: APP_ENV
         value: production
@@ -178,7 +172,6 @@ services:
     name: invatrace-web
     runtime: static
     plan: free
-    region: singapore
     buildCommand: npm ci && npm run build
     staticPublishPath: ./dist
     pullRequestPreviewsEnabled: false
