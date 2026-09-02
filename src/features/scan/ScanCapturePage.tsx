@@ -118,6 +118,25 @@ export function ScanCapturePage() {
     }
   }, [stopCamera])
 
+  // Returning here after "Back to capture" preserves imageBlob/quality but
+  // scan-store's setResult already closed the ImageBitmap. Rehydrate it on
+  // mount so the Analyse button has a bitmap ready without waiting for the
+  // in-analyse fallback path.
+  useEffect(() => {
+    const { imageBitmap, imageBlob } = useScan.getState()
+    if (imageBitmap || !imageBlob) return
+    let cancelled = false
+    void createImageBitmap(imageBlob, { imageOrientation: 'from-image' })
+      .then((bmp) => {
+        if (cancelled) { bmp.close(); return }
+        const current = useScan.getState()
+        if (current.imageBitmap || current.imageBlob !== imageBlob) { bmp.close(); return }
+        useScan.setState({ imageBitmap: bmp })
+      })
+      .catch(() => { /* fallback path in analyse() handles this */ })
+    return () => { cancelled = true }
+  }, [])
+
   const prepareImage = async (input: Blob, source: 'camera' | 'gallery') => {
     const requestId = ++imageRequestRef.current
     setChecking(true)
