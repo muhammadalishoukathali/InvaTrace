@@ -121,6 +121,7 @@ export function ScanResultPage() {
           // A server block always hides removal guidance.
           actionEligible={speciesDetail?.actionEligible}
           decisionContext={captureId ? { id: `scan:${captureId}`, kind: 'scan' } : undefined}
+          showReferenceImage={false}
         />
       )}
 

@@ -227,8 +227,20 @@ export function ScanCapturePage() {
 
   const analyse = async () => {
     if (analysisRunningRef.current) return
-    const { imageBitmap: bitmap, imageBlob } = useScan.getState()
-    if (!bitmap || !imageBlob) return
+    let { imageBitmap: bitmap } = useScan.getState()
+    const { imageBlob } = useScan.getState()
+    if (!imageBlob) return
+    // Bitmap is nulled by setResult after a prior run, so returning to this
+    // screen via "Back to capture" leaves imageBlob but no bitmap. Rehydrate
+    // from the blob so the analyse button works on the preserved photo.
+    if (!bitmap) {
+      try {
+        bitmap = await createImageBitmap(imageBlob, { imageOrientation: 'from-image' })
+      } catch {
+        setAnalysisError('Could not reopen the photo. Retake it and try again.')
+        return
+      }
+    }
 
     const requestId = ++analysisRequestRef.current
     analysisRunningRef.current = true
