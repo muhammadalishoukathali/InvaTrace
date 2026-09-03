@@ -87,4 +87,7 @@ def report_response(
             ),
         ),
         sighting_id=str(sighting_id) if sighting_id else None,
+        retained_report_id=(
+            str(report.merged_into_report_id) if report.merged_into_report_id else None
+        ),
     )

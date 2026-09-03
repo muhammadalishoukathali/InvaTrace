@@ -434,6 +434,15 @@ class Report(Base):
     idempotency_key: Mapped[str] = mapped_column(String(128), nullable=False)
     validation_reasons: Mapped[list[str]] = mapped_column(JSON_TYPE, default=list, nullable=False)
     validation_policy_version: Mapped[str | None] = mapped_column(String(120))
+    # AC 2.3.2 — self-reference to the retained report a near-duplicate merge
+    # folded this one into. Nullable so non-merged reports leave it unset;
+    # ON DELETE SET NULL keeps the merged report row intact if the retained
+    # report is ever deleted for a legitimate reason.
+    merged_into_report_id: Mapped[uuid.UUID | None] = mapped_column(
+        UUID(as_uuid=True),
+        ForeignKey("reports.id", ondelete="SET NULL"),
+        index=True,
+    )
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), server_default=func.now(), index=True, nullable=False
     )

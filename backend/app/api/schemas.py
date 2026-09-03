@@ -371,6 +371,9 @@ class ReportResponse(ApiModel):
     tracking_url: str
     validation: ReportValidation
     sighting_id: str | None
+    # AC 2.3.2 — the retained report id when this row was merged into a
+    # prior report; null otherwise. Serialises as ``retainedReportId``.
+    retained_report_id: str | None = None
 
 
 class ReportListResponse(ApiModel):

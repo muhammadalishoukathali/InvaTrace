@@ -782,6 +782,7 @@ export const handlers = [
         reasonCodes: [], retryable: false, policyVersion: null, screeningMethod: null,
       },
       sightingId: null,
+      retainedReportId: null,
       ownerProfileId: session.profile.id,
     }
     mockReports.unshift(report)
@@ -899,6 +900,7 @@ const seedReport = (id: string, speciesId: string, outcome: 'target' | 'uncertai
     reasonCodes: [], retryable: false, policyVersion: null, screeningMethod: null,
   },
   sightingId: null,
+  retainedReportId: null,
   submission: {
     photoKey: `evidence/seed/${id}.jpg`,
     speciesId, outcome, confidence, modelVersion: 'development-model-v1',
