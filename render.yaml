@@ -8,9 +8,10 @@
 # DATABASE_URL / REDIS_URL through the Render dashboard.
 #
 # On first deploy — after both services are created — set the shared
-# secrets in each service's env panel (marked `sync: false` below) and
-# ensure `alembic upgrade head` has run (preDeployCommand does this
-# automatically on every subsequent deploy).
+# secrets in each service's env panel (marked `sync: false` below).
+# Schema migrations and reference-data load run in the container
+# entrypoint (backend/docker-entrypoint.sh) on every start, so no
+# out-of-band step is needed after the first push.
 
 services:
   - type: web
@@ -18,13 +19,11 @@ services:
     runtime: docker
     plan: free
     region: singapore
-    rootDir: backend
-    dockerfilePath: ./Dockerfile
+    dockerfilePath: ./backend/Dockerfile
     healthCheckPath: /health/live
-    # AC Iteration 1 P11 — schema migrations must be applied before a new
-    # image starts serving, or a startup-time model query will raise.
-    # Runs against the DATABASE_URL wired below.
-    preDeployCommand: alembic upgrade head
+    # AC 1.2.1 — migrations and reference-data load run in the container
+    # entrypoint (backend/docker-entrypoint.sh) so a fresh free-tier deploy
+    # does not depend on Render's paid-only preDeployCommand step.
     envVars:
       - key: APP_ENV
         value: production
