@@ -355,12 +355,21 @@ export function ThreatMapPage() {
       position: 'relative', height: '100%', minHeight: 0,
       display: 'flex', flexDirection: 'column',
     }}>
-      {/* The accessible list mirrors every marker for keyboard and screen-reader users. */}
+      {/* AC Iteration 1 P9 — the visual map canvas is inert for
+          non-sighted / keyboard-only users. The mirror <AccessibleSightingList/>
+          below always renders (loading / error / empty included) so pin data
+          stays reachable when the canvas cannot be perceived. */}
       <div style={{ position: 'relative', flex: 1, minHeight: 0 }}>
-        <div ref={container} style={{
-          position: 'absolute', inset: 0,
-          touchAction: 'none',   // MapLibre handles pinch, drag, and tap gestures.
-        }} />
+        <div
+          ref={container}
+          role="application"
+          aria-label="Interactive community reports map. A parallel list of the same reports is available below the map."
+          aria-describedby="map-live-count"
+          style={{
+            position: 'absolute', inset: 0,
+            touchAction: 'none',   // MapLibre handles pinch, drag, and tap gestures.
+          }}
+        />
         {isLoading && (
           <div className="map-state map-state--loading" role="status" aria-live="polite">
             <span className="map-state__pulse" aria-hidden />
@@ -385,6 +394,7 @@ export function ThreatMapPage() {
         {/* AC 4.2.3 — visible result count. Announces to assistive tech via
             aria-live so screen readers hear the count change after a filter. */}
         <div
+          id="map-live-count"
           role="status"
           aria-live="polite"
           style={{
@@ -420,7 +430,13 @@ export function ThreatMapPage() {
           </div>
         )}
       </div>
-      <AccessibleSightingList items={filtered} onSelect={select} />
+      <AccessibleSightingList
+        items={filtered}
+        onSelect={select}
+        isLoading={isLoading}
+        isError={isError}
+        onRetry={() => void refetch()}
+      />
       <SightingDetailsSheet />
       <SavedRecordDetailsSheet
         target={requestedLocation}
@@ -545,30 +561,56 @@ function MapAttribution() {
  * without the map canvas.
  */
 function AccessibleSightingList({
-  items, onSelect,
-}: { items: Sighting[]; onSelect: (id: string) => void }) {
+  items, onSelect, isLoading, isError, onRetry,
+}: {
+  items: Sighting[]
+  onSelect: (id: string) => void
+  isLoading: boolean
+  isError: boolean
+  onRetry: () => void
+}) {
+  // AC Iteration 1 P9 — the accessible fallback renders in every state, not
+  // only after data loads. A screen-reader user hitting an error or waiting
+  // for the request otherwise has no path to the report data at all.
   return (
     <section aria-label="Community reports list" className="sr-only">
-      <p>{items.length} community reports match the current filters.</p>
-      <ul>
-        {items.map((s) => {
-          const statusLabel = s.status === 'screened'
-            ? 'Community report - not expert validated'
-            : 'Removed'
-          const tierLabel = PIN_TIERS[pinTier(s)].label
-          return (
-            <li key={s.id}>
-              <button type="button" onClick={() => onSelect(s.id)}>
-                {s.speciesName} ({s.latinName}) — {tierLabel} — {statusLabel}
-                {' — '}
-                {s.place.source === 'fallback' || !s.place.displayName
-                  ? 'No named trail, park or forest found nearby'
-                  : s.place.displayName}
-              </button>
-            </li>
-          )
-        })}
-      </ul>
+      {isLoading && <p role="status">Loading community reports…</p>}
+      {isError && (
+        <p role="alert">
+          Community reports could not load.{' '}
+          <button type="button" onClick={onRetry}>Try again</button>
+        </p>
+      )}
+      {!isLoading && !isError && (
+        <>
+          <p>
+            {items.length === 0
+              ? 'No community reports match the current filters.'
+              : `${items.length} community report${items.length === 1 ? '' : 's'} match the current filters.`}
+          </p>
+          {items.length > 0 && (
+            <ul>
+              {items.map((s) => {
+                const statusLabel = s.status === 'screened'
+                  ? 'Community report - not expert validated'
+                  : 'Removed'
+                const tierLabel = PIN_TIERS[pinTier(s)].label
+                return (
+                  <li key={s.id}>
+                    <button type="button" onClick={() => onSelect(s.id)}>
+                      {s.speciesName} ({s.latinName}) — {tierLabel} — {statusLabel}
+                      {' — '}
+                      {s.place.source === 'fallback' || !s.place.displayName
+                        ? 'No named trail, park or forest found nearby'
+                        : s.place.displayName}
+                    </button>
+                  </li>
+                )
+              })}
+            </ul>
+          )}
+        </>
+      )}
     </section>
   )
 }

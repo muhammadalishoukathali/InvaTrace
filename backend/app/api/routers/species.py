@@ -54,22 +54,14 @@ def model_config() -> dict[str, object]:
     }
 
 
-# The DB tracks Malaysia's official invasive-status categories in more
-# detail than the UI needs — this collapses them down to the three states
-# the frontend actually renders differently (invasive / info-only / uncertain).
+# Iteration 1 — Species.malaysia_status is now populated from the shared
+# catalogue's ui_state directly (invasive / information_only / status_uncertain),
+# so this mapping is an identity pass-through with a fail-safe fallback for
+# any legacy row that still carries a pre-catalogue raw status string.
 _STATUS_TO_UI: dict[str, MalaysiaStatus] = {
     "invasive": "invasive",
-    "alien_not_marked_invasive": "information_only",
-    "common_cultivated_status_not_inferred": "information_only",
-    "introduced": "information_only",
-    # AC 1.2.1 — parity with frontend malaysia-status.ts; both native and
-    # naturalised must resolve to information_only server-side too, otherwise
-    # the fail-safe drop to status_uncertain hides valid catalogue values.
-    "native": "information_only",
-    "naturalised": "information_only",
-    "status_requires_expert_review": "status_uncertain",
-    "cryptogenic_uncertain": "status_uncertain",
-    "watchlist_not_present": "status_uncertain",
+    "information_only": "information_only",
+    "status_uncertain": "status_uncertain",
 }
 
 

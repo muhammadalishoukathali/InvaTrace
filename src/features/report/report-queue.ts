@@ -108,10 +108,18 @@ async function createReport(
   idempotencyKey: string,
   queuedRetry: boolean,
 ): Promise<Report> {
+  // AC Iteration 1 P1 — announce the bundled catalogue version + checksum so
+  // the backend can 409 out any submission that would otherwise commit
+  // against a drifted plant-status record. Imported lazily to keep this
+  // module tree-shakeable when the report queue is loaded on a page that
+  // never actually submits (e.g. history view).
+  const { catalogueVersion, plantStatusChecksum } = await import('@shared/catalogue')
   return api<Report>('/api/v1/reports', {
     method: 'POST',
     headers: {
       'Idempotency-Key': idempotencyKey,
+      'X-InvaTrace-Catalogue-Version': catalogueVersion(),
+      'X-InvaTrace-Catalogue-Sha256': plantStatusChecksum(),
       ...(queuedRetry ? { 'X-InvaTrace-Queued': 'true' } : {}),
     },
     body: JSON.stringify(submission),

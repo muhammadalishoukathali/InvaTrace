@@ -1,3 +1,17 @@
+# AC Iteration 1 P11 — Render.com deploy blueprint for InvaTrace.
+#
+# Two services here: the FastAPI backend (invatrace-api) and the Vite PWA
+# (invatrace-web). Postgres + Redis are NOT declared as Render services
+# because Render's managed Postgres does not include PostGIS; provision
+# both externally (Neon / Supabase / self-hosted for Postgres with the
+# postgis extension enabled, Upstash / Render Redis for Redis) and wire
+# DATABASE_URL / REDIS_URL through the Render dashboard.
+#
+# On first deploy — after both services are created — set the shared
+# secrets in each service's env panel (marked `sync: false` below) and
+# ensure `alembic upgrade head` has run (preDeployCommand does this
+# automatically on every subsequent deploy).
+
 services:
   - type: web
     name: invatrace-api
@@ -6,7 +20,11 @@ services:
     region: singapore
     rootDir: backend
     dockerfilePath: ./Dockerfile
-    healthCheckPath: /health
+    healthCheckPath: /health/live
+    # AC Iteration 1 P11 — schema migrations must be applied before a new
+    # image starts serving, or a startup-time model query will raise.
+    # Runs against the DATABASE_URL wired below.
+    preDeployCommand: alembic upgrade head
     envVars:
       - key: APP_ENV
         value: production
@@ -47,6 +65,17 @@ services:
         value: "30"
       - key: REPORT_CREATE_BURST_WINDOW_SECONDS
         value: "600"
+      # AC Iteration 1 P7 — single 300 m GPS accuracy policy. Kept explicit
+      # in production so a config drift is caught at deploy review rather
+      # than surprising a reporter with a rescan whose threshold is not
+      # documented in the app UI.
+      - key: SCREENING_LOCATION_ACCURACY_MAX_M
+        value: "250"
+      # AC Iteration 1 P4 — duplicate detection must stay on in prod.
+      # Explicit so an operator toggling it in a dev env cannot leak the
+      # flag through a rebased branch.
+      - key: SCREENING_DISABLE_DUPLICATE_CHECK
+        value: "false"
 
   # Verification + cleanup workers run in-process inside invatrace-api on the
   # free plan (see RUN_WORKERS_IN_API above). On paid plans, add background
@@ -66,6 +95,22 @@ services:
       - type: rewrite
         source: /*
         destination: /index.html
+    # AC Iteration 1 P11 — long-lived caching for hashed Vite assets, and
+    # a no-store for the service-worker entry point so an updated release
+    # replaces the shell instead of a stale copy sitting in a browser cache.
+    headers:
+      - path: /assets/*
+        name: Cache-Control
+        value: public, max-age=31536000, immutable
+      - path: /sw.js
+        name: Cache-Control
+        value: no-store
+      - path: /*
+        name: X-Content-Type-Options
+        value: nosniff
+      - path: /*
+        name: Referrer-Policy
+        value: strict-origin-when-cross-origin
     envVars:
       # Set this in the Render dashboard to the full https URL of the
       # invatrace-api service (e.g. https://invatrace-api.onrender.com).

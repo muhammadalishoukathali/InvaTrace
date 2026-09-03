@@ -1,21 +1,25 @@
-// Species catalog for the bundled on-device PULIH model (see vendor/PULIH_Model1_v4_FP16_Web_Kit).
-// The JSON here is the checksum-verified model kit's own class list, so it's the only
-// place that's actually guaranteed to match what the ONNX model can output — everything
-// else (guidance copy, map labels, report species pickers) should resolve through this
-// file rather than hardcoding species names, or a model swap will silently desync them.
-// Consumed by src/features/scan/plant-model-adapter.ts to turn a raw class index from
-// inference into a species result, and by src/data/plant-guidance.ts to attach the
-// authoritative Malaysia status to each guidance entry.
-import catalogJson from '../../vendor/PULIH_Model1_v4_FP16_Web_Kit/model/species_31.json'
+// Species catalog for the bundled on-device PULIH model
+// (see vendor/PULIH_Model1_v4_FP16_Web_Kit).
+//
+// The model manifest is trusted only for the ordered class list — every field
+// the UI branches on for Malaysian status comes from shared/catalogue instead.
+// A model swap therefore never re-labels a class silently: the shared catalogue
+// must be updated (and its sha256 rechecked against the backend) first.
+import modelManifest from '../../vendor/PULIH_Model1_v4_FP16_Web_Kit/model/species_31.json'
+import {
+  findPlantStatus,
+  plantStatusDataset,
+  type PlantStatusRecord,
+} from '@shared/catalogue'
 
-// Shape of species_31.json — one entry per class the model was trained to output.
 export interface ModelSpeciesClass {
   class_index: number
   machine_label: string
   scientific_name: string
   display_name: string
-  recognition_category: string
-  malaysia_status: string
+  /** Reviewed Malaysian status, resolved from the shared catalogue. */
+  malaysia_status: PlantStatusRecord['ui_state']
+  /** First reviewed status source ID from the shared catalogue, if any. */
   status_source: string
 }
 
@@ -26,33 +30,52 @@ export interface ModelSpeciesCatalog {
   classes: ModelSpeciesClass[]
 }
 
-// AC 1.2.2 — classes we have not yet backed with reviewed Malaysian
-// invasive-status evidence. "PULIH v4 approved recognition category" is
-// the model's own recognition metadata, not a Malaysian status source, so
-// the classes below are downgraded to status_uncertain until proper
-// evidence lands. Consumers (frontend + backend) treat status_uncertain
-// as not-reportable and not-action-eligible.
-const _DEFERRED_STATUS_LABELS = new Set([
-  'miconia_crenata',
-  'sphagneticola_trilobata',
-  'lantana_camara',
-])
-
-const _rawCatalog = catalogJson as ModelSpeciesCatalog
-
-/** Single source of truth for every label the bundled PULIH model can emit. */
-export const modelSpeciesCatalog: ModelSpeciesCatalog = {
-  ..._rawCatalog,
-  classes: _rawCatalog.classes.map((item) => (
-    _DEFERRED_STATUS_LABELS.has(item.machine_label)
-      ? { ...item, malaysia_status: 'status_requires_expert_review', status_source: '' }
-      : item
-  )),
+interface RawModelManifestClass {
+  class_index: number
+  machine_label: string
+  scientific_name: string
+  display_name: string
 }
 
-// machine_label in the JSON uses underscores, but species IDs elsewhere in the app
-// (routes, plant_id in the guidance dataset) use hyphens, so we index on the hyphenated
-// form and normalize any incoming query the same way in findModelSpecies below.
+interface RawModelManifest {
+  schema_version: string
+  model_version: string
+  class_count: number
+  classes: RawModelManifestClass[]
+}
+
+const rawManifest = modelManifest as RawModelManifest
+
+if (rawManifest.class_count !== plantStatusDataset.records.length) {
+  // A frontend build must never ship a mismatched model manifest / catalogue.
+  throw new Error(
+    'InvaTrace catalogue and model manifest disagree on class count ' +
+      `(manifest=${rawManifest.class_count}, catalogue=${plantStatusDataset.records.length}).`,
+  )
+}
+
+export const modelSpeciesCatalog: ModelSpeciesCatalog = {
+  schema_version: rawManifest.schema_version,
+  model_version: rawManifest.model_version,
+  class_count: rawManifest.class_count,
+  classes: rawManifest.classes.map((entry) => {
+    const record = findPlantStatus({ modelLabel: entry.machine_label })
+    if (!record) {
+      throw new Error(
+        `InvaTrace catalogue is missing a plant-status record for model class "${entry.machine_label}".`,
+      )
+    }
+    return {
+      class_index: entry.class_index,
+      machine_label: entry.machine_label,
+      scientific_name: entry.scientific_name,
+      display_name: entry.display_name,
+      malaysia_status: record.ui_state,
+      status_source: record.status_source_ids[0] ?? '',
+    }
+  }),
+}
+
 const bySpeciesId = new Map(
   modelSpeciesCatalog.classes.map((item) => [item.machine_label.replaceAll('_', '-'), item]),
 )

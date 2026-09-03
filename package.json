@@ -6,6 +6,7 @@
   "scripts": {
     "pack:assets": "node scripts/pack-runtime-assets.mjs",
     "prepare:model": "node scripts/prepare-model-assets.mjs",
+    "catalogue:refresh": "node scripts/update-catalogue-manifest.mjs",
     "predev": "npm run prepare:model",
     "dev": "cross-env NODE_OPTIONS=--max-http-header-size=65536 vite --host",
     "predev:https": "npm run prepare:model",

@@ -1,0 +1,45 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://invatrace.local/schemas/catalogue-manifest.schema.json",
+  "title": "InvaTrace catalogue manifest",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version",
+    "catalogue_version",
+    "content_version",
+    "model_version",
+    "last_reviewed",
+    "files"
+  ],
+  "properties": {
+    "$schema": { "type": "string" },
+    "schema_version": { "type": "string", "const": "invatrace.catalogue.manifest.v1" },
+    "catalogue_version": { "type": "string", "pattern": "^\\d+\\.\\d+\\.\\d+$" },
+    "content_version": { "type": "string", "pattern": "^\\d+\\.\\d+\\.\\d+$" },
+    "model_version": { "type": "string", "minLength": 1 },
+    "last_reviewed": { "type": "string", "format": "date" },
+    "files": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["plant-status.json", "plant-guidance.json"],
+      "properties": {
+        "plant-status.json": { "$ref": "#/$defs/fileEntry" },
+        "plant-guidance.json": { "$ref": "#/$defs/fileEntry" }
+      }
+    }
+  },
+  "$defs": {
+    "fileEntry": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["sha256", "byte_length", "schema_version"],
+      "properties": {
+        "sha256": { "type": "string", "pattern": "^[0-9a-f]{64}$" },
+        "byte_length": { "type": "integer", "minimum": 1 },
+        "schema_version": { "type": "string", "minLength": 1 },
+        "record_count": { "type": "integer", "minimum": 0 }
+      }
+    }
+  }
+}

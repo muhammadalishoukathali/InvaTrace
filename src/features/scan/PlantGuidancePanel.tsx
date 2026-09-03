@@ -15,6 +15,12 @@ import {
   type PlantGuidance,
   type SourcedItem,
 } from '@/data/plant-guidance'
+import {
+  catalogueSourceById,
+  catalogueVersion,
+  findPlantStatus,
+  type PlantStatusRecord,
+} from '@shared/catalogue'
 
 interface Props {
   scientificName?: string | null
@@ -110,7 +116,20 @@ export function PlantGuidancePanel({
   }, [initialDecision])
 
   if (!plant) {
-    return <MissingGuidanceFallback speciesName={speciesName ?? scientificName ?? null} />
+    // AC Iteration 1 P6 — even when the reviewed guidance card is absent,
+    // fall back to the authoritative shared catalogue so users still see the
+    // status chip, safety message, and sourced provenance offline.
+    const catalogueRecord = findPlantStatus({
+      speciesId: plantId ?? null,
+      scientificName: scientificName ?? null,
+      modelLabel: speciesName ?? null,
+    })
+    return (
+      <MissingGuidanceFallback
+        speciesName={speciesName ?? scientificName ?? null}
+        catalogueRecord={catalogueRecord}
+      />
+    )
   }
 
   // A missing source triggers the observe-and-report fallback so the UI never shows
@@ -121,7 +140,17 @@ export function PlantGuidancePanel({
         `Plant guidance for ${plant.plant_id} references sources absent from the registry — falling back to observe-and-report.`,
       )
     }
-    return <MissingGuidanceFallback speciesName={speciesName ?? scientificName ?? null} />
+    const catalogueRecord = findPlantStatus({
+      speciesId: plant.plant_id,
+      scientificName: plant.scientific_name,
+      modelLabel: plant.model_label,
+    })
+    return (
+      <MissingGuidanceFallback
+        speciesName={speciesName ?? scientificName ?? null}
+        catalogueRecord={catalogueRecord}
+      />
+    )
   }
 
   const modeInfo = MODE_COPY[plant.guidance_mode]
@@ -312,7 +341,24 @@ export function PlantGuidancePanel({
   )
 }
 
-function MissingGuidanceFallback({ speciesName }: { speciesName: string | null }) {
+function MissingGuidanceFallback({
+  speciesName,
+  catalogueRecord,
+}: {
+  speciesName: string | null
+  catalogueRecord: PlantStatusRecord | null
+}) {
+  // AC Iteration 1 P6 — the reviewed-guidance card may be missing for a class
+  // the shared catalogue still knows about (e.g. a species that ships with a
+  // status + safety_message but no removal path). Surface the catalogue's
+  // authoritative note here so offline users still see status + provenance,
+  // not a bare "observe and report" placeholder that hides what we do know.
+  const uiStatePresentation = catalogueRecord
+    ? UI_STATE_FALLBACK_PRESENTATION[catalogueRecord.ui_state]
+    : null
+  const sources = (catalogueRecord?.status_source_ids ?? [])
+    .map((id) => catalogueSourceById(id))
+    .filter((source): source is NonNullable<typeof source> => Boolean(source))
   return (
     <section
       aria-labelledby="plant-guidance-heading"
@@ -324,13 +370,25 @@ function MissingGuidanceFallback({ speciesName }: { speciesName: string | null }
         border: '1px solid var(--border)',
       }}
     >
-      <h3 id="plant-guidance-heading" style={{ fontSize: 15, fontWeight: 700 }}>
-        Guidance for Malaysia
-      </h3>
+      <header style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-start', gap: 8 }}>
+        <h3 id="plant-guidance-heading" style={{ fontSize: 15, fontWeight: 700 }}>
+          Guidance for Malaysia
+        </h3>
+        {uiStatePresentation && (
+          <span style={{
+            display: 'inline-flex', alignItems: 'center', gap: 6,
+            padding: '4px 10px', borderRadius: 'var(--r-chip)',
+            fontSize: 11.5, fontWeight: 700,
+            background: uiStatePresentation.bg,
+            border: `1px solid ${uiStatePresentation.border}`,
+            color: uiStatePresentation.color,
+          }}>{uiStatePresentation.label}</span>
+        )}
+      </header>
       <div
         role="note"
         style={{
-          marginTop: 10,
+          marginTop: 12,
           padding: '10px 14px',
           borderRadius: 'var(--r-input)',
           background: TONE_STYLES.warn.bg,
@@ -339,14 +397,56 @@ function MissingGuidanceFallback({ speciesName }: { speciesName: string | null }
       >
         <div style={{ fontSize: 12.5, fontWeight: 700, color: TONE_STYLES.warn.color }}>Observe and report only</div>
         <p style={{ marginTop: 4, fontSize: 12.5, color: 'var(--body)', lineHeight: 1.55 }}>
-          {speciesName
-            ? `We do not have reviewed guidance for ${speciesName} yet.`
-            : 'We do not have reviewed guidance for this plant yet.'}{' '}
-          Leave it where it is. Take clear photos and report the sighting for review.
+          {catalogueRecord?.safety_message
+            || (speciesName
+              ? `We do not have reviewed guidance for ${speciesName} yet. Leave it where it is. Take clear photos and report the sighting for review.`
+              : 'We do not have reviewed guidance for this plant yet. Leave it where it is. Take clear photos and report the sighting for review.')}
         </p>
       </div>
+      {catalogueRecord && (
+        <p style={{ marginTop: 10, fontSize: 11.5, color: 'var(--muted)', lineHeight: 1.55 }}>
+          Status from InvaTrace catalogue {catalogueVersion()}
+          {catalogueRecord.status_reviewed_at
+            ? ` · reviewed ${catalogueRecord.status_reviewed_at}`
+            : ''}
+          {sources.length > 0 && (
+            <>
+              {' · sources: '}
+              {sources.map((source, index) => (
+                <span key={source.source_id}>
+                  {index > 0 ? ', ' : ''}[{source.source_id}]{' '}
+                  <a href={source.url} target="_blank" rel="noopener noreferrer" style={{ color: 'var(--body)' }}>
+                    {source.title}
+                  </a>
+                </span>
+              ))}
+            </>
+          )}
+        </p>
+      )}
     </section>
   )
+}
+
+// AC Iteration 1 P6 — the chip presentation for the shared-catalogue-only
+// fallback. Kept alongside the fallback so the invasive/info-only/uncertain
+// mapping is one obvious block instead of scattered across the component.
+const UI_STATE_FALLBACK_PRESENTATION: Record<
+  PlantStatusRecord['ui_state'],
+  { label: string; bg: string; border: string; color: string }
+> = {
+  invasive: {
+    label: 'Invasive in Malaysia',
+    bg: 'var(--red-light)', border: 'var(--red-border)', color: 'var(--red)',
+  },
+  information_only: {
+    label: 'Information only',
+    bg: '#EEF3F7', border: '#D5DEE7', color: '#2F5F86',
+  },
+  status_uncertain: {
+    label: 'Status uncertain',
+    bg: '#FEF3E2', border: '#F0D9A8', color: 'var(--amber)',
+  },
 }
 
 function naturalIdentificationNote(note: string): string {

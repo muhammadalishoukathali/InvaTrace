@@ -4,6 +4,14 @@
   padding: 16px 16px calc(132px + env(safe-area-inset-bottom));
 }
 
+.scan-result__disclosure {
+  margin: 10px 0 0;
+  font-size: 12px;
+  line-height: 1.55;
+  color: var(--muted);
+  font-style: italic;
+}
+
 .scan-result__action-dock {
   position: fixed;
   z-index: 20;

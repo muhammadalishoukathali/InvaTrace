@@ -22,6 +22,13 @@ POLICY_VERSION = "deterministic-rules-v1.0"
 ValidationStatus = Literal["screened", "merged", "needs_rescan", "rejected"]
 
 
+# AC Iteration 1 P7 — the single 300 m GPS accuracy policy. Kept as a module
+# constant so a caller that constructs ValidationInput without an explicit
+# threshold still gets the canonical policy, and the frontend can import the
+# same number via the settings endpoint without drifting.
+DEFAULT_LOCATION_ACCURACY_MAX_M = 250
+
+
 @dataclass(frozen=True)
 class ValidationInput:
     image_failure_reasons: tuple[str, ...]
@@ -32,6 +39,11 @@ class ValidationInput:
     exact_replay: bool = False
     perceptual_replay: bool = False
     merge_target_id: str | None = None
+    # AC Iteration 1 P7 — the threshold the caller is enforcing this run.
+    # Defaults to the canonical 300 m policy so unit tests that ignore this
+    # field still exercise real behaviour. The screening worker passes the
+    # live settings value so an operator can tune the policy centrally.
+    location_accuracy_threshold_m: int = DEFAULT_LOCATION_ACCURACY_MAX_M
 
 
 @dataclass(frozen=True)
@@ -61,7 +73,10 @@ def evaluate(input: ValidationInput) -> ValidationDecision:
     # client can show them all at once instead of a frustrating one-at-a-time
     # rejection loop
     rescan_reasons = list(input.image_failure_reasons)
-    if input.location_accuracy_m is None or input.location_accuracy_m > 100:
+    if (
+        input.location_accuracy_m is None
+        or input.location_accuracy_m > input.location_accuracy_threshold_m
+    ):
         rescan_reasons.append("location_accuracy_insufficient")
     if input.client_outcome != "target" or not input.client_species_id:
         rescan_reasons.append("plant_identification_not_reportable")

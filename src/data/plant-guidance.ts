@@ -8,8 +8,8 @@
 // ./plant-guidance.schema.json — that contract is checked by the sibling
 // plant-guidance.schema.test.ts, not enforced at runtime here, so an edit to the JSON
 // that breaks the schema won't fail until tests run.
-import guidanceJson from './plant-guidance.json'
-import { findModelSpecies } from './model-species-catalog'
+import guidanceJson from '../../shared/catalogue/plant-guidance.json'
+import { findPlantStatus } from '@shared/catalogue'
 
 export type GuidanceMode =
   | 'general_information'
@@ -102,72 +102,51 @@ export interface PlantGuidanceDataset {
 
 const rawPlantGuidanceDataset = guidanceJson as unknown as PlantGuidanceDataset
 
-// Maps the raw malaysia_status strings from species_31.json (model-species-catalog.ts)
-// to how we actually label them in the UI. Keys have to match the model kit's status
-// values exactly — anything not listed here falls through to the "needs review" default
-// in modelMalaysiaStatus below rather than failing loudly.
-const MODEL_STATUS_PRESENTATION: Record<string, Pick<MalaysiaStatus, 'category' | 'display_label' | 'confidence'>> = {
+// Iteration 1 — Malaysian status is derived from the shared catalogue, not
+// this file's own status hints. shared/catalogue/plant-status.json is the
+// only source of truth for ui_state; the presentation labels below only
+// exist to turn that ui_state into a human-readable heading.
+const UI_STATE_PRESENTATION: Record<string, Pick<MalaysiaStatus, 'category' | 'display_label' | 'confidence'>> = {
   invasive: {
     category: 'invasive', display_label: 'Invasive in Malaysia', confidence: 'high',
   },
-  alien_not_marked_invasive: {
-    category: 'information_only', display_label: 'Alien plant · not a target', confidence: 'high',
+  information_only: {
+    category: 'information_only', display_label: 'Information only', confidence: 'high',
   },
-  common_cultivated_status_not_inferred: {
-    category: 'information_only', display_label: 'Cultivated plant · status not inferred', confidence: 'medium',
-  },
-  introduced: {
-    category: 'information_only', display_label: 'Introduced plant · information only', confidence: 'high',
-  },
-  native: {
-    category: 'information_only', display_label: 'Native plant · information only', confidence: 'high',
-  },
-  naturalised: {
-    category: 'information_only', display_label: 'Naturalised plant · information only', confidence: 'high',
-  },
-  status_requires_expert_review: {
-    category: 'status_uncertain', display_label: 'Malaysia status needs expert review', confidence: 'low',
-  },
-  cryptogenic_uncertain: {
-    category: 'status_uncertain', display_label: 'Malaysia status uncertain', confidence: 'low',
-  },
-  watchlist_not_present: {
-    category: 'status_uncertain', display_label: 'Watchlist · not recorded in Malaysia', confidence: 'medium',
+  status_uncertain: {
+    category: 'status_uncertain', display_label: 'Status uncertain', confidence: 'low',
   },
 }
 
 /**
  * Guidance remains curated content, but identification status always comes
- * from the exact catalogue bundled with the model. This prevents an older
+ * from the shared catalogue bundled with the model. This prevents an older
  * guidance review from relabelling a model class in the result UI.
  */
 export const plantGuidanceDataset: PlantGuidanceDataset = {
   ...rawPlantGuidanceDataset,
   plants: rawPlantGuidanceDataset.plants.map((plant) => {
-    const modelSpecies = findModelSpecies({
+    const record = findPlantStatus({
       speciesId: plant.plant_id,
       scientificName: plant.scientific_name,
+      modelLabel: plant.model_label,
     })
-    if (!modelSpecies) return plant
+    if (!record) return plant
+    const presentation = UI_STATE_PRESENTATION[record.ui_state] ?? UI_STATE_PRESENTATION.status_uncertain
     return {
       ...plant,
-      malaysia_status: modelMalaysiaStatus(modelSpecies.malaysia_status, modelSpecies.status_source),
+      malaysia_status: {
+        ...presentation,
+        note: record.safety_message || plant.malaysia_status.note,
+        // Keep the plant's own source references (S01…) — the shared catalogue
+        // has a separate source namespace (GRIIS/MyIAS) surfaced through the
+        // status record itself, not through the guidance sources index.
+        source_ids: plant.malaysia_status.source_ids,
+      },
     }
   }),
 }
 
-function modelMalaysiaStatus(rawStatus: string, source: string): MalaysiaStatus {
-  const status = MODEL_STATUS_PRESENTATION[rawStatus] ?? {
-    category: 'status_uncertain',
-    display_label: 'Malaysia status needs review',
-    confidence: 'low' as const,
-  }
-  return {
-    ...status,
-    note: `Model catalogue status source: ${source}.`,
-    source_ids: [],
-  }
-}
 
 const byScientificName = new Map<string, PlantGuidance>()
 const byModelLabel = new Map<string, PlantGuidance>()

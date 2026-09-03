@@ -32,6 +32,7 @@ from app.db.models import (
     UploadGrant,
     VerificationJob,
 )
+from app.domain.catalogue import CatalogueError, assert_client_catalogue_matches
 from app.domain.reporting import coordinate, report_response
 from app.services.object_deletion import enqueue_object_deletions
 from app.services.storage import storage
@@ -64,9 +65,29 @@ def create_report(
     response: Response,
     idempotency_key: str = Header(alias="Idempotency-Key"),
     queued_retry: bool = Header(default=False, alias="X-InvaTrace-Queued"),
+    client_catalogue_version: str | None = Header(
+        default=None, alias="X-InvaTrace-Catalogue-Version"
+    ),
+    client_catalogue_sha256: str | None = Header(
+        default=None, alias="X-InvaTrace-Catalogue-Sha256"
+    ),
     auth: AuthContext = Depends(require_auth),
     session: Session = Depends(get_session),
 ) -> ReportResponse:
+    # AC Iteration 1 P1 — reject a report submission when the client's bundled
+    # catalogue disagrees with the server's. Offline identification and
+    # guidance still work; only the reporting path is gated on parity.
+    try:
+        assert_client_catalogue_matches(
+            client_catalogue_version=client_catalogue_version,
+            client_plant_status_sha256=client_catalogue_sha256,
+        )
+    except CatalogueError as exc:
+        raise ApiProblem(
+            409,
+            "catalogue_version_mismatch",
+            "The app's plant catalogue is out of date. Reload the app and retry.",
+        ) from exc
     # Burst + daily limits per profile, plus a per-IP burst check to slow down
     # someone spinning up fresh profiles to dodge the per-profile limit.
     rate_limiter.check("report_create_burst", str(auth.profile.id))
@@ -146,14 +167,23 @@ def create_report(
     # same scan): return the earlier Report as if this were a replay instead
     # of writing a second row. Per-profile scope so two people submitting the
     # same reference image still each get their own report.
+    #
+    # AC Iteration 1 P4 — scope must also include the species. Submitting the
+    # same photo for a different species is a legitimately different report
+    # (e.g. the user retook the classification decision) and must not be
+    # swallowed by this shortcut. Ordering must be ascending so we always
+    # return the earliest matching row — the original anchor report the
+    # sighting hangs off — instead of the most recent one, which could itself
+    # be a chained merge/rejected shim pointing back at the anchor.
     if not get_settings().screening_disable_duplicate_check:
         duplicate = session.scalar(
             select(Report)
             .where(
                 Report.profile_id == auth.profile.id,
                 Report.content_sha256 == server_hash,
+                Report.species_id == body.species_id,
             )
-            .order_by(Report.created_at.desc())
+            .order_by(Report.created_at.asc(), Report.id.asc())
         )
         if duplicate is not None:
             response.status_code = 200

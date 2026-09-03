@@ -56,7 +56,10 @@ def test_image_location_and_e1_metadata_failures_request_a_rescan() -> None:
     # rejecting outright, since the reporter might just need to try again.
     image_failure = evaluate(valid_input(image_failure_reasons=("image_too_dark",)))
     assert image_failure.status == "needs_rescan"
-    assert evaluate(valid_input(location_accuracy_m=101)).status == "needs_rescan"
+    # AC Iteration 1 P7 — single 250 m accuracy policy. 250 m still passes;
+    # anything strictly worse falls through to needs_rescan.
+    assert evaluate(valid_input(location_accuracy_m=250)).status == "screened"
+    assert evaluate(valid_input(location_accuracy_m=251)).status == "needs_rescan"
     assert evaluate(valid_input(client_model_supported=False)).status == "needs_rescan"
     assert evaluate(valid_input(client_outcome="uncertain", client_species_id=None)).status == (
         "needs_rescan"
@@ -76,4 +79,7 @@ def test_policy_inputs_are_strictly_deterministic() -> None:
         "exact_replay",
         "perceptual_replay",
         "merge_target_id",
+        # AC Iteration 1 P7 — threshold is an input so the policy layer never
+        # hard-codes a magic number; the worker passes settings-driven value.
+        "location_accuracy_threshold_m",
     }

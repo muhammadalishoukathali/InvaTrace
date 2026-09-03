@@ -9,6 +9,7 @@ from app.api.schemas import HealthResponse
 from app.core.rate_limit import rate_limiter
 from app.db.base import get_session
 from app.db.models import VerificationJob
+from app.domain.catalogue import CatalogueError, catalogue_health_snapshot
 from app.services.storage import storage
 
 """Health/readiness probes for whatever's running this service (Docker, k8s, uptime checks).
@@ -64,7 +65,18 @@ def ready(response: Response, session: Session = Depends(get_session)) -> Health
         backlog = None
     redis_status = "ok" if rate_limiter.ping() else "unavailable"
     storage_status = "ok" if storage.ping() else "unavailable"
-    core_ready = database == redis_status == storage_status == "ok"
+    try:
+        catalogue = catalogue_health_snapshot()
+        catalogue_status = "ok"
+    except CatalogueError as exc:
+        catalogue = {"status": "unavailable", "detail": str(exc)}
+        catalogue_status = "unavailable"
+    core_ready = (
+        database == "ok"
+        and redis_status == "ok"
+        and storage_status == "ok"
+        and catalogue_status == "ok"
+    )
     if not core_ready:
         response.status_code = 503
     return HealthResponse(
@@ -74,4 +86,5 @@ def ready(response: Response, session: Session = Depends(get_session)) -> Health
         storage=storage_status,
         screening="ready" if core_ready else "unavailable",
         verification_backlog=backlog,
+        catalogue=catalogue,
     )

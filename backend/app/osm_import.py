@@ -47,7 +47,18 @@ class MalaysiaOsmHandler(osmium.SimpleHandler):
     def area(self, area) -> None:
         tags = area.tags
         name = tags.get("name")
-        if not name or not any(tags.get(key) == value for key, value in AREA_TAGS):
+        if not name:
+            return
+        # AC Iteration 1 P10 — remember which allow-listed tag pair matched
+        # so place_association._categorise can recover it later. Previously
+        # the importer only stored generic "osmType": "area", which meant the
+        # nearest-feature lookup could never classify a stored row and always
+        # returned None even when a park was clearly within 5 km.
+        matched_tag = next(
+            ((key, value) for key, value in AREA_TAGS if tags.get(key) == value),
+            None,
+        )
+        if matched_tag is None:
             return
         try:
             wkt = self.factory.create_multipolygon(area)
@@ -56,6 +67,7 @@ class MalaysiaOsmHandler(osmium.SimpleHandler):
             # just skip it rather than blow up the whole import.
             return
         label = self._unique_label(name, MonitoredArea, f"area/{area.orig_id()}")
+        tag_key, tag_value = matched_tag
         self.session.add(
             MonitoredArea(
                 name=label,
@@ -64,6 +76,10 @@ class MalaysiaOsmHandler(osmium.SimpleHandler):
                     "source": "OpenStreetMap",
                     "osmType": "area",
                     "osmId": str(area.orig_id()),
+                    # Store the OSM tag pair directly so nearest_osm_feature's
+                    # allow-list check (park / forest / wood) works against
+                    # imported data without re-fetching from OSM.
+                    tag_key: tag_value,
                 },
             )
         )
@@ -97,6 +113,10 @@ class MalaysiaOsmHandler(osmium.SimpleHandler):
                     "source": "OpenStreetMap",
                     "osmType": "way",
                     "osmId": str(way.id),
+                    # AC Iteration 1 P10 — preserve the highway tag so
+                    # place_association.nearest_osm_feature's allow-list
+                    # (path / footway / track) can classify the row.
+                    "highway": tags.get("highway"),
                 },
             )
         )

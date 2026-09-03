@@ -259,6 +259,7 @@ def process_job(job_id: str) -> None:
                     location_accuracy_m=report.location_accuracy_m,
                     exact_replay=exact_replay,
                     perceptual_replay=perceptual_match_id is not None,
+                    location_accuracy_threshold_m=settings.screening_location_accuracy_max_m,
                 )
             )
 
@@ -293,6 +294,7 @@ def process_job(job_id: str) -> None:
                         client_model_supported=client_model_supported,
                         location_accuracy_m=report.location_accuracy_m,
                         merge_target_id=str(merge_target.id) if merge_target else None,
+                        location_accuracy_threshold_m=settings.screening_location_accuracy_max_m,
                     )
                 )
                 if merge_target
@@ -444,7 +446,9 @@ def _find_owner_species_replay(
             ),
             Report.status.in_(["screened", "merged"]),
         )
-        .order_by(Report.created_at)
+        # AC Iteration 1 P4 — deterministic ordering so two workers picking
+        # candidate priors for concurrent reports resolve to the same anchor.
+        .order_by(Report.created_at.asc(), Report.id.asc())
         .limit(1)
     )
     if prior_report is None:
@@ -525,11 +529,18 @@ def _find_merge_target(
     + within 10 min → merge with existing sighting. The radius is exactly 25 m
     regardless of the client-reported GPS accuracy — expanding by accuracy
     silently created merges across other users' reports that happened to sit
-    inside the fuzz zone."""
+    inside the fuzz zone.
+
+    AC Iteration 1 P5 — the 10-minute window is anchored on the report's
+    observation time, not `datetime.now()`. A queued or replayed submission
+    that reaches the worker hours after the observation would otherwise be
+    checked against sightings active *now*, which is the wrong pair — the
+    AC compares observations to observations."""
     settings = get_settings()
     radius_m = settings.screening_duplicate_radius_max_m
     window_minutes = settings.screening_duplicate_window_minutes
-    cutoff = datetime.now(UTC) - timedelta(minutes=window_minutes)
+    observation_time = report.observed_at or datetime.now(UTC)
+    cutoff = observation_time - timedelta(minutes=window_minutes)
     candidate_row = session.execute(
         select(Sighting, func.ST_Distance(Sighting.location, report.location))
         .where(
@@ -698,34 +709,50 @@ def _record_decision(
     )
 
 
+_TERMINAL_NOTIFICATION_COPY: dict[str, tuple[str, str, str]] = {
+    # Each entry is (title, body, notification kind). Kept together so the
+    # copy and the kind can't drift apart when a new terminal status is added
+    # (AC Iteration 1 P8 — processing→screened lifecycle audit).
+    "screened": (
+        "Report rule-screened",
+        "Automated rules passed. The observation is now on the shared map.",
+        "report_screened",
+    ),
+    "merged": (
+        "Report matched a recent nearby plant",
+        "Your evidence was added to an existing same-species map sighting.",
+        "report_merged",
+    ),
+    "needs_rescan": (
+        "A new scan is needed",
+        "Automated rules could not accept this evidence. Capture or upload a new photo.",
+        "report_needs_rescan",
+    ),
+    "rejected": (
+        "Duplicate evidence rejected",
+        "Automated duplicate checks rejected this evidence.",
+        "report_rejected",
+    ),
+}
+
+
 def _notify_resolution(session, report: Report) -> None:
-    # Push a notification with human-readable copy for whichever terminal
-    # status the report landed on - report.status is expected to already be
-    # one of these four keys by the time this is called.
-    copy = {
-        "screened": (
-            "Report rule-screened",
-            "Automated rules passed. The observation is now on the shared map.",
-        ),
-        "merged": (
-            "Report matched a recent nearby plant",
-            "Your evidence was added to an existing same-species map sighting.",
-        ),
-        "needs_rescan": (
-            "A new scan is needed",
-            "Automated rules could not accept this evidence. Capture or upload a new photo.",
-        ),
-        "rejected": (
-            "Duplicate evidence rejected",
-            "Automated duplicate checks rejected this evidence.",
-        ),
-    }[report.status]
-    kind = {
-        "screened": "report_screened",
-        "merged": "report_merged",
-        "needs_rescan": "report_needs_rescan",
-        "rejected": "report_rejected",
-    }[report.status]
+    # AC Iteration 1 P8 — report.status must be one of the four terminal
+    # rule-outcome states by the time this is called. `validation_unavailable`
+    # has its own notification path in `_mark_report_unavailable`, so a
+    # missing entry is a caller bug, not a user-facing state. Bail with a
+    # log instead of letting a KeyError bubble into `_schedule_failure` —
+    # the loop would then retry the whole screening pass unnecessarily.
+    entry = _TERMINAL_NOTIFICATION_COPY.get(report.status)
+    if entry is None:
+        log.error(
+            "screening.notify_resolution.unknown_status",
+            report_id=str(report.id),
+            status=report.status,
+        )
+        return
+    title, body, kind = entry
+    copy = (title, body)
     session.add(
         Notification(
             profile_id=report.profile_id,
