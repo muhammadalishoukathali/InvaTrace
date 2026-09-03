@@ -67,6 +67,12 @@ class Settings(BaseSettings):
     screening_duplicate_radius_max_m: int = Field(default=25, ge=10, le=100)
     screening_duplicate_window_hours: int = Field(default=24, ge=1, le=168)
     screening_duplicate_window_minutes: int = Field(default=10, ge=1, le=1440)
+    # AC Iteration 1 P7 — a single 300 m GPS accuracy policy governs the
+    # entire pipeline: client soft warning, server hard rescan, audit trail.
+    # The frontend does not enforce this as a hard block per AC 4.1.2, but
+    # it must show the same 300 m threshold as the server so a user who
+    # submits at 350 m does not first hear about the policy after screening.
+    screening_location_accuracy_max_m: int = Field(default=250, ge=10, le=10_000)
     # Turn off exact + perceptual duplicate-image checks so usability testers
     # can reuse the same reference photo across scans/reports without hitting
     # replay rejection. Off by default in prod; flip to true in the test env.

@@ -471,6 +471,7 @@ class HealthResponse(ApiModel):
     storage: str | None = None
     screening: str | None = None
     verification_backlog: int | None = None
+    catalogue: dict[str, object] | None = None
 
 
 # Shape check for the client-supplied Idempotency-Key header, used by both

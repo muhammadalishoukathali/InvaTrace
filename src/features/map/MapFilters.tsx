@@ -88,23 +88,32 @@ export function MapFilters() {
         )}
       </div>
 
-      {/* Desktop has enough width to show every filter as an inline chip. */}
+      {/* Desktop has enough width to show every filter as an inline chip.
+          AC Iteration 1 P9 — each chip cluster is grouped semantically so a
+          screen-reader user hears "Species filters, 12 items" instead of an
+          undifferentiated stream of pressed / not-pressed buttons. */}
       {isDesktop && (
         <div style={{ display: 'flex', gap: 6, alignItems: 'center', flexWrap: 'wrap' }}>
-          {MAP_FILTER_SPECIES.map((s) => (
-            <Chip key={s.id} label={s.label} on={species.includes(s.id)}
-                  onClick={() => toggleSpecies(s.id)} />
-          ))}
+          <div role="group" aria-label="Species filters" style={{ display: 'contents' }}>
+            {MAP_FILTER_SPECIES.map((s) => (
+              <Chip key={s.id} label={s.label} on={species.includes(s.id)}
+                    onClick={() => toggleSpecies(s.id)} />
+            ))}
+          </div>
           <Divider />
-          {RISKS.map((r) => (
-            <Chip key={r.id} label={r.label} on={risks.includes(r.id)} dot={r.dot}
-                  onClick={() => toggleRisk(r.id)} />
-          ))}
+          <div role="group" aria-label="Risk filters" style={{ display: 'contents' }}>
+            {RISKS.map((r) => (
+              <Chip key={r.id} label={r.label} on={risks.includes(r.id)} dot={r.dot}
+                    onClick={() => toggleRisk(r.id)} />
+            ))}
+          </div>
           <Divider />
-          {STATUSES.map((s) => (
-            <Chip key={s.id} label={s.label} on={statuses.includes(s.id)} dot={s.dot}
-                  onClick={() => toggleStatus(s.id)} />
-          ))}
+          <div role="group" aria-label="Status filters" style={{ display: 'contents' }}>
+            {STATUSES.map((s) => (
+              <Chip key={s.id} label={s.label} on={statuses.includes(s.id)} dot={s.dot}
+                    onClick={() => toggleStatus(s.id)} />
+            ))}
+          </div>
           {active > 0 && (
             <button type="button" onClick={clearFilters} style={{
               marginLeft: 'auto', padding: '0 10px', height: 'var(--h-chip)',

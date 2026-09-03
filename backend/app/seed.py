@@ -9,17 +9,16 @@ updated in place rather than duplicated, matched by id/name.
 
 from __future__ import annotations
 
-import json
 import math
 import uuid
 from datetime import UTC, datetime, timedelta
 from decimal import Decimal
-from pathlib import Path
 
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from app.db.models import MonitoredPlace, Report, Sighting, Species
+from app.domain.catalogue import load_manifest, load_status_records
 
 # Citation metadata attached to each species' guidance_metadata.sources - shown
 # to the user so the "this plant is invasive" claim isn't just asserted, it's
@@ -317,22 +316,27 @@ _GENERIC_INVASIVE_GUIDANCE = {
 }
 
 
-def _apply_model_catalog_to_species_seed() -> None:
-    """Rebuilds SPECIES from the classifier's 31-class catalog, layering in
-    the hand-written detail above wherever we have it (by id) and falling
-    back to generic invasive-species guidance for the rest. This runs once at
-    import time (see the call at the bottom of this block), not per-seed-call,
-    so SPECIES is fully resolved before seed_development_data() ever touches it."""
-    catalog_path = Path(__file__).with_name("data") / "pulih_model1_species_31.json"
-    catalog = json.loads(catalog_path.read_text(encoding="utf-8"))
+def _apply_shared_catalogue_to_species_seed() -> None:
+    """Rebuilds SPECIES from the shared/catalogue/plant-status.json records
+    (the single source of truth for Malaysian status). Hand-written detail
+    above is layered in wherever it exists by ``id``, and generic invasive
+    guidance is added for reportable species without curated content."""
+    records = load_status_records()
+    manifest = load_manifest()
     detailed_by_id = {item["id"]: item for item in SPECIES}
     model_species: list[dict[str, object]] = []
 
-    for model_class in catalog["classes"]:
-        species_id = model_class["machine_label"].replace("_", "-")
-        catalog_status = model_class.get("malaysia_status", "")
-        catalog_source = model_class.get("status_source")
-        invasive = catalog_status == "invasive"
+    for record in records:
+        species_id = record.species_id
+        invasive = record.is_invasive
+        # Convert to timezone-aware datetime for the Species.status_reviewed_at
+        # column (existing rows are all UTC-anchored).
+        reviewed_at = datetime(
+            record.status_reviewed_at.year,
+            record.status_reviewed_at.month,
+            record.status_reviewed_at.day,
+            tzinfo=UTC,
+        )
         detail = detailed_by_id.get(species_id, {
             "common_names": [],
             "traits": [],
@@ -342,47 +346,58 @@ def _apply_model_catalog_to_species_seed() -> None:
             "detail_available": False,
             "action_guides": [],
         })
-        detail.setdefault("malaysia_status", catalog_status)
-        detail.setdefault("status_source", catalog_source)
-        detail.setdefault("status_reviewed_at", _REVIEW_DATE)
+        catalog_source = record.status_source_ids[0] if record.status_source_ids else None
+        # AC Iteration 1 — status columns always come from the catalogue,
+        # never from hand-written seed detail, so a catalogue change flows
+        # through to a re-seed without editing the seed file.
+        detail["malaysia_status"] = record.ui_state
+        detail["status_source"] = catalog_source
+        detail["status_reviewed_at"] = reviewed_at
         detail.setdefault("action_eligible", False)
         detail.setdefault("guidance_metadata", {})
-        # AC 1.2.2 — every invasive result must carry a general_information paragraph
-        # so the "invasive-result pathway" shows a short description plus the source.
-        if invasive and not detail.get("general_information"):
-            detail["general_information"] = (
-                f"{model_class['display_name']} is listed as invasive in Malaysia by"
-                f" {catalog_source or 'the reviewed status source'}. Please observe and report"
-                " sightings; follow reviewed guidance before attempting any action."
-            )
+        # AC 1.2.2 — every invasive result must carry a general_information
+        # paragraph so the invasive-result pathway shows a short description
+        # plus its source. Catalogue text is the fallback when hand-written
+        # detail is missing.
+        if not detail.get("general_information"):
+            detail["general_information"] = record.general_information
         if invasive and not detail.get("guidance_metadata"):
             detail["guidance_metadata"] = dict(_GENERIC_INVASIVE_GUIDANCE)
         elif invasive:
             merged = dict(_GENERIC_INVASIVE_GUIDANCE)
             merged.update(detail.get("guidance_metadata") or {})
             detail["guidance_metadata"] = merged
-        # AC 1.2.2 — invasive species must expose Report control; content-only species stay off.
-        reportable = invasive or bool(detail.get("reportable", False))
         detail.update({
             "id": species_id,
-            "name": model_class["display_name"],
-            "latin_name": model_class["scientific_name"],
+            "name": record.common_name or record.scientific_name,
+            "latin_name": record.scientific_name,
             "is_invasive": invasive,
             "risk": "high" if invasive else None,
-            "reportable": reportable,
+            "reportable": record.report_eligible,
         })
         model_species.append(detail)
 
-    if len(model_species) != catalog["class_count"]:
-        # If this ever fires it means the catalog JSON and this file drifted
-        # apart (someone added/removed a model class without updating the
-        # seed) - better to fail loudly here than silently seed a mismatched
-        # species list.
-        raise ValueError("Development species seed does not match the PULIH model catalogue.")
+    if len(model_species) != len(records):
+        # If this ever fires the shared catalogue and this loop drifted apart —
+        # better to fail loudly here than silently seed a mismatched list.
+        raise ValueError(
+            "Development species seed does not match the shared plant-status catalogue "
+            f"({len(records)} catalogue records, {len(model_species)} seeded)."
+        )
+    # Recorded so callers can log which catalogue version the last seed used.
+    global _LAST_SEED_CATALOGUE_VERSION
+    _LAST_SEED_CATALOGUE_VERSION = manifest.catalogue_version
     SPECIES[:] = model_species
 
 
-_apply_model_catalog_to_species_seed()
+_LAST_SEED_CATALOGUE_VERSION: str | None = None
+
+
+def last_seed_catalogue_version() -> str | None:
+    return _LAST_SEED_CATALOGUE_VERSION
+
+
+_apply_shared_catalogue_to_species_seed()
 
 # Real coordinates around KL parks/reserves, used as the "home base" for the
 # sample sightings below and as MonitoredPlace rows in their own right.

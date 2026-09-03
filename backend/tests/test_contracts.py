@@ -9,10 +9,8 @@ change before the frontend team notices.
 
 from __future__ import annotations
 
-import json
 import uuid
 from datetime import UTC, datetime, timedelta
-from pathlib import Path
 
 import pytest
 from fastapi.testclient import TestClient
@@ -70,20 +68,22 @@ def test_development_species_seed_exactly_matches_model_catalog() -> None:
     # list, or predictions come back for species the API doesn't know
     # about. Comparing against the raw catalog json here rather than
     # trusting the seed module to be right.
-    catalog_path = Path(__file__).parents[1] / "app/data/pulih_model1_species_31.json"
-    catalog = json.loads(catalog_path.read_text(encoding="utf-8"))
-    expected_ids = {
-        item["machine_label"].replace("_", "-") for item in catalog["classes"]
-    }
-    assert len(SPECIES) == catalog["class_count"] == 31
+    # AC Iteration 1 P1 — the seed always mirrors shared/catalogue rather
+    # than a hand-edited backend copy. Cross-check against the shared
+    # catalogue records rather than a duplicate JSON file so drift is
+    # impossible in the first place.
+    from app.domain.catalogue import load_status_records
+    records = load_status_records()
+    expected_ids = {record.species_id for record in records}
+    assert len(SPECIES) == len(records) == 31
     assert {item["id"] for item in SPECIES} == expected_ids
-    # AC 1.2.2 — three previously-invasive labels (miconia_crenata,
-    # sphagneticola_trilobata, lantana_camara) were downgraded to
-    # status_requires_expert_review because their only status source was
-    # the model's own recognition category, which is not a Malaysian
-    # invasive-status source. Every invasive species must expose Report.
-    assert sum(bool(item["is_invasive"]) for item in SPECIES) == 13
-    assert sum(bool(item["reportable"]) for item in SPECIES) == 13
+    # AC Iteration 1 P1 — the three previously-invasive labels (miconia_crenata,
+    # sphagneticola_trilobata, lantana_camara) are downgraded to
+    # status_uncertain in the shared catalogue until reviewed evidence lands.
+    # Every invasive species must expose Report.
+    invasive_expected = sum(1 for r in records if r.ui_state == "invasive")
+    assert sum(bool(item["is_invasive"]) for item in SPECIES) == invasive_expected
+    assert sum(bool(item["reportable"]) for item in SPECIES) == invasive_expected
     assert "clidemia-hirta" not in expected_ids
 
 

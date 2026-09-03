@@ -1,0 +1,22 @@
+{
+  "$schema": "./schemas/catalogue-manifest.schema.json",
+  "schema_version": "invatrace.catalogue.manifest.v1",
+  "catalogue_version": "1.0.0",
+  "content_version": "1.0.0",
+  "model_version": "oe_v4_31class_web_fp16",
+  "last_reviewed": "2026-08-29",
+  "files": {
+    "plant-status.json": {
+      "sha256": "3c23d12353e1db2180c04e00b1675e90c17edb027f39458bb89a27c60c382ac8",
+      "byte_length": 19941,
+      "schema_version": "invatrace.catalogue.plant-status.v1",
+      "record_count": 31
+    },
+    "plant-guidance.json": {
+      "sha256": "2696c3a31b60df2968d5e194b331d3728c1601ebee25527330d452f051e33334",
+      "byte_length": 105905,
+      "schema_version": "1.0",
+      "record_count": 28
+    }
+  }
+}

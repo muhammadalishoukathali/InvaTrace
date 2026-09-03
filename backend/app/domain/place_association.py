@@ -25,6 +25,11 @@ from app.db.models import MonitoredArea, MonitoredPlace, Trail
 _TRAIL_CATEGORIES = {"path", "footway", "track"}
 _AREA_CATEGORIES = {"park", "forest", "wood"}
 _NEAREST_RADIUS_M = 5_000
+# AC Iteration 1 P10 — how many nearest candidates per table to fetch before
+# giving up. Small enough to keep the SQL cheap; large enough that a handful
+# of non-allow-listed neighbours (nature_reserve etc.) do not hide a real
+# park a bit further out.
+_NEAREST_CANDIDATE_LIMIT = 20
 
 
 @dataclass(frozen=True)
@@ -134,7 +139,13 @@ def nearest_osm_feature(
     geography = cast(point, Geography("POINT", srid=4326))
     candidates: list[NearestOsmFeature] = []
 
-    trail_row = session.execute(
+    # AC Iteration 1 P10 — fetch the nearest N candidates per table and pick
+    # the first one whose metadata categorises into the allow-list, instead
+    # of taking only LIMIT 1. Previously, a nearby feature with tags that
+    # fall outside the allow-list (e.g. an OSM nature_reserve area next to a
+    # walking park) short-circuited the lookup with `category is None`, and
+    # the further-away allow-listed feature was never surfaced.
+    trail_rows = session.execute(
         select(
             Trail.name,
             Trail.metadata_json,
@@ -144,17 +155,18 @@ def nearest_osm_feature(
             Trail.name.is_not(None),
             func.ST_DWithin(Trail.geometry, geography, _NEAREST_RADIUS_M),
         )
-        .order_by(func.ST_Distance(Trail.geometry, geography))
-        .limit(1)
-    ).first()
-    if trail_row and trail_row[0]:
-        category = _categorise(trail_row[1] or {}, _TRAIL_CATEGORIES)
+        .order_by(func.ST_Distance(Trail.geometry, geography), Trail.id)
+        .limit(_NEAREST_CANDIDATE_LIMIT)
+    ).all()
+    for row in trail_rows:
+        category = _categorise(row[1] or {}, _TRAIL_CATEGORIES)
         if category is not None:
             candidates.append(
-                NearestOsmFeature(category, trail_row[0], round(float(trail_row[2]), 2))
+                NearestOsmFeature(category, row[0], round(float(row[2]), 2))
             )
+            break
 
-    area_row = session.execute(
+    area_rows = session.execute(
         select(
             MonitoredArea.name,
             MonitoredArea.metadata_json,
@@ -164,15 +176,16 @@ def nearest_osm_feature(
             MonitoredArea.name.is_not(None),
             func.ST_DWithin(MonitoredArea.geometry, geography, _NEAREST_RADIUS_M),
         )
-        .order_by(func.ST_Distance(MonitoredArea.geometry, geography))
-        .limit(1)
-    ).first()
-    if area_row and area_row[0]:
-        category = _categorise(area_row[1] or {}, _AREA_CATEGORIES)
+        .order_by(func.ST_Distance(MonitoredArea.geometry, geography), MonitoredArea.id)
+        .limit(_NEAREST_CANDIDATE_LIMIT)
+    ).all()
+    for row in area_rows:
+        category = _categorise(row[1] or {}, _AREA_CATEGORIES)
         if category is not None:
             candidates.append(
-                NearestOsmFeature(category, area_row[0], round(float(area_row[2]), 2))
+                NearestOsmFeature(category, row[0], round(float(row[2]), 2))
             )
+            break
 
     if not candidates:
         return None

@@ -66,6 +66,35 @@ export default defineConfig({
             },
           },
           {
+            // AC Iteration 1 P2 — server model-config gates the acceptance
+            // threshold. Cache the last-known-good response so a second scan
+            // after going offline still gets a server-authoritative gate
+            // rather than falling back to client-only. Revalidate in the
+            // background whenever the network returns.
+            urlPattern: ({ url }) => url.pathname === '/api/v1/model-config',
+            handler: 'StaleWhileRevalidate',
+            method: 'GET',
+            options: {
+              cacheName: 'invatrace-model-config',
+              expiration: { maxEntries: 4, maxAgeSeconds: 7 * 24 * 60 * 60 },
+              cacheableResponse: { statuses: [200] },
+            },
+          },
+          {
+            // AC Iteration 1 P2 — species detail lookups must remain
+            // available offline so the result screen can show the authoritative
+            // Malaysian status and reviewed guidance for a previously-seen
+            // species without a network round trip.
+            urlPattern: ({ url }) => /^\/api\/v1\/species\/[^/]+$/.test(url.pathname),
+            handler: 'StaleWhileRevalidate',
+            method: 'GET',
+            options: {
+              cacheName: 'invatrace-species-detail',
+              expiration: { maxEntries: 64, maxAgeSeconds: 30 * 24 * 60 * 60 },
+              cacheableResponse: { statuses: [200] },
+            },
+          },
+          {
             // Private-access and recovery traffic contains installation credentials
             // or one-time secrets and must never enter Cache Storage.
             urlPattern: ({ url }) => url.pathname.startsWith('/api/v1/profiles'),
@@ -103,7 +132,12 @@ export default defineConfig({
       },
     }),
   ],
-  resolve: { alias: { '@': fileURLToPath(new URL('./src', import.meta.url)) } },
+  resolve: {
+    alias: {
+      '@': fileURLToPath(new URL('./src', import.meta.url)),
+      '@shared': fileURLToPath(new URL('./shared', import.meta.url)),
+    },
+  },
   build: {
     // MapLibre ships as one self-contained module. It is loaded only with the
     // map route, so keep it in a clearly named chunk and set the warning limit

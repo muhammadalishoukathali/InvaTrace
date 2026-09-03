@@ -97,6 +97,12 @@ export interface IdentifyResult {
   modelVersion: string
   unknownProbability?: number
   reportable: boolean
+  // AC Iteration 1 P2 — true only when the server-authoritative model-config
+  // gate was reachable and accepted the result; false when the gate rejected
+  // it or was unavailable (server slow/down, or the app is offline). The UI
+  // still displays the local classification when the gate could not run, but
+  // blocks reporting until the gate has been able to confirm.
+  serverAccepted?: boolean
   topPredictions?: Array<{
     speciesId: string
     name: string

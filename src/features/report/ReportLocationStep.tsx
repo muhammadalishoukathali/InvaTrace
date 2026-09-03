@@ -4,6 +4,7 @@ import { Icon } from '@/components/Icon'
 import { useReportDraft } from '@/features/report/report-draft-store'
 import { useScan } from '@/features/scan/scan-store'
 import { ReportNextButton } from './components/ReportNextButton'
+import { LOCATION_ACCURACY_MAX_M } from './gps-policy'
 
 type Status = 'idle' | 'locating' | 'located' | 'denied' | 'unavailable'
 
@@ -79,13 +80,16 @@ export function ReportLocationStep() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [scanLocStatus])
 
-  // AC 4.1.2 — the CSV does not define a 100 m accuracy cutoff. Only require
+  // AC 4.1.2 — the CSV does not define a hard accuracy cutoff. Only require
   // a finite non-negative accuracy value and valid Malaysia coordinates.
-  // Poor accuracy is surfaced as a soft warning below, never as a hard block.
+  // AC Iteration 1 P7 — the single 300 m policy is what the server rescans
+  // on, so surface it here as a soft warning at the same threshold. The
+  // client never blocks on it; users past the threshold can still submit
+  // and the server will ask for a rescan with the same message.
   const hasFiniteAccuracy = accuracy !== null && Number.isFinite(accuracy) && accuracy >= 0
   const withinMalaysia = inMalaysia(loc)
   const canProceed = !!loc && hasFiniteAccuracy && withinMalaysia
-  const accuracyWarning = hasFiniteAccuracy && accuracy != null && accuracy > 100
+  const accuracyWarning = hasFiniteAccuracy && accuracy != null && accuracy > LOCATION_ACCURACY_MAX_M
 
   return (
     <div style={{ padding: 16, maxWidth: 520, margin: '0 auto', display: 'flex', flexDirection: 'column', gap: 16 }}>
@@ -130,7 +134,7 @@ export function ReportLocationStep() {
           <div style={{ marginTop: 12 }}>
             <Row icon="AlertTriangle" tint="var(--amber)"
                  title="Location fix is approximate"
-                 body="Reported accuracy is above 100 m. You can still submit, but a fresh fix in an open area will give reviewers a more useful location." />
+                 body={`Reported accuracy is above ${LOCATION_ACCURACY_MAX_M} m. You can still submit, but a fresh fix in an open area will give reviewers a more useful location.`} />
           </div>
         )}
 

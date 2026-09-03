@@ -3,6 +3,7 @@ import { Link, useNavigate, useParams } from 'react-router-dom'
 import { api } from '@/services/api-client'
 import type { Report, ReportStatus } from '@/types'
 import { usePrivateAccess } from '@/features/private-access/private-access-store'
+import { LOCATION_ACCURACY_INSUFFICIENT_MESSAGE } from './gps-policy'
 import './report-tracking.css'
 
 const COPY: Record<ReportStatus, { title: string; body: string }> = {
@@ -150,7 +151,7 @@ const REASON_COPY: Record<string, string> = {
   image_low_contrast: 'The plant is difficult to distinguish from the background.',
   image_too_blurry: 'The photo is too blurry.',
   invalid_or_corrupt_image: 'The photo could not be read.',
-  location_accuracy_insufficient: 'Location accuracy must be within 100 metres.',
+  location_accuracy_insufficient: LOCATION_ACCURACY_INSUFFICIENT_MESSAGE,
   plant_identification_not_reportable: 'This species is not currently reportable.',
   unsupported_client_model_version: 'Update the app before submitting this report.',
 }

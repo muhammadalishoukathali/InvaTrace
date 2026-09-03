@@ -16,19 +16,26 @@ const targetResult = {
   speciesId: 'mikania-micrantha',
 }
 
-// AC 1.1.3 — every branch of the server-authoritative gate must land the
-// result in the same shape the UI reads.
+// AC 1.1.3 / P2 — every branch of the server-authoritative gate lands the
+// result in the same shape the UI reads. When the gate cannot run the local
+// result must still surface, only reporting is blocked (serverAccepted=false).
 describe('applyServerAcceptance', () => {
   beforeEach(() => _resetModelConfigCache())
 
-  it('preserves target when config accepts it', () => {
-    expect(applyServerAcceptance(targetResult, supportedConfig).outcome).toBe('target')
+  it('preserves target and flags serverAccepted when config accepts it', () => {
+    const out = applyServerAcceptance(targetResult, supportedConfig)
+    expect(out.outcome).toBe('target')
+    expect(out.serverAccepted).toBe(true)
   })
 
-  it('forces uncertain when no config is available', () => {
+  it('keeps local result when no config is available but marks it unaccepted', () => {
+    // AC Iteration 1 P2 — a slow/unavailable backend must not prevent the
+    // local classification from appearing. Reporting stays blocked via
+    // serverAccepted=false until the gate confirms.
     const out = applyServerAcceptance(targetResult, null)
-    expect(out.outcome).toBe('uncertain')
-    expect(out.speciesId).toBeNull()
+    expect(out.outcome).toBe('target')
+    expect(out.speciesId).toBe('mikania-micrantha')
+    expect(out.serverAccepted).toBe(false)
   })
 
   it('forces uncertain below the acceptance threshold', () => {
@@ -37,6 +44,7 @@ describe('applyServerAcceptance', () => {
       supportedConfig,
     )
     expect(out.outcome).toBe('uncertain')
+    expect(out.serverAccepted).toBe(false)
   })
 
   it('accepts at the exact threshold boundary', () => {
@@ -45,6 +53,7 @@ describe('applyServerAcceptance', () => {
       supportedConfig,
     )
     expect(out.outcome).toBe('target')
+    expect(out.serverAccepted).toBe(true)
   })
 
   it('forces uncertain when the model version is not supported', () => {
@@ -53,6 +62,7 @@ describe('applyServerAcceptance', () => {
       supportedConfig,
     )
     expect(out.outcome).toBe('uncertain')
+    expect(out.serverAccepted).toBe(false)
   })
 
   it('forces uncertain when a target result carries no species id', () => {
@@ -61,9 +71,10 @@ describe('applyServerAcceptance', () => {
       supportedConfig,
     )
     expect(out.outcome).toBe('uncertain')
+    expect(out.serverAccepted).toBe(false)
   })
 
-  it('leaves other_plant results alone', () => {
+  it('leaves other_plant results alone and accepts them', () => {
     const out = applyServerAcceptance(
       {
         outcome: 'other_plant' as const,
@@ -73,5 +84,6 @@ describe('applyServerAcceptance', () => {
       supportedConfig,
     )
     expect(out.outcome).toBe('other_plant')
+    expect(out.serverAccepted).toBe(true)
   })
 })

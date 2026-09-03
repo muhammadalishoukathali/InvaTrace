@@ -1,5 +1,6 @@
 import * as ort from 'onnxruntime-web/webgpu'
 import type { IdentifyResult } from '@/types'
+import { findPlantStatus } from '@shared/catalogue'
 
 /**
  * This is the actual ONNX inference boundary — it owns the PULIH model
@@ -428,7 +429,21 @@ export class PulihModel {
     }
     this.config = config
     this.rejection = rejection
-    this.speciesByLabel = new Map(catalog.classes.map((entry) => [entry.machine_label, entry]))
+    // AC Iteration 1 P1 — the model manifest's malaysia_status field is
+    // ignored; the shared catalogue's ui_state is the source of truth. A
+    // missing catalogue record downgrades the class to status_uncertain so
+    // an older bundled model never silently unlocks reporting.
+    this.speciesByLabel = new Map(
+      catalog.classes.map((entry) => {
+        const record = findPlantStatus({ modelLabel: entry.machine_label })
+        const overlaidStatus = record?.ui_state ?? 'status_uncertain'
+        const overlaidSource = record?.status_source_ids[0] ?? ''
+        return [
+          entry.machine_label,
+          { ...entry, malaysia_status: overlaidStatus, status_source: overlaidSource },
+        ]
+      }),
+    )
     this.diagnostics = {
       provider,
       loadMs: recordMeasure('invatrace:model-load', loadStartedAt),

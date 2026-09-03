@@ -266,75 +266,82 @@ export function ScanCapturePage() {
     setAnalysing(true)
     setAnalysisError(null)
     startProcessing()
+    // AC Iteration 1 P2 — the 15 s deadline covers the full user-facing
+    // classification operation (quality-checked photo → visible result),
+    // not just ONNX inference. Anything slower than that must resolve to
+    // a retryable error instead of leaving the user on a spinner. The
+    // scan-persistence POST is decoupled and runs after navigation, so a
+    // slow backend can never eat into this budget.
+    const FULL_OP_DEADLINE_MS = 15_000
+    let deadlineTimer: number | undefined
+    const deadline = new Promise<never>((_, reject) => {
+      deadlineTimer = window.setTimeout(
+        () => reject(new Error('Plant analysis timed out. Retake the photo and try again.')),
+        FULL_OP_DEADLINE_MS,
+      )
+    })
     try {
       const adapter = getAdapter()
-      await adapter.detect(bitmap)
-      const identifyPromise = adapter.identify(imageBlob, (loaded, total) => {
-        if (requestId === analysisRequestRef.current) {
-          setModelProgress(Math.round((loaded / total) * 100))
+      const flow = (async () => {
+        await adapter.detect(bitmap)
+        const rawResult = await adapter.identify(imageBlob, (loaded, total) => {
+          if (requestId === analysisRequestRef.current) {
+            setModelProgress(Math.round((loaded / total) * 100))
+          }
+        })
+        // AC 1.1.3 / P2 — cross-check against the server-authoritative gate
+        // when reachable. A missing model-config response (server unreachable
+        // or offline after asset cache) leaves `serverAccepted: false` on the
+        // result: the classification still appears, but the result screen
+        // keeps Report blocked until the gate can confirm.
+        const serverConfig = await fetchModelConfig()
+        const result = applyServerAcceptance(rawResult, serverConfig)
+        let detail: SpeciesDetail | null = null
+        // AC 1.2.3 — retrieve species detail for every accepted supported
+        // label so information-only and status-uncertain results also get
+        // their sourced general information + Malaysian status displayed.
+        if (result.speciesId) {
+          try {
+            detail = await api<SpeciesDetail>(`/api/v1/species/${result.speciesId}`)
+          } catch {
+            // Species detail is optional; the result can still be shown from
+            // the identification response and the bundled shared catalogue.
+          }
         }
-      })
-      const rawResult = await Promise.race<Awaited<ReturnType<typeof adapter.identify>>>([
-        identifyPromise,
-        new Promise((_, reject) => setTimeout(
-          // AC 1.1.2 — under normal low traffic the user-visible inference
-          // deadline is 15 s. The `requestId` guard above already discards
-          // a late result from an expired attempt so the user cannot land
-          // on a stale result screen after the timeout fires.
-          () => reject(new Error('Plant analysis timed out. Retake the photo and try again.')),
-          15_000,
-        )),
-      ])
+        return { result, detail }
+      })()
+      const { result, detail } = await Promise.race([flow, deadline])
       if (!mountedRef.current || requestId !== analysisRequestRef.current) return
 
-      // AC 1.1.3 — cross-check the classifier's own open-set decision
-      // against the server-authoritative acceptance threshold, supported
-      // version list, and label allow-list. A missing model-config
-      // response (server unreachable, schema drift) forces uncertain so
-      // the UI hides reporting and guidance.
-      const serverConfig = await fetchModelConfig()
-      const result = applyServerAcceptance(rawResult, serverConfig)
-
-      let detail: SpeciesDetail | null = null
-      // AC 1.2.3 — retrieve species detail for every accepted supported
-      // label so information-only and status-uncertain results also get
-      // their sourced general information + Malaysian status displayed.
-      if (result.speciesId) {
-        try {
-          detail = await api<SpeciesDetail>(`/api/v1/species/${result.speciesId}`)
-        } catch {
-          // Species details are optional. The result can still be shown using
-          // the identification response when this extra request fails.
-        }
-      }
-
       setResult({ ...result, reportable: Boolean(detail?.reportable ?? detail) }, detail)
-      // AC 2.2.1 — persist the model result server-side and await it before
-      // navigating to the result screen. The Report button on that screen
-      // reads scanPersistStatus and stays disabled until this returns 'ok';
-      // a failure surfaces a retry action rather than silently continuing
-      // with weaker validation.
+      // AC 2.2.1 / P2 — scan persistence is a background operation, decoupled
+      // from displaying the classification result. Navigate immediately so
+      // the result screen appears within the 15 s budget; the Report button
+      // on that screen reads scanPersistStatus and stays disabled until this
+      // POST returns 'ok', with a retryable failure surfaced separately.
       const { captureId, captureSource, setScanPersistStatus } = useScan.getState()
       if (captureId) {
         setScanPersistStatus('pending')
-        try {
-          const hashHex = await sha256HexOfBlob(imageBlob)
-          await api('/api/v1/scans', {
-            method: 'POST',
-            body: JSON.stringify({
-              captureId,
-              predictedSpeciesId: result.outcome === 'target' ? result.speciesId ?? null : null,
-              outcome: result.outcome,
-              confidence: result.confidence,
-              modelVersion: result.modelVersion,
-              imageSha256Hex: hashHex,
-              captureSource,
-            }),
-          })
-          setScanPersistStatus('ok')
-        } catch {
-          setScanPersistStatus('failed')
-        }
+        void (async () => {
+          try {
+            const hashHex = await sha256HexOfBlob(imageBlob)
+            await api('/api/v1/scans', {
+              method: 'POST',
+              body: JSON.stringify({
+                captureId,
+                predictedSpeciesId: result.outcome === 'target' ? result.speciesId ?? null : null,
+                outcome: result.outcome,
+                confidence: result.confidence,
+                modelVersion: result.modelVersion,
+                imageSha256Hex: hashHex,
+                captureSource,
+              }),
+            })
+            if (useScan.getState().captureId === captureId) setScanPersistStatus('ok')
+          } catch {
+            if (useScan.getState().captureId === captureId) setScanPersistStatus('failed')
+          }
+        })()
       }
       navigate('/scan/result', { replace: true, state: location.state })
     } catch {
@@ -342,11 +349,12 @@ export function ScanCapturePage() {
         cancelProcessing()
         setAnalysisError(
           navigator.onLine
-            ? 'Plant analysis could not finish. Your photo is still available — try again.'
+            ? 'Plant analysis could not finish within 15 seconds. Your photo is still available — try again.'
             : 'Plant analysis needs a connection for its first model download. Reconnect and try again.',
         )
       }
     } finally {
+      if (deadlineTimer !== undefined) window.clearTimeout(deadlineTimer)
       if (requestId === analysisRequestRef.current) {
         analysisRunningRef.current = false
         setAnalysing(false)

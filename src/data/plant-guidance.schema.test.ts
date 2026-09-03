@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import Ajv2020 from 'ajv/dist/2020'
-import guidance from './plant-guidance.json'
-import schema from './plant-guidance.schema.json'
+import guidance from '../../shared/catalogue/plant-guidance.json'
+import schema from '../../shared/catalogue/schemas/plant-guidance.schema.json'
 
 // Validate the bundled dataset during the build so missing required fields
 // fail before the client needs its fallback path.
