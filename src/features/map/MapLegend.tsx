@@ -4,12 +4,13 @@ import { useIsDesktop } from '@/hooks/useIsDesktop'
 import './map-controls.css'
 
 /**
- * Legend explaining the pin colours on the threat map (hotspot/spreading/
- * isolated/removed). Rendered inside ThreatMapPage.tsx, floating over the map.
- * Desktop shows the card inline in the bottom-left corner. Mobile shows a
- * small "Legend" pill that expands into a centered card anchored above the
- * scan button, so the reveal reads as a proper popover rather than a small
- * tooltip crammed against the map edge.
+ * Legend that explains the pin colours on the threat map (hotspot/spreading/
+ * isolated/removed). It floats over the map inside ThreatMapPage.tsx. On
+ * desktop I just show the card inline in the bottom-left corner since there's
+ * room for it. On mobile there isn't, so I collapse it down to a small
+ * "Legend" pill that expands into a centered card above the scan button —
+ * I wanted it to feel like a proper popover, not a tiny tooltip squashed
+ * against the edge of the map.
  */
 export function MapLegend() {
   const isDesktop = useIsDesktop()
@@ -17,11 +18,12 @@ export function MapLegend() {
   const toggleRef = useRef<HTMLButtonElement>(null)
   const closeRef = useRef<HTMLButtonElement>(null)
 
-  // If the viewport crosses the desktop breakpoint, keep the legend visible on
-  // desktop and collapsed on mobile so the state matches what the layout expects.
+  // If someone resizes across the desktop breakpoint (or rotates a tablet),
+  // I want open/collapsed to snap back to whatever that layout expects
+  // instead of staying stuck in whichever state it happened to be in.
   useEffect(() => { setOpen(isDesktop) }, [isDesktop])
 
-  // Close the mobile popover when the user presses Escape.
+  // Let Escape close the mobile popover too, not just the close button.
   useEffect(() => {
     if (isDesktop || !open) return
     closeRef.current?.focus()
@@ -87,8 +89,8 @@ export function MapLegend() {
     </div>
   )
 
-  // On mobile the popover overlays the map with a light scrim so the tap-outside
-  // gesture is discoverable. Clicking the scrim closes the popover.
+  // On mobile I add a light scrim behind the popover so tapping outside it
+  // is actually discoverable as a way to close it, not just Escape/the X.
   if (!isDesktop) {
     return (
       <>
@@ -107,7 +109,7 @@ export function MapLegend() {
   return card
 }
 
-/** One colour-swatch + label line in the legend card. */
+/** One colour-swatch + label row in the legend card. */
 function Row({ colour, label, muted }: { colour: string; label: string; muted?: boolean }) {
   return (
     <div className="map-legend-card__row">

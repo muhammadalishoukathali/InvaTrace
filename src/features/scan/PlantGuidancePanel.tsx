@@ -26,15 +26,16 @@ interface Props {
   scientificName?: string | null
   speciesName?: string | null
   plantId?: string | null
-  /** When explicitly false, active-removal steps stay hidden
-   *  regardless of the user's permission selection. Undefined = no server
-   *  gate; the panel's own permission logic applies. */
+  /** When this comes back explicitly false, I hide the active-removal steps no
+   *  matter what the user picked in the permission radio. Undefined means there's
+   *  no server-side gate at all, so it just falls back to the panel's own logic. */
   actionEligible?: boolean
-  /** The map sheet uses this image as its hero, so it can suppress the
-   *  duplicate here. Scan results keep the existing default. */
+  /** The map sheet already shows this image as its hero, so I let it turn the
+   *  duplicate off here. Scan results just keep the default (true). */
   showReferenceImage?: boolean
-  /** A scan capture or map sighting key. Permission choices are private safety
-   *  notes stored on this device; they never change official land status. */
+  /** Either a scan capture id or a map sighting id. The permission choice tied to
+   *  this gets saved as a private note on the device only — it's not touching any
+   *  official land status, just remembering what the user picked. */
   decisionContext?: { id: string; kind: 'scan' | 'sighting' }
 }
 
@@ -75,13 +76,15 @@ const TONE_STYLES: Record<
 }
 
 /**
- * Renders the Malaysia status, identification caveats, and (gated behind an
- * explicit permission question) removal/reporting steps for a matched
- * plant. Used both on ScanResultPage after a scan and on the map's sighting
- * detail sheet, which is why props like `showReferenceImage` and
- * `decisionContext` exist — the two callers need slightly different framing
- * around the same guidance content. Falls back to an observe-and-report
- * notice when there's no guidance entry, or its sources can't be resolved.
+ * This is the big one — it shows the Malaysia status, the identification
+ * caveats, and then, only once the user has answered the permission question,
+ * the actual removal/reporting steps for whatever plant got matched. It's
+ * reused on both ScanResultPage after a scan and on the map's sighting detail
+ * sheet, which is the whole reason props like showReferenceImage and
+ * decisionContext exist — the same guidance content but the two screens need
+ * slightly different framing around it. If there's no guidance entry for the
+ * plant, or the sources it points to can't be resolved, it falls back to a
+ * plain observe-and-report notice instead of showing broken/half-sourced advice.
  */
 export function PlantGuidancePanel({
   scientificName,
@@ -95,7 +98,9 @@ export function PlantGuidancePanel({
     () => findPlantGuidance({ scientificName, modelLabel: speciesName, plantId }),
     [scientificName, speciesName, plantId],
   )
-  // Do not show an action path until the user makes a permission choice.
+  // No action path should show up until the user has actually made a permission
+  // choice — otherwise it's too easy to skim past and remove something you
+  // shouldn't have.
   const decisionContextId = decisionContext?.id
   const initialDecision = useMemo(
     () => decisionContextId ? getGuidanceDecision(decisionContextId) : null,
@@ -116,9 +121,10 @@ export function PlantGuidancePanel({
   }, [initialDecision])
 
   if (!plant) {
-    // AC Iteration 1 P6 — even when the reviewed guidance card is absent,
-    // fall back to the authoritative shared catalogue so users still see the
-    // status chip, safety message, and sourced provenance offline.
+    // Even if there's no reviewed guidance card for this plant, I still want to
+    // fall back to the shared catalogue so the user gets the status chip, the
+    // safety message, and where it came from — rather than nothing at all,
+    // which matters for the offline case too.
     const catalogueRecord = findPlantStatus({
       speciesId: plantId ?? null,
       scientificName: scientificName ?? null,
@@ -132,8 +138,9 @@ export function PlantGuidancePanel({
     )
   }
 
-  // A missing source triggers the observe-and-report fallback so the UI never shows
-  // guidance whose provenance chain is broken.
+  // If even one source id on this plant can't be resolved, I don't trust the
+  // rest of it either — better to drop to the safe observe-and-report fallback
+  // than show guidance where part of the provenance chain is broken.
   if (!hasResolvableSources(plant)) {
     if (typeof console !== 'undefined') {
       console.error(
@@ -348,11 +355,11 @@ function MissingGuidanceFallback({
   speciesName: string | null
   catalogueRecord: PlantStatusRecord | null
 }) {
-  // AC Iteration 1 P6 — the reviewed-guidance card may be missing for a class
-  // the shared catalogue still knows about (e.g. a species that ships with a
-  // status + safety_message but no removal path). Surface the catalogue's
-  // authoritative note here so offline users still see status + provenance,
-  // not a bare "observe and report" placeholder that hides what we do know.
+  // A species can exist in the shared catalogue (status + safety message) without
+  // having a full reviewed-guidance card yet — that gap is the whole reason this
+  // fallback function exists. Rather than show a bare "observe and report" box
+  // that throws away info we actually have, pull the catalogue's note in here so
+  // the user still sees the status and where it's sourced from.
   const uiStatePresentation = catalogueRecord
     ? UI_STATE_FALLBACK_PRESENTATION[catalogueRecord.ui_state]
     : null
@@ -428,9 +435,9 @@ function MissingGuidanceFallback({
   )
 }
 
-// AC Iteration 1 P6 — the chip presentation for the shared-catalogue-only
-// fallback. Kept alongside the fallback so the invasive/info-only/uncertain
-// mapping is one obvious block instead of scattered across the component.
+// Chip colours/labels for the catalogue-only fallback above. Kept right next to
+// the function that uses it so the invasive/info-only/uncertain mapping stays
+// one obvious block instead of being scattered somewhere else in the file.
 const UI_STATE_FALLBACK_PRESENTATION: Record<
   PlantStatusRecord['ui_state'],
   { label: string; bg: string; border: string; color: string }
@@ -457,11 +464,11 @@ function naturalIdentificationNote(note: string): string {
 }
 
 function decisionToPermission(decision: GuidanceDecision | null): PermissionChoice {
-  // AC 3.1.2 — until the user has made an explicit permission choice for
-  // this scan, treat the plant as "protected land or permission unknown".
-  // Observation / photography / location / reporting guidance is shown
-  // immediately from that path; active actions stay locked behind an
-  // explicit permission selection plus the later safety gates.
+  // Until the user has actually made a permission choice for this scan, treat it
+  // as "protected land or permission unknown" by default — that's the safer
+  // assumption. The observe/photograph/report guidance shows straight away from
+  // that path either way; active removal stays locked behind an explicit choice
+  // plus the safety checks further down.
   if (!decision) return 'unknown'
   return decision.choice === 'protected_or_unsure' ? 'unknown' : 'explicit_permission'
 }
@@ -591,11 +598,13 @@ function PermissionGate({
   )
 }
 
-// AC 3.2.2 — each stop condition is an explicit selectable item. Selecting
-// any condition immediately hides active steps (setAllClear(false)) and the
-// "None of these apply here" confirmation is disabled until every trigger is
-// cleared. Prevents the previous "one bulk none-apply checkbox" from
-// silently unlocking active steps when one specific condition does apply.
+// Each stop condition gets its own checkbox instead of one bulk "none apply"
+// checkbox. The reasoning: with a single bulk checkbox it was too easy for
+// someone to tick it without actually reading each condition, which could
+// unlock active steps when one specific condition genuinely did apply. So
+// ticking any individual condition here immediately hides the active steps
+// (setAllClear(false)), and the "none of these apply" confirmation stays
+// disabled until every triggered condition gets cleared again.
 function StopConditionsGate({
   conditions,
   allClear,
@@ -923,8 +932,8 @@ function SourceLine({ ids, inline }: { ids: string[]; inline?: boolean }) {
 
 function SafetyPolicyFooter({ plant }: { plant: PlantGuidance }) {
   const policy = plantGuidanceDataset.safety_policy
-  // AC 3.1.4 + 3.2.4 — display dataset review date and content version so
-  // the user can see the provenance of the guidance they are following.
+  // Showing the review date and content version here lets the user see for
+  // themselves how current the guidance they're reading actually is.
   const reviewLabel = plantGuidanceDataset.last_reviewed
     ? `Guidance last reviewed ${plantGuidanceDataset.last_reviewed}`
     : 'Guidance review date unavailable'

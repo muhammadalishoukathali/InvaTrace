@@ -4,9 +4,10 @@ import { scanStateFromPath } from '@/features/scan/scan-navigation'
 import './bottom-tabs.css'
 
 /**
- * Mobile bottom bar with a single big Scan action. Only rendered by AppShell
- * on the map screen at narrow widths — the map stays visible behind it, so
- * the bar doesn't need a full tab set, just the one primary action.
+ * Bottom bar for mobile with just the one big Scan button. AppShell only
+ * mounts this on the map screen at narrow widths - I didn't want a full
+ * tab bar since the map is meant to stay visible underneath, so it's really
+ * just the single primary action rather than a proper tab set.
  */
 export function BottomTabs() {
   return (

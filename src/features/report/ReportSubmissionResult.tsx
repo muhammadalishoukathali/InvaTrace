@@ -7,18 +7,21 @@ import type { Report } from '@/types'
 import './report-submission-result.css'
 
 /**
- * Terminal screen of the report wizard, shown once ReportPreviewStep.tsx
- * sets an outcome — either "submitted" (sent to the server, now screening)
- * or "queued" (saved offline, will retry via report-queue.ts). Not one of
- * the numbered REPORT_STEPS since it isn't a form step, just the exit.
+ * This is the last screen of the wizard, it only shows up once
+ * ReportPreviewStep.tsx has set an outcome — either "submitted" (it made it
+ * to the server and is now being screened) or "queued" (it got saved
+ * offline and report-queue.ts will retry it later). We didn't add it to
+ * REPORT_STEPS because it's not really a form step, it's just the exit.
  */
 export function ReportSubmissionResult() {
   const navigate = useNavigate()
   const { outcome, reset } = useReportDraft()
 
   const done = (destination: string) => {
-    // Server-supplied absolute URLs would otherwise be interpreted as SPA
-    // routes and 404. Open externally and stay put so the reset still runs.
+    // If the server hands us a full URL instead of an internal path, we
+    // can't just pass it to react-router — it'll try to treat it as an SPA
+    // route and 404. So we open it in a new tab instead and stay on this
+    // page, still running the reset below either way.
     if (/^https?:\/\//i.test(destination)) {
       window.open(destination, '_blank', 'noopener,noreferrer')
     } else {
@@ -30,11 +33,11 @@ export function ReportSubmissionResult() {
     }, 150)
   }
 
-  // AC 4.1.4 — a submission returns `processing` initially; poll the report
-  // until it becomes `screened` (published) so this screen can honestly move
-  // from "submitted" to the required "Report published" wording. `rejected`
-  // and `needs_rescan` surface their own honest states rather than pretending
-  // to publish.
+  // A fresh submission always comes back as `processing` first, so we poll
+  // the report until it moves to `screened` (published) — that way this
+  // screen can honestly switch from "submitted" to "Report published"
+  // instead of just assuming it worked. `rejected` and `needs_rescan` get
+  // their own honest states below rather than us pretending it published.
   const initialReport = outcome?.kind === 'submitted' ? outcome.report : null
   const [status, setStatus] = useState<Report['status'] | null>(initialReport?.status ?? null)
   const [sightingId, setSightingId] = useState<string | null>(initialReport?.sightingId ?? null)
@@ -54,7 +57,8 @@ export function ReportSubmissionResult() {
         setSightingId(latest.sightingId ?? null)
         setRetainedReportId(latest.retainedReportId ?? null)
       } catch {
-        // Network blip — keep the pending wording; the next tick retries.
+        // If this one poll fails we just leave the "still checking" wording
+        // up rather than showing an error — the next interval tick retries.
       }
     }
     void poll()
@@ -88,11 +92,12 @@ export function ReportSubmissionResult() {
   }
 
   if (submitted && status === 'merged') {
-    // AC 2.3.2 — merged branch: name the existing same-species sighting the
-    // incoming evidence joined, and prefer a jump to that sighting on the
-    // map with the retained report as a fallback so the user can still open
-    // the shared record. The published-report copy is intentionally absent
-    // here — merging does not create a new marker.
+    // This handles the case where the new evidence got merged into an
+    // existing sighting instead of creating a fresh one. We try to link
+    // straight to that existing sighting on the map first, falling back to
+    // the retained report if there's no sightingId yet. We deliberately
+    // don't show the "published" wording here since merging doesn't put a
+    // new marker on the map.
     const retainedTrackingDestination = retainedReportId ? `/reports/${retainedReportId}` : null
     return (
       <main className="report-submission-result">

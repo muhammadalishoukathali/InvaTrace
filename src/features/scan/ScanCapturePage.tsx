@@ -18,14 +18,16 @@ async function sha256HexOfBlob(blob: Blob): Promise<string> {
 }
 
 /**
- * First screen of the scan flow: lets the user open the live camera or pick
- * a photo from their library, runs the quality check and then the actual
- * plant-model inference on it, and on success hands off to ScanResultPage.
- * Also doubles as the "retake" screen when coming back from processing.
+ * The first screen in the scan flow. Lets the user open the live camera or
+ * pick a photo from their library, runs the quality check on it and then the
+ * actual plant-model inference, and hands off to ScanResultPage once that
+ * succeeds. It also doubles as the "retake" screen when you come back here
+ * from processing.
  *
- * The camera and gallery use separate file inputs so each button always does
- * one clear job. The `capture` attribute asks supported phones to open the
- * rear camera, while the other input opens the normal file picker.
+ * I kept the camera and gallery as two separate file inputs so each button
+ * only ever does one job. The `capture` attribute is what asks supported
+ * phones to open straight to the rear camera; the other input just opens the
+ * normal file picker.
  */
 export function ScanCapturePage() {
   const navigate = useNavigate()
@@ -35,12 +37,12 @@ export function ScanCapturePage() {
   const videoRef = useRef<HTMLVideoElement>(null)
   const streamRef = useRef<MediaStream | null>(null)
   const mountedRef = useRef(false)
-  // These three counters are the cancellation mechanism for async work that
-  // has no native abort signal (getUserMedia, image decode/resize, model
-  // inference). Bumping the relevant counter makes any in-flight callback's
-  // "is this still the request that started me" check fail, so a stale
-  // camera stream, resize, or inference result from before a retake/unmount
-  // can't clobber state that's already moved on.
+  // getUserMedia, image resize, and model inference don't have a native abort
+  // signal, so these three counters are basically my own hand-rolled
+  // cancellation. Bumping the relevant one makes any in-flight callback's "is
+  // this still the request that started me" check come back false, so a stale
+  // camera stream / resize / inference result from before a retake or unmount
+  // can't sneak in and overwrite state that's already moved on.
   const cameraRequestRef = useRef(0)
   const imageRequestRef = useRef(0)
   const analysisRequestRef = useRef(0)
@@ -82,8 +84,10 @@ export function ScanCapturePage() {
     }
     const handleVisibility = () => {
       if (document.visibilityState === 'hidden') {
-        // Ignore short backgrounding (e.g. iOS permission prompts,
-        // notification shade) so the stream isn't torn down on every blur.
+        // Short backgrounding (iOS permission prompts, pulling down the
+        // notification shade) shouldn't tear the stream down — that made the
+        // camera feel broken during pilot testing. So it waits a bit before
+        // deciding the app was actually interrupted.
         clearHiddenTimer()
         hiddenTimer = window.setTimeout(() => {
           hiddenTimer = null
@@ -100,10 +104,10 @@ export function ScanCapturePage() {
     document.addEventListener('visibilitychange', handleVisibility)
     window.addEventListener('pagehide', handlePageHide)
     return () => {
-      // Unmounting the capture screen should cancel any camera start, image
-      // resize, or model inference that's still running — otherwise a
-      // background analyse() could finish after the user has already
-      // navigated away and call setState on an unmounted component's data.
+      // Leaving this screen has to cancel any camera start, resize, or model
+      // inference still in flight — otherwise a background analyse() could
+      // finish after the user has already navigated away and try to set state
+      // on a component that's no longer mounted.
       mountedRef.current = false
       cameraRequestRef.current += 1
       imageRequestRef.current += 1
@@ -118,10 +122,10 @@ export function ScanCapturePage() {
     }
   }, [stopCamera])
 
-  // Returning here after "Back to capture" preserves imageBlob/quality but
-  // scan-store's setResult already closed the ImageBitmap. Rehydrate it on
-  // mount so the Analyse button has a bitmap ready without waiting for the
-  // in-analyse fallback path.
+  // Coming back here via "Back to capture" keeps imageBlob/quality around, but
+  // scan-store's setResult already closed the ImageBitmap by that point. So I
+  // rebuild it on mount here, otherwise the Analyse button would just wait on
+  // the fallback path inside analyse() instead of having a bitmap ready.
   useEffect(() => {
     const { imageBitmap, imageBlob } = useScan.getState()
     if (imageBitmap || !imageBlob) return
@@ -155,11 +159,12 @@ export function ScanCapturePage() {
       if (requestId === imageRequestRef.current) setQuality(qualityResult)
     } catch (error) {
       if (requestId === imageRequestRef.current) {
-        // AC 1.1.1 — preserve every specific message from resizeImage()
-        // (empty file, oversized file, unsupported MIME, invalid image)
-        // instead of collapsing to a generic "Could not process" copy.
-        // Rejected input must not create a scan-history record; setImage
-        // was never called on this path, so scan-store stays untouched.
+        // I want to keep whatever specific message resizeImage() threw (empty
+        // file, file too big, wrong MIME type, corrupt image) instead of
+        // flattening it into one generic "could not process" message — a
+        // specific reason is a lot more useful to the person holding the
+        // phone. Also note setImage was never called on this path, so a
+        // rejected photo never creates a scan-history record.
         const message = error instanceof Error && error.message
           ? error.message
           : 'Could not process this image. Try another photo.'
@@ -209,13 +214,15 @@ export function ScanCapturePage() {
       stream.getTracks().forEach((track) => track.addEventListener('ended', handleEnded, { once: true }))
       streamRef.current = stream
       setCameraOpen(true)
-      // The <video> element is only mounted after cameraOpen flips true, so
-      // videoRef.current is null on the first tick. requestAnimationFrame
-      // alone was racing React's commit on iOS Safari — the frame fired
-      // before the element was in the DOM, videoRef.current stayed null,
-      // and the branch silently dropped the stream leaving a black canvas.
-      // Poll a handful of animation frames until the element attaches so a
-      // cold camera open no longer needs a manual retry.
+      // The <video> element only gets mounted after cameraOpen flips true, so
+      // videoRef.current is still null on the very first tick. I originally just
+      // used a single requestAnimationFrame here, but that ended up racing
+      // React's commit on iOS Safari — the frame fired before the element had
+      // actually landed in the DOM, videoRef.current stayed null, and the
+      // stream got silently dropped, leaving a black square where the preview
+      // should be. Polling across a few animation frames until the element
+      // shows up fixed it, so a cold camera open doesn't need a manual retry
+      // anymore.
       const attach = (attemptsLeft: number) => {
         if (streamRef.current !== stream || !mountedRef.current) return
         const video = videoRef.current
@@ -264,9 +271,9 @@ export function ScanCapturePage() {
     let { imageBitmap: bitmap } = useScan.getState()
     const { imageBlob } = useScan.getState()
     if (!imageBlob) return
-    // Bitmap is nulled by setResult after a prior run, so returning to this
-    // screen via "Back to capture" leaves imageBlob but no bitmap. Rehydrate
-    // from the blob so the analyse button works on the preserved photo.
+    // setResult nulls the bitmap out after a prior run, so coming back here via
+    // "Back to capture" leaves imageBlob around but no bitmap. Rebuilding it
+    // from the blob here is what lets Analyse still work on the same photo.
     if (!bitmap) {
       try {
         bitmap = await createImageBitmap(imageBlob, { imageOrientation: 'from-image' })
@@ -281,12 +288,12 @@ export function ScanCapturePage() {
     setAnalysing(true)
     setAnalysisError(null)
     startProcessing()
-    // AC Iteration 1 P2 — the 15 s deadline covers the full user-facing
-    // classification operation (quality-checked photo → visible result),
-    // not just ONNX inference. Anything slower than that must resolve to
-    // a retryable error instead of leaving the user on a spinner. The
-    // scan-persistence POST is decoupled and runs after navigation, so a
-    // slow backend can never eat into this budget.
+    // This 15 second deadline covers the whole user-facing classification step
+    // — from quality-checked photo through to a visible result — not just the
+    // ONNX inference itself. If it's slower than that, the user should get a
+    // retryable error instead of just staring at a spinner forever. The
+    // scan-persistence POST is deliberately decoupled and runs after
+    // navigation, so a slow backend can never eat into this budget.
     const FULL_OP_DEADLINE_MS = 15_000
     let deadlineTimer: number | undefined
     const deadline = new Promise<never>((_, reject) => {
@@ -304,17 +311,18 @@ export function ScanCapturePage() {
             setModelProgress(Math.round((loaded / total) * 100))
           }
         })
-        // AC 1.1.3 / P2 — cross-check against the server-authoritative gate
-        // when reachable. A missing model-config response (server unreachable
-        // or offline after asset cache) leaves `serverAccepted: false` on the
-        // result: the classification still appears, but the result screen
-        // keeps Report blocked until the gate can confirm.
+        // Cross-check against the server-side gate when it's reachable. If the
+        // model-config request fails (server down, or offline once the asset
+        // cache kicks in), serverAccepted ends up false on the result — the
+        // classification still shows, but Report stays blocked on the result
+        // screen until the server can actually confirm it.
         const serverConfig = await fetchModelConfig()
         const result = applyServerAcceptance(rawResult, serverConfig)
         let detail: SpeciesDetail | null = null
-        // AC 1.2.3 — retrieve species detail for every accepted supported
-        // label so information-only and status-uncertain results also get
-        // their sourced general information + Malaysian status displayed.
+        // Fetching species detail for every accepted supported label, not just
+        // the reportable ones, is what lets information-only and
+        // status-uncertain results also show their sourced general info and
+        // Malaysia status.
         if (result.speciesId) {
           try {
             detail = await api<SpeciesDetail>(`/api/v1/species/${result.speciesId}`)
@@ -329,11 +337,12 @@ export function ScanCapturePage() {
       if (!mountedRef.current || requestId !== analysisRequestRef.current) return
 
       setResult({ ...result, reportable: Boolean(detail?.reportable ?? detail) }, detail)
-      // AC 2.2.1 / P2 — scan persistence is a background operation, decoupled
-      // from displaying the classification result. Navigate immediately so
-      // the result screen appears within the 15 s budget; the Report button
-      // on that screen reads scanPersistStatus and stays disabled until this
-      // POST returns 'ok', with a retryable failure surfaced separately.
+      // Persisting the scan to the server happens in the background and is
+      // deliberately decoupled from showing the result — navigate straight
+      // away so the result screen lands within the 15 second budget. The
+      // Report button on that screen reads scanPersistStatus and stays
+      // disabled until this POST comes back 'ok', with a separate retryable
+      // failure state if it doesn't.
       const { captureId, captureSource, setScanPersistStatus } = useScan.getState()
       if (captureId) {
         setScanPersistStatus('pending')

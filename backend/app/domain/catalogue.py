@@ -1,20 +1,19 @@
-"""InvaTrace Iteration 1 authoritative catalogue loader (backend side).
+"""Backend-side loader for the shared plant catalogue JSON files.
 
-Both the frontend (`shared/catalogue/index.ts`) and the backend read from
-``shared/catalogue/`` for Malaysian plant status and safe guidance. This
-module is the ONLY sanctioned way for backend code to load either file, so
-version and checksum drift can be detected in one place.
+The app has one source of truth for plant status/safety info under
+shared/catalogue/, and both the phone side (shared/catalogue/index.ts) and
+the backend read from it. I wanted only one place in Python that opens
+those files so if the on-disk version ever drifts from what the phone
+bundled, we catch it here instead of noticing later from a weird bug.
 
-Callers:
-
-* :mod:`app.seed` uses :func:`load_status_records` to seed the ``species``
-  table.
-* :mod:`app.api.routers.reports` uses :func:`assert_client_catalogue_matches`
-  to reject report submissions whose bundled catalogue disagrees with the
-  server's — identification and offline guidance keep working in that case.
-* :mod:`app.main` exposes :func:`catalogue_health_snapshot` through the
-  health/readiness endpoint so operators can detect drift without exposing
-  secrets.
+Who uses what in here:
+ - app.seed pulls load_status_records() to fill the species table on first
+   boot.
+ - the reports router calls assert_client_catalogue_matches() so a phone
+   running an older bundle can't submit a report against stale data (it can
+   still ID plants and read guidance offline though, that side keeps working)
+ - app.main exposes catalogue_health_snapshot() on the health endpoint so I
+   can eyeball drift during pilot without leaking any secrets
 """
 
 from __future__ import annotations
@@ -158,9 +157,12 @@ def status_record_for_model_label(model_label: str) -> PlantStatusRecord | None:
 
 
 def verify_disk_checksums() -> None:
-    """Raise if plant-status.json / plant-guidance.json bytes on disk drift
-    from the checksums recorded in ``catalogue-manifest.json``. Intended to
-    be called once during backend startup (health/readiness check)."""
+    """Checks the two catalogue JSON files on disk still match the sha256s
+    listed in catalogue-manifest.json. I call this once at startup from the
+    readiness check — the idea is if somebody edited plant-status.json by
+    hand and forgot to regenerate the manifest, we should fail loud instead
+    of silently serving mismatched data to the app.
+    """
     manifest = load_manifest()
     actual_status = _sha256(PLANT_STATUS_PATH)
     if actual_status != manifest.plant_status_sha256:
@@ -180,9 +182,12 @@ def assert_client_catalogue_matches(
     client_catalogue_version: str | None,
     client_plant_status_sha256: str | None,
 ) -> None:
-    """Raise :class:`CatalogueError` when the client's bundled catalogue does
-    not match the server's. Both fields are optional in the request, but at
-    least one must match to proceed with a report submission."""
+    """Blocks a report submission when the phone's bundled catalogue is out
+    of sync with what the server has. Either field is optional on the request
+    (older builds only sent the version string, newer ones send the sha too)
+    so we check whichever ones were provided, but if any of them disagree we
+    bail out — the phone needs to grab the new bundle before it can report.
+    """
     manifest = load_manifest()
     if (
         client_catalogue_version is not None

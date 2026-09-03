@@ -1,12 +1,13 @@
-// Shared TanStack Query client, wired up once in src/main.tsx and used by
-// every feature that fetches server data (map sightings, notifications, etc).
-// This is the one place that sets retry/stale-time defaults so features
-// don't each reinvent their own caching behaviour.
+// This is the single TanStack Query client for the whole app, set up once in
+// src/main.tsx and shared by every feature that pulls server data (map
+// sightings, notifications, etc). Kept the retry/stale-time config here so
+// I'm not repeating the same defaults across every feature that fetches data.
 import { QueryClient } from '@tanstack/react-query'
 
-// Retries are generous with backoff because field connectivity is flaky by
-// design for this app (see docs/product.md) — a single dropped request
-// shouldn't surface an error to someone standing on a trail with one bar.
+// went with pretty generous retries + backoff here because this whole app is
+// meant to work out in the field where connectivity is unreliable (see
+// docs/product.md) - didn't want one dropped request throwing an error at
+// someone standing on a trail with one bar of signal
 export const queryClient = new QueryClient({
   defaultOptions: {
     queries: {

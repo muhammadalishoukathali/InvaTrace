@@ -1,10 +1,11 @@
-// Species catalog for the bundled on-device PULIH model
+// Species catalog for the on-device PULIH model that ships with the app
 // (see vendor/PULIH_Model1_v4_FP16_Web_Kit).
 //
-// The model manifest is trusted only for the ordered class list — every field
-// the UI branches on for Malaysian status comes from shared/catalogue instead.
-// A model swap therefore never re-labels a class silently: the shared catalogue
-// must be updated (and its sha256 rechecked against the backend) first.
+// I only trust the model manifest for the ordered list of classes - anything
+// the UI actually branches on for Malaysian status comes from shared/catalogue
+// instead. Set it up this way so swapping the model can't silently relabel a
+// class in the UI; the shared catalogue has to be updated (and its sha256
+// rechecked against the backend) as a separate, deliberate step.
 import modelManifest from '../../vendor/PULIH_Model1_v4_FP16_Web_Kit/model/species_31.json'
 import {
   findPlantStatus,
@@ -17,9 +18,9 @@ export interface ModelSpeciesClass {
   machine_label: string
   scientific_name: string
   display_name: string
-  /** Reviewed Malaysian status, resolved from the shared catalogue. */
+  /** The reviewed Malaysian status, pulled from the shared catalogue. */
   malaysia_status: PlantStatusRecord['ui_state']
-  /** First reviewed status source ID from the shared catalogue, if any. */
+  /** First reviewed status source ID from the shared catalogue, if there is one. */
   status_source: string
 }
 
@@ -47,7 +48,9 @@ interface RawModelManifest {
 const rawManifest = modelManifest as RawModelManifest
 
 if (rawManifest.class_count !== plantStatusDataset.records.length) {
-  // A frontend build must never ship a mismatched model manifest / catalogue.
+  // this should never actually happen, but if the model manifest and the
+  // catalogue ever disagree on class count I'd rather the build just fail
+  // loudly than ship something with silently mismatched species data
   throw new Error(
     'InvaTrace catalogue and model manifest disagree on class count ' +
       `(manifest=${rawManifest.class_count}, catalogue=${plantStatusDataset.records.length}).`,

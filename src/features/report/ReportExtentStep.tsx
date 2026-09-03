@@ -11,8 +11,11 @@ const EXTENT_OPTIONS: { value: ExtentSize; title: string; desc: string; ha: stri
 
 /**
  * Step 2 of 4 in the report wizard (location, extent, consent, preview).
- * Lets the contributor say roughly how big the infestation is and add free
- * text notes — both get bundled into the submission on the preview step.
+ * This is where the user tells us roughly how big the infestation is (just
+ * a single plant, a small patch, or a large area) and can add a free text
+ * note if they want. We don't validate the notes field at all here, it's
+ * optional — both fields just get carried through and bundled into the
+ * final submission on the preview step.
  */
 export function ReportExtentStep() {
   const { draft, setExtent, setNotes, next } = useReportDraft()

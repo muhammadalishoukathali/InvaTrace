@@ -1,13 +1,15 @@
-// Static, curated per-species guidance shown after a scan result — what a plant is,
-// its Malaysia invasive status, and what a contributor should (and shouldn't) do about
-// it. None of this is user-generated; it's reviewed reference content bundled with the
-// app and read by src/features/scan/PlantGuidancePanel.tsx (via ScanResultPage.tsx) and
-// referenced from the map's sighting details / filters for status labels.
+// This is the static, curated per-species guidance that shows up after a scan
+// result - what the plant is, its status in Malaysia, and what someone should
+// (and shouldn't) do about it. Nothing here is user-generated, it's all
+// reviewed reference content bundled with the app. Gets read by
+// src/features/scan/PlantGuidancePanel.tsx (via ScanResultPage.tsx) and also
+// referenced from the map's sighting details/filters for the status labels.
 //
-// The actual data lives in ./plant-guidance.json and is expected to satisfy
-// ./plant-guidance.schema.json — that contract is checked by the sibling
-// plant-guidance.schema.test.ts, not enforced at runtime here, so an edit to the JSON
-// that breaks the schema won't fail until tests run.
+// The actual content lives in ./plant-guidance.json and is supposed to match
+// ./plant-guidance.schema.json. Worth noting that contract is only checked by
+// the sibling plant-guidance.schema.test.ts - it's not enforced at runtime
+// here, so if someone edits the JSON and breaks the schema it won't actually
+// fail until the tests run.
 import guidanceJson from '../../shared/catalogue/plant-guidance.json'
 import { findPlantStatus } from '@shared/catalogue'
 
@@ -73,9 +75,9 @@ export interface PlantGuidance {
   spread_prevention: SourcedItem[]
   do_not_do: SourcedItem[]
   follow_up: SourcedItem[]
-  /** Curated public-domain / CC-BY-SA reference photo bundled with the app.
-   *  Renders alongside the panel header so users can compare their scan with
-   *  a known-good specimen. */
+  /** Public-domain / CC-BY-SA reference photo bundled with the app - shows
+   *  next to the panel header so people can compare their scan against a
+   *  known-good specimen photo. */
   reference_image?: string
   reference_image_credit?: string
 }
@@ -102,10 +104,11 @@ export interface PlantGuidanceDataset {
 
 const rawPlantGuidanceDataset = guidanceJson as unknown as PlantGuidanceDataset
 
-// Iteration 1 — Malaysian status is derived from the shared catalogue, not
-// this file's own status hints. shared/catalogue/plant-status.json is the
-// only source of truth for ui_state; the presentation labels below only
-// exist to turn that ui_state into a human-readable heading.
+// For iteration 1, the Malaysian status shown to the user is derived from the
+// shared catalogue, not whatever status hints happen to be in this file.
+// shared/catalogue/plant-status.json is the only real source of truth for
+// ui_state - the labels below just exist to turn that raw ui_state value
+// into something readable as a heading.
 const UI_STATE_PRESENTATION: Record<string, Pick<MalaysiaStatus, 'category' | 'display_label' | 'confidence'>> = {
   invasive: {
     category: 'invasive', display_label: 'Invasive in Malaysia', confidence: 'high',
@@ -119,9 +122,10 @@ const UI_STATE_PRESENTATION: Record<string, Pick<MalaysiaStatus, 'category' | 'd
 }
 
 /**
- * Guidance remains curated content, but identification status always comes
- * from the shared catalogue bundled with the model. This prevents an older
- * guidance review from relabelling a model class in the result UI.
+ * The written guidance stays as curated content, but the actual identification
+ * status always comes from the shared catalogue bundled with the model. Set it
+ * up this way so an outdated guidance review can't end up relabelling a model
+ * class in the result UI.
  */
 export const plantGuidanceDataset: PlantGuidanceDataset = {
   ...rawPlantGuidanceDataset,
@@ -138,9 +142,10 @@ export const plantGuidanceDataset: PlantGuidanceDataset = {
       malaysia_status: {
         ...presentation,
         note: record.safety_message || plant.malaysia_status.note,
-        // Keep the plant's own source references (S01…) — the shared catalogue
-        // has a separate source namespace (GRIIS/MyIAS) surfaced through the
-        // status record itself, not through the guidance sources index.
+        // keeping the plant's own source refs here (S01 etc) - the shared
+        // catalogue uses a completely different source namespace (GRIIS/MyIAS)
+        // that comes through the status record itself, not this guidance
+        // sources index, so mixing the two would just be wrong
         source_ids: plant.malaysia_status.source_ids,
       },
     }

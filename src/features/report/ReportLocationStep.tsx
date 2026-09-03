@@ -8,7 +8,8 @@ import { LOCATION_ACCURACY_MAX_M } from './gps-policy'
 
 type Status = 'idle' | 'locating' | 'located' | 'denied' | 'unavailable'
 
-// Match the server's Malaysia bounds so invalid coordinates fail in the form.
+// These need to match the server's Malaysia bounds check exactly, otherwise
+// a coordinate that looks fine on the client could still get rejected later.
 const MY_LAT_MIN = 0.8
 const MY_LAT_MAX = 7.5
 const MY_LNG_MIN = 99.3
@@ -22,9 +23,11 @@ function inMalaysia(p: { lat: number; lng: number } | null): boolean {
 
 /**
  * Step 1 of 4 in the report wizard (location, extent, consent, preview).
- * Tries to reuse the GPS fix taken during the scan so the user isn't asked
- * for location twice, and gates progress on both accuracy and Malaysia
- * bounds since the trust pipeline needs a usable fix to screen the report.
+ * The idea here is to reuse the GPS fix that was already taken when the user
+ * scanned the plant, so we're not asking for location permission a second
+ * time right after. We only let the user continue once we have a location
+ * that's inside Malaysia bounds and has a real accuracy value, because the
+ * screening pipeline on the backend needs a usable fix to work with.
  */
 export function ReportLocationStep() {
   const { draft, setLocation, next, reset } = useReportDraft()
@@ -35,8 +38,8 @@ export function ReportLocationStep() {
   const [status, setStatus] = useState<Status>('idle')
 
   const cancelReport = () => {
-    // Keep the valid scan so the user can return and try again without losing
-    // the identification.
+    // We don't throw away the scan here — just cancel the report — so the
+    // user can come back and try submitting again without redoing the scan.
     reset()
     navigate('/scan/result', { state: location.state })
   }
@@ -44,8 +47,9 @@ export function ReportLocationStep() {
   const loc = draft?.location ?? null
   const accuracy = draft?.locationAccuracyM ?? null
 
-  /** Reuse the location captured with the photo. This avoids asking for the
-   *  same location permission again during the report form. */
+  /* If the scan already grabbed a location, just use that instead of asking
+   * the browser for permission again — nobody wants two location prompts in
+   * a row for the same walk in the park. */
   useEffect(() => {
     if (loc) return
     if (scanLoc) {
@@ -73,19 +77,21 @@ export function ReportLocationStep() {
 
   useEffect(() => {
     if (loc || scanLoc || status !== 'idle') return
-    // Wait for the location request started by the scan screen. Starting a
-    // second request here could show the browser permission prompt twice.
+    // We wait for the scan screen's own location request to finish first —
+    // if we fire our own request while that one is still pending, the
+    // browser can pop the permission prompt twice, which looks broken.
     if (scanLocStatus === 'locating') return
     requestGeolocation()
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [scanLocStatus])
 
-  // AC 4.1.2 — the CSV does not define a hard accuracy cutoff. Only require
-  // a finite non-negative accuracy value and valid Malaysia coordinates.
-  // AC Iteration 1 P7 — the single 300 m policy is what the server rescans
-  // on, so surface it here as a soft warning at the same threshold. The
-  // client never blocks on it; users past the threshold can still submit
-  // and the server will ask for a rescan with the same message.
+  // One of the ACs was clear that there's no hard accuracy cutoff for
+  // submitting — we only require a real, non-negative accuracy number and a
+  // coordinate that's actually inside Malaysia. The accuracy threshold from
+  // gps-policy.ts is only used as a soft warning below; we never block on it
+  // client-side. If the user submits anyway with a bad fix, the server will
+  // still bounce it back as needs_rescan with the same message, so nothing
+  // gets silently accepted.
   const hasFiniteAccuracy = accuracy !== null && Number.isFinite(accuracy) && accuracy >= 0
   const withinMalaysia = inMalaysia(loc)
   const canProceed = !!loc && hasFiniteAccuracy && withinMalaysia

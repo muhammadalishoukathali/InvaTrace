@@ -1,15 +1,15 @@
 import { api } from '@/services/api-client'
 
 /**
- * AC 1.1.3 — the server model configuration is authoritative for the
- * product acceptance threshold and the set of supported classifier
- * versions when it is reachable.
+ * AC 1.1.3 wants the server's model config to be the source of truth for
+ * the acceptance threshold and which classifier versions still count,
+ * whenever we can actually reach it.
  *
- * AC Iteration 1 P2 — a slow or unavailable backend must not prevent the
- * local classification result from appearing. When the config cannot be
- * fetched the client-side open-set decision is trusted for display, but
- * reporting stays blocked via `serverAccepted: false` until the gate has
- * been able to confirm the result.
+ * The Iteration 1 P2 AC is the trickier one though - a slow or dead backend
+ * shouldn't stop the on-device classification result from showing up. So
+ * when the config fetch fails I still trust the local open-set decision for
+ * display purposes, but reporting stays blocked (serverAccepted: false)
+ * until the server's actually confirmed it.
  */
 export interface ModelConfig {
   modelVersion: string | null
@@ -24,10 +24,11 @@ let cached: Promise<ModelConfig | null> | null = null
 const MODEL_CONFIG_TIMEOUT_MS = 4_000
 
 /**
- * Fetch the server model-config with a short timeout so it cannot hold up
- * the full-operation 15s ceiling in ScanCapturePage. A memoised failure is
- * dropped from the cache so the next attempt (e.g. after the client comes
- * back online) can retry rather than serving a stale null forever.
+ * Fetches the server model config, but with a short timeout so a slow
+ * backend can't eat into the 15s ceiling ScanCapturePage has for the whole
+ * operation. If it fails I don't cache the null - I drop it from the cache
+ * so the next attempt (say, once the client's back online) actually retries
+ * instead of just returning the same stale null forever.
  */
 export function fetchModelConfig(): Promise<ModelConfig | null> {
   if (!cached) {
@@ -43,21 +44,22 @@ export function fetchModelConfig(): Promise<ModelConfig | null> {
   return cached
 }
 
-/** Test-only reset of the memoised config so ordering tests can start
- *  from a clean slate without reimporting the module. */
+/** Only used in tests - resets the cached config so ordering tests get a
+ *  clean slate without having to reimport the whole module. */
 export function _resetModelConfigCache(): void {
   cached = null
 }
 
 /**
- * Combine the on-device classifier verdict with the server-authoritative
- * gates: (a) the classifier's own open-set acceptance, (b) the reported
- * confidence is at or above the server threshold, and (c) the model
- * version is one the server still trusts.
+ * Takes the on-device classifier's verdict and checks it against the
+ * server's rules: the classifier's own open-set call, whether the
+ * confidence clears the server threshold, and whether the model version
+ * is still one the server trusts.
  *
- * Config unavailable → return the local result unchanged with
- * `serverAccepted: false` so the UI shows the classification but blocks
- * reporting. Config present but rejecting → force uncertain.
+ * If the config isn't available I just return the local result as-is with
+ * serverAccepted: false, so the UI can still show the classification but
+ * reporting stays blocked. If the config is there but rejects the result,
+ * I force it to "uncertain" instead.
  */
 export interface ClassifierResult {
   outcome: 'target' | 'other_plant' | 'uncertain'

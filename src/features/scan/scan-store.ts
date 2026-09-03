@@ -3,16 +3,17 @@ import type { GeoPoint, QualityResult, IdentifyResult, SpeciesDetail } from '@/t
 import { saveScanHistoryRecord } from './scan-history-store'
 
 /**
- * Owns the state for the scan currently in progress: the captured image
- * (both the object URL and the live ImageBitmap/Blob), quality-check and
- * identification results, and the GPS fix taken alongside the photo. This
- * is in-memory only and reset on every new scan — it's the "working"
- * state for capture -> processing -> result. Once a scan finishes it gets
- * written out to scan-history-store.ts (the durable local record) and, for
- * permission choices tied to a specific scan, guidance-decision-store.ts.
- * Three separate stores instead of one because they have different
- * lifetimes: this one is volatile per-scan, the other two persist across
- * scans and sessions in localStorage.
+ * Owns the state for whatever scan is currently in progress: the captured
+ * image (both the object URL and the live ImageBitmap/Blob), the
+ * quality-check and identification results, and the GPS fix taken alongside
+ * the photo. This is in-memory only and gets reset on every new scan — it's
+ * the "working" state for capture -> processing -> result. Once a scan
+ * finishes, it gets written out to scan-history-store.ts (the durable local
+ * record) and, for permission choices tied to a specific scan, into
+ * guidance-decision-store.ts too. I split this into three separate stores
+ * instead of one big one because they genuinely have different lifetimes —
+ * this one is volatile per-scan, the other two persist across scans and
+ * sessions in localStorage.
  */
 let locationRequestGeneration = 0
 
@@ -39,10 +40,10 @@ interface ScanState {
   speciesDetail: SpeciesDetail | null
   location: ScanLocation | null
   locationStatus: 'idle' | 'locating' | 'ok' | 'denied' | 'unavailable' | 'timeout'
-  // AC 2.2.1 — the Report button must stay disabled until the scan has been
-  // successfully persisted server-side. 'pending' is the initial state after
-  // a scan finishes but before /api/v1/scans returns; 'ok' unlocks reporting;
-  // 'failed' surfaces a retry action.
+  // Report has to stay disabled until the scan has actually been persisted
+  // server-side. 'pending' is the state right after a scan finishes but before
+  // /api/v1/scans has come back; 'ok' is what unlocks reporting; 'failed'
+  // surfaces a retry action instead.
   scanPersistStatus: 'pending' | 'ok' | 'failed'
   setScanPersistStatus: (s: 'pending' | 'ok' | 'failed') => void
 
@@ -104,10 +105,11 @@ export const useScan = create<ScanState>((set, get) => ({
 
   setImage: (url, bitmap, blob, captureSource, captureId, observedAt) => {
     const previous = get()
-    // Object URLs and ImageBitmaps are both real browser resources that
-    // don't get garbage collected just because we stop referencing them —
-    // a retake/rescan without this leak would pile up memory over a long
-    // field session.
+    // Object URLs and ImageBitmaps are real browser resources that don't just
+    // get garbage collected the moment we stop referencing them. Skipping
+    // this cleanup on every retake/rescan would slowly pile up memory over a
+    // long field session, which is exactly the kind of thing that'd only show
+    // up after someone's been out scanning for a while.
     if (previous.imageUrl) URL.revokeObjectURL(previous.imageUrl)
     previous.imageBitmap?.close()
     set({ imageUrl: url, imageBitmap: bitmap, imageBlob: blob,
@@ -131,8 +133,9 @@ export const useScan = create<ScanState>((set, get) => ({
 
   setLocation: (loc) => {
     const scan = get()
-    // A warm model can finish before the GPS request. Update the already-saved
-    // history row when that late fix arrives so View on map is still available.
+    // A warm model can actually finish before the GPS request comes back, so
+    // if the location fix arrives late, this updates the history row that was
+    // already saved — otherwise "View on map" would just be missing for that scan.
     if (scan.result) saveCurrentScan(scan, scan.result, scan.speciesDetail, loc)
     set({ location: loc, locationStatus: 'ok' })
   },
@@ -153,13 +156,14 @@ export const useScan = create<ScanState>((set, get) => ({
   },
 }))
 
-/** Start a location request without blocking the scan screen. The result or
- *  failure state is saved in the scan store for the report form to read later. */
+/** Kicks off a location request without blocking the scan screen while it
+ *  waits. The result, or the failure state, gets saved into the scan store so
+ *  the report form can read it back later. */
 export function captureScanLocation() {
-  // The generation counter guards against a stale GPS callback landing after
-  // the user has already retaken the photo (which starts a new request) or
-  // reset the scan entirely — geolocation.getCurrentPosition has no cancel
-  // API, so this is the only way to ignore an answer that's no longer relevant.
+  // geolocation.getCurrentPosition doesn't have a cancel API, so this
+  // generation counter is the only way I found to ignore a stale GPS callback
+  // landing after the user has already retaken the photo (which kicks off a
+  // new request) or reset the scan entirely.
   const requestGeneration = ++locationRequestGeneration
   useScan.setState({ location: null, locationStatus: 'locating' })
   if (typeof navigator === 'undefined' || !('geolocation' in navigator)) {

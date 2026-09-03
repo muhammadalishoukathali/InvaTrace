@@ -1,12 +1,13 @@
 /**
- * Persists the user's own permission/safety choice for a given scan or map
- * sighting ("protected land or unsure" vs "I have the land manager's
- * permission") in localStorage, keyed by a scan/sighting id. This is
- * deliberately separate from scan-history-store.ts: it's not a record of
- * what was scanned, it's a private safety note the device remembers so
- * PlantGuidancePanel doesn't ask the same question again if the user comes
- * back to the same result. It never changes official land status — see the
- * `decisionContext` doc comment on PlantGuidancePanel's props.
+ * Saves the user's own permission/safety choice for a given scan or map
+ * sighting — "protected land or unsure" vs "I have the land manager's
+ * permission" — into localStorage, keyed by that scan/sighting's id. I kept
+ * this deliberately separate from scan-history-store.ts because it isn't a
+ * record of what got scanned, it's a private safety note the device
+ * remembers so PlantGuidancePanel doesn't have to re-ask the same question
+ * if the user comes back to the same result later. Worth repeating: this
+ * never changes any official land status, it's purely a per-device note (see
+ * the decisionContext doc comment on PlantGuidancePanel's props for more).
  */
 export type GuidanceDecisionChoice = 'protected_or_unsure' | 'manager_permission'
 
@@ -108,6 +109,7 @@ export function clearGuidanceDecisions(
   try {
     storage?.removeItem?.(STORAGE_ENTRY)
   } catch {
-    // Storage may become unavailable after the page has loaded.
+    // Storage can go away mid-session (private browsing, quota errors, etc.),
+    // so just swallow it rather than crashing the app over a clear.
   }
 }

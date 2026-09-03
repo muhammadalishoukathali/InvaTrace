@@ -5,12 +5,12 @@ import { scanReturnPath } from '@/features/scan/scan-navigation'
 import './scan-flow.css'
 
 /**
- * Shared shell for the whole scan flow (capture -> processing -> result):
- * renders the header with the back button and hosts the nested route via
- * Outlet. The back button's behaviour differs by step — from the result
- * screen it steps back to capture instead of leaving the flow entirely —
- * and falls back to scan-navigation.ts to figure out where to go once the
- * user actually exits.
+ * Shared shell for the whole scan flow (capture -> processing -> result) — it
+ * just renders the header with the back button and hosts whatever nested
+ * route is active via Outlet. The back button doesn't do the same thing on
+ * every step though: from the result screen it steps back to capture instead
+ * of leaving the flow entirely, and only once the user actually exits does it
+ * hand off to scan-navigation.ts to work out where they should land.
  */
 export function ScanFlowLayout() {
   const navigate = useNavigate()

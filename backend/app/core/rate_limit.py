@@ -1,24 +1,19 @@
-"""Redis-backed rate limiting.
+"""Rate limiting, backed by Redis.
 
-Two algorithms supported per scope:
+Two flavours depending on the scope. Most scopes use a plain fixed-window
+counter (INCR + EXPIRE) because it's simple and good enough. The submission
+and restore scopes use a sliding window (sorted set of timestamps) because
+the ACs literally say "no more than N in the last X minutes" and fixed
+windows let you sneak 2N through by hitting the boundary — I didn't want
+to argue about that in the report.
 
-* ``fixed`` — a single INCR-and-EXPIRE counter per (scope, identity) window.
-  Cheap and predictable. Used for scopes where "N requests in the last
-  window_seconds" is a good enough approximation and burstiness at window
-  edges is acceptable.
+The restore scope only counts *failed* attempts, so identity.py checks
+first, does the work, then records failure or clears on success. Otherwise
+a legit user who typos once then gets in would still be aging out a
+counter they didn't deserve.
 
-* ``sliding`` — a sorted set of per-request timestamps. Each recorded
-  attempt is ZADDed with ``score=now``; ``ZREMRANGEBYSCORE`` drops anything
-  older than ``window_seconds`` before the count is taken. Enforces the
-  literal "no more than N in the preceding window" that AC 2.1.4 and AC
-  2.3.3 require without the fixed-window doubling at window boundaries.
-
-Restoration (AC 2.1.4) counts *failed* restore attempts only, so identity.py
-uses ``check_pre_failure`` before doing work and ``record_failure`` /
-``record_success`` after — successful restores never age the failure state.
-
-In production Redis outages fail closed (503) rather than let traffic
-through unmetered.
+In prod, if Redis is down we fail closed with a 503. In dev we let
+requests through so I can actually work without Redis running.
 """
 
 from __future__ import annotations

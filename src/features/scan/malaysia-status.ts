@@ -2,20 +2,22 @@ import type { IdentifyResult, MalaysiaStatusState } from '@/types'
 import { findPlantStatus, plantStatusDataset, type PlantStatusRecord } from '@shared/catalogue'
 
 /**
- * Iteration 1: Malaysian status is resolved once from the shared catalogue
- * (shared/catalogue/plant-status.json). The model manifest is trusted only
- * for the class list; the catalogue's ui_state is the source of truth here.
+ * Malaysian status gets resolved once, from the shared catalogue
+ * (shared/catalogue/plant-status.json). I only trust the model manifest for
+ * the class list itself — the catalogue's ui_state is the actual source of
+ * truth for whether something's invasive.
  *
- * A supported classification result carries a ui_state string from the
- * catalogue. If a lookup for the identified class fails at runtime (older
- * cached bundle, unknown label), the fallback is always status_uncertain —
- * never a permissive "safe/reportable" default.
+ * A supported classification result carries a ui_state string that comes
+ * from the catalogue. If a lookup for the identified class fails at runtime
+ * (an older cached bundle, an unknown label, whatever), the fallback is
+ * always status_uncertain — I never want a permissive "safe/reportable"
+ * default to slip through there.
  *
- * AC Iteration 1 P3 — the model manifest version and the catalogue version
- * must match. A model-version drift means the class list the classifier is
- * emitting may no longer align with what the catalogue was authored against,
- * so status is forced to `status_uncertain` and reporting is blocked until
- * the shipped catalogue catches up.
+ * One more thing worth flagging: the model manifest version and the
+ * catalogue version have to match. If they drift apart, the class list the
+ * classifier is emitting might no longer line up with what the catalogue was
+ * written against, so status gets forced to status_uncertain and reporting
+ * stays blocked until the shipped catalogue catches up again.
  */
 const VALID_UI_STATES: ReadonlySet<MalaysiaStatusState> = new Set([
   'invasive',
@@ -48,13 +50,14 @@ export function deriveMalaysiaStatusState(result: IdentifyResult): MalaysiaStatu
   if (isVersionMismatch(result.modelVersion)) return 'status_uncertain'
   const catalogueRecord = resolveCatalogueRecord(result)
   if (catalogueRecord) return catalogueRecord.ui_state
-  // Second-chance: the model adapter may already have attached a ui_state.
+  // Second chance: maybe the model adapter already attached a ui_state itself.
   const carried = result.malaysiaStatus
   if (carried && VALID_UI_STATES.has(carried as MalaysiaStatusState)) {
     return carried as MalaysiaStatusState
   }
-  // Fail safe: no valid catalogue match ⇒ uncertain. Never derive invasive
-  // or information-only from a missing lookup.
+  // If nothing matched in the catalogue, fail safe and call it uncertain — I
+  // never want to derive invasive or information-only from a lookup that
+  // came up empty.
   return 'status_uncertain'
 }
 
@@ -63,18 +66,19 @@ export function isReportEligible(state: MalaysiaStatusState | null): boolean {
 }
 
 /**
- * Single decision point for what the result screen should render. Keeping
- * this pure (no store or DOM dependency) means the invasive / information-
- * only / status-uncertain pathways can be exercised in tests without
- * mounting the full page.
+ * This is the one place that decides what the result screen should actually
+ * render. I kept it pure — no store or DOM dependency — specifically so the
+ * invasive / information-only / status-uncertain pathways could all be
+ * tested without having to mount the whole page.
  */
 export function resolveResultPathway(result: IdentifyResult): ResolvedPathway {
   if (result.outcome === 'uncertain') {
     return { pathway: 'uncertain', statusState: null, canReport: false, canAction: false }
   }
   if (result.outcome === 'other_plant') {
-    // Other-plant already means "not on the tracked list" — status_uncertain
-    // here is a convenience label; nothing to report or act on.
+    // "other_plant" already means it's not on the tracked list, so the
+    // status_uncertain label here is really just a convenience value — there's
+    // nothing to report or act on either way.
     return {
       pathway: 'other_plant',
       statusState: 'status_uncertain',
@@ -84,8 +88,9 @@ export function resolveResultPathway(result: IdentifyResult): ResolvedPathway {
   }
   const statusState = deriveMalaysiaStatusState(result)
   if (statusState === 'invasive') {
-    // A reportable catalogue record is still the only invasive pathway that
-    // offers action or reporting; unsupported target classes fall through.
+    // Only a catalogue record that's actually marked reportable gets to offer
+    // action or reporting — unsupported target classes fall through to the
+    // unsupported pathway below instead.
     if (result.reportable) {
       return { pathway: 'invasive_reportable', statusState, canReport: true, canAction: true }
     }

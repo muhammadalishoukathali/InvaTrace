@@ -1,6 +1,8 @@
 import { useEffect, useState } from 'react'
 
-/** The application switches from bottom tabs to the desktop sidebar at 900px. */
+// 900px is where I switch from the mobile bottom tabs to the desktop
+// sidebar layout - picked it from just testing on my own laptop/phone,
+// not from any formal breakpoint spec
 const QUERY = '(min-width: 900px)'
 
 export function useIsDesktop(): boolean {

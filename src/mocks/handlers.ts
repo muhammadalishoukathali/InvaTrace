@@ -24,8 +24,8 @@ interface MockScan {
   captureSource: 'camera' | 'gallery' | null
   createdAt: string
 }
-// AC 2.2.1 — MSW mirror of /api/v1/scans persistence so the browser mock can
-// enforce the same scan → report consistency rules FastAPI does.
+// this mirrors /api/v1/scans persistence for AC 2.2.1, so the browser mock
+// enforces the same scan-to-report consistency rules the real FastAPI backend does
 const mockScans: MockScan[] = []
 const mockUploadIdempotency = new Map<string, {
   request: string
@@ -35,8 +35,8 @@ const sessions = new Map<string, { profile: PseudonymousProfile; installationId:
 const MOCK_SERVER_KEY = 'invatrace-mock-server-v2'
 const MOCK_HASH_PEPPER = 'development-only-invatrace-mock-pepper'
 
-// Sliding-window submission counters are sufficient for the browser mock.
-// Production enforcement uses shared server-side storage.
+// a sliding-window counter is fine for the browser mock - production uses
+// proper shared server-side storage for this, obviously
 const REPORT_RATE_PER_TOKEN = 10
 const REPORT_RATE_PER_IP = 30
 const REPORT_RATE_WINDOW_MS = 10 * 60 * 1000
@@ -74,7 +74,8 @@ function enforceReportRateLimit(profileId: string, clientIp: string): {
   return { blocked: false }
 }
 
-// Great-circle distance in metres between two WGS84 points.
+// same haversine calc as services/osm-nearest.ts, just duplicated here since
+// the mock handlers don't import from services
 function haversineMetres(a: { lat: number; lng: number }, b: { lat: number; lng: number }): number {
   const R = 6_371_000
   const toRad = (deg: number) => (deg * Math.PI) / 180
@@ -181,8 +182,9 @@ function issueSession(record: MockProfileRecord, installationId: string) {
   return accessToken
 }
 
-// Cap failed restores per profile and network within a rolling 15-minute
-// window. Retry-After points to the oldest failure leaving that window.
+// capping failed restore attempts per profile and per network within a
+// rolling 15-minute window - Retry-After tells the client when the oldest
+// failure in that window actually falls off
 const RESTORE_MAX_ATTEMPTS = 5
 const RESTORE_WINDOW_MS = 15 * 60 * 1000
 const restoreFailureTimestamps = new Map<string, number[]>()
@@ -218,9 +220,10 @@ function clearRestoreFailures(profileId: string, clientIp: string | null) {
 }
 
 /**
- * Test controls that force one request to fail. Browser tests use these flags
- * to check the offline queue and expired-session recovery without changing the
- * computer's real network connection. Each flag resets after one failure.
+ * Little escape hatch for tests - lets browser tests force one request to
+ * fail so I can check the offline queue and expired-session recovery without
+ * actually messing with the real network connection. Each flag only fires
+ * once and resets itself after.
  */
 declare global {
   interface Window {
@@ -238,8 +241,8 @@ const shouldInject = (kind: 'failPresign' | 'failReport' | 'expireSession') => {
 }
 
 export const handlers = [
-  // Do not mock development files, map tiles, fonts, or sample images. These
-  // requests must reach their original host so MapLibre and Vite keep working.
+  // these all need to pass through untouched - map tiles, fonts, sample
+  // images, dev files. if MSW intercepts these MapLibre and Vite just break
   http.all('http://localhost:5173/node_modules/*', () => passthrough()),
   http.all('http://192.168.0.114:5173/node_modules/*', () => passthrough()),
   http.all('https://tiles.openfreemap.org/*', () => passthrough()),
@@ -344,8 +347,9 @@ export const handlers = [
       return identityJson({ detail: genericError }, 400)
     }
 
-    // This read and update are synchronous. Two restore requests cannot both
-    // see the same one-time code as unused in the development mock.
+    // this whole block is synchronous so two restore requests can't both
+    // read the same one-time code as unused before either one marks it used -
+    // no real race condition possible in JS single-threaded execution here
     const now = new Date().toISOString()
     code.usedAt = now
     const installation: MockInstallation = {
@@ -442,9 +446,10 @@ export const handlers = [
     return new HttpResponse(null, { status: 204, headers: { 'Cache-Control': 'no-store', Pragma: 'no-cache' } })
   }),
 
-  // AC 1.1.3 — server-authoritative model configuration. Frontend fetches
-  // this once and gates classifier acceptance on the returned threshold +
-  // supported versions. Values mirror backend defaults.
+  // for AC 1.1.3 - the server-side model config. Frontend fetches this once
+  // and gates whether it accepts a classifier result on the threshold and
+  // supported versions returned here. Values are meant to mirror whatever
+  // the real backend defaults to.
   http.get(url('/api/v1/model-config'), () =>
     HttpResponse.json({
       modelVersion: 'oe_v4_31class_web_fp16',
@@ -498,9 +503,10 @@ export const handlers = [
     })
   }),
 
-  // AC 3.1.1 — canonical guidance endpoint mirror. Returns an observe-and-
-  // report-only stub for anything the mock catalogue does not treat as
-  // reportable invasive (matching the real backend's safe fallback).
+  // mirrors the canonical guidance endpoint for AC 3.1.1. Returns an
+  // observe-and-report-only stub for anything the mock catalogue doesn't
+  // treat as a reportable invasive - matches the safe fallback the real
+  // backend uses so the mock behaves the same way
   http.get(url('/api/v1/species/:id/guidance'), ({ params }) => {
     const id = params.id as string
     const modelSpecies = findModelSpecies({ speciesId: id })
@@ -579,7 +585,7 @@ export const handlers = [
     return HttpResponse.json({ ok: true })
   }),
 
-  // Report upload and submission endpoints.
+  // report upload and submission endpoints below
 
   http.post(url('/api/v1/uploads/presign'), async ({ request }) => {
     if (!hasActiveSession(request)) return sessionUnavailable()
@@ -615,7 +621,7 @@ export const handlers = [
     return HttpResponse.json(response)
   }),
 
-  // Accept the temporary upload request without contacting external storage.
+  // just accept the upload PUT locally instead of actually hitting real storage
   http.put('https://mock-s3.local/*', () => HttpResponse.text('', { status: 200 })),
 
   http.post(url('/api/v1/scans'), async ({ request }) => {
@@ -682,8 +688,9 @@ export const handlers = [
       return HttpResponse.json({ code: 'invalid_idempotency_key', detail: 'A valid Idempotency-Key is required.' }, { status: 400 })
     }
 
-    // Match the server's rolling submission limits. MSW has no real client IP,
-    // so the session identifier is the fallback network key.
+    // trying to match the server's rolling submission limits here. MSW
+    // doesn't give us a real client IP to work with, so I fall back to the
+    // session identifier as a stand-in network key
     const clientIp = request.headers.get('x-forwarded-for')?.split(',')[0].trim()
       || `session:${session.token.slice(0, 12)}`
     const rateCheck = enforceReportRateLimit(session.profile.id, clientIp)
@@ -698,8 +705,9 @@ export const handlers = [
     }
 
     const submission = (await request.json()) as ReportSubmission
-    // AC 2.2.1 — the scan for this capture must have been persisted via
-    // /api/v1/scans first; enforce the same consistency the real backend does.
+    // for AC 2.2.1 - the scan for this capture has to already be persisted
+    // via /api/v1/scans before a report references it. enforcing the same
+    // consistency checks the real backend does
     const scan = mockScans.find(
       (s) => s.profileId === session.profile.id && s.captureId === submission.captureId,
     )
@@ -734,8 +742,9 @@ export const handlers = [
       return HttpResponse.json(existing.response, { status: 201 })
     }
 
-    // Clamp observations more than five minutes in the future to submission
-    // time so a bad device clock cannot create future-dated sightings.
+    // if someone's device clock is wrong and the observedAt comes in more
+    // than 5 minutes in the future, just clamp it to submission time instead -
+    // don't want future-dated sightings showing up on the map
     const createdAt = new Date()
     const FIVE_MIN_MS = 5 * 60 * 1000
     const rawObserved = submission.observedAt ? new Date(submission.observedAt) : null
@@ -743,8 +752,9 @@ export const handlers = [
       ? createdAt.toISOString()
       : submission.observedAt
 
-    // Reuse the existing report when one profile submits the same image and
-    // species again. This avoids creating a second public marker.
+    // if the same profile resubmits the same image + species combo, just
+    // reuse the existing report rather than creating a second public marker
+    // for what's basically a duplicate
     if (submission.imageSha256) {
       const dup = mockReports.find((r) =>
         r.submission.imageSha256 === submission.imageSha256
@@ -754,8 +764,9 @@ export const handlers = [
       if (dup) return HttpResponse.json({ ...dup, status: 'merged' as const }, { status: 200 })
     }
 
-    // Nearby reports from the same profile and species merge when they arrive
-    // within ten minutes and 25 metres.
+    // also merge reports from the same profile/species if they land within
+    // 10 minutes and 25 metres of an existing one - probably the same plant,
+    // someone just reporting it twice
     const TEN_MIN_MS = 10 * 60 * 1000
     const NEAR_M = 25
     const near = mockReports.find((r) => {
@@ -815,8 +826,9 @@ export const handlers = [
       : HttpResponse.json({ detail: 'Not found' }, { status: 404 })
   }),
 
-  // Threat-map endpoints. Sensitive coordinates are reduced here because the
-  // production API is also expected to apply this privacy rule on the server.
+  // threat-map endpoints below. reducing precision on sensitive coordinates
+  // here too, since the real production API is expected to apply this same
+  // privacy rule server-side
 
   http.get(url('/api/v1/sightings'), ({ request }) => {
     const params = new URL(request.url).searchParams
@@ -847,9 +859,9 @@ export const handlers = [
 
 ]
 
-// Helpers for report tracking responses.
+// helpers for the report tracking responses below
 
-/** Read the bearer token used to find the current mock session. */
+/** Pulls out the bearer token so we can look up the current mock session. */
 function bearerToken(request: Request): string | null {
   const authorization = request.headers.get('Authorization')
   return authorization?.startsWith('Bearer ') ? authorization.slice(7) : null
@@ -867,13 +879,13 @@ function hasActiveSession(request: Request): boolean {
 function sessionUnavailable() {
   return HttpResponse.json({ detail: 'API session unavailable' }, { status: 401 })
 }
-/** Look up a report from either the seeded pool or the session pool. */
+/** Checks both the seeded reports and the session's own reports for a match. */
 function findReport(id: string): Report | undefined {
   return SEEDED_REPORTS.find((report) => report.id === id)
     ?? mockReports.find((report) => report.id === id)
 }
 
-/** Development landmarks mirror the server's seed fallback for place labels. */
+/** Just some dev landmarks that mirror the server's seed fallback for place labels. */
 const PLACES: { name: string; lat: number; lng: number }[] = [
   { name: 'Bukit Kiara · West Trail',        lat: 3.1497, lng: 101.6412 },
   { name: 'Bukit Kiara · Look-out',           lat: 3.1523, lng: 101.6440 },
@@ -887,7 +899,7 @@ const PLACES: { name: string; lat: number; lng: number }[] = [
   { name: 'Bukit Gasing · North gate',        lat: 3.1044, lng: 101.6538 },
 ]
 
-/** Seed report records used by report-status mock responses. */
+/** Seed reports used by the report-status mock responses. */
 const now = Date.now()
 const seedReport = (id: string, speciesId: string, outcome: 'target' | 'uncertain',
                     confidence: number, lat: number, lng: number, acc: number | null,
@@ -913,7 +925,7 @@ const seedReport = (id: string, speciesId: string, outcome: 'target' | 'uncertai
   },
 })
 
-// Sample notifications used by the development API.
+// sample notifications for the dev/mock API
 
 const NOTIFICATIONS: AppNotification[] = [
   { id: 'n-1', kind: 'report_screened',
@@ -958,7 +970,7 @@ const SEEDED_REPORTS: Report[] = [
     'Pond fully covered.', 20),
 ]
 
-// Sample sightings used by the development API.
+// sample sightings for the dev/mock API
 
 const RECOMMENDED_ACTION: Record<string, string> = {
   processing: 'Automated rule screening is running. Do not act yet.',
@@ -967,18 +979,19 @@ const RECOMMENDED_ACTION: Record<string, string> = {
   removed: 'Removal recorded. Recheck for regrowth in 2–3 weeks.',
 }
 
-/** Bukit Kiara centre. Sample sightings are placed within about 1 km. */
+/** Bukit Kiara centre point - sample sightings get scattered within roughly 1km of this. */
 const BK = { lat: 3.1497, lng: 101.6412 }
 
-/** Move private coordinates by about 100 m. The same sighting ID always gets
- *  the same offset, so its marker does not jump between page loads. */
+/** Shifts a coordinate by about 100m for the privacy-reduced sightings. Hash
+ *  the id for the offset so the same sighting always jitters the same way -
+ *  otherwise the marker would jump around every time the page reloads. */
 function jitter(id: string): { dLat: number; dLng: number } {
   let hash = 0
   for (let index = 0; index < id.length; index++) {
     hash = ((hash << 5) - hash + id.charCodeAt(index)) | 0
   }
   const angle = ((hash & 0xffff) / 0xffff) * Math.PI * 2
-  const distanceInDegrees = 0.001 // About 110 m at the equator.
+  const distanceInDegrees = 0.001 // roughly 110m at the equator, close enough for KL's latitude
   return {
     dLat: Math.sin(angle) * distanceInDegrees,
     dLng: Math.cos(angle) * distanceInDegrees,
@@ -1010,7 +1023,7 @@ const SEED: Omit<
   { id: 's-10', speciesId: 'mikania-micrantha', speciesName: 'Mikania micrantha', latinName: 'Mikania micrantha', status: 'removed', risk: 'high', reportCount: 2 },
 ]
 
-/** Angular offsets from the centre so pins fan out around Bukit Kiara. */
+/** Just angular offsets from the centre point so the pins fan out around Bukit Kiara instead of stacking. */
 const RADIALS = [
   { radius: 0.0032, angle: 0.2 }, { radius: 0.0025, angle: 1.1 }, { radius: 0.0041, angle: 2.4 },
   { radius: 0.0018, angle: 3.6 }, { radius: 0.0037, angle: 4.7 }, { radius: 0.0028, angle: 5.9 },
@@ -1039,8 +1052,9 @@ const SIGHTINGS: Sighting[] = SEED.map((sighting, index) => {
       trailName: PLACES[index].name.includes(' · ') ? PLACES[index].name.split(' · ')[1] : null,
       source: 'seed',
     },
-    // Stand-in per-sighting upload retained in the API contract. The public
-    // detail sheet intentionally ignores it and uses reviewed species media.
+    // this is just a stand-in image to keep the API contract shape right -
+    // the public detail sheet ignores it on purpose and shows the reviewed
+    // species reference photo instead
     thumbnailUrl: `/reference-images/${sighting.speciesId.replaceAll('-', '_')}.jpg`,
     confidence: 0.75 + (index % 5) * 0.04,
     nearestFeatureType: 'path',
@@ -1070,7 +1084,7 @@ export function resolveSightingSpecies(
   }
 }
 
-/** Publish a screened report as its own map sighting at the submitted point. */
+/** Turns a screened report into its own sighting on the map, at the exact point it was submitted. */
 function publishReportSighting(report: Report): string {
   const sightingId = `report-${report.id}`
   if (SIGHTINGS.some((sighting) => sighting.id === sightingId)) return sightingId
@@ -1161,7 +1175,7 @@ const SPECIES_DETAIL: Record<string, unknown> = {
     isInvasive: true,
     risk: 'high',
     reportable: false,
-    // Chromolaena remains non-reportable until its look-alike guidance is reviewed.
+    // keeping Chromolaena non-reportable for now until its look-alike guidance actually gets reviewed
     reportEligible: false,
     actionEligible: false,
     statusReviewedAt: '2026-07-15',

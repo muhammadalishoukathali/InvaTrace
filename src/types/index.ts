@@ -1,15 +1,17 @@
-// Shared request/response shapes for the whole app. UI components, feature
-// stores, and src/mocks/handlers.ts all import from here so they agree on one
-// contract instead of each feature defining its own version of a Report or a
-// Sighting. Roughly grouped below: identity/access, scan and species data,
-// report data, map data, and notifications.
+// All the shared request/response shapes for the app live here. UI
+// components, feature stores, and src/mocks/handlers.ts all import from this
+// one file instead of each feature rolling its own version of what a Report
+// or a Sighting looks like - I found that got messy fast when I first tried
+// letting each feature define its own types. Roughly grouped below:
+// identity/access, scan and species data, report data, map data, notifications.
 
-/** A role controls which actions a profile may perform. Trust level describes
- *  how much review its evidence needs, so the two values stay separate. */
+/** Role and trust level look like they could be one field but they're not -
+ *  role is about what actions you're allowed to do, trust level is about how
+ *  much review your submitted evidence needs. Kept them separate on purpose. */
 export type Role = 'Detector' | 'Volunteer' | 'Expert' | 'Admin'
 export type TrustLevel = 'New' | 'Trusted' | 'Steward'
 
-/** Server-authoritative profile connected to one or more browser installations. */
+/** The profile as the server sees it, linked to one or more browser installations. */
 export interface PseudonymousProfile {
   id: string
   displayName: string | null
@@ -17,7 +19,7 @@ export interface PseudonymousProfile {
   trustLevel: TrustLevel
 }
 
-/** The only long-lived private-access record stored in this browser. */
+/** The one thing that actually persists long-term in this browser for private access. */
 export interface InstallationIdentity {
   schemaVersion: 2
   installationToken: string
@@ -64,7 +66,7 @@ export interface AccessOverview {
   installations: AuthorizedInstallation[]
 }
 
-/** Screened means the current deterministic rules passed. */
+/** "screened" just means it passed the current deterministic rules, not that a human looked at it. */
 export type SightingStatus = 'screened' | 'removed'
 export type ReportStatus =
   | 'processing'
@@ -97,11 +99,12 @@ export interface IdentifyResult {
   modelVersion: string
   unknownProbability?: number
   reportable: boolean
-  // AC Iteration 1 P2 — true only when the server-authoritative model-config
-  // gate was reachable and accepted the result; false when the gate rejected
-  // it or was unavailable (server slow/down, or the app is offline). The UI
-  // still displays the local classification when the gate could not run, but
-  // blocks reporting until the gate has been able to confirm.
+  // this is for the Iteration 1 P2 AC - true only when the server's
+  // model-config gate was actually reachable and accepted the result.
+  // false covers both "the gate rejected it" and "couldn't reach the gate
+  // at all" (server down, app offline, etc). Either way the UI still shows
+  // the local classification, it just won't let you report until this
+  // comes back true.
   serverAccepted?: boolean
   topPredictions?: Array<{
     speciesId: string
@@ -118,7 +121,7 @@ export interface NativeTwin {
   name: string
   latinName: string
   distinguishingTraits: string[]
-  /** Photo of the native look-alike so the user can compare visually. */
+  /** Photo of the native look-alike, mainly so people can visually compare it against what they scanned. */
   referenceImageUrl?: string
   referenceImageCredit?: string
 }
@@ -138,21 +141,21 @@ export interface SpeciesDetail {
   doNotDo: string[]
   reportable?: boolean
   actionGuide?: SeasonalActionGuide | null
-  // Server-supplied action and report gates override client-side checks.
-  // When false, the UI hides
-  // the corresponding controls regardless of client-side derivation.
+  // these two come from the server and win over whatever the client
+  // would've worked out on its own - if either is false, the UI just
+  // hides the matching controls, no exceptions
   actionEligible?: boolean
   reportEligible?: boolean
-  // Review metadata for the species' Malaysia-status record.
+  // metadata about when/how the species' Malaysia-status record was last reviewed
   statusReviewedAt?: string
   statusSourceId?: string
-  // AC 1.2.3 — short paragraph shown on every accepted supported label
-  // so information-only and status-uncertain outcomes also get sourced
-  // general context, and a fixed safety message explaining why the app
-  // is not offering active guidance.
+  // AC 1.2.3 wanted every accepted supported label to come with some sourced
+  // context even when it's information-only or status-uncertain, plus a
+  // fixed safety message explaining why the app isn't giving active removal
+  // guidance for it
   generalInformation?: string | null
   safetyMessage?: string | null
-  /** Curated specimen photo used for visual comparison. */
+  /** Curated reference photo of the specimen for visual comparison. */
   referenceImageUrl?: string
   referenceImageCredit?: string
 }
@@ -177,15 +180,15 @@ export interface GeoPoint { lat: number; lng: number }
 
 export interface PresignedUpload {
   uploadId: string
-  uploadUrl: string   // Temporary URL where the client uploads the image.
-  photoKey: string    // Server-generated key included when creating the report.
-  expiresAt: string   // ISO timestamp for when the upload URL expires.
+  uploadUrl: string   // temporary URL the client uploads the image to
+  photoKey: string    // server-generated key, gets included when the report is created
+  expiresAt: string   // ISO timestamp for when the upload URL stops working
 }
 
-/** What the client builds locally before submitting. */
+/** This is what the client assembles locally before it's actually submitted. */
 export interface ReportDraft {
-  photoKey: string | null           // Set after the image upload succeeds.
-  speciesId: string | null          // Null when the model result is uncertain.
+  photoKey: string | null           // only set once the image upload actually succeeds
+  speciesId: string | null          // null whenever the model came back uncertain
   outcome: Outcome
   confidence: number
   modelVersion: string
@@ -193,19 +196,20 @@ export interface ReportDraft {
   captureId: string
   captureSource: 'camera' | 'gallery'
   location: GeoPoint | null
-  locationAccuracyM: number | null  // GPS accuracy in metres; null until a fix is available.
+  locationAccuracyM: number | null  // GPS accuracy in metres, null until we get a fix
   extent: ExtentSize | null
   notes: string
   consentAccurate: boolean
   consentNoPII: boolean
 }
 
-/** The submission wire format. */
+/** The actual wire format sent to the server for a submission. */
 export interface ReportSubmission {
   photoKey: string
-  /** SHA-256 of the raw capture bytes, computed client-side once
-   *  and sent with the submission so the server can reject exact duplicates
-   *  from the same identity without ever inspecting the image bytes. */
+  /** SHA-256 of the raw capture bytes, worked out once client-side and sent
+   *  along with the submission. Lets the server catch exact duplicate
+   *  reports from the same identity without ever needing to look at the
+   *  actual image bytes. */
   imageSha256?: string
   speciesId: string | null
   outcome: Outcome
@@ -235,12 +239,13 @@ export interface Report {
   }
   sightingId: string | null
   /**
-   * AC 2.3.2 — id of the earlier report that this one was merged into.
-   * Null on non-merged reports. `id` remains the incoming report id so
-   * /reports/{id} continues to track this submission.
+   * For AC 2.3.2 - this is the id of the earlier report this one got merged
+   * into. Stays null if it wasn't merged. Note `id` itself doesn't change to
+   * the merged-into report's id, it keeps being the incoming report's id, so
+   * /reports/{id} still tracks this specific submission.
    */
   retainedReportId: string | null
-  /** Server-scoped owner used to detect duplicate reports from one profile. */
+  /** Owner id from the server's perspective, used to spot duplicate reports from one profile. */
   ownerProfileId?: string
 }
 
@@ -249,23 +254,24 @@ export interface ReportListResponse {
   nextCursor?: string | null
 }
 
-/** Item held in the IndexedDB offline queue when submission fails. */
+/** What sits in the IndexedDB offline queue when a submission couldn't go through. */
 export interface QueuedReport {
-  id: string           // Stable idempotency key created before the first network attempt.
+  id: string           // stable idempotency key, generated before the first network attempt ever fires
   ownerProfileId: string | null
   createdAt: string
   attempts: number
   retryable: boolean
   lastError: string | null
   submission: ReportSubmission
-  imageBlob: Blob      // Image kept locally until upload and report creation succeed.
+  imageBlob: Blob      // kept around locally until both the upload and report creation actually succeed
 }
 
 // Map data.
 
-/** Map pin returned by the sightings API. The server reduces coordinate
- *  precision when needed. `precisionReduced` tells the UI to explain that the
- *  displayed location is approximate. */
+/** This is what a map pin looks like coming back from the sightings API. The
+ *  server sometimes reduces coordinate precision for privacy reasons, and
+ *  when it does, precisionReduced tells the UI to say the location shown is
+ *  approximate rather than exact. */
 export interface Sighting {
   id: string
   speciesId: string
@@ -279,12 +285,12 @@ export interface Sighting {
   lastReportedAt: string
   place: PlaceAssociation
   thumbnailUrl: string | null
-  /** AC 4.2.2 — representative model confidence for the aggregated sighting
-   *  (max across currently-linked reports). Null when no linked report has a
-   *  recorded confidence value. */
+  /** For AC 4.2.2 - a stand-in confidence value for the whole aggregated
+   *  sighting, worked out as the max across all currently-linked reports.
+   *  Null if none of the linked reports actually recorded a confidence. */
   confidence: number | null
-  /** AC 4.3.1 — server-stored nearest named OSM feature within 5 km, or null
-   *  when no allow-listed feature exists in range. */
+  /** For AC 4.3.1 - the nearest named OSM feature within 5km, stored server-side.
+   *  Null if nothing on the allow-list is close enough. */
   nearestFeatureType: string | null
   nearestFeatureName: string | null
   nearestFeatureDistanceM: number | null
@@ -294,7 +300,7 @@ export interface Sighting {
 export interface SightingDetail extends Sighting {
   recommendedAction: string
   actionGuide: SeasonalActionGuide | null
-  reporterTrust: TrustLevel  // New profiles receive stronger location privacy.
+  reporterTrust: TrustLevel  // newer profiles get stronger location privacy applied
 }
 
 export interface PlaceAssociation {
@@ -307,13 +313,13 @@ export interface PlaceAssociation {
 // Notification data.
 
 export type NotificationKind =
-  | 'report_screened'    // Deterministic rules published the user's report.
-  | 'report_rejected'    // Automated integrity checks rejected the report.
+  | 'report_screened'    // means the deterministic rules published this report
+  | 'report_rejected'    // automated integrity checks knocked it back
   | 'report_needs_rescan'
   | 'report_merged'
   | 'validation_unavailable'
-  | 'sync_ok'            // An offline report reached the server after reconnecting.
-  | 'system'             // A general message that does not fit another category.
+  | 'sync_ok'            // an offline report finally made it to the server after reconnecting
+  | 'system'             // catch-all for anything that doesn't fit the other kinds
 
 export interface AppNotification {
   id: string
@@ -322,5 +328,5 @@ export interface AppNotification {
   body: string
   createdAt: string
   read: boolean
-  linkTo?: string        // Optional application route opened when selected.
+  linkTo?: string        // route to open in the app if the notification gets tapped, optional
 }

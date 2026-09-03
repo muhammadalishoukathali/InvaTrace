@@ -17,12 +17,13 @@ const STEP_LABEL: Record<string, string> = {
 }
 
 /**
- * Entry point for the report feature. Renders the current step from
- * report-draft-store.ts (location -> extent -> consent -> preview) plus a
- * shared header, back button and progress bar, then swaps to
- * ReportSubmissionResult.tsx once the draft has an outcome. Bounces to
- * /scan if there's no draft and no outcome, since this screen only makes
- * sense right after a scan seeds a draft via beginFromScan().
+ * This is the entry point for the whole report feature. It just renders
+ * whatever the current step is from report-draft-store.ts (location, then
+ * extent, then consent, then preview) under one shared header, back button
+ * and progress bar, and swaps over to ReportSubmissionResult.tsx once the
+ * draft has an outcome. If there's no draft and no outcome at all, we
+ * redirect back to /scan — this page only really makes sense right after a
+ * scan has seeded a draft through beginFromScan(), there's no other way in.
  */
 export function ReportWizardPage() {
   const navigate = useNavigate()
@@ -42,9 +43,11 @@ export function ReportWizardPage() {
 
   const handleBack = () => {
     if (isFirst) {
-      // Only return to the result page if the scan is still in memory; otherwise
-      // /scan/result immediately redirects to /scan and the user lands on a
-      // blank camera. Fall back to the map so back always goes somewhere useful.
+      // We only send the user back to the scan result page if that scan is
+      // still in memory. If it's not, /scan/result would just redirect them
+      // straight to /scan and they'd land on a blank camera, which is
+      // confusing. So we fall back to the map instead, at least that's
+      // somewhere useful.
       const hasScan = !!useScan.getState().result
       reset()
       navigate(hasScan ? '/scan/result' : '/map', { state: location.state })

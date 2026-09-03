@@ -1,9 +1,11 @@
 /**
- * Sticky banner shown app-wide (not just in the wizard) whenever there's
- * something the user should know about sync: offline, private-access
- * session needs restoring, or reports sitting in the local queue. Stays a
- * one-line banner by design — full per-item detail (attempts, errors,
- * discard) lives in ReportQueueDrawer.tsx, opened from "View queue" here.
+ * This banner sits at the top of the app, not just inside the report wizard,
+ * and shows up whenever there's something sync-related the user should
+ * know about — being offline, the private-access session needing to
+ * restore, or reports still sitting in the local queue. We kept it to one
+ * line on purpose so it doesn't take over the screen; if you want the full
+ * per-item detail (attempts, error messages, discard button) that's all in
+ * ReportQueueDrawer.tsx, which opens from the "View queue" button here.
  */
 import { useCallback, useEffect, useState } from 'react'
 import { Icon } from '@/components/Icon'
@@ -33,8 +35,9 @@ export function ReportQueueStatusBanner() {
   }, [activeProfileId])
 
   useEffect(() => {
-    // report-queue.ts is a module-level IndexedDB store, not React state, so
-    // we poll its own change event rather than relying on props/re-renders.
+    // report-queue.ts keeps its data in IndexedDB, not in React state, so
+    // there's no props/re-render chain to hook into. Instead we subscribe to
+    // its own change event and just refetch the list whenever it fires.
     void refresh()
     return onReportQueueChange(() => { void refresh() })
   }, [refresh])
@@ -42,8 +45,10 @@ export function ReportQueueStatusBanner() {
   const doFlush = useCallback(async () => {
     setFlushing(true)
     try {
-      // Queued reports need a live private-access session to submit under;
-      // restore it first instead of letting every queued item fail and re-queue.
+      // Every queued report needs a live private-access session to actually
+      // submit under, so we make sure that's restored first — otherwise
+      // we'd just be sending every queued item off to fail and get re-queued
+      // again for nothing.
       const sessionReady = identityStatus === 'ready' || await syncIdentity()
       if (!sessionReady) return
       await flushQueue()

@@ -154,12 +154,13 @@ def species_detail(species_id: str, session: Session = Depends(get_session)) -> 
     )
 
 
-# AC 3.1.1 — canonical versioned guidance endpoint. The frontend
-# PlantGuidancePanel used to read a bundled JSON copy that could drift from
-# the seed dataset; this endpoint returns the same SeasonalActionGuide record
-# the report-screening path uses, and falls back to an observe-and-report-only
-# response when the requested species has no reviewed record. Never builds
-# improvised removal steps.
+# AC 3.1.1 — one place the frontend PlantGuidancePanel can hit for guidance.
+# It used to read a bundled JSON file on the client, which was annoying because
+# it kept drifting out of sync with what the seed data actually said. So we
+# just return the same SeasonalActionGuide row the screening worker uses, and
+# if the species doesn't have a reviewed record we fall back to the
+# observe-and-report-only response. Never makes up removal steps — that was a
+# hard rule from the guidance-review feedback.
 @router.get("/{species_id}/guidance", response_model=SeasonalActionGuide)
 def species_guidance(
     species_id: str,

@@ -1,11 +1,11 @@
 /**
- * The scan flow can be entered from a few different places (the map, the
- * reports list, the profile screen), and "back"/"cancel" needs to return the
- * user to wherever they came from rather than always landing on the map.
- * This file centralizes that round-trip logic — encoding the origin into
- * router state on the way in, decoding it on the way out — so ScanFlowLayout
- * and every scan screen agree on the same shape instead of each guessing at
- * router state independently.
+ * The scan flow can be opened from a few different places — the map, the
+ * reports list, the profile screen — and "back"/"cancel" needs to actually
+ * return the user to wherever they came from, not just default to the map
+ * every time. This file centralizes that round-trip logic: encode the origin
+ * into router state on the way in, decode it on the way out, so
+ * ScanFlowLayout and every scan screen are all reading the same shape
+ * instead of each one guessing at router state on its own.
  */
 export interface ScanNavigationState {
   returnTo: '/map' | '/reports' | '/profile'

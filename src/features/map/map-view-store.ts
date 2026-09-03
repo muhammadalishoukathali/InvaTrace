@@ -1,19 +1,21 @@
 /**
- * Stores the active map filters and selected sighting. This state is not kept
- * in the URL because changing a filter should not add browser-history entries.
+ * Holds the active map filters and whatever sighting is currently selected.
+ * I deliberately kept this out of the URL — every filter tap would otherwise
+ * push a new browser-history entry, which means Back would just undo filters
+ * one at a time instead of leaving the map.
  *
- * Pulled out of ThreatMapPage.tsx (rather than useState there) so MapFilters.tsx
- * and SightingDetailsSheet.tsx can read and write it directly without prop
- * drilling through the page component — both need it, and neither is a child
- * of the other.
+ * I also pulled this out of ThreatMapPage.tsx rather than just using
+ * useState there, because MapFilters.tsx and SightingDetailsSheet.tsx both
+ * need to read and write the same state and neither is a child of the
+ * other, so prop drilling through the page component would've been messy.
  */
 import { create } from 'zustand'
 import type { SightingStatus, Risk } from '@/types'
 
 interface MapState {
-  species: string[]                // An empty list includes every species.
-  statuses: SightingStatus[]       // An empty list includes every status.
-  risks: Risk[]                    // An empty list includes every risk level.
+  species: string[]                // empty = every species shown
+  statuses: SightingStatus[]       // empty = every status shown
+  risks: Risk[]                    // empty = every risk level shown
   search: string
   selectedId: string | null
 
