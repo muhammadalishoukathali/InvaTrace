@@ -209,17 +209,32 @@ export function ScanCapturePage() {
       stream.getTracks().forEach((track) => track.addEventListener('ended', handleEnded, { once: true }))
       streamRef.current = stream
       setCameraOpen(true)
-      requestAnimationFrame(() => {
+      // The <video> element is only mounted after cameraOpen flips true, so
+      // videoRef.current is null on the first tick. requestAnimationFrame
+      // alone was racing React's commit on iOS Safari — the frame fired
+      // before the element was in the DOM, videoRef.current stayed null,
+      // and the branch silently dropped the stream leaving a black canvas.
+      // Poll a handful of animation frames until the element attaches so a
+      // cold camera open no longer needs a manual retry.
+      const attach = (attemptsLeft: number) => {
+        if (streamRef.current !== stream || !mountedRef.current) return
         const video = videoRef.current
-        if (video && streamRef.current === stream) {
-          video.srcObject = stream
-          void video.play().catch(() => {
-            if (streamRef.current === stream) {
-              stopCamera('Camera preview could not start. Reopen the camera and try again.')
-            }
-          })
+        if (!video) {
+          if (attemptsLeft <= 0) {
+            stopCamera('Camera preview could not start. Reopen the camera and try again.')
+            return
+          }
+          requestAnimationFrame(() => attach(attemptsLeft - 1))
+          return
         }
-      })
+        video.srcObject = stream
+        void video.play().catch(() => {
+          if (streamRef.current === stream) {
+            stopCamera('Camera preview could not start. Reopen the camera and try again.')
+          }
+        })
+      }
+      requestAnimationFrame(() => attach(10))
     } catch {
       if (requestId === cameraRequestRef.current) {
         setCameraError('Camera access was unavailable. Allow camera access and try again.')
