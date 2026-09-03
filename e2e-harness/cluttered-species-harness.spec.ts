@@ -3,7 +3,7 @@
 // dev:model-test server on 5174, so it hits the real model, not the MSW mock)
 // and dumps a screenshot + JSON row per image. Point is to eyeball how the
 // classifier copes with messy backgrounds compared to clean known-species
-// shots — nothing here is a pass/fail assertion, it's just a data dump for me
+// shots - nothing here is a pass/fail assertion, it's just a data dump for me
 // to review by hand afterwards.
 import { test, expect, Page } from '@playwright/test'
 import fs from 'node:fs'
@@ -75,7 +75,7 @@ async function run(page: Page, img: typeof IMAGES[number]) {
         const badge = body.match(/(Invasive species detected|Not a target species|Uncertain[^\n]*)/i)
         row.outcome_badge = badge?.[0] ?? 'unknown'
         const heading = await page.locator('h2').first().textContent().catch(() => null)
-        row.species_shown = heading?.trim() || '—'
+        row.species_shown = heading?.trim() || '-'
         const conf = body.match(/Confidence[\s\S]{0,80}?(\d{1,3})\s*%/)
         row.confidence = conf ? conf[1] + '%' : 'n/a'
         row.status_uncertain = /Status uncertain/.test(body)

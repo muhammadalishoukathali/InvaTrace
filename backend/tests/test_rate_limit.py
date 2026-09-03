@@ -3,7 +3,7 @@
 Covers the configured limits, the AC 2.3.3 env-backed sliding-window
 submission limits, the AC 2.1.4 "count failures only + clear on success"
 restoration flow, and the fail-closed behaviour when Redis is down.
-Fail-closed is the important one from a security standpoint — if Redis is
+Fail-closed is the important one from a security standpoint - if Redis is
 unreachable we'd rather reject requests than let rate limiting silently
 stop working.
 """
@@ -38,7 +38,7 @@ def test_report_limits_use_env_backed_defaults() -> None:
     assert _limit_for("report_create_ip_burst").requests == 30
     assert _limit_for("report_create_ip_burst").window_seconds == 600
     assert _limit_for("report_create_ip_burst").algorithm == "sliding"
-    # AC 2.1.4 — restoration failures use a sliding window too.
+    # AC 2.1.4 - restoration failures use a sliding window too.
     assert _limit_for("profile_restore").algorithm == "sliding"
     assert _limit_for("profile_restore").requests == 5
     assert _limit_for("profile_restore").window_seconds == 15 * 60
@@ -130,7 +130,7 @@ def test_sliding_window_boundary_at_configured_limit() -> None:
     limiter.redis = InMemoryRedis()
     reload_limits()
 
-    # AC 2.3.3 — 10 submissions per profile per 600 s. Requests 1..10 are
+    # AC 2.3.3 - 10 submissions per profile per 600 s. Requests 1..10 are
     # accepted; request 11 crosses the threshold.
     for _ in range(10):
         limiter.check("report_create_burst", "profile-a")
@@ -212,7 +212,7 @@ def test_restore_success_clears_failure_counter() -> None:
     limiter.redis = InMemoryRedis()
     reload_limits()
 
-    # AC 2.1.4 — 4 failed restores stay under the 5 threshold; a success
+    # AC 2.1.4 - 4 failed restores stay under the 5 threshold; a success
     # clears the counter so the next failure is treated as attempt 1 again.
     for _ in range(4):
         limiter.record_failure("profile_restore", "PROFILE-1")

@@ -34,7 +34,7 @@ interface Props {
    *  duplicate off here. Scan results just keep the default (true). */
   showReferenceImage?: boolean
   /** Either a scan capture id or a map sighting id. The permission choice tied to
-   *  this gets saved as a private note on the device only — it's not touching any
+   *  this gets saved as a private note on the device only - it's not touching any
    *  official land status, just remembering what the user picked. */
   decisionContext?: { id: string; kind: 'scan' | 'sighting' }
 }
@@ -76,12 +76,12 @@ const TONE_STYLES: Record<
 }
 
 /**
- * This is the big one — it shows the Malaysia status, the identification
+ * This is the big one - it shows the Malaysia status, the identification
  * caveats, and then, only once the user has answered the permission question,
  * the actual removal/reporting steps for whatever plant got matched. It's
  * reused on both ScanResultPage after a scan and on the map's sighting detail
  * sheet, which is the whole reason props like showReferenceImage and
- * decisionContext exist — the same guidance content but the two screens need
+ * decisionContext exist - the same guidance content but the two screens need
  * slightly different framing around it. If there's no guidance entry for the
  * plant, or the sources it points to can't be resolved, it falls back to a
  * plain observe-and-report notice instead of showing broken/half-sourced advice.
@@ -99,7 +99,7 @@ export function PlantGuidancePanel({
     [scientificName, speciesName, plantId],
   )
   // No action path should show up until the user has actually made a permission
-  // choice — otherwise it's too easy to skim past and remove something you
+  // choice - otherwise it's too easy to skim past and remove something you
   // shouldn't have.
   const decisionContextId = decisionContext?.id
   const initialDecision = useMemo(
@@ -123,7 +123,7 @@ export function PlantGuidancePanel({
   if (!plant) {
     // Even if there's no reviewed guidance card for this plant, I still want to
     // fall back to the shared catalogue so the user gets the status chip, the
-    // safety message, and where it came from — rather than nothing at all,
+    // safety message, and where it came from - rather than nothing at all,
     // which matters for the offline case too.
     const catalogueRecord = findPlantStatus({
       speciesId: plantId ?? null,
@@ -139,12 +139,12 @@ export function PlantGuidancePanel({
   }
 
   // If even one source id on this plant can't be resolved, I don't trust the
-  // rest of it either — better to drop to the safe observe-and-report fallback
+  // rest of it either - better to drop to the safe observe-and-report fallback
   // than show guidance where part of the provenance chain is broken.
   if (!hasResolvableSources(plant)) {
     if (typeof console !== 'undefined') {
       console.error(
-        `Plant guidance for ${plant.plant_id} references sources absent from the registry — falling back to observe-and-report.`,
+        `Plant guidance for ${plant.plant_id} references sources absent from the registry - falling back to observe-and-report.`,
       )
     }
     const catalogueRecord = findPlantStatus({
@@ -356,7 +356,7 @@ function MissingGuidanceFallback({
   catalogueRecord: PlantStatusRecord | null
 }) {
   // A species can exist in the shared catalogue (status + safety message) without
-  // having a full reviewed-guidance card yet — that gap is the whole reason this
+  // having a full reviewed-guidance card yet - that gap is the whole reason this
   // fallback function exists. Rather than show a bare "observe and report" box
   // that throws away info we actually have, pull the catalogue's note in here so
   // the user still sees the status and where it's sourced from.
@@ -465,7 +465,7 @@ function naturalIdentificationNote(note: string): string {
 
 function decisionToPermission(decision: GuidanceDecision | null): PermissionChoice {
   // Until the user has actually made a permission choice for this scan, treat it
-  // as "protected land or permission unknown" by default — that's the safer
+  // as "protected land or permission unknown" by default - that's the safer
   // assumption. The observe/photograph/report guidance shows straight away from
   // that path either way; active removal stays locked behind an explicit choice
   // plus the safety checks further down.
@@ -919,7 +919,7 @@ function SourceLine({ ids, inline }: { ids: string[]; inline?: boolean }) {
             href={src.url}
             target="_blank"
             rel="noopener noreferrer"
-            title={`${src.title} — ${src.publisher}`}
+            title={`${src.title} - ${src.publisher}`}
             style={{ color: 'var(--muted)', textDecoration: 'underline' }}
           >
             [{src.source_id}]
@@ -975,7 +975,7 @@ function SafetyPolicyFooter({ plant }: { plant: PlantGuidance }) {
               <a href={src.url} target="_blank" rel="noopener noreferrer" style={{ color: 'var(--body)' }}>
                 {src.title}
               </a>{' '}
-              — <span style={{ color: 'var(--muted)' }}>{src.publisher}</span>
+              - <span style={{ color: 'var(--muted)' }}>{src.publisher}</span>
             </li>
           ))}
         </ul>

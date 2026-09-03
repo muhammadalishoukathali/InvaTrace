@@ -1,5 +1,5 @@
 #!/bin/sh
-# AC 1.2.1 — idempotent production startup. Migrates the schema and loads
+# AC 1.2.1 - idempotent production startup. Migrates the schema and loads
 # reference data (species catalogue + monitored places) before uvicorn
 # begins serving. Reference-data loader is safe to re-run; demo seeding
 # never runs here.

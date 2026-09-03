@@ -6,12 +6,12 @@ import { saveScanHistoryRecord } from './scan-history-store'
  * Owns the state for whatever scan is currently in progress: the captured
  * image (both the object URL and the live ImageBitmap/Blob), the
  * quality-check and identification results, and the GPS fix taken alongside
- * the photo. This is in-memory only and gets reset on every new scan — it's
+ * the photo. This is in-memory only and gets reset on every new scan - it's
  * the "working" state for capture -> processing -> result. Once a scan
  * finishes, it gets written out to scan-history-store.ts (the durable local
  * record) and, for permission choices tied to a specific scan, into
  * guidance-decision-store.ts too. I split this into three separate stores
- * instead of one big one because they genuinely have different lifetimes —
+ * instead of one big one because they genuinely have different lifetimes -
  * this one is volatile per-scan, the other two persist across scans and
  * sessions in localStorage.
  */
@@ -135,7 +135,7 @@ export const useScan = create<ScanState>((set, get) => ({
     const scan = get()
     // A warm model can actually finish before the GPS request comes back, so
     // if the location fix arrives late, this updates the history row that was
-    // already saved — otherwise "View on map" would just be missing for that scan.
+    // already saved - otherwise "View on map" would just be missing for that scan.
     if (scan.result) saveCurrentScan(scan, scan.result, scan.speciesDetail, loc)
     set({ location: loc, locationStatus: 'ok' })
   },

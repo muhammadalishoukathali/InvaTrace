@@ -1,4 +1,4 @@
-"""AC 2.3.2 — persist near-duplicate merge target as a self-reference on reports.
+"""AC 2.3.2 - persist near-duplicate merge target as a self-reference on reports.
 
 Adds ``merged_into_report_id`` on ``reports`` so a merged report points at the
 retained report it was folded into. Nullable (non-merged reports leave it

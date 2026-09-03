@@ -5,9 +5,9 @@ import { PulihModel } from './pulih-model'
 
 /**
  * This is the seam between the scan UI and whatever model is actually
- * running. It picks which ModelAdapter implementation gets used — the real
+ * running. It picks which ModelAdapter implementation gets used - the real
  * PULIH ONNX model from pulih-model.ts, a deterministic fake for local dev,
- * or a fail-closed stub when nothing is configured — and gives all three the
+ * or a fail-closed stub when nothing is configured - and gives all three the
  * same detect/quality/identify shape, so ScanCapturePage doesn't need to know
  * or care which one it's actually talking to. pulih-model.ts owns the real
  * ONNX session; this file's job is just deciding when to use it and
@@ -74,11 +74,11 @@ class DevelopmentModelAdapter implements ModelAdapter {
   async quality(image: ImageBitmap): Promise<QualityResult> {
     await waitForMockInference(120)
     if (image.width < 100 || image.height < 100) {
-      return { ok: false, reason: 'Image resolution too low — move closer to the plant and retake.' }
+      return { ok: false, reason: 'Image resolution too low - move closer to the plant and retake.' }
     }
     const imageHash = hashBitmap(image)
     if (imageHash % 17 === 0) {
-      return { ok: false, reason: 'Subject is too blurry — hold steady and ensure good lighting.' }
+      return { ok: false, reason: 'Subject is too blurry - hold steady and ensure good lighting.' }
     }
     return { ok: true }
   }
@@ -135,7 +135,7 @@ class PulihAdapter implements ModelAdapter {
 
   async quality(image: ImageBitmap): Promise<QualityResult> {
     if (Math.min(image.width, image.height) < 384) {
-      return { ok: false, reason: 'Photo resolution is too low — move closer and retake.' }
+      return { ok: false, reason: 'Photo resolution is too low - move closer and retake.' }
     }
     return { ok: true }
   }
@@ -157,7 +157,7 @@ export function getAdapter(): ModelAdapter {
     // The fake model only ever runs in dev. VITE_ENABLE_FAKE_MODEL is the
     // explicit switch, but if it's left unset I still fall back to the fake
     // one whenever the rest of the app is already running on mocked API data
-    // (VITE_ENABLE_MOCKS) — that way "mock mode" doesn't force downloading the
+    // (VITE_ENABLE_MOCKS) - that way "mock mode" doesn't force downloading the
     // real ~30 MiB model just to poke around the UI.
     const fakeAllowed = import.meta.env.DEV && (
       fakeModelSetting === 'true'

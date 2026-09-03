@@ -9,7 +9,7 @@ fs.mkdirSync(OUT, { recursive: true })
 // curassavica is a real 31-class species with no SPECIES_DETAIL entry in the
 // mock backend, so it renders UnsupportedTargetResult. This proves the old
 // "PULIH model / seasonal / look-alike" copy is gone.
-test('Asclepias curassavica — unsupported target shows real plant info, no PULIH text', async ({ page }) => {
+test('Asclepias curassavica - unsupported target shows real plant info, no PULIH text', async ({ page }) => {
   // 320x780 is the tightest common mobile viewport (iPhone SE 1st gen /
   // Chrome side panel / split-screen). If the chip wraps here, it wraps
   // everywhere.
@@ -40,7 +40,7 @@ test('Asclepias curassavica — unsupported target shows real plant info, no PUL
   await page.screenshot({ path: path.join(OUT, '11-asclepias-unsupported-target.png'), fullPage: true })
 
   // Scroll to the "Malaysia plant guidance" status chip and screenshot that
-  // region directly — this is the header that overflowed horizontally.
+  // region directly - this is the header that overflowed horizontally.
   await page.evaluate(() => {
     const heading = [...document.querySelectorAll('h3')].find((h) => /Malaysia plant guidance/i.test(h.textContent || ''))
     heading?.scrollIntoView({ block: 'center' })

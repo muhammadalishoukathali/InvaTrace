@@ -28,7 +28,7 @@ def test_engine_disables_psycopg_prepared_statements() -> None:
     assert '"prepare_threshold": None' in source, (
         "app/db/base.py must pass connect_args={'prepare_threshold': None}"
         " to create_engine so psycopg3 does not auto-prepare statements"
-        " behind a transaction-mode pooler — otherwise the first query"
+        " behind a transaction-mode pooler - otherwise the first query"
         " after a pooled-connection reuse crashes with"
         " DuplicatePreparedStatement '_pg3_0' already exists."
     )

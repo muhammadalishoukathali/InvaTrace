@@ -68,7 +68,7 @@ def test_development_species_seed_exactly_matches_model_catalog() -> None:
     # list, or predictions come back for species the API doesn't know
     # about. Comparing against the raw catalog json here rather than
     # trusting the seed module to be right.
-    # AC Iteration 1 P1 — the seed always mirrors shared/catalogue rather
+    # AC Iteration 1 P1 - the seed always mirrors shared/catalogue rather
     # than a hand-edited backend copy. Cross-check against the shared
     # catalogue records rather than a duplicate JSON file so drift is
     # impossible in the first place.
@@ -77,7 +77,7 @@ def test_development_species_seed_exactly_matches_model_catalog() -> None:
     expected_ids = {record.species_id for record in records}
     assert len(SPECIES) == len(records) == 31
     assert {item["id"] for item in SPECIES} == expected_ids
-    # AC Iteration 1 P1 — the three previously-invasive labels (miconia_crenata,
+    # AC Iteration 1 P1 - the three previously-invasive labels (miconia_crenata,
     # sphagneticola_trilobata, lantana_camara) are downgraded to
     # status_uncertain in the shared catalogue until reviewed evidence lands.
     # Every invasive species must expose Report.
@@ -158,7 +158,7 @@ def test_openapi_contains_the_frontend_contract_and_required_idempotency_headers
 
 
 def test_report_contract_accepts_image_sha256_hex() -> None:
-    # AC release blocker — the frontend sends imageSha256 alongside every
+    # AC release blocker - the frontend sends imageSha256 alongside every
     # report; ReportSubmission must accept it as an optional 64-char hex field.
     payload = valid_report()
     payload["imageSha256"] = "a" * 64
@@ -177,7 +177,7 @@ def test_report_contract_rejects_malformed_image_sha256() -> None:
 
 
 def test_report_response_never_echoes_image_sha256() -> None:
-    # AC 2.3.1 privacy — server must not expose the hash in report or
+    # AC 2.3.1 privacy - server must not expose the hash in report or
     # sighting responses. ReportSubmissionDetails (the response echo type)
     # must not carry the field.
     assert "image_sha256" not in ReportSubmissionDetails.model_fields
@@ -187,7 +187,7 @@ def test_report_response_never_echoes_image_sha256() -> None:
 
 
 def test_openapi_exposes_guidance_and_scans_endpoints() -> None:
-    # AC 3.1.1 + 2.2.1 — the canonical guidance endpoint and the scan
+    # AC 3.1.1 + 2.2.1 - the canonical guidance endpoint and the scan
     # persistence endpoint both have to remain in the OpenAPI surface so
     # the frontend can rely on them.
     schema = TestClient(app).get("/openapi.json").json()
@@ -203,7 +203,7 @@ def test_openapi_exposes_guidance_and_scans_endpoints() -> None:
 
 
 def test_openapi_sighting_response_includes_confidence_and_nearest_feature() -> None:
-    # AC 4.2.2 + 4.3.1 — sighting responses expose the fields the detail
+    # AC 4.2.2 + 4.3.1 - sighting responses expose the fields the detail
     # panel now renders directly.
     schema = TestClient(app).get("/openapi.json").json()
     sighting_schema = schema["components"]["schemas"]["SightingResponse"]

@@ -1,4 +1,4 @@
-# Private access — page guidance
+# Private access - page guidance
 
 Extends `../README.md`.
 

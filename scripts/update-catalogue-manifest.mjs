@@ -1,5 +1,5 @@
 #!/usr/bin/env node
-// Refresh shared/catalogue/catalogue-manifest.json — recompute SHA-256
+// Refresh shared/catalogue/catalogue-manifest.json - recompute SHA-256
 // checksums for plant-status.json and plant-guidance.json, and copy the
 // catalogue_version / model_version / last_reviewed values from
 // plant-status.json into the manifest. Intended as the only sanctioned way

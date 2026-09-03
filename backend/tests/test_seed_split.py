@@ -1,4 +1,4 @@
-"""AC Phase 5 — reference data / demo data separation.
+"""AC Phase 5 - reference data / demo data separation.
 
 Full idempotency is verified by the docker-compose integration harness that
 runs the loader twice against a real Postgres. These unit-level checks
@@ -27,7 +27,7 @@ def test_species_catalogue_covers_31_classes() -> None:
     ids = {entry["id"] for entry in seed.SPECIES}
     # The full 31 come from the model catalogue merger; explicitly seeded
     # rows include the four hand-written ones plus one legacy id retained
-    # for cleanup logic — so the seed always exceeds 30 entries after
+    # for cleanup logic - so the seed always exceeds 30 entries after
     # _apply_model_catalog_to_species_seed() runs at import time.
     assert len(ids) >= 30, f"expected >=30 seeded species, got {len(ids)}"
 

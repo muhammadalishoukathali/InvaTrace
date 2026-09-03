@@ -1,5 +1,5 @@
 // Checks how the scan UI behaves when the model download fails. Runs under
-// playwright.model.config.ts, which spins up its own dev server on :5174 —
+// playwright.model.config.ts, which spins up its own dev server on :5174 -
 // it needs a clean environment so the fetch mocking here reliably fakes the
 // download failure without racing other specs. Guards against losing the
 // user's photo or letting them navigate onto a stale result screen when
@@ -37,7 +37,7 @@ async function attachTestPhoto(page: Page) {
   await expect(page.getByText('Photo quality check passed')).toBeVisible()
 }
 
-// If analysis fails, the user shouldn't have to retake the photo — it needs
+// If analysis fails, the user shouldn't have to retake the photo - it needs
 // to still be there when they hit Analyse again.
 test('a model download failure keeps the photo available for retry', async ({ page }) => {
   await page.addInitScript(() => {

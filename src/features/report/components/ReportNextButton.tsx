@@ -12,7 +12,7 @@ interface Props {
  * Pulled this out because every step of the report wizard
  * (ReportLocationStep.tsx, ReportExtentStep.tsx, ReportConsentStep.tsx,
  * ReportPreviewStep.tsx) needed basically the same primary button, just
- * with different labels and disabled logic — no point copy-pasting it four
+ * with different labels and disabled logic - no point copy-pasting it four
  * times. The "submit" variant swaps the chevron icon for a send icon and
  * shows a little spinner while the final submission request is in flight.
  */

@@ -13,7 +13,7 @@ from app.core.security import AuthContext, require_auth
 from app.db.base import get_session
 from app.db.models import Notification
 
-"""Notification inbox — status updates on a user's reports, plus system messages.
+"""Notification inbox - status updates on a user's reports, plus system messages.
 
 Rows get created elsewhere (screening worker, admin actions) whenever
 something happens to one of a profile's reports; this module just exposes
@@ -23,7 +23,7 @@ the read side for the bell icon / notifications screen in the app.
 router = APIRouter(prefix="/api/v1/notifications", tags=["notifications"])
 
 
-# Backs the notifications list screen — offset-based pagination via
+# Backs the notifications list screen - offset-based pagination via
 # core/pagination.py, plus an unread count so the app can show a badge.
 @router.get("", response_model=NotificationListResponse)
 def list_notifications(
@@ -67,7 +67,7 @@ def list_notifications(
     )
 
 
-# "Mark all as read" button — bulk clears read_at for everything unread.
+# "Mark all as read" button - bulk clears read_at for everything unread.
 @router.post("/read-all", response_model=OkResponse)
 def read_all(
     auth: AuthContext = Depends(require_auth),

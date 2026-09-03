@@ -66,7 +66,7 @@ export default defineConfig({
             },
           },
           {
-            // AC Iteration 1 P2 — server model-config gates the acceptance
+            // AC Iteration 1 P2 - server model-config gates the acceptance
             // threshold. Cache the last-known-good response so a second scan
             // after going offline still gets a server-authoritative gate
             // rather than falling back to client-only. Revalidate in the
@@ -81,7 +81,7 @@ export default defineConfig({
             },
           },
           {
-            // AC Iteration 1 P2 — species detail lookups must remain
+            // AC Iteration 1 P2 - species detail lookups must remain
             // available offline so the result screen can show the authoritative
             // Malaysian status and reviewed guidance for a previously-seen
             // species without a network round trip.

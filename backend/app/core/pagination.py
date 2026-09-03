@@ -1,7 +1,7 @@
 """Opaque cursor pagination helpers, used by the sightings/reports list endpoints.
 
 We don't want the frontend to know or care that a cursor is just a base64'd
-offset — it's opaque on purpose so we can swap the underlying scheme later
+offset - it's opaque on purpose so we can swap the underlying scheme later
 without breaking clients. Keep it simple: no encryption, just enough
 obfuscation that people don't start hand-editing offsets in the URL.
 """

@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest'
 import { plantGuidanceDataset, findPlantGuidance } from './plant-guidance'
 import { modelSpeciesCatalog } from './model-species-catalog'
 
-// AC 3.2.1 — every reportable species must expose its own ordered
+// AC 3.2.1 - every reportable species must expose its own ordered
 // spread-prevention entries with source ids attached. Missing entries
 // fall through to the observe-and-report guidance panel; the parameterised
 // case below flags any regression that lets a reportable species render
@@ -44,7 +44,7 @@ describe('spread prevention entries per reportable species', () => {
   )
 
   it('two different species do not share the same spread-prevention array reference', () => {
-    // Each species owns its own ordered entries — a shared reference
+    // Each species owns its own ordered entries - a shared reference
     // would mean an edit to one silently mutates another's advice.
     const references = new Set()
     for (const plant of plantGuidanceDataset.plants) {

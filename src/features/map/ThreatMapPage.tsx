@@ -6,7 +6,7 @@
  * paginated fetch all together.
  *
  * We went with MapLibre GL instead of Google Maps because it's free and
- * works with any tile source — matters for the FYP because we don't have
+ * works with any tile source - matters for the FYP because we don't have
  * a Google billing account set up. The whole thing is capped to Malaysia
  * bounds so users can't wander off to another country by accident.
  *
@@ -17,7 +17,7 @@
  * (or a row in the screen-reader list below the map), we call `select()`
  * on the store and SightingDetailsSheet.tsx picks that up to open the
  * details. A `?sighting=` query param or a "My Reports" nav state can
- * also drive the initial camera position — see map-location-link.ts.
+ * also drive the initial camera position - see map-location-link.ts.
  */
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { createPortal } from 'react-dom'
@@ -40,7 +40,7 @@ import { parseMapLocationTarget, type MapLocationTarget } from './map-location-l
 
 // Point MapLibre at its worker file ourselves. If we don't, it tries to
 // guess a URL that sits next to Vite's optimized dep file in dev, and the
-// worker isn't actually there — the map just silently doesn't paint. Doing
+// worker isn't actually there - the map just silently doesn't paint. Doing
 // the ?url import means it works the same way in dev and prod.
 maplibregl.setWorkerUrl(mapLibreWorkerUrl)
 
@@ -108,7 +108,7 @@ export function ThreatMapPage() {
   const [recordDetailsOpen, setRecordDetailsOpen] = useState(false)
 
   // When we successfully recenter the user, the toast is really just a
-  // quick "yep, done" — no reason to leave it stuck on screen. Errors
+  // quick "yep, done" - no reason to leave it stuck on screen. Errors
   // though should stay put until the user dismisses them, because the
   // fallback view needs explaining (otherwise they'll wonder why the map
   // opened somewhere random).
@@ -143,7 +143,7 @@ export function ThreatMapPage() {
 
   // Only ever create one MapLibre instance for this page, and clean it up
   // when the page unmounts. If we let it re-init on every render we'd leak
-  // canvas handles like crazy — found that out the hard way during dev.
+  // canvas handles like crazy - found that out the hard way during dev.
   useEffect(() => {
     if (!container.current || map.current) return
     const m = new maplibregl.Map({
@@ -163,7 +163,7 @@ export function ThreatMapPage() {
     // We roll our own attribution chip (see MapAttribution below) rather
     // than using MapLibre's built-in AttributionControl. The default one
     // auto-expands on load and ends up sitting right on top of the scan
-    // button on mobile, which was really annoying during pilot testing —
+    // button on mobile, which was really annoying during pilot testing -
     // a plain link is more predictable and still credits OSM properly.
     m.addControl(new maplibregl.NavigationControl({ showCompass: false, visualizePitch: false }), 'top-right')
     const geolocate = new maplibregl.GeolocateControl({
@@ -226,7 +226,7 @@ export function ThreatMapPage() {
 
     // Bit of a MapLibre v6 quirk: sometimes it parses the style before the
     // container has settled to its real size, and then it doesn't request
-    // any tiles at all — you get a blank map. Forcing a resize and a jumpTo
+    // any tiles at all - you get a blank map. Forcing a resize and a jumpTo
     // once `style.load` fires nudges it to recompute what's visible.
     let locationReadyTimer: number | undefined
     m.once('style.load', () => {
@@ -271,7 +271,7 @@ export function ThreatMapPage() {
   // When someone comes here via a "My Reports" link they might be pointing
   // at a private scan or a draft report that hasn't actually been published
   // as a public sighting yet. So we draw its marker separately from the API
-  // markers — that way a filter change or refetch can't wipe it off.
+  // markers - that way a filter change or refetch can't wipe it off.
   useEffect(() => {
     if (!map.current) return
     setRecordDetailsOpen(false)
@@ -337,7 +337,7 @@ export function ThreatMapPage() {
 
     // If we got here from a notification tap or a "My Reports" link, the
     // marker has to actually be on the map before we can select it and
-    // fly the camera — that's why this bit lives at the end of the
+    // fly the camera - that's why this bit lives at the end of the
     // rebuild, not up top.
     if (requestedSightingId) {
       const requested = filtered.find((sighting) => sighting.id === requestedSightingId)
@@ -367,7 +367,7 @@ export function ThreatMapPage() {
     : []
   // One of the ACs (4.2.3) asked us to show how many reports are actually
   // being shown after filters are applied. I kept the "filters active"
-  // count separate from the "reports shown" count on purpose — during
+  // count separate from the "reports shown" count on purpose - during
   // pilot testing someone read "3" and thought there were 3 reports when
   // it was actually the number of active filters. Confusing.
   const filtersActive = species.length + statuses.length + risks.length + (search.trim() ? 1 : 0)
@@ -378,7 +378,7 @@ export function ThreatMapPage() {
       position: 'relative', height: '100%', minHeight: 0,
       display: 'flex', flexDirection: 'column',
     }}>
-      {/* Accessibility bit — the map canvas itself is basically invisible
+      {/* Accessibility bit - the map canvas itself is basically invisible
           to keyboard-only or screen reader users. So we always render an
           AccessibleSightingList below that mirrors the pins, including
           during loading and error states, so the report data is still
@@ -415,7 +415,7 @@ export function ThreatMapPage() {
         )}
         <MapLegend />
         <MapAttribution />
-        {/* Same AC 4.2.3 — the visible count chip. We set aria-live so
+        {/* Same AC 4.2.3 - the visible count chip. We set aria-live so
             screen readers actually hear the new number after someone
             changes a filter, rather than silently updating. */}
         <div
@@ -475,7 +475,7 @@ export function ThreatMapPage() {
 /**
  * The little detail sheet that opens when you tap a "My Reports" pin.
  * I made it a separate component from SightingDetailsSheet because the
- * data source is completely different — this one reads from React
+ * data source is completely different - this one reads from React
  * Router's navigation state (see map-location-link.ts) instead of the
  * public sightings API. The record here might not even be a published
  * sighting yet, so treating it the same as a normal pin would have
@@ -580,7 +580,7 @@ function MapAttribution() {
       target="_blank"
       rel="noopener noreferrer"
       className="map-attribution"
-      aria-label="OpenStreetMap contributors — data license"
+      aria-label="OpenStreetMap contributors - data license"
     >
       © OpenStreetMap contributors
     </a>
@@ -604,7 +604,7 @@ function AccessibleSightingList({
 }) {
   // The accessible fallback has to render in loading and error states too,
   // not just when data arrives. Otherwise a screen reader user who hit a
-  // network error would have literally nothing to interact with — the map
+  // network error would have literally nothing to interact with - the map
   // canvas doesn't help them at all. Came from the accessibility review.
   return (
     <section aria-label="Community reports list" className="sr-only">
@@ -632,8 +632,8 @@ function AccessibleSightingList({
                 return (
                   <li key={s.id}>
                     <button type="button" onClick={() => onSelect(s.id)}>
-                      {s.speciesName} ({s.latinName}) — {tierLabel} — {statusLabel}
-                      {' — '}
+                      {s.speciesName} ({s.latinName}) - {tierLabel} - {statusLabel}
+                      {' - '}
                       {s.place.source === 'fallback' || !s.place.displayName
                         ? 'No named trail, park or forest found nearby'
                         : s.place.displayName}
@@ -649,14 +649,14 @@ function AccessibleSightingList({
   )
 }
 
-/** Tiny helper — we colour active markers by how many reports they've
+/** Tiny helper - we colour active markers by how many reports they've
  *  gathered (hotspot vs spreading vs isolated), and anything marked as
  *  removed goes grey so it visually fades into the background. */
 type PinTier = 'hotspot' | 'spreading' | 'isolated' | 'removed'
 
 export const PIN_TIERS: Record<PinTier, { fill: string; label: string }> = {
   hotspot: { fill: '#C2412D', label: 'Hotspot (5+ reports)' },
-  spreading: { fill: '#D9880F', label: 'Spreading (2–4 reports)' },
+  spreading: { fill: '#D9880F', label: 'Spreading (2-4 reports)' },
   isolated: { fill: '#2E7D3F', label: 'Isolated (1 report)' },
   removed: { fill: '#8B978F', label: 'Removed' },
 }
@@ -670,7 +670,7 @@ export function pinTier(s: Pick<Sighting, 'status' | 'reportCount'>): PinTier {
 
 /**
  * Builds the DOM element for one marker on the map. I went with a
- * teardrop shape rather than a plain circle — the pointy tip actually
+ * teardrop shape rather than a plain circle - the pointy tip actually
  * lands on the coordinate, so users can tell which spot it means. A
  * hovering circle looked ambiguous during pilot testing.
  */
@@ -682,7 +682,7 @@ function pinElement(s: Sighting): HTMLElement {
     : 'Removed'
   const tier = pinTier(s)
   const tierInfo = PIN_TIERS[tier]
-  const ariaLabel = `${s.speciesName} — ${tierInfo.label} — ${statusLabel}`
+  const ariaLabel = `${s.speciesName} - ${tierInfo.label} - ${statusLabel}`
   el.setAttribute('aria-label', ariaLabel)
   el.title = `${tierInfo.label}\n${statusLabel}`
   el.dataset.sightingId = s.id

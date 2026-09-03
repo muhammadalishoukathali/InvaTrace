@@ -19,13 +19,13 @@ from sqlalchemy.orm import Session
 from app.db.models import MonitoredArea, MonitoredPlace, Trail
 
 
-# AC 4.3.1 — only these OSM feature classes count toward the stored nearest
+# AC 4.3.1 - only these OSM feature classes count toward the stored nearest
 # result. Anything else in the imported data (roads, farmland, water) is
 # ignored so the surfaced label is genuinely useful for a field volunteer.
 _TRAIL_CATEGORIES = {"path", "footway", "track"}
 _AREA_CATEGORIES = {"park", "forest", "wood"}
 _NEAREST_RADIUS_M = 5_000
-# AC Iteration 1 P10 — how many nearest candidates per table to fetch before
+# AC Iteration 1 P10 - how many nearest candidates per table to fetch before
 # giving up. Small enough to keep the SQL cheap; large enough that a handful
 # of non-allow-listed neighbours (nature_reserve etc.) do not hide a real
 # park a bit further out.
@@ -40,7 +40,7 @@ class NearestOsmFeature:
     distance_m is the PostGIS geography distance from the reported point to
     the feature's geometry, rounded to 2dp so we're not storing meaningless
     precision. feature_type is whichever OSM tag value (highway/leisure/
-    landuse/natural) got the feature into our small allow-list — so it'll
+    landuse/natural) got the feature into our small allow-list - so it'll
     be one of path, footway, track, park, forest, wood. Anything else we
     just ignore.
     """
@@ -71,7 +71,7 @@ def associate_place(
     """
     point = func.ST_SetSRID(func.ST_MakePoint(longitude, latitude), 4326)
     geography = cast(point, Geography("POINT", srid=4326))
-    # smallest covering area wins — if a point falls inside a big national
+    # smallest covering area wins - if a point falls inside a big national
     # park that itself contains a smaller reserve, we want the specific one
     area = session.execute(
         select(MonitoredArea, func.ST_Area(MonitoredArea.geometry))
@@ -93,7 +93,7 @@ def associate_place(
         area_item = area[0] if area else None
         trail_item = trail[0] if trail else None
         # a point can be inside an area AND near a trail at once (e.g. "Bukit
-        # Kiara · Main Trail") — join whichever of the two we actually found
+        # Kiara · Main Trail") - join whichever of the two we actually found
         label = " · ".join(
             value
             for value in (
@@ -111,7 +111,7 @@ def associate_place(
             source="osm",
         )
 
-    # no OSM coverage nearby — fall back to the small hand-seeded list before
+    # no OSM coverage nearby - fall back to the small hand-seeded list before
     # giving up entirely
     seeded = session.execute(
         select(MonitoredPlace, func.ST_Distance(MonitoredPlace.location, geography))
@@ -130,13 +130,13 @@ def nearest_osm_feature(
     """Finds the actual nearest named trail or park/forest area within 5km
     of the point, looking at both the trail lines table (paths/footways/
     tracks) and the polygon areas table (park/forest/wood). Returns None
-    if nothing named in our allow-list is close enough — in that case the
+    if nothing named in our allow-list is close enough - in that case the
     screening worker just leaves the columns null on the sighting and the
     detail panel shows "No named trail, park or forest found nearby".
 
     Distance is computed against the imported OSM geometry, not against
     whatever fuzzy public location we eventually show on the map. The idea
-    here is that the stored value is the source of truth — if the client
+    here is that the stored value is the source of truth - if the client
     ever does its own live lookup it's only for extra context, we don't
     trust it to override what we saved (AC 4.3.1).
     """
@@ -144,7 +144,7 @@ def nearest_osm_feature(
     geography = cast(point, Geography("POINT", srid=4326))
     candidates: list[NearestOsmFeature] = []
 
-    # AC Iteration 1 P10 — fetch the nearest N candidates per table and pick
+    # AC Iteration 1 P10 - fetch the nearest N candidates per table and pick
     # the first one whose metadata categorises into the allow-list, instead
     # of taking only LIMIT 1. Previously, a nearby feature with tags that
     # fall outside the allow-list (e.g. an OSM nature_reserve area next to a

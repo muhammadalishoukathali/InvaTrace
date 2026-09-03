@@ -1,6 +1,6 @@
 """The actual decision table for what happens to a submitted report.
 
-This is the policy layer, deliberately pure and side-effect free — it takes
+This is the policy layer, deliberately pure and side-effect free - it takes
 a bag of pre-computed facts (image quality, duplicate/replay flags, GPS
 accuracy, whether there's a nearby merge candidate) and returns one
 decision. The screening worker is responsible for gathering those facts
@@ -22,7 +22,7 @@ POLICY_VERSION = "deterministic-rules-v1.0"
 ValidationStatus = Literal["screened", "merged", "needs_rescan", "rejected"]
 
 
-# AC Iteration 1 P7 — the single 300 m GPS accuracy policy. Kept as a module
+# AC Iteration 1 P7 - the single 300 m GPS accuracy policy. Kept as a module
 # constant so a caller that constructs ValidationInput without an explicit
 # threshold still gets the canonical policy, and the frontend can import the
 # same number via the settings endpoint without drifting.
@@ -39,7 +39,7 @@ class ValidationInput:
     exact_replay: bool = False
     perceptual_replay: bool = False
     merge_target_id: str | None = None
-    # AC Iteration 1 P7 — the threshold the caller is enforcing this run.
+    # AC Iteration 1 P7 - the threshold the caller is enforcing this run.
     # Defaults to the canonical 300 m policy so unit tests that ignore this
     # field still exercise real behaviour. The screening worker passes the
     # live settings value so an operator can tune the policy centrally.
@@ -57,7 +57,7 @@ def evaluate(input: ValidationInput) -> ValidationDecision:
     """Apply the Iteration 1 deterministic screening and publication policy.
 
     Checked roughly in order of severity: replay/duplicate photos get
-    rejected outright (not retryable — resubmitting the same photo again
+    rejected outright (not retryable - resubmitting the same photo again
     won't fix it), then a batch of "needs_rescan" checks that are the user's
     fault and fixable by trying again, then finally a same-species-nearby
     merge before falling through to a clean pass.
@@ -69,7 +69,7 @@ def evaluate(input: ValidationInput) -> ValidationDecision:
         return ValidationDecision("rejected", ("perceptual_photo_replay",), False)
 
     # everything below is recoverable by the user retaking the photo/report,
-    # so we collect every reason rather than bailing on the first one — the
+    # so we collect every reason rather than bailing on the first one - the
     # client can show them all at once instead of a frustrating one-at-a-time
     # rejection loop
     rescan_reasons = list(input.image_failure_reasons)

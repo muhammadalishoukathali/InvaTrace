@@ -1,7 +1,7 @@
 /**
  * This banner sits at the top of the app, not just inside the report wizard,
  * and shows up whenever there's something sync-related the user should
- * know about — being offline, the private-access session needing to
+ * know about - being offline, the private-access session needing to
  * restore, or reports still sitting in the local queue. We kept it to one
  * line on purpose so it doesn't take over the screen; if you want the full
  * per-item detail (attempts, error messages, discard button) that's all in
@@ -46,7 +46,7 @@ export function ReportQueueStatusBanner() {
     setFlushing(true)
     try {
       // Every queued report needs a live private-access session to actually
-      // submit under, so we make sure that's restored first — otherwise
+      // submit under, so we make sure that's restored first - otherwise
       // we'd just be sending every queued item off to fail and get re-queued
       // again for nothing.
       const sessionReady = identityStatus === 'ready' || await syncIdentity()

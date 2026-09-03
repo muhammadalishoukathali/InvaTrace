@@ -17,7 +17,7 @@ from app.db.models import Species
 
 
 # older seeded guides used an "action_mode" field with different values than
-# what the API contract settled on later ("guidance_mode") — this maps the
+# what the API contract settled on later ("guidance_mode") - this maps the
 # old vocabulary forward so we don't have to backfill every stored guide
 _OLD_TO_NEW_MODE = {
     "remove": "active_guidance",
@@ -31,7 +31,7 @@ _OLD_TO_NEW_MODE = {
 def _hydrate_guide(species: Species, raw: dict[str, Any]) -> SeasonalActionGuide:
     """Fill AC-required fields on a stored guide dict, deriving from species where missing.
 
-    The stored JSON is a bit of a grab-bag — some guides were written with
+    The stored JSON is a bit of a grab-bag - some guides were written with
     camelCase keys, some snake_case, some fields live on the guide itself and
     others fell back to species.guidance_metadata over time. Every .get()
     chain below is working around that inconsistency rather than anything
@@ -80,7 +80,7 @@ def current_action_guide(
     """Return the versioned guide that covers the observation month.
 
     Species without a reviewed month-specific guide never receive improvised
-    removal permission from the API — they receive an observe-and-report
+    removal permission from the API - they receive an observe-and-report
     fallback stub (AC 3.1.1) so the client always renders a guidance record.
     """
 
@@ -93,7 +93,7 @@ def current_action_guide(
 
 def _observe_and_report_fallback(species: Species) -> SeasonalActionGuide:
     # used when a species has no guide covering the current month (or no
-    # guides at all) — the client should never render an empty guidance
+    # guides at all) - the client should never render an empty guidance
     # screen, so this stub always gives it something to show, just with
     # removal actively discouraged rather than silently omitted
     metadata = species.guidance_metadata or {}

@@ -1,10 +1,10 @@
 /**
- * Gets a captured or picked photo ready before the model ever touches it —
+ * Gets a captured or picked photo ready before the model ever touches it -
  * checks it's a real, non-empty image of a type we accept, scales it down to
  * a sane max dimension and re-encodes it as JPEG, and also hands back a cheap
  * hash that the dev-mode fake model uses and I use for quick duplicate
  * checks. The actual per-model resize/crop/normalize step happens later on,
- * in pulih-model.ts — this file's only job is getting a reasonably-sized,
+ * in pulih-model.ts - this file's only job is getting a reasonably-sized,
  * well-formed blob ready to hand off to that.
  */
 const MAX_SIDE = 1024
@@ -56,7 +56,7 @@ export async function resizeImage(file: Blob): Promise<{ bitmap: ImageBitmap; ur
   let blob: Blob
   try {
     if (bitmap.width < 1 || bitmap.height < 1) throw new Error('Photo has invalid dimensions.')
-    // Only ever scales down, never up — upscaling a small photo would just add
+    // Only ever scales down, never up - upscaling a small photo would just add
     // fake detail that isn't really there. Full-res phone photos (12+ MP) are
     // way more than the model needs anyway, and just slow down both the
     // upload and the later on-device crop for no benefit.
@@ -79,7 +79,7 @@ export async function resizeImage(file: Blob): Promise<{ bitmap: ImageBitmap; ur
   return { bitmap: resized, url, blob }
 }
 
-// This is just a cheap 8x8-pixel hash, not an actual perceptual hash — good
+// This is just a cheap 8x8-pixel hash, not an actual perceptual hash - good
 // enough to pick a deterministic "random" bucket for the dev-mode fake model
 // and jitter the mock quality-check failures, but not reliable enough to
 // use for spotting real duplicate photos.

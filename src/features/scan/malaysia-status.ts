@@ -4,13 +4,13 @@ import { findPlantStatus, plantStatusDataset, type PlantStatusRecord } from '@sh
 /**
  * Malaysian status gets resolved once, from the shared catalogue
  * (shared/catalogue/plant-status.json). I only trust the model manifest for
- * the class list itself — the catalogue's ui_state is the actual source of
+ * the class list itself - the catalogue's ui_state is the actual source of
  * truth for whether something's invasive.
  *
  * A supported classification result carries a ui_state string that comes
  * from the catalogue. If a lookup for the identified class fails at runtime
  * (an older cached bundle, an unknown label, whatever), the fallback is
- * always status_uncertain — I never want a permissive "safe/reportable"
+ * always status_uncertain - I never want a permissive "safe/reportable"
  * default to slip through there.
  *
  * One more thing worth flagging: the model manifest version and the
@@ -38,7 +38,7 @@ export type ResultPathway =
 export interface ResolvedPathway {
   pathway: ResultPathway
   statusState: MalaysiaStatusState | null
-  /** True when reporting is eligible from the catalogue's perspective —
+  /** True when reporting is eligible from the catalogue's perspective -
    *  the trust/persistence/server gates still apply at the UI layer. */
   canReport: boolean
   /** True when in-panel removal/containment actions may be offered. */
@@ -55,7 +55,7 @@ export function deriveMalaysiaStatusState(result: IdentifyResult): MalaysiaStatu
   if (carried && VALID_UI_STATES.has(carried as MalaysiaStatusState)) {
     return carried as MalaysiaStatusState
   }
-  // If nothing matched in the catalogue, fail safe and call it uncertain — I
+  // If nothing matched in the catalogue, fail safe and call it uncertain - I
   // never want to derive invasive or information-only from a lookup that
   // came up empty.
   return 'status_uncertain'
@@ -67,7 +67,7 @@ export function isReportEligible(state: MalaysiaStatusState | null): boolean {
 
 /**
  * This is the one place that decides what the result screen should actually
- * render. I kept it pure — no store or DOM dependency — specifically so the
+ * render. I kept it pure - no store or DOM dependency - specifically so the
  * invasive / information-only / status-uncertain pathways could all be
  * tested without having to mount the whole page.
  */
@@ -77,7 +77,7 @@ export function resolveResultPathway(result: IdentifyResult): ResolvedPathway {
   }
   if (result.outcome === 'other_plant') {
     // "other_plant" already means it's not on the tracked list, so the
-    // status_uncertain label here is really just a convenience value — there's
+    // status_uncertain label here is really just a convenience value - there's
     // nothing to report or act on either way.
     return {
       pathway: 'other_plant',
@@ -89,7 +89,7 @@ export function resolveResultPathway(result: IdentifyResult): ResolvedPathway {
   const statusState = deriveMalaysiaStatusState(result)
   if (statusState === 'invasive') {
     // Only a catalogue record that's actually marked reportable gets to offer
-    // action or reporting — unsupported target classes fall through to the
+    // action or reporting - unsupported target classes fall through to the
     // unsupported pathway below instead.
     if (result.reportable) {
       return { pathway: 'invasive_reportable', statusState, canReport: true, canAction: true }

@@ -20,7 +20,7 @@ from app.domain.action_guidance import (
 
 
 def _stub_species(**overrides) -> SimpleNamespace:
-    """Minimal Species-like stub — SQLAlchemy models are heavy to spin up
+    """Minimal Species-like stub - SQLAlchemy models are heavy to spin up
     for pure-function tests."""
 
     defaults = dict(
@@ -97,7 +97,7 @@ def test_current_action_guide_selects_month_matched_guide() -> None:
     ["active_guidance", "site_manager_confirmation_required", "report_only"],
 )
 def test_guidance_modes_all_valid(guidance_mode: str) -> None:
-    # AC 3.1.3 — every guidance mode from the AC set must round-trip through
+    # AC 3.1.3 - every guidance mode from the AC set must round-trip through
     # the SeasonalActionGuide schema without validation errors.
     species = _stub_species(
         action_guides=[

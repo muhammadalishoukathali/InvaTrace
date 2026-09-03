@@ -12,7 +12,7 @@ headers" before the endpoint or rate limiter is reached. This test pins
 both headers into the allow list so a future edit cannot silently drop
 them and re-break production.
 
-Runs offline — only the FastAPI TestClient walks the middleware stack,
+Runs offline - only the FastAPI TestClient walks the middleware stack,
 no DB / Redis / object storage is touched.
 """
 

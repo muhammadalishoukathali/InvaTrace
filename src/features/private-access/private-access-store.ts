@@ -213,7 +213,7 @@ export const usePrivateAccess = create<PrivateAccessState>((set, get) => ({
           body: JSON.stringify({ installationToken: currentInstallation.installationToken }),
         })
         // Bail if a sign-out/restore happened while this request was in
-        // flight — applying a stale bootstrap response now would silently
+        // flight - applying a stale bootstrap response now would silently
         // resurrect the identity the user just left.
         if (generation !== sessionGeneration) return false
         setAccessToken(response.accessToken)
@@ -249,7 +249,7 @@ export const usePrivateAccess = create<PrivateAccessState>((set, get) => ({
         if (response.recoverySetupRequired) {
           // The server flags this when a previous setup was interrupted before
           // acknowledgement, so the earlier batch is already dead. We have to
-          // rotate again here to get a batch we can actually show the user —
+          // rotate again here to get a batch we can actually show the user -
           // we can't recover the original codes, they were never stored.
           try {
             const batch = await api<RecoveryCodeBatchResponse>('/api/v1/profiles/me/recovery-codes/rotate', {
@@ -274,7 +274,7 @@ export const usePrivateAccess = create<PrivateAccessState>((set, get) => ({
       } catch (error) {
         if (generation !== sessionGeneration) return false
         setAccessToken(null)
-        // The server has no record of this installation token at all — most
+        // The server has no record of this installation token at all - most
         // likely the backing data was reset (e.g. dev/mock environment) or
         // this device's record predates a migration. Treat it as if this
         // browser never had access, rather than getting stuck retrying forever.
@@ -291,7 +291,7 @@ export const usePrivateAccess = create<PrivateAccessState>((set, get) => ({
         }
         // Someone (possibly the user, from another device) revoked this
         // installation via AccessManagementPage.tsx. Clear it locally so the
-        // revoked device can't keep acting as an authorized installation —
+        // revoked device can't keep acting as an authorized installation -
         // it has to go through restore again with a fresh recovery code.
         if (error instanceof ApiError && (error.code === 'installation_revoked' || error.status === 401)) {
           clearIdentityBoundState()
@@ -398,7 +398,7 @@ export const usePrivateAccess = create<PrivateAccessState>((set, get) => ({
 
   // Consumed by RecoveryKitSetupPage.tsx once the user confirms they saved
   // their one-time codes. This is the step that actually flips status to
-  // 'ready' — the codes were already issued by the server, this just marks
+  // 'ready' - the codes were already issued by the server, this just marks
   // locally (and via the acknowledge endpoint) that setup finished, so a
   // refresh doesn't re-show codes that were already displayed once.
   acknowledgeRecovery: async (displayName) => {

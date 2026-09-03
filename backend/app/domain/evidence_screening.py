@@ -1,6 +1,6 @@
 """Deterministic, rule-based checks on submitted evidence photos.
 
-This is deliberately NOT an ML model — everything here is a plain
+This is deliberately NOT an ML model - everything here is a plain
 statistical check (brightness, contrast, edge detail) plus perceptual
 hashing for duplicate detection, so the screening worker's decisions are
 explainable and reproducible. See app/domain/validation.py for how the
@@ -16,7 +16,7 @@ from dataclasses import dataclass
 from PIL import Image, ImageFilter, ImageOps, ImageStat, UnidentifiedImageError
 
 MAX_IMAGE_PIXELS = 20_000_000
-# images get downscaled to this before brightness/contrast/edge analysis —
+# images get downscaled to this before brightness/contrast/edge analysis -
 # running stats on a full-res photo would be slower and doesn't actually
 # improve the accuracy of these checks
 ANALYSIS_MAX_SIDE = 512
@@ -24,7 +24,7 @@ ANALYSIS_MAX_SIDE = 512
 # _perceptual_hashes below
 FINGERPRINT_CROP_RATIO = 0.80
 
-# guards Pillow's own decompression-bomb protection — without setting this,
+# guards Pillow's own decompression-bomb protection - without setting this,
 # PIL just uses its default limit, which doesn't line up with our own
 # MAX_IMAGE_PIXELS check below
 Image.MAX_IMAGE_PIXELS = MAX_IMAGE_PIXELS
@@ -43,7 +43,7 @@ class ImageScreeningResult:
     @property
     def serialized_hashes(self) -> str:
         # flattened to a single string because that's how perceptual_hash is
-        # stored on Report — Postgres doesn't need to know it's really a list
+        # stored on Report - Postgres doesn't need to know it's really a list
         return ":".join(self.perceptual_hashes)
 
 
@@ -53,7 +53,7 @@ def screen_image(image_bytes: bytes, *, minimum_dimension: int) -> ImageScreenin
     "Iteration 1" because the plan is to eventually layer a real model on
     top of this, but for the FYP scope these rule-based checks are what
     actually gates a submission. Anything that trips a check gets recorded
-    in failure_reasons rather than raising — the caller decides what to do
+    in failure_reasons rather than raising - the caller decides what to do
     with a failed screen (usually: ask the user to rescan).
     """
 
@@ -86,7 +86,7 @@ def screen_image(image_bytes: bytes, *, minimum_dimension: int) -> ImageScreenin
         edges = edges.crop((1, 1, edges.width - 1, edges.height - 1))
     edge_variance = float(ImageStat.Stat(edges).var[0])
 
-    # thresholds below are hand-tuned rules, not learned from data — good
+    # thresholds below are hand-tuned rules, not learned from data - good
     # enough to catch obviously-unusable photos (too dark/bright/blurry)
     # without being so strict real phone photos keep failing
     reasons: list[str] = []
@@ -117,7 +117,7 @@ def perceptual_distance(first: str, second: str) -> int | None:
 
     Used by the screening worker to flag "this looks like a photo we've
     basically already seen" (perceptual_replay in validation.py) even when
-    it's not byte-identical — e.g. re-saved, slightly cropped, or a fresh
+    it's not byte-identical - e.g. re-saved, slightly cropped, or a fresh
     JPEG compression of the same shot. Lower distance = more similar; we take
     the min across every hash pair since one photo might be a crop of the
     other and only match on one of the sub-region hashes.
@@ -150,7 +150,7 @@ def _perceptual_hashes(image: Image.Image) -> tuple[str, ...]:
         (right, bottom, width, height),
     )
     hashes = tuple(_difference_hash(image.crop(box)) for box in boxes)
-    # dict.fromkeys dedupes while preserving order — small/square images can
+    # dict.fromkeys dedupes while preserving order - small/square images can
     # end up with identical crops, no point hashing the same region twice
     return tuple(dict.fromkeys(hashes))
 
@@ -172,7 +172,7 @@ def _difference_hash(image: Image.Image) -> str:
 
 
 def _deserialize_hashes(value: str) -> tuple[int, ...]:
-    # tolerant of garbage/malformed entries rather than raising — a corrupt
+    # tolerant of garbage/malformed entries rather than raising - a corrupt
     # stored hash shouldn't take down duplicate detection for the whole report
     hashes: list[int] = []
     for item in value.split(":"):

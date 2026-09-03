@@ -154,7 +154,7 @@ def create_scan(
     model_version: str,
     photo: bytes,
 ) -> None:
-    """AC 2.2.1 — persist the on-device classifier result before the report
+    """AC 2.2.1 - persist the on-device classifier result before the report
     submission so the FastAPI create_report path can enforce scan/report
     consistency."""
     scan_payload = {
@@ -183,7 +183,7 @@ def create_report(
     capture_id = str(uuid.uuid4())
     confidence = 0.91
     model_version = "oe_v4_31class_web_fp16"
-    # AC 2.2.1 — reports without an owner-scoped scan for the capture are
+    # AC 2.2.1 - reports without an owner-scoped scan for the capture are
     # rejected. Persist the scan first so this test walks the real path.
     create_scan(
         client, token,
@@ -201,7 +201,7 @@ def create_report(
         "observedAt": datetime.now(UTC).isoformat(),
         "captureId": capture_id,
         "captureSource": "camera",
-        # AC 2.3.1 / release blocker — server re-hashes the uploaded bytes
+        # AC 2.3.1 / release blocker - server re-hashes the uploaded bytes
         # and rejects a mismatch, so include the client-computed value.
         "imageSha256": hashlib.sha256(photo).hexdigest(),
         "location": {"lat": lat, "lng": lng},
@@ -353,7 +353,7 @@ def test_private_access_and_automated_validation_end_to_end() -> None:
             lng=RUN_LONGITUDE + 0.00005,
         )
         resolved_two = wait_for_resolution(client, restored_access_token, report_two["id"])
-        # AC 2.3.1 — same owner + same species + same SHA-256 must return
+        # AC 2.3.1 - same owner + same species + same SHA-256 must return
         # the existing sighting with `merged`, not create a new report or
         # public marker. (The earlier "rejected" behaviour applied only to
         # cross-owner exact replays, which are still caught by
@@ -398,7 +398,7 @@ def test_private_access_and_automated_validation_end_to_end() -> None:
         ).json()["items"]
         states = {item["id"]: item["status"] for item in mine}
         assert states[report_one["id"]] == "screened"
-        # AC 2.3.1 — same-owner exact-hash replay resolves as `merged`.
+        # AC 2.3.1 - same-owner exact-hash replay resolves as `merged`.
         assert states[report_two["id"]] == "merged"
         assert states[report_three["id"]] == "merged"
         assert states[report_four["id"]] == "rejected"
@@ -456,7 +456,7 @@ def test_private_access_and_automated_validation_end_to_end() -> None:
 
 
 def test_scan_report_publish_sighting_end_to_end() -> None:
-    """AC 2.2.1 + 4.1.4 + 4.2.1 + 4.2.2 + 4.3.1 + 4.3.2 — full published-report
+    """AC 2.2.1 + 4.1.4 + 4.2.1 + 4.2.2 + 4.3.1 + 4.3.2 - full published-report
     journey against the real stack. Persists an accepted scan, uploads and
     submits the report, waits for the screening worker to publish, then
     fetches the public sighting endpoint and asserts the AC-required fields
@@ -499,14 +499,14 @@ def test_scan_report_publish_sighting_end_to_end() -> None:
             photo=unique_photo,
         )
 
-        # AC 4.1.4 — the report starts `processing` and only becomes
+        # AC 4.1.4 - the report starts `processing` and only becomes
         # `screened` after the worker publishes it. Poll until then.
         resolved = wait_for_resolution(client, token, report["id"])
         assert resolved["status"] == "screened", resolved
         sighting_id = resolved["sightingId"]
         assert sighting_id, "screened report must expose its sightingId"
 
-        # AC 4.2.1 — public list must include this sighting under status
+        # AC 4.2.1 - public list must include this sighting under status
         # screened; `removed` must never appear in Iteration 1 responses.
         listing = assert_ok(client.get("/api/v1/sightings")).json()
         ids = {item["id"] for item in listing["items"]}
@@ -514,9 +514,9 @@ def test_scan_report_publish_sighting_end_to_end() -> None:
         for item in listing["items"]:
             assert item["status"] == "screened", item
 
-        # AC 4.2.2 + 4.3.1 — detail response carries the presigned
+        # AC 4.2.2 + 4.3.1 - detail response carries the presigned
         # thumbnail, model confidence, and the server-stored nearest OSM
-        # feature (or nulls if none within 5 km — AC 4.3.2 fallback).
+        # feature (or nulls if none within 5 km - AC 4.3.2 fallback).
         detail = assert_ok(client.get(f"/api/v1/sightings/{sighting_id}")).json()
         assert detail["thumbnailUrl"], "sighting detail must include a presigned thumbnailUrl"
         assert detail["confidence"] is not None
@@ -532,7 +532,7 @@ def test_scan_report_publish_sighting_end_to_end() -> None:
 
 
 def test_report_cannot_swap_species_or_confidence_from_scan() -> None:
-    """AC 4.1.1 — the species / confidence / model version submitted with
+    """AC 4.1.1 - the species / confidence / model version submitted with
     the report must match the scan the client already persisted. Any drift
     is a 422 with a field-specific error code; no report row, verification
     job or sighting is created for the rejected attempt.
@@ -574,7 +574,7 @@ def test_report_cannot_swap_species_or_confidence_from_scan() -> None:
             "consent": {"accurate": True, "noPII": True},
         }
 
-        # Species swap — the scan recorded mikania-micrantha; the report
+        # Species swap - the scan recorded mikania-micrantha; the report
         # cannot claim a different species without a fresh scan.
         swapped = {**base_payload, "speciesId": "chromolaena-odorata"}
         response = client.post(
@@ -585,7 +585,7 @@ def test_report_cannot_swap_species_or_confidence_from_scan() -> None:
         assert response.status_code == 422
         assert response.json()["code"] == "scan_species_mismatch"
 
-        # Confidence drift — even inside the target species, the reported
+        # Confidence drift - even inside the target species, the reported
         # confidence must match the scan reading.
         drifted = {**base_payload, "confidence": 0.55}
         response = client.post(
@@ -596,7 +596,7 @@ def test_report_cannot_swap_species_or_confidence_from_scan() -> None:
         assert response.status_code == 422
         assert response.json()["code"] == "scan_confidence_mismatch"
 
-        # Model version swap — an unrecognised client model version must be
+        # Model version swap - an unrecognised client model version must be
         # blocked so trust decisions stay tied to the version the scan used.
         version_swapped = {**base_payload, "modelVersion": "some-other-model"}
         response = client.post(
@@ -607,7 +607,7 @@ def test_report_cannot_swap_species_or_confidence_from_scan() -> None:
         assert response.status_code == 422
         assert response.json()["code"] == "scan_model_version_mismatch"
 
-        # AC 4.1.3 — none of the rejected attempts must have left behind a
+        # AC 4.1.3 - none of the rejected attempts must have left behind a
         # report row, so listing the profile's reports shows zero entries.
         listing = assert_ok(
             client.get("/api/v1/reports/mine", headers=auth(token))
@@ -616,7 +616,7 @@ def test_report_cannot_swap_species_or_confidence_from_scan() -> None:
 
 
 def test_saved_installation_bootstraps_without_recovery_prompt() -> None:
-    """AC 2.1.3 — a valid saved installation must restore the session
+    """AC 2.1.3 - a valid saved installation must restore the session
     without asking the user for a recovery code. The bootstrap response
     only clears ``recoverySetupRequired`` after the user has acknowledged
     saving their recovery kit, so this test walks that acknowledgement
@@ -632,7 +632,7 @@ def test_saved_installation_bootstraps_without_recovery_prompt() -> None:
         profile_id = started["profile"]["id"]
         access_token = started["accessToken"]
 
-        # User has saved the recovery kit — the app posts this before it
+        # User has saved the recovery kit - the app posts this before it
         # ever calls bootstrap in the wild.
         assert_ok(
             client.post(

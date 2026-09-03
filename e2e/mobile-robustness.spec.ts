@@ -1,5 +1,5 @@
 // Mobile-only check for the camera capture screen. Runs under the
-// "mobile-chromium" Playwright project (Pixel 5 viewport) — that's the only
+// "mobile-chromium" Playwright project (Pixel 5 viewport) - that's the only
 // project this spec is matched against. Guards against the camera staying on
 // (battery drain, privacy risk) when the tab gets backgrounded mid-scan, and
 // against layout overflow on a narrow screen.

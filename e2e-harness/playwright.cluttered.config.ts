@@ -1,4 +1,4 @@
-// Points only at cluttered-species-harness.spec.ts and targets port 5174 —
+// Points only at cluttered-species-harness.spec.ts and targets port 5174 -
 // the dev:model-test server, which runs the real classifier instead of the
 // mocked API the main config uses. Kept separate so it doesn't get swept up
 // by a normal e2e run and doesn't need the mock service worker wired in.

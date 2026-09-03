@@ -2,7 +2,7 @@
 
 Reports from "New" (unvetted) profiles, and anything still at candidate
 status, get their coordinates nudged before they're ever shown to the
-public — we don't want to publish an exact GPS pin for a plant on someone's
+public - we don't want to publish an exact GPS pin for a plant on someone's
 property based on a report we haven't screened or trust yet. Trusted/Steward
 reports on screened sightings get full precision.
 """
@@ -27,7 +27,7 @@ def public_coordinates(
 ) -> tuple[float, float, bool]:
     """Return (lat, lng, was_displaced) for public consumption.
 
-    The displacement has to be *stable* — the same sighting should move to
+    The displacement has to be *stable* - the same sighting should move to
     the same fuzzed point every time it's fetched, otherwise the pin would
     jump around the map on every page load. So instead of randomising, we
     derive a deterministic angle from an HMAC of the sighting id keyed with
@@ -55,11 +55,11 @@ def public_coordinates(
     candidate_lat = lat + lat_delta
     candidate_lng = lng + lng_delta
     # if nudging the point pushed it outside Malaysia's bounding box, flip the
-    # offset direction instead of clamping — clamping would bias displaced
+    # offset direction instead of clamping - clamping would bias displaced
     # points towards the border and leak more info than it should
     if not (0.8 <= candidate_lat <= 7.5 and 99.3 <= candidate_lng <= 119.5):
         candidate_lat = lat - lat_delta
         candidate_lng = lng - lng_delta
-    # rounded to 4dp (roughly 11m) on top of the 100m displacement — belt and
+    # rounded to 4dp (roughly 11m) on top of the 100m displacement - belt and
     # braces so we're not accidentally leaking sub-metre precision
     return round(candidate_lat, 4), round(candidate_lng, 4), True

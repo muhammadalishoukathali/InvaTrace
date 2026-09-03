@@ -38,7 +38,7 @@ export function ReportLocationStep() {
   const [status, setStatus] = useState<Status>('idle')
 
   const cancelReport = () => {
-    // We don't throw away the scan here — just cancel the report — so the
+    // We don't throw away the scan here - just cancel the report - so the
     // user can come back and try submitting again without redoing the scan.
     reset()
     navigate('/scan/result', { state: location.state })
@@ -48,7 +48,7 @@ export function ReportLocationStep() {
   const accuracy = draft?.locationAccuracyM ?? null
 
   /* If the scan already grabbed a location, just use that instead of asking
-   * the browser for permission again — nobody wants two location prompts in
+   * the browser for permission again - nobody wants two location prompts in
    * a row for the same walk in the park. */
   useEffect(() => {
     if (loc) return
@@ -77,7 +77,7 @@ export function ReportLocationStep() {
 
   useEffect(() => {
     if (loc || scanLoc || status !== 'idle') return
-    // We wait for the scan screen's own location request to finish first —
+    // We wait for the scan screen's own location request to finish first -
     // if we fire our own request while that one is still pending, the
     // browser can pop the permission prompt twice, which looks broken.
     if (scanLocStatus === 'locating') return
@@ -86,7 +86,7 @@ export function ReportLocationStep() {
   }, [scanLocStatus])
 
   // One of the ACs was clear that there's no hard accuracy cutoff for
-  // submitting — we only require a real, non-negative accuracy number and a
+  // submitting - we only require a real, non-negative accuracy number and a
   // coordinate that's actually inside Malaysia. The accuracy threshold from
   // gps-policy.ts is only used as a soft warning below; we never block on it
   // client-side. If the user submits anyway with a bad fix, the server will
@@ -172,7 +172,7 @@ export function ReportLocationStep() {
             display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8,
           }}>
             <Icon name="X" size={16} color="var(--body)" />
-            Cancel report — keep scan
+            Cancel report - keep scan
           </button>
         )}
       </div>

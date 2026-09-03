@@ -37,7 +37,7 @@ from app.domain.reporting import coordinate, report_response
 from app.services.object_deletion import enqueue_object_deletions
 from app.services.storage import storage
 
-"""Report submission, listing, and status — the core "I found a plant" flow.
+"""Report submission, listing, and status - the core "I found a plant" flow.
 
 A report starts private (status="processing") and only becomes a public
 Sighting once the deterministic screening worker approves it. This module
@@ -54,7 +54,7 @@ def request_digest(body: ReportSubmission) -> bytes:
     return canonical_request_hash(body.model_dump(mode="json", by_alias=True))
 
 
-# Report submission — called by the app right after a photo finishes
+# Report submission - called by the app right after a photo finishes
 # uploading via the presigned URL from uploads.py. Flaky mobile networks mean
 # clients retry this a lot, so most of the function is guarding against
 # double-submission and stale/invalid state rather than the "happy path" insert.
@@ -74,7 +74,7 @@ def create_report(
     auth: AuthContext = Depends(require_auth),
     session: Session = Depends(get_session),
 ) -> ReportResponse:
-    # AC Iteration 1 P1 — reject a report submission when the client's bundled
+    # AC Iteration 1 P1 - reject a report submission when the client's bundled
     # catalogue disagrees with the server's. Offline identification and
     # guidance still work; only the reporting path is gated on parity.
     try:
@@ -115,7 +115,7 @@ def create_report(
         .with_for_update()
     )
     if existing:
-        # Same key, different payload — someone (or some bug) is reusing an
+        # Same key, different payload - someone (or some bug) is reusing an
         # Idempotency-Key for a different report, which isn't allowed.
         if existing.request_hash != digest:
             raise ApiProblem(
@@ -123,7 +123,7 @@ def create_report(
                 "idempotency_conflict",
                 "This Idempotency-Key was already used with a different report.",
             )
-        # True retry of an already-handled request — just replay the stored
+        # True retry of an already-handled request - just replay the stored
         # response instead of doing the work again.
         response.status_code = existing.response_status
         return ReportResponse.model_validate(existing.response_json)
@@ -144,12 +144,12 @@ def create_report(
     if grant.consumed_at is not None:
         raise ApiProblem(409, "upload_already_used", "The upload was already used.")
     # Cross-check the object actually sitting in R2/MinIO against what the
-    # presign grant promised — catches a client that presigned for one file
+    # presign grant promised - catches a client that presigned for one file
     # then uploaded something else (size/type swap).
     metadata = storage.head(grant.object_key)
     if metadata.size_bytes != grant.size_bytes or metadata.content_type != grant.content_type:
         raise ApiProblem(409, "upload_mismatch", "The uploaded image does not match its grant.")
-    # AC release blocker + AC 2.3.1 — recompute SHA-256 from the uploaded bytes.
+    # AC release blocker + AC 2.3.1 - recompute SHA-256 from the uploaded bytes.
     # Any client-supplied imageSha256 is checked as an early comparison but never
     # trusted alone; the server-computed hash is what gets persisted and used for
     # duplicate detection.
@@ -168,12 +168,12 @@ def create_report(
     # of writing a second row. Per-profile scope so two people submitting the
     # same reference image still each get their own report.
     #
-    # AC Iteration 1 P4 — scope must also include the species. Submitting the
+    # AC Iteration 1 P4 - scope must also include the species. Submitting the
     # same photo for a different species is a legitimately different report
     # (e.g. the user retook the classification decision) and must not be
     # swallowed by this shortcut. Ordering must be ascending so we always
-    # return the earliest matching row — the original anchor report the
-    # sighting hangs off — instead of the most recent one, which could itself
+    # return the earliest matching row - the original anchor report the
+    # sighting hangs off - instead of the most recent one, which could itself
     # be a chained merge/rejected shim pointing back at the anchor.
     if not get_settings().screening_disable_duplicate_check:
         duplicate = session.scalar(
@@ -191,7 +191,7 @@ def create_report(
     species = session.get(Species, body.species_id) if body.species_id else None
     if body.species_id and not species:
         raise ApiProblem(400, "unknown_species", "The species is not supported.")
-    # AC 2.2.1 — a report must be tied to a scan owned by the same profile.
+    # AC 2.2.1 - a report must be tied to a scan owned by the same profile.
     # A missing scan is a client bug (the app must persist the scan before
     # enabling the Report button), so reject with a field-specific 422 rather
     # than silently accepting the report on weaker cross-checks.
@@ -239,7 +239,7 @@ def create_report(
         )
 
     # Move the object out of the temporary uploads/ prefix into evidence/ once
-    # we've committed to actually using it — keeps unused uploads easy to
+    # we've committed to actually using it - keeps unused uploads easy to
     # garbage-collect separately from real evidence photos.
     evidence_key = f"evidence/{auth.profile.id}/{grant.id}.jpg"
     storage.finalize_upload(grant.object_key, evidence_key, metadata)
@@ -270,13 +270,13 @@ def create_report(
     session.add(report)
     session.flush()
 
-    # This is what the screening worker actually picks up — see wherever it
+    # This is what the screening worker actually picks up - see wherever it
     # polls VerificationJob for status="pending" rows.
     session.add(VerificationJob(report_id=report.id, status="pending"))
     if queued_retry:
         # Client flags this when the report was sitting in its offline queue
         # (PWA was offline when the user submitted) and only just made it to
-        # the server — nice to tell the user their report wasn't lost.
+        # the server - nice to tell the user their report wasn't lost.
         session.add(
             Notification(
                 profile_id=auth.profile.id,
@@ -319,7 +319,7 @@ def create_report(
     return payload
 
 
-# "My reports" history screen — every report this profile has ever
+# "My reports" history screen - every report this profile has ever
 # submitted, whatever its screening status, unlike the public sightings
 # feed which only shows screened/removed ones.
 @router.get("/mine", response_model=ReportListResponse)
@@ -367,7 +367,7 @@ def my_reports(
     )
 
 
-# Small helper for the single-report endpoint below — batched version lives
+# Small helper for the single-report endpoint below - batched version lives
 # inline in my_reports since doing N+1 queries there would be silly.
 def _sighting_id(session: Session, report_id: uuid.UUID) -> uuid.UUID | None:
     return session.scalar(
@@ -426,7 +426,7 @@ def delete_report(
     return Response(status_code=204)
 
 
-# Single-report status check — the client polls this while a report is
+# Single-report status check - the client polls this while a report is
 # stuck in "processing" so the tracking screen can update once screening finishes.
 @router.get("/{report_id}", response_model=ReportResponse)
 def report_status(

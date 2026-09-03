@@ -1,6 +1,6 @@
 """Regression tests for the processing→screened report lifecycle.
 
-AC Iteration 1 P8 — a submitted report begins with status `processing`
+AC Iteration 1 P8 - a submitted report begins with status `processing`
 and MUST reach one of five terminal states: `screened`, `merged`,
 `needs_rescan`, `rejected`, `validation_unavailable`. These tests pin the
 invariants that keep the lifecycle from stalling or drifting:
@@ -71,7 +71,7 @@ def test_notify_resolution_copy_covers_every_rule_outcome_state() -> None:
     body = source.split("_TERMINAL_NOTIFICATION_COPY", 1)[1].split("}", 1)[0]
     for status in ("screened", "merged", "needs_rescan", "rejected"):
         assert f'"{status}"' in body, (
-            f"Missing notification copy for terminal status `{status}` — a"
+            f"Missing notification copy for terminal status `{status}` - a"
             " report that lands here would raise KeyError and get retried."
         )
     # `validation_unavailable` is intentionally NOT in this table; it has its
@@ -84,7 +84,7 @@ def test_notify_resolution_bails_on_unknown_status_instead_of_raising() -> None:
     marker = "def _notify_resolution("
     fn = source.split(marker, 1)[1].split("\ndef ", 1)[0]
     assert "_TERMINAL_NOTIFICATION_COPY.get(report.status)" in fn, (
-        "Guard must use dict.get, not [] indexing — a KeyError here would"
+        "Guard must use dict.get, not [] indexing - a KeyError here would"
         " escape into _schedule_failure and re-queue the whole screening pass."
     )
     assert "if entry is None:" in fn, "Explicit None guard missing."
@@ -95,7 +95,7 @@ def test_image_error_branch_writes_a_terminal_status_not_processing() -> None:
     source = _read("app/workers/verification.py")
     marker = 'ValidationDecision("needs_rescan", ("invalid_or_corrupt_image",)'
     assert marker in source, (
-        "ImageError branch must set the decision to `needs_rescan` — leaving"
+        "ImageError branch must set the decision to `needs_rescan` - leaving"
         " a corrupt-image report in `processing` would keep it eligible for"
         " retry loops that will never succeed."
     )

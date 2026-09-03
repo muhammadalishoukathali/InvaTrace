@@ -10,7 +10,7 @@ import { usePageHeadingFocus } from '@/hooks/usePageHeadingFocus'
  *  created (or after a forced re-issue), lets the user copy/download them,
  *  and requires an explicit "I saved these" confirmation before it will
  *  hand off to the rest of the app. This is the only place these raw codes
- *  are ever shown — see recovery-kit.ts for why they're not persisted. */
+ *  are ever shown - see recovery-kit.ts for why they're not persisted. */
 export function RecoveryKitSetupPage() {
   const navigate = useNavigate()
   const headingRef = usePageHeadingFocus()
@@ -30,7 +30,7 @@ export function RecoveryKitSetupPage() {
   const [error, setError] = useState<string | null>(null)
   const [continuing, setContinuing] = useState(false)
 
-  // Already acknowledged (or arrived here with no reason to be here) — don't
+  // Already acknowledged (or arrived here with no reason to be here) - don't
   // let the recovery-code screen linger once it's done its job.
   if (status === 'ready') return <Navigate to="/map" replace />
   if (!profile || !installation) return <Navigate to="/private-access" replace />

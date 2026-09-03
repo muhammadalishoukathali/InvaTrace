@@ -1,4 +1,4 @@
-"""AC 4.3.1 — persist nearest OSM feature on each sighting.
+"""AC 4.3.1 - persist nearest OSM feature on each sighting.
 
 Adds ``nearest_feature_type`` / ``nearest_feature_name`` /
 ``nearest_feature_distance_m`` on ``sightings`` so the server-side lookup

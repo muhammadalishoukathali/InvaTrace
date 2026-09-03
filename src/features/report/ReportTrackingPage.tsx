@@ -35,11 +35,11 @@ const COPY: Record<ReportStatus, { title: string; body: string }> = {
 
 /**
  * This is the private status page a single contributor sees for their own
- * report — where it currently stands in the automated screening pipeline
+ * report - where it currently stands in the automated screening pipeline
  * (processing, published, merged, needs rescan, rejected). One of the
  * requirements was that screening decisions shouldn't be a total black box,
  * so we do show reason codes here, but only in plain language and only for
- * this user's own report — we filter out the generic
+ * this user's own report - we filter out the generic
  * "automated_rule_screened" code since that one doesn't actually tell the
  * user anything useful, and we never expose the raw rule internals or
  * anyone else's reports. It polls while the report is still processing (or

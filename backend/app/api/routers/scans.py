@@ -1,4 +1,4 @@
-"""AC 2.2.1 — persist client-side scan results so report submissions can be re-verified.
+"""AC 2.2.1 - persist client-side scan results so report submissions can be re-verified.
 
 The on-device model runs inference in the app before the user ever decides
 to report anything (the "point camera at plant, get an instant guess" flow).

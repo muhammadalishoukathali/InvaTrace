@@ -1,8 +1,8 @@
 import type { GeoPoint, IdentifyResult } from '@/types'
 
 /**
- * A durable local log of past scans — species, outcome, confidence, location,
- * whether it was later submitted as a report — capped at 50 records and kept
+ * A durable local log of past scans - species, outcome, confidence, location,
+ * whether it was later submitted as a report - capped at 50 records and kept
  * in localStorage so a volunteer can look back at what they've scanned even
  * while offline. This is separate from scan-store.ts on purpose: that store
  * only holds the scan currently in progress and gets wiped on every reset,
@@ -21,7 +21,7 @@ export interface ScanHistoryRecord {
   modelVersion: string
   reportable: boolean
   /** Only present when geolocation was actually available at scan time. Older
-   *  records won't have these fields at all, and that's fine — they stay
+   *  records won't have these fields at all, and that's fine - they stay
    *  valid, they just can't be shown on the map. */
   location?: GeoPoint | null
   locationAccuracyM?: number | null

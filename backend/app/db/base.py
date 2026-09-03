@@ -1,7 +1,7 @@
 """SQLAlchemy engine, session factory, and declarative base.
 
 Everything in app/db/models.py inherits from Base defined here. The
-naming convention matters more than it looks like it should — without it,
+naming convention matters more than it looks like it should - without it,
 Alembic autogenerate produces constraint names like "reports_status_check1"
 that drift between environments and make migrations a pain to diff.
 """
@@ -31,7 +31,7 @@ class Base(DeclarativeBase):
 
 
 settings = get_settings()
-# pool_pre_ping checks a connection is still alive before handing it out —
+# pool_pre_ping checks a connection is still alive before handing it out -
 # without it we'd occasionally get "server closed the connection" errors on
 # the first query after the DB has been idle for a while. pool_recycle keeps
 # us under whatever idle-connection timeout the DB/proxy enforces.
@@ -40,7 +40,7 @@ settings = get_settings()
 # PgBouncer, or the Render/Supabase shared pooler) the same backend connection
 # is handed to different logical sessions, and psycopg3's auto-generated
 # `_pg3_0` prepared-statement name collides with one left behind by a prior
-# checkout — surfacing as `DuplicatePreparedStatement: prepared statement
+# checkout - surfacing as `DuplicatePreparedStatement: prepared statement
 # "_pg3_0" already exists` on the very first query after boot. Turning
 # prepared statements off entirely is safe because our workload is dominated
 # by short, non-hot-path queries where the plan-cache win is negligible.
@@ -54,7 +54,7 @@ SessionLocal = sessionmaker(bind=engine, expire_on_commit=False, autoflush=False
 
 
 def get_session() -> Generator[Session, None, None]:
-    """FastAPI dependency — one session per request, closed after the response
+    """FastAPI dependency - one session per request, closed after the response
     is built regardless of whether the request succeeded or blew up.
     expire_on_commit=False so response serialization can still read attributes
     off committed ORM objects without triggering a fresh query.

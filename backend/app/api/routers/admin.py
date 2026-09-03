@@ -26,12 +26,12 @@ from app.db.models import (
 )
 from app.services.object_deletion import enqueue_object_deletions
 
-"""Admin-only endpoints — role moderation, report repair, sighting takedown.
+"""Admin-only endpoints - role moderation, report repair, sighting takedown.
 
 Everything here sits behind require_admin, so it's the backend for the
 (presumably small) admin panel rather than anything a normal user hits.
 Every mutation writes an AuditEvent so there's a paper trail of who changed
-what and why — useful given we don't have real user accounts to fall back on.
+what and why - useful given we don't have real user accounts to fall back on.
 """
 
 router = APIRouter(prefix="/api/v1/admin", tags=["admin"])
@@ -160,7 +160,7 @@ def update_profile_role(
 
 
 # Takedown for a public sighting (bad photo, wrong species, whatever). Called
-# from the admin moderation view — once removed, the sighting still exists in
+# from the admin moderation view - once removed, the sighting still exists in
 # the DB (status="removed") but drops off the public map/feed. See
 # app/api/routers/sightings.py, which only ever returns screened/removed rows.
 @router.post("/sightings/{sighting_id}/remove", response_model=OkResponse)
@@ -177,7 +177,7 @@ def remove_sighting(
     if not sighting:
         raise ApiProblem(404, "sighting_not_found", "Not found")
     if sighting.status == "removed":
-        # Already gone — treat as a no-op so retries/double-clicks don't error.
+        # Already gone - treat as a no-op so retries/double-clicks don't error.
         return OkResponse()
     thumbnail_key = sighting.thumbnail_key
     sighting.status = "removed"
@@ -190,7 +190,7 @@ def remove_sighting(
         ).all()
     )
     # A sighting can be backed by multiple merged reports (see the screening
-    # worker's merge logic) — reject all of them, not just the "primary" one.
+    # worker's merge logic) - reject all of them, not just the "primary" one.
     photo_keys: list[str] = []
     for report_id in linked_report_ids:
         report = session.scalar(select(Report).where(Report.id == report_id).with_for_update())
@@ -211,7 +211,7 @@ def remove_sighting(
             },
         )
     )
-    # Don't delete objects from R2/MinIO inline in the request — queue it up
+    # Don't delete objects from R2/MinIO inline in the request - queue it up
     # so a slow storage backend can't hang this endpoint (see object_deletion.py).
     enqueue_object_deletions(session, [thumbnail_key, *photo_keys])
     session.commit()

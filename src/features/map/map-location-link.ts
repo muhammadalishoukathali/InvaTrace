@@ -2,10 +2,10 @@
  * I needed a way for a screen outside the map (like "My Reports") to send
  * someone to a specific spot on ThreatMapPage.tsx, but going through the
  * public sightings API doesn't work for a private scan/report that hasn't
- * been published as a sighting yet — there's nothing to fetch by id. So
+ * been published as a sighting yet - there's nothing to fetch by id. So
  * instead this just passes the location through react-router navigation
  * state. `mapStateForLocation` builds that state on the sending side, and
- * `parseMapLocationTarget` validates it on the map side — I bounds-check
+ * `parseMapLocationTarget` validates it on the map side - I bounds-check
  * against Malaysia so a malformed or tampered state object can't send the
  * camera flying off to some nonsense coordinate.
  */

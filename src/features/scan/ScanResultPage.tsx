@@ -11,8 +11,8 @@ import type { IdentifyResult, SpeciesDetail } from '@/types'
 import './scan-result.css'
 
 /**
- * Shows what a finished scan came back with — target species, other plant,
- * or uncertain — plus the confidence band, and for identified species the
+ * Shows what a finished scan came back with - target species, other plant,
+ * or uncertain - plus the confidence band, and for identified species the
  * Malaysia status and the PlantGuidancePanel with removal/reporting steps.
  * This is basically the identification review screen from the requirements:
  * the point where the user actually checks the model's guess before deciding
@@ -59,7 +59,7 @@ export function ScanResultPage() {
   }
 
   // The Malaysia ui_state, and everything downstream that depends on it, all
-  // gets resolved through resolveResultPathway against the shared catalogue —
+  // gets resolved through resolveResultPathway against the shared catalogue -
   // I stopped trusting the raw model outcome on its own to decide whether
   // something's invasive, since the catalogue is the actual authoritative source.
   const pathway = resolveResultPathway(result)
@@ -78,12 +78,12 @@ export function ScanResultPage() {
   const scanReady = scanPersistStatus === 'ok'
   // Reporting also stays blocked if the classification was accepted locally but
   // the server-side model-config gate couldn't be reached. The result still
-  // displays fine — it's only Report that waits for the gate to confirm.
+  // displays fine - it's only Report that waits for the gate to confirm.
   const gateConfirmed = result.serverAccepted !== false
   const canReport = trustedCapture && reportEligible && scanReady && gateConfirmed
   // I don't want an information-only or status-uncertain record ever reaching
   // the in-panel removal/containment flow, even if a stale server flag claims
-  // actionEligible is true — the pathway check here overrides that.
+  // actionEligible is true - the pathway check here overrides that.
   const guidanceActionEligible = pathway.canAction
     ? speciesDetail?.actionEligible
     : false
@@ -212,7 +212,7 @@ export function ScanResultPage() {
 }
 
 // The badge label follows the catalogue-derived pathway, not the raw model
-// outcome — a plant the model flagged as "target" but that actually maps to an
+// outcome - a plant the model flagged as "target" but that actually maps to an
 // information-only or status-uncertain catalogue record should never end up
 // labelled "Invasive in Malaysia" just because of that raw outcome.
 const PATHWAY_CONFIG: Record<ResultPathway, {
@@ -249,7 +249,7 @@ function TargetResult({
   const referenceImage = detail.referenceImageUrl
     ?? (modelSpecies ? modelReferenceImageUrl(modelSpecies) : null)
   // The detailed safety/removal guidance itself only gets rendered once, down
-  // in the shared PlantGuidancePanel — this component just handles the header,
+  // in the shared PlantGuidancePanel - this component just handles the header,
   // native-twin comparison, and reference photo.
   return (
     <>
@@ -379,7 +379,7 @@ function OtherPlantResult({ result }: { result: IdentifyResult }) {
 }
 
 function InformationOnlyResult({ result }: { result: IdentifyResult }) {
-  // Information-only records get deliberately neutral framing here — just
+  // Information-only records get deliberately neutral framing here - just
   // identify the plant, don't give the user anything to act on or report.
   // The actual full context lives in the PlantGuidancePanel further down.
   const modelSpecies = findModelSpecies({
@@ -486,7 +486,7 @@ function UnsupportedTargetResult({ result }: { result: IdentifyResult }) {
           </figcaption>
         </figure>
       )}
-      {/* Kept this summary short on purpose — the full guidance is further down. */}
+      {/* Kept this summary short on purpose - the full guidance is further down. */}
       <p style={{ marginTop: 8, color: 'var(--body)', fontSize: 13.5, lineHeight: 1.6 }}>
         {guidance?.general_information
           ? firstSentence(guidance.general_information)

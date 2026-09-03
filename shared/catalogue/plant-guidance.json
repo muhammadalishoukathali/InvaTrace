@@ -38,7 +38,7 @@
     },
     {
       "source_id": "S02",
-      "title": "National Action Plan on Invasive Alien Species 2021–2025",
+      "title": "National Action Plan on Invasive Alien Species 2021-2025",
       "publisher": "Government of Malaysia",
       "url": "https://www.doa.gov.my/doa/resources/aktiviti_sumber/sumber_awam/penerbitan/buku/national_action_plan_on_invasive_alien_species_2021-2025.pdf",
       "accessed": "2026-08-29",
@@ -190,7 +190,7 @@
     },
     {
       "source_id": "S21",
-      "title": "East Point Biodiversity Management Plan 2024–2029",
+      "title": "East Point Biodiversity Management Plan 2024-2029",
       "publisher": "City of Darwin",
       "url": "https://www.darwin.nt.gov.au/sites/default/files/2025-01/East%20Point%20Biodiversity%20Management%20Plan%202024%20-%202029.pdf",
       "accessed": "2026-08-29",
@@ -755,7 +755,7 @@
       ],
       "follow_up": [
         {
-          "text": "Recheck the exact point after 4–6 weeks and again after rain for seedlings or stump regrowth.",
+          "text": "Recheck the exact point after 4-6 weeks and again after rain for seedlings or stump regrowth.",
           "source_ids": [
             "S13"
           ]
@@ -1120,7 +1120,7 @@
       ],
       "follow_up": [
         {
-          "text": "Revisit in 3–4 weeks and remove new target seedlings before they flower, if the site manager continues the programme.",
+          "text": "Revisit in 3-4 weeks and remove new target seedlings before they flower, if the site manager continues the programme.",
           "source_ids": [
             "S14"
           ]
@@ -1263,7 +1263,7 @@
       ],
       "follow_up": [
         {
-          "text": "Photograph the cleared point and recheck it after 4–6 weeks for root-crown regrowth or seedlings.",
+          "text": "Photograph the cleared point and recheck it after 4-6 weeks for root-crown regrowth or seedlings.",
           "source_ids": [
             "S06"
           ]
@@ -1406,7 +1406,7 @@
       ],
       "follow_up": [
         {
-          "text": "Recheck the same shoreline after 1–2 weeks because overlooked daughter plants can drift back.",
+          "text": "Recheck the same shoreline after 1-2 weeks because overlooked daughter plants can drift back.",
           "source_ids": [
             "S11"
           ]
@@ -1556,7 +1556,7 @@
       ],
       "follow_up": [
         {
-          "text": "Recheck after 2–4 weeks and photograph any regrowth from missed nodes or the root base.",
+          "text": "Recheck after 2-4 weeks and photograph any regrowth from missed nodes or the root base.",
           "source_ids": [
             "S07"
           ]
@@ -1730,7 +1730,7 @@
       ],
       "follow_up": [
         {
-          "text": "Recheck a removed seedling after 4–6 weeks and ask the manager to monitor beneath fruiting trees for new seedlings.",
+          "text": "Recheck a removed seedling after 4-6 weeks and ask the manager to monitor beneath fruiting trees for new seedlings.",
           "source_ids": [
             "S15"
           ]
@@ -2029,7 +2029,7 @@
       ],
       "follow_up": [
         {
-          "text": "Recheck after 4–6 weeks for shoots from crown pieces and for new seedlings after rain.",
+          "text": "Recheck after 4-6 weeks for shoots from crown pieces and for new seedlings after rain.",
           "source_ids": [
             "S18"
           ]
@@ -2173,7 +2173,7 @@
       ],
       "follow_up": [
         {
-          "text": "Recheck after 3–4 weeks and after heavy rain because dormant seed may produce new seedlings.",
+          "text": "Recheck after 3-4 weeks and after heavy rain because dormant seed may produce new seedlings.",
           "source_ids": [
             "S10"
           ]
@@ -2603,7 +2603,7 @@
         "category": "invasive_watchlist",
         "display_label": "Watchlist/early-detection: Malaysian presence sources conflict",
         "confidence": "medium",
-        "note": "The 2021–2025 plan recorded it in Sabah, while the 2025 factsheet says it is not present in Malaysia. The app should flag it for expert confirmation, not public removal.",
+        "note": "The 2021-2025 plan recorded it in Sabah, while the 2025 factsheet says it is not present in Malaysia. The app should flag it for expert confirmation, not public removal.",
         "source_ids": [
           "S01",
           "S02"

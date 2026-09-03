@@ -17,7 +17,7 @@ from app.db.base import get_session
 from app.db.models import IdempotencyRecord, Profile, UploadGrant
 from app.services.storage import storage
 
-"""Presigned-URL photo uploads — the first step of the report-submission flow.
+"""Presigned-URL photo uploads - the first step of the report-submission flow.
 
 The app never sends a photo through this API directly; it asks here for a
 short-lived presigned PUT URL, uploads straight to Cloudflare R2 (MinIO
@@ -68,16 +68,16 @@ def presign_upload(
                 "idempotency_conflict",
                 "This Idempotency-Key was already used for a different upload.",
             )
-        # Retry of the same presign request — hand back the same upload URL
+        # Retry of the same presign request - hand back the same upload URL
         # rather than minting a second one (and a second UploadGrant) for it.
         response.status_code = existing.response_status
         return PresignResponse.model_validate(existing.response_json)
     if existing:
-        # Record's still around but its presigned URL has expired — clean it
+        # Record's still around but its presigned URL has expired - clean it
         # up so we fall through and issue a new one below.
         session.execute(delete(IdempotencyRecord).where(IdempotencyRecord.id == existing.id))
 
-    # Row lock on the profile just to serialize the grant-count check below —
+    # Row lock on the profile just to serialize the grant-count check below -
     # without it, two concurrent presign calls could both read "under quota"
     # and both succeed, blowing past upload_active_grants_per_profile.
     session.execute(select(Profile.id).where(Profile.id == auth.profile.id).with_for_update())
@@ -89,7 +89,7 @@ def presign_upload(
         )
     )
     # Caps how many "presigned but not yet turned into a report" uploads a
-    # profile can have outstanding at once — stops someone from farming
+    # profile can have outstanding at once - stops someone from farming
     # presigned URLs for storage abuse without ever submitting a report.
     if (active_grants or 0) >= settings.upload_active_grants_per_profile:
         raise ApiProblem(

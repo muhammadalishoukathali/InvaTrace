@@ -26,7 +26,7 @@ const OSM_FEATURE_LABEL: Record<string, string> = {
  * Full detail view for a single map sighting, shown as a bottom sheet:
  * species photo, risk tier, report count, nearby place, and the guidance
  * panel. It only gets rendered once inside ThreatMapPage.tsx and opens
- * whenever `selectedId` in map-view-store.ts gets set — that happens either
+ * whenever `selectedId` in map-view-store.ts gets set - that happens either
  * by clicking a pin or picking a row from the accessible sighting list.
  */
 export function SightingDetailsSheet() {
@@ -48,7 +48,7 @@ export function SightingDetailsSheet() {
   })
 
   // Nearby-place lookup is just enrichment, so I don't want it blocking the
-  // sheet from opening — it runs as its own query, separate from the main one.
+  // sheet from opening - it runs as its own query, separate from the main one.
   const { data: nearestOsm } = useQuery({
     queryKey: ['osm-nearest', data?.location.lat, data?.location.lng],
     queryFn: () => fetchNearestOsmFeature(data!.location.lat, data!.location.lng),
@@ -96,7 +96,7 @@ export function SightingDetailsSheet() {
               {/* AC 4.2.2 wants the actual evidence photo shown first, so this
                   goes above the catalogue reference photo. It comes through a
                   presigned thumbnailUrl. The reference photo below is clearly
-                  labelled "reference" — I didn't want it read as if it were
+                  labelled "reference" - I didn't want it read as if it were
                   the reporter's own evidence. */}
               <EvidenceThumbnail thumbnailUrl={data.thumbnailUrl} speciesName={data.speciesName} />
               <PlantReferenceMedia latinName={data.latinName} speciesName={data.speciesName} />
@@ -207,7 +207,7 @@ function EvidenceThumbnail({
 }
 
 /** This one only ever shows the reviewed catalogue image, never a reporter's
- *  own upload — keeping those two image sources visually distinct is the
+ *  own upload - keeping those two image sources visually distinct is the
  *  whole point of splitting this out from EvidenceThumbnail above. */
 function PlantReferenceMedia({ latinName, speciesName }: { latinName: string; speciesName: string }) {
   const guidance = findPlantGuidance({

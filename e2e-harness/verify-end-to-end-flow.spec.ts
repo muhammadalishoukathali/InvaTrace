@@ -77,7 +77,7 @@ async function completeReportWizard(
   await page.waitForTimeout(400)
   await page.getByRole('button', { name: /^Continue$/i }).click()
 
-  // Consent step — check both checkboxes then continue
+  // Consent step - check both checkboxes then continue
   await page.waitForTimeout(400)
   await page.getByRole('checkbox', { name: /accurate/i }).check()
   await page.getByRole('checkbox', { name: /personal information/i }).check()
@@ -92,7 +92,7 @@ async function completeReportWizard(
   // Success
   await expect(page.getByRole('heading', { name: /Report submitted/i })).toBeVisible({ timeout: 8_000 })
   const successBody = await page.locator('body').innerText()
-  expect(successBody).toContain('Community report — not expert validated')
+  expect(successBody).toContain('Community report - not expert validated')
   expect(successBody).toMatch(/Reference:/i)
 }
 
@@ -129,7 +129,7 @@ for (const choice of ['protected', 'explicit'] as const) {
       grantGeolocation: async () => { /* already granted at context level */ },
     })
 
-    // Backend received the report — status 200 (merged) or 201 (created) is fine.
+    // Backend received the report - status 200 (merged) or 201 (created) is fine.
     expect(reportPosts.length).toBeGreaterThanOrEqual(1)
     const first = reportPosts[0]
     expect([200, 201]).toContain(first.status)
@@ -140,7 +140,7 @@ for (const choice of ['protected', 'explicit'] as const) {
     // Snapshot the success screen.
     await page.screenshot({ path: path.join(OUT, `16-report-submitted-${choice}.png`), fullPage: false })
 
-    // Follow through to the tracking page — proves the "View screening status"
+    // Follow through to the tracking page - proves the "View screening status"
     // link actually reaches a real detail record.
     await page.getByRole('button', { name: /View screening status/i }).click()
     await expect(page).toHaveURL(new RegExp(`/reports/${parsed.id}`), { timeout: 8_000 })

@@ -7,15 +7,15 @@ read from this directory. Never maintain a parallel copy elsewhere.
 
 ## Files
 
-- `plant-status.json` — 31 species records (one per PULIH model class) with the
+- `plant-status.json` - 31 species records (one per PULIH model class) with the
   authoritative Malaysian `ui_state`, `general_information`, `safety_message`,
   `status_source_ids`, `status_reviewed_at`, and `report_eligible` flag.
-- `plant-guidance.json` — reviewed per-species safe guidance (safe passive
+- `plant-guidance.json` - reviewed per-species safe guidance (safe passive
   actions, permitted beginner active actions, stop conditions, spread-prevention,
   prohibited actions, source references).
-- `catalogue-manifest.json` — `catalogue_version`, `last_reviewed`, released
+- `catalogue-manifest.json` - `catalogue_version`, `last_reviewed`, released
   `model_version`, plus SHA-256 checksums of the two data files.
-- `schemas/*.schema.json` — JSON Schemas both files must satisfy. Enforced by
+- `schemas/*.schema.json` - JSON Schemas both files must satisfy. Enforced by
   `scripts/validate-catalogue.mjs` (frontend build/tests) and by
   `backend/app/domain/catalogue.py` (backend startup / reference load).
 

@@ -1,11 +1,11 @@
-# InvaTrace Iteration 1 AC Remediation — Working Plan
+# InvaTrace Iteration 1 AC Remediation - Working Plan
 
 ## Final coverage snapshot
 
 All six phases have landed at least the AC-critical behaviour + backing
 tests. Remaining work is deployment-time infrastructure (docker-compose
 loader-idempotency run, real-database rollback assertions inside a fresh
-integration harness) — the code paths themselves are in place and covered
+integration harness) - the code paths themselves are in place and covered
 by unit / contract tests.
 
 | AC | Status | Test |
@@ -53,7 +53,7 @@ Do not merge a later phase without the earlier phases green under real backend.
 
 ---
 
-## Phase 0 — Release blocker (STARTED in this branch)
+## Phase 0 - Release blocker (STARTED in this branch)
 
 **Status: partially landed**
 
@@ -70,13 +70,13 @@ Still to do in Phase 0:
   (Current `e2e/real-backend.spec.ts` covers only private-access bootstrap.)
 - MSW strip `imageSha256` from `Report.submission` echo to match FastAPI shape,
   after splitting the frontend `Report.submission` echo type from `ReportSubmission`.
-- Idempotency `request_hash` now includes `imageSha256` — verify offline-queue
+- Idempotency `request_hash` now includes `imageSha256` - verify offline-queue
   retries do not collide. (Idempotency key is per-request; new hash is fine but
   document.)
 
 ---
 
-## Phase 1 — Epic 1 (Image ID + Malaysian status)
+## Phase 1 - Epic 1 (Image ID + Malaysian status)
 
 - **AC 1.1.1** Restore specific `resizeImage()` errors (empty / unsupported MIME /
   >10 MB / invalid image). Component tests per rejection. Ensure no scan-history
@@ -101,7 +101,7 @@ Still to do in Phase 0:
 
 ---
 
-## Phase 2 — Epic 2 (Anonymous access + sighting validation) — IN PROGRESS
+## Phase 2 - Epic 2 (Anonymous access + sighting validation) - IN PROGRESS
 
 **Landed:**
 - AC 2.1.4 partial: sliding-window Redis limiter (sorted-set impl in
@@ -165,7 +165,7 @@ Still to do in Phase 0:
 
 ---
 
-## Phase 3 — Epic 3 (Guidance) — MOSTLY LANDED
+## Phase 3 - Epic 3 (Guidance) - MOSTLY LANDED
 
 **Landed:**
 - AC 3.1.1: canonical `GET /api/v1/species/{species_id}/guidance` endpoint
@@ -180,7 +180,7 @@ Still to do in Phase 0:
 - AC 3.1.4 + 3.2.4: `SafetyPolicyFooter` now displays guidance review date +
   dataset content version + plant id.
 - AC 3.2.2: single "none apply" checkbox replaced with a per-condition
-  `StopConditionsGate` — each stop condition is a selectable toggle;
+  `StopConditionsGate` - each stop condition is a selectable toggle;
   selecting any forces `allClear=false` (hiding active steps) and disables
   the "None apply" confirmation until every trigger is cleared.
 - AC 3.2.3: existing build-time prohibited-action test preserved; new
@@ -197,7 +197,7 @@ Still to do in Phase 0:
 - AC 3.2.1: parameterised frontend test per reportable species proving
   spread-prevention ordering + source ids match dataset.
 
-## Phase 3 — Epic 3 (original expanded scope)
+## Phase 3 - Epic 3 (original expanded scope)
 
 - **AC 3.1.1** Canonical versioned guidance dataset shared or hash-checked.
   New `GET /api/v1/species/{species_id}/guidance` returning exact record
@@ -225,7 +225,7 @@ Still to do in Phase 0:
 
 ---
 
-## Phase 4 — Epic 4 (Reports + community map) — MOSTLY LANDED
+## Phase 4 - Epic 4 (Reports + community map) - MOSTLY LANDED
 
 **Landed:**
 - AC 4.1.2: removed hard-coded 100 m accuracy gate in `ReportLocationStep`.
@@ -256,7 +256,7 @@ Still to do in Phase 0:
 - Frontend Playwright tests for filter count, evidence thumbnail render,
   confidence display, published-wording route.
 
-## Phase 4 — Epic 4 (original expanded scope)
+## Phase 4 - Epic 4 (original expanded scope)
 
 - **AC 4.1.1** Integration test: image / scan ID / species / confidence come
   from accepted scan and cannot be edited.
@@ -292,7 +292,7 @@ Still to do in Phase 0:
 
 ---
 
-## Phase 5 — Deployment + MSW parity + full-stack integration — LANDED
+## Phase 5 - Deployment + MSW parity + full-stack integration - LANDED
 
 **Landed:**
 - Reference / demo split. `app/seed.py` now exposes `load_reference_data`
@@ -300,7 +300,7 @@ Still to do in Phase 0:
   legacy-id cleanup) and `seed_demo_data` (dev sightings only).
   `seed_development_data` retained as back-compat wrapper.
 - CLI: `invatrace load-reference-data`, `invatrace seed-demo-data`,
-  legacy `invatrace seed` — the demo and legacy commands refuse to run
+  legacy `invatrace seed` - the demo and legacy commands refuse to run
   under `APP_ENV=production`. `import-osm` now lazy-imports osmium so the
   rest of the CLI does not require the native extension.
 - `render.yaml` preDeploy: `alembic upgrade head && python -m app.cli
@@ -323,7 +323,7 @@ Still to do in Phase 0:
   in the same test).
 - Shared JSON fixtures for MSW ↔ FastAPI parity beyond the OpenAPI checks.
 
-## Phase 5 — Deployment + MSW parity + full-stack integration (original expanded scope)
+## Phase 5 - Deployment + MSW parity + full-stack integration (original expanded scope)
 
 - Split `load-reference-data` (idempotent, prod) from `seed-demo-data`
   (never prod). Run reference loader in pre-deploy after `alembic upgrade head`.
@@ -338,7 +338,7 @@ Still to do in Phase 0:
   `e2e/real-backend.spec.ts` to cover the 10-step full flow with docker
   compose + real PG/PostGIS/Redis/MinIO/worker. Mocks disabled.
 
-## Phase 6 — Existing test debt — LANDED
+## Phase 6 - Existing test debt - LANDED
 
 **Landed:**
 - Happy-path Playwright test now selects the "Single plant" extent radio
@@ -375,7 +375,7 @@ Still to do in Phase 0:
 - Fifteen-second inference deadline test in the model-runtime spec.
 - Threshold boundary test hitting the real acceptance path.
 
-## Phase 6 — Existing test debt (original expanded scope)
+## Phase 6 - Existing test debt (original expanded scope)
 
 - Update stale Playwright happy-path test (plant extent selection).
 - Fix five ESLint errors in `e2e-harness` so `npm run lint` passes.

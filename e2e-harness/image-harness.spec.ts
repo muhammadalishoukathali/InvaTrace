@@ -1,5 +1,5 @@
-// Manual QA script. Runs the same 7 reference photos twice — once with their
-// original EXIF metadata intact and once stripped — to check whether the
+// Manual QA script. Runs the same 7 reference photos twice - once with their
+// original EXIF metadata intact and once stripped - to check whether the
 // scan pipeline behaves differently when GPS/orientation data is missing
 // (which is common for images downloaded off the web vs taken on a phone).
 // Not in the main e2e suite because it needs the real model server
@@ -79,7 +79,7 @@ async function runImage(page: Page, group: 'with_exif' | 'stripped', img: typeof
         const badge = body.match(/(Invasive species detected|Not a target species|Uncertain[^\n]*)/i)
         row.outcome_badge = badge?.[0] ?? 'unknown'
         const sp = body.match(/^([A-Z][a-z]+\s+[a-z]+)$/m)
-        row.species_shown = sp?.[1] ?? '—'
+        row.species_shown = sp?.[1] ?? '-'
         const conf = body.match(/Confidence[\s\S]{0,80}?(\d{1,3})\s*%/)
         row.confidence = conf ? conf[1] + '%' : 'n/a'
         row.status_uncertain = /Status uncertain/.test(body)

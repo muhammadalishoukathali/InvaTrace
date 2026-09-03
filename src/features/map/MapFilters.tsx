@@ -8,7 +8,7 @@ import { modelSpeciesCatalog } from '@/data/model-species-catalog'
 import type { SightingStatus, Risk } from '@/types'
 import './map-controls.css'
 
-/** All the invasive classes the bundled model can actually output — I filter
+/** All the invasive classes the bundled model can actually output - I filter
  *  the full species catalog down to just these so the filter chips only ever
  *  show something the model would realistically flag. */
 export const MAP_FILTER_SPECIES = modelSpeciesCatalog.classes
@@ -96,7 +96,7 @@ export function MapFilters() {
 
       {/* Desktop has enough width to lay out every filter as an inline chip.
           I grouped each chip cluster with role="group" and an aria-label for
-          AC Iteration 1 P9 (accessibility) — without that a screen-reader
+          AC Iteration 1 P9 (accessibility) - without that a screen-reader
           user just hears a long run of pressed/not-pressed buttons with no
           way to tell "Species filters" apart from "Risk filters". */}
       {isDesktop && (
@@ -180,7 +180,7 @@ function FiltersSheet({
   useDialogA11y(dialogRef, onClose)
 
   /* I portal this into document.body so the map canvas and its controls can
-   * never sneak above the sheet — the map container sets up its own stacking
+   * never sneak above the sheet - the map container sets up its own stacking
    * context, so without the portal the sheet would end up stuck behind it. */
   return createPortal(
     <>
@@ -258,7 +258,7 @@ function FilterGroup({ title, description, children }: {
   )
 }
 
-/** One toggleable row inside a mobile FilterGroup — e.g. a single species checkbox. */
+/** One toggleable row inside a mobile FilterGroup - e.g. a single species checkbox. */
 function FilterOption({ label, on, onClick, dot }: {
   label: string; on: boolean; onClick: () => void; dot?: string
 }) {

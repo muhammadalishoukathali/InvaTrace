@@ -12,7 +12,7 @@ import { usePageHeadingFocus } from '@/hooks/usePageHeadingFocus'
 import { useDialogA11y } from '@/hooks/useDialogA11y'
 import { looksLikeContactDetail, safeDisplayName } from '@/features/private-access/display-name'
 
-// Rough, non-precise date labels ("Yesterday", "3 days ago") on purpose —
+// Rough, non-precise date labels ("Yesterday", "3 days ago") on purpose -
 // exact timestamps for when a device was added aren't something we want to
 // dwell on in a UI about protecting your own devices.
 function approximateDate(value: string): string {
@@ -55,7 +55,7 @@ export function AccessManagementPage() {
   const [replacement, setReplacement] = useState<RecoveryCodeBatchResponse | null>(null)
 
   const load = useCallback(async () => {
-    // Nothing to fetch offline, and we don't want to show a stuck spinner —
+    // Nothing to fetch offline, and we don't want to show a stuck spinner -
     // fall through to the empty/loading=false state so the offline notice
     // below can take over instead.
     if (!online) { setLoading(false); return }
@@ -113,7 +113,7 @@ export function AccessManagementPage() {
     } finally { setBusy(null) }
   }
 
-  // Rotating replaces the whole unused-code batch — this matches the server
+  // Rotating replaces the whole unused-code batch - this matches the server
   // rule that rotating invalidates every unused code from earlier batches
   // (docs/product.md), so we show the fresh batch here rather than silently
   // discarding it, the user needs to save these too.
@@ -130,7 +130,7 @@ export function AccessManagementPage() {
     } finally { setBusy(null) }
   }
 
-  // Revocation is per-installation, not per-profile — the profile and its
+  // Revocation is per-installation, not per-profile - the profile and its
   // reports survive, only this one device loses its ability to act as an
   // authorized installation (it would need to restore again with a code).
   const revoke = async (installationId: string) => {

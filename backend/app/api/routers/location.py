@@ -1,4 +1,4 @@
-"""AC 4.3.1 / 4.3.2 — nearest OpenStreetMap-derived feature within 5km, with fallback.
+"""AC 4.3.1 / 4.3.2 - nearest OpenStreetMap-derived feature within 5km, with fallback.
 
 Given a lat/lng, finds the nearest named trail/park/forest/wood from the
 OSM-derived tables so the report/sighting UI can show something like "near
@@ -43,7 +43,7 @@ def _classify_area(name: str, metadata: dict) -> Literal["park", "forest", "wood
     return "park"
 
 
-# lat/lon bounds are roughly Malaysia's bounding box — anything outside that
+# lat/lon bounds are roughly Malaysia's bounding box - anything outside that
 # gets rejected by FastAPI's own validation before we even touch the DB.
 @router.get("", response_model=LocationContextResponse)
 def location_context(
@@ -104,7 +104,7 @@ def location_context(
                 distance_m=round(float(seeded[1]), 1),
             )
 
-        # AC 4.3.2: no result — surface `found=false`; caller must not fabricate a name.
+        # AC 4.3.2: no result - surface `found=false`; caller must not fabricate a name.
         return LocationContextResponse(found=False)
     except Exception:
         # AC 4.3.2: OSM/PostGIS failure must not block report publication.

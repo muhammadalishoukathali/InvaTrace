@@ -4,7 +4,7 @@
 // dev mode. Uses playwright.pwa.config.ts (port 4173).
 import { expect, test } from '@playwright/test'
 
-// Also checks the service worker isn't caching profile/bootstrap responses —
+// Also checks the service worker isn't caching profile/bootstrap responses -
 // those carry session-specific data, so caching them could leak one visitor's
 // session details into a later visit on the same device.
 test('production shell installs, works offline, and does not cache private access requests', async ({ page, context }) => {

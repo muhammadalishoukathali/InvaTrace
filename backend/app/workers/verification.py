@@ -282,7 +282,7 @@ def process_job(job_id: str) -> None:
                 )
                 merge_reason = "same_owner_same_species_exact_replay"
             elif base_decision.status == "screened" and reportable_species_id:
-                # AC 2.3.2 — same anonymous identity, same species, prior
+                # AC 2.3.2 - same anonymous identity, same species, prior
                 # observation within 25 m and 10 min → fold into that
                 # sighting instead of creating a near-duplicate pin.
                 merge_candidate = _find_merge_target(
@@ -319,7 +319,7 @@ def process_job(job_id: str) -> None:
             report.status = decision.status
             report.validation_reasons = list(decision.reason_codes)
             report.validation_policy_version = POLICY_VERSION
-            # AC 2.3.2 — record the retained report id on the incoming row so
+            # AC 2.3.2 - record the retained report id on the incoming row so
             # /api/v1/reports/{id} can expose retainedReportId and downstream
             # queries can trace the merge chain without joining the audit log.
             if decision.status == "merged" and merge_candidate is not None:
@@ -353,7 +353,7 @@ def process_job(job_id: str) -> None:
                 merge_target=merge_target,
                 published_sighting=published_sighting,
             )
-            # AC 2.3.2 — dedicated merge audit event carrying every required
+            # AC 2.3.2 - dedicated merge audit event carrying every required
             # field (incoming + retained report ids, species, calculated
             # distance and observation-time delta, reason code) so the merge
             # decision is inspectable independently of the general
@@ -449,7 +449,7 @@ def _is_exact_replay(session, *, report: Report, content_sha256: bytes) -> bool:
 def _find_owner_species_replay(
     session, *, report: Report, content_sha256: bytes
 ) -> tuple[Report, Sighting] | None:
-    """AC 2.3.1 case — same anonymous user resubmitting the same photo for
+    """AC 2.3.1 case - same anonymous user resubmitting the same photo for
     the same species. We treat that as them re-confirming their own earlier
     sighting, so we merge into the older one instead of rejecting as a
     duplicate. Returns the (retained report, its sighting) pair so the
@@ -469,7 +469,7 @@ def _find_owner_species_replay(
             ),
             Report.status.in_(["screened", "merged"]),
         )
-        # AC Iteration 1 P4 — deterministic ordering so two workers picking
+        # AC Iteration 1 P4 - deterministic ordering so two workers picking
         # candidate priors for concurrent reports resolve to the same anchor.
         .order_by(Report.created_at.asc(), Report.id.asc())
         .limit(1)
@@ -574,7 +574,7 @@ def _find_merge_target(
     Distance and the observation-time delta come from stored *report*
     evidence. Sighting.updated_at is unsuitable for the time window because
     worker processing and later merges bump it. Radius is a hard 25 m
-    regardless of client-reported GPS accuracy — expanding by accuracy
+    regardless of client-reported GPS accuracy - expanding by accuracy
     silently pulled cross-user reports inside the fuzz zone into the same
     sighting.
 
@@ -591,7 +591,7 @@ def _find_merge_target(
     window_start = observation_time - timedelta(minutes=window_minutes)
 
     distance_expr = func.ST_Distance(Sighting.location, report.location)
-    # Non-negative observation-time delta in seconds — prior_observed_at is
+    # Non-negative observation-time delta in seconds - prior_observed_at is
     # guaranteed ≤ observation_time by the WHERE clause below.
     time_diff_expr = func.abs(
         func.extract("epoch", observation_time - Report.observed_at)
@@ -609,7 +609,7 @@ def _find_merge_target(
         .where(
             ReportSightingLink.active.is_(True),
             Report.id != report.id,
-            # AC 2.3.2 — merge only within a single anonymous identity;
+            # AC 2.3.2 - merge only within a single anonymous identity;
             # cross-owner near-coincidences must publish as their own pins.
             Report.profile_id == report.profile_id,
             Sighting.source_profile_id == report.profile_id,
@@ -669,7 +669,7 @@ def _publish_decision(
         longitude=float(report.longitude),
         accuracy_m=report.location_accuracy_m,
     )
-    # AC 4.3.1 — nearest named OSM feature within 5 km, stored so the map/
+    # AC 4.3.1 - nearest named OSM feature within 5 km, stored so the map/
     # detail panel does not depend on a live Overpass round-trip. Failure
     # to compute is non-fatal: the field just stays null and the panel
     # shows "No named trail, park or forest found nearby" (AC 4.3.2).
@@ -680,7 +680,7 @@ def _publish_decision(
             latitude=float(report.latitude),
             longitude=float(report.longitude),
         )
-    except Exception:  # noqa: BLE001 — best-effort enrichment
+    except Exception:  # noqa: BLE001 - best-effort enrichment
         log.exception("nearest_osm.failed", report_id=str(report.id))
     sighting = Sighting(
         species_id=species.id,
@@ -792,7 +792,7 @@ def _record_decision(
 _TERMINAL_NOTIFICATION_COPY: dict[str, tuple[str, str, str]] = {
     # Each entry is (title, body, notification kind). Kept together so the
     # copy and the kind can't drift apart when a new terminal status is added
-    # (AC Iteration 1 P8 — processing→screened lifecycle audit).
+    # (AC Iteration 1 P8 - processing→screened lifecycle audit).
     "screened": (
         "Report rule-screened",
         "Automated rules passed. The observation is now on the shared map.",
@@ -817,11 +817,11 @@ _TERMINAL_NOTIFICATION_COPY: dict[str, tuple[str, str, str]] = {
 
 
 def _notify_resolution(session, report: Report) -> None:
-    # AC Iteration 1 P8 — report.status must be one of the four terminal
+    # AC Iteration 1 P8 - report.status must be one of the four terminal
     # rule-outcome states by the time this is called. `validation_unavailable`
     # has its own notification path in `_mark_report_unavailable`, so a
     # missing entry is a caller bug, not a user-facing state. Bail with a
-    # log instead of letting a KeyError bubble into `_schedule_failure` —
+    # log instead of letting a KeyError bubble into `_schedule_failure` -
     # the loop would then retry the whole screening pass unnecessarily.
     entry = _TERMINAL_NOTIFICATION_COPY.get(report.status)
     if entry is None:

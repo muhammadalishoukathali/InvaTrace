@@ -8,7 +8,7 @@ import '../private-access.css'
 // text to its input so screen readers announce the same help as visual users.
 
 /** Standard button for the access screens. `kind` just swaps the visual
- *  style class — no different behaviour per kind, it's purely cosmetic. */
+ *  style class - no different behaviour per kind, it's purely cosmetic. */
 export function PrivateAccessButton({
   kind = 'primary',
   icon,
@@ -125,7 +125,7 @@ export function PrivateAccessNotice({
 }
 
 /** Renders the ten one-time recovery codes as a numbered grid. Purely
- *  presentational — it never persists or transmits the codes itself, that's
+ *  presentational - it never persists or transmits the codes itself, that's
  *  on the caller (see RecoveryKitSetupPage.tsx and AccessManagementPage.tsx). */
 export function RecoveryCodeGrid({ codes }: { codes: string[] }) {
   return (

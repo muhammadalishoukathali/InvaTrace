@@ -11,11 +11,11 @@ const EXTENT_LABEL = {
 } as const
 
 /**
- * Step 4 of 4 in the report wizard (location, extent, consent, preview) —
+ * Step 4 of 4 in the report wizard (location, extent, consent, preview) -
  * the last screen before it actually goes out. Hitting submit calls
  * submitReport(), which either finishes right away or, if we're offline or
  * the request fails, falls back to saving it in the local queue instead.
- * Either way we don't handle that difference here — we just store whatever
+ * Either way we don't handle that difference here - we just store whatever
  * outcome comes back so ReportSubmissionResult.tsx can decide what to show.
  */
 export function ReportPreviewStep() {
@@ -51,7 +51,7 @@ export function ReportPreviewStep() {
   }
 
   // Same rule as the location step: accuracy is only a soft warning there,
-  // not something we block on, so we keep that consistent here too — just
+  // not something we block on, so we keep that consistent here too - just
   // check it's a real non-negative number and leave it at that. We're not
   // going to second-guess a fix the user already accepted earlier.
   const hasFiniteAccuracy = draft.locationAccuracyM !== null
@@ -76,7 +76,7 @@ export function ReportPreviewStep() {
       <Card>
         <Row icon="Leaf"
              label="Species"
-             value={draft.speciesId ?? 'Unknown — automated screening will request a rescan if needed'} />
+             value={draft.speciesId ?? 'Unknown - automated screening will request a rescan if needed'} />
         <Divider />
         <Row icon="AlertTriangle"
              label="Outcome"
@@ -86,13 +86,13 @@ export function ReportPreviewStep() {
              label="Location"
              value={draft.location
                ? `${draft.location.lat.toFixed(5)}, ${draft.location.lng.toFixed(5)}`
-               : '—'}
+               : '-'}
              sub={draft.locationAccuracyM != null ? `±${draft.locationAccuracyM} m GPS` : 'Accuracy unavailable'}
              mono />
         <Divider />
         <Row icon="Grid3x3"
              label="Extent"
-             value={draft.extent ? EXTENT_LABEL[draft.extent] : '—'} />
+             value={draft.extent ? EXTENT_LABEL[draft.extent] : '-'} />
         {draft.notes && (
           <>
             <Divider />

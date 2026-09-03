@@ -4,7 +4,7 @@ Two flavours depending on the scope. Most scopes use a plain fixed-window
 counter (INCR + EXPIRE) because it's simple and good enough. The submission
 and restore scopes use a sliding window (sorted set of timestamps) because
 the ACs literally say "no more than N in the last X minutes" and fixed
-windows let you sneak 2N through by hitting the boundary — I didn't want
+windows let you sneak 2N through by hitting the boundary - I didn't want
 to argue about that in the report.
 
 The restore scope only counts *failed* attempts, so identity.py checks
@@ -46,7 +46,7 @@ def _build_limits() -> dict[str, Limit]:
     return {
         "profile_start": Limit(10, 60),
         "profile_bootstrap": Limit(30, 60),
-        # AC 2.1.4 — sliding, counted per *failed* restore attempt only. The
+        # AC 2.1.4 - sliding, counted per *failed* restore attempt only. The
         # restore router calls ``check_pre_failure`` before doing work and
         # ``record_failure`` / ``record_success`` after.
         "profile_restore": Limit(5, 15 * 60, algorithm="sliding"),
@@ -54,7 +54,7 @@ def _build_limits() -> dict[str, Limit]:
         "recovery_rotate": Limit(5, 60 * 60),
         "installation_revoke": Limit(20, 60 * 60),
         "upload_presign": Limit(30, 60),
-        # AC 2.3.3 — env-backed sliding submission limits.
+        # AC 2.3.3 - env-backed sliding submission limits.
         "report_create_burst": Limit(
             settings.report_create_burst_limit,
             settings.report_create_burst_window_seconds,
@@ -90,7 +90,7 @@ def reload_limits() -> None:
 def client_address(request: Request) -> str:
     # best-effort IP for the *_ip scoped limits. Real client address must
     # already have been unwrapped from X-Forwarded-For by the trusted-proxy
-    # middleware in main.py — this reads Starlette's resolved client.host.
+    # middleware in main.py - this reads Starlette's resolved client.host.
     return request.client.host if request.client else "unknown"
 
 
@@ -240,7 +240,7 @@ class RateLimiter:
 
     def record_success(self, scope: str, identity: str) -> None:
         """Clear the sliding-window failure state after a successful attempt.
-        AC 2.1.4 — a successful restore must not leave stale failure counters
+        AC 2.1.4 - a successful restore must not leave stale failure counters
         that push a genuine user toward the 429 threshold.
         """
         if not self.enabled:

@@ -31,7 +31,7 @@ MIN_ENCODED_CHARS = 26
 
 
 def test_random_grouped_secret_has_at_least_128_bits() -> None:
-    # AC 2.1.1 — 16 bytes = 128 bits from secrets.token_bytes.
+    # AC 2.1.1 - 16 bytes = 128 bits from secrets.token_bytes.
     # random_grouped_secret is the shared generator for installation
     # tokens and recovery codes; the recovery batch below uses 16 bytes.
     secret = random_grouped_secret(16)
@@ -45,13 +45,13 @@ def test_random_grouped_secret_has_at_least_128_bits() -> None:
 
 def test_recovery_secrets_are_distinct_per_call() -> None:
     # A generator that returned the same secret twice would be a critical
-    # entropy bug — sanity-check that 100 calls all differ.
+    # entropy bug - sanity-check that 100 calls all differ.
     samples = {random_grouped_secret(16) for _ in range(100)}
     assert len(samples) == 100
 
 
 def test_recovery_codes_come_from_secrets_module() -> None:
-    # AC 2.1.1 — raw codes must come from a CSPRNG. `secrets.token_bytes`
+    # AC 2.1.1 - raw codes must come from a CSPRNG. `secrets.token_bytes`
     # is the CSPRNG the module is documented to use; guard against a lazy
     # substitution with `random.random()` or similar.
     source = (
@@ -62,7 +62,7 @@ def test_recovery_codes_come_from_secrets_module() -> None:
 
 
 def test_profile_start_returns_no_store_and_ten_codes() -> None:
-    # AC 2.1.2 — the only endpoint that hands over raw recovery secrets
+    # AC 2.1.2 - the only endpoint that hands over raw recovery secrets
     # must set Cache-Control: no-store so no shared proxy / browser cache
     # retains them.
     client = TestClient(app, raise_server_exceptions=False)
@@ -79,7 +79,7 @@ def test_profile_start_returns_no_store_and_ten_codes() -> None:
 
 
 def test_recovery_batch_helper_returns_ten_unique_raw_codes() -> None:
-    # AC 2.1.2 — batch cardinality + uniqueness. The helper writes to
+    # AC 2.1.2 - batch cardinality + uniqueness. The helper writes to
     # the DB (session.add / flush); pass a stand-in session so we can
     # inspect the raw codes it returned without needing Postgres up.
     class _StubSession:

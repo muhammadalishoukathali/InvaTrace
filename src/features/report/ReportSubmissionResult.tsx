@@ -8,7 +8,7 @@ import './report-submission-result.css'
 
 /**
  * This is the last screen of the wizard, it only shows up once
- * ReportPreviewStep.tsx has set an outcome — either "submitted" (it made it
+ * ReportPreviewStep.tsx has set an outcome - either "submitted" (it made it
  * to the server and is now being screened) or "queued" (it got saved
  * offline and report-queue.ts will retry it later). We didn't add it to
  * REPORT_STEPS because it's not really a form step, it's just the exit.
@@ -19,7 +19,7 @@ export function ReportSubmissionResult() {
 
   const done = (destination: string) => {
     // If the server hands us a full URL instead of an internal path, we
-    // can't just pass it to react-router — it'll try to treat it as an SPA
+    // can't just pass it to react-router - it'll try to treat it as an SPA
     // route and 404. So we open it in a new tab instead and stay on this
     // page, still running the reset below either way.
     if (/^https?:\/\//i.test(destination)) {
@@ -34,7 +34,7 @@ export function ReportSubmissionResult() {
   }
 
   // A fresh submission always comes back as `processing` first, so we poll
-  // the report until it moves to `screened` (published) — that way this
+  // the report until it moves to `screened` (published) - that way this
   // screen can honestly switch from "submitted" to "Report published"
   // instead of just assuming it worked. `rejected` and `needs_rescan` get
   // their own honest states below rather than us pretending it published.
@@ -58,7 +58,7 @@ export function ReportSubmissionResult() {
         setRetainedReportId(latest.retainedReportId ?? null)
       } catch {
         // If this one poll fails we just leave the "still checking" wording
-        // up rather than showing an error — the next interval tick retries.
+        // up rather than showing an error - the next interval tick retries.
       }
     }
     void poll()

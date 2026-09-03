@@ -20,7 +20,7 @@ from app.domain.action_guidance import (
     current_action_guide,
 )
 
-"""Species catalogue and on-device model config — mostly reference data.
+"""Species catalogue and on-device model config - mostly reference data.
 
 Backs the species browser/detail screens and the "what am I allowed to
 report" logic. Also exposes the acceptance threshold and supported model
@@ -32,7 +32,7 @@ router = APIRouter(prefix="/api/v1/species", tags=["species"])
 model_config_router = APIRouter(prefix="/api/v1/model-config", tags=["model"])
 
 
-# AC 1.1.3 — the versioned server model configuration is authoritative for
+# AC 1.1.3 - the versioned server model configuration is authoritative for
 # the product acceptance threshold. The app fetches this on startup, caches
 # it, and produces an uncertain result if it cannot be obtained safely so
 # the client never guesses with stale numbers.
@@ -54,7 +54,7 @@ def model_config() -> dict[str, object]:
     }
 
 
-# Iteration 1 — Species.malaysia_status is now populated from the shared
+# Iteration 1 - Species.malaysia_status is now populated from the shared
 # catalogue's ui_state directly (invasive / information_only / status_uncertain),
 # so this mapping is an identity pass-through with a fail-safe fallback for
 # any legacy row that still carries a pre-catalogue raw status string.
@@ -65,7 +65,7 @@ _STATUS_TO_UI: dict[str, MalaysiaStatus] = {
 }
 
 
-# AC 1.2.3 — short, canonical do-not-act message shown alongside every
+# AC 1.2.3 - short, canonical do-not-act message shown alongside every
 # accepted supported label. Kept in one place so info-only / uncertain
 # results say the same thing across scan-result, guidance panel, tests.
 _SAFETY_MESSAGE: dict[MalaysiaStatus, str] = {
@@ -92,7 +92,7 @@ def _ui_malaysia_status(item: Species) -> MalaysiaStatus:
     return "status_uncertain"
 
 
-# Species picker list — used e.g. when the user browses/searches species
+# Species picker list - used e.g. when the user browses/searches species
 # outside of a scan result. Kept lightweight (SpeciesSummary, not the full
 # detail record) since this can return the whole catalogue at once.
 @router.get("", response_model=SpeciesListResponse)
@@ -111,7 +111,7 @@ def list_species(session: Session = Depends(get_session)) -> SpeciesListResponse
     )
 
 
-# Species detail screen — traits, removal steps, native look-alike, and
+# Species detail screen - traits, removal steps, native look-alike, and
 # whether the user is even allowed to report/act on this species right now.
 @router.get("/{species_id}", response_model=SpeciesDetail)
 def species_detail(species_id: str, session: Session = Depends(get_session)) -> SpeciesDetail:
@@ -127,7 +127,7 @@ def species_detail(species_id: str, session: Session = Depends(get_session)) -> 
     has_active_guide = guide is not None and guide.guidance_mode != "report_only"
     action_eligible = bool(item.action_eligible) and ui_status == "invasive" and has_active_guide
     report_eligible = bool(item.reportable) and ui_status == "invasive"
-    # AC 1.2.3 — tell the client, per status, exactly what it is and is not
+    # AC 1.2.3 - tell the client, per status, exactly what it is and is not
     # allowed to offer. Kept short and neutral so it renders in the scan
     # result "About this plant" strip without extra styling.
     safety_message = _SAFETY_MESSAGE.get(ui_status)
@@ -154,12 +154,12 @@ def species_detail(species_id: str, session: Session = Depends(get_session)) -> 
     )
 
 
-# AC 3.1.1 — one place the frontend PlantGuidancePanel can hit for guidance.
+# AC 3.1.1 - one place the frontend PlantGuidancePanel can hit for guidance.
 # It used to read a bundled JSON file on the client, which was annoying because
 # it kept drifting out of sync with what the seed data actually said. So we
 # just return the same SeasonalActionGuide row the screening worker uses, and
 # if the species doesn't have a reviewed record we fall back to the
-# observe-and-report-only response. Never makes up removal steps — that was a
+# observe-and-report-only response. Never makes up removal steps - that was a
 # hard rule from the guidance-review feedback.
 @router.get("/{species_id}/guidance", response_model=SeasonalActionGuide)
 def species_guidance(

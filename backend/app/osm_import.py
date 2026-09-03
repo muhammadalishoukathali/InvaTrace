@@ -49,7 +49,7 @@ class MalaysiaOsmHandler(osmium.SimpleHandler):
         name = tags.get("name")
         if not name:
             return
-        # AC Iteration 1 P10 — remember which allow-listed tag pair matched
+        # AC Iteration 1 P10 - remember which allow-listed tag pair matched
         # so place_association._categorise can recover it later. Previously
         # the importer only stored generic "osmType": "area", which meant the
         # nearest-feature lookup could never classify a stored row and always
@@ -113,7 +113,7 @@ class MalaysiaOsmHandler(osmium.SimpleHandler):
                     "source": "OpenStreetMap",
                     "osmType": "way",
                     "osmId": str(way.id),
-                    # AC Iteration 1 P10 — preserve the highway tag so
+                    # AC Iteration 1 P10 - preserve the highway tag so
                     # place_association.nearest_osm_feature's allow-list
                     # (path / footway / track) can classify the row.
                     "highway": tags.get("highway"),
