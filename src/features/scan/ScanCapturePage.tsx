@@ -85,7 +85,7 @@ export function ScanCapturePage() {
     const handleVisibility = () => {
       if (document.visibilityState === 'hidden') {
         // Short backgrounding (iOS permission prompts, pulling down the
-        // notification shade) shouldn't tear the stream down — that made the
+        // notification shade) shouldn't tear the stream down - that made the
         // camera feel broken during pilot testing. So it waits a bit before
         // deciding the app was actually interrupted.
         clearHiddenTimer()
@@ -105,7 +105,7 @@ export function ScanCapturePage() {
     window.addEventListener('pagehide', handlePageHide)
     return () => {
       // Leaving this screen has to cancel any camera start, resize, or model
-      // inference still in flight — otherwise a background analyse() could
+      // inference still in flight - otherwise a background analyse() could
       // finish after the user has already navigated away and try to set state
       // on a component that's no longer mounted.
       mountedRef.current = false
@@ -161,7 +161,7 @@ export function ScanCapturePage() {
       if (requestId === imageRequestRef.current) {
         // I want to keep whatever specific message resizeImage() threw (empty
         // file, file too big, wrong MIME type, corrupt image) instead of
-        // flattening it into one generic "could not process" message — a
+        // flattening it into one generic "could not process" message - a
         // specific reason is a lot more useful to the person holding the
         // phone. Also note setImage was never called on this path, so a
         // rejected photo never creates a scan-history record.
@@ -217,7 +217,7 @@ export function ScanCapturePage() {
       // The <video> element only gets mounted after cameraOpen flips true, so
       // videoRef.current is still null on the very first tick. I originally just
       // used a single requestAnimationFrame here, but that ended up racing
-      // React's commit on iOS Safari — the frame fired before the element had
+      // React's commit on iOS Safari - the frame fired before the element had
       // actually landed in the DOM, videoRef.current stayed null, and the
       // stream got silently dropped, leaving a black square where the preview
       // should be. Polling across a few animation frames until the element
@@ -289,7 +289,7 @@ export function ScanCapturePage() {
     setAnalysisError(null)
     startProcessing()
     // This 15 second deadline covers the whole user-facing classification step
-    // — from quality-checked photo through to a visible result — not just the
+    // - from quality-checked photo through to a visible result - not just the
     // ONNX inference itself. If it's slower than that, the user should get a
     // retryable error instead of just staring at a spinner forever. The
     // scan-persistence POST is deliberately decoupled and runs after
@@ -313,7 +313,7 @@ export function ScanCapturePage() {
         })
         // Cross-check against the server-side gate when it's reachable. If the
         // model-config request fails (server down, or offline once the asset
-        // cache kicks in), serverAccepted ends up false on the result — the
+        // cache kicks in), serverAccepted ends up false on the result - the
         // classification still shows, but Report stays blocked on the result
         // screen until the server can actually confirm it.
         const serverConfig = await fetchModelConfig()
@@ -338,7 +338,7 @@ export function ScanCapturePage() {
 
       setResult({ ...result, reportable: Boolean(detail?.reportable ?? detail) }, detail)
       // Persisting the scan to the server happens in the background and is
-      // deliberately decoupled from showing the result — navigate straight
+      // deliberately decoupled from showing the result - navigate straight
       // away so the result screen lands within the 15 second budget. The
       // Report button on that screen reads scanPersistStatus and stays
       // disabled until this POST comes back 'ok', with a separate retryable
@@ -373,7 +373,7 @@ export function ScanCapturePage() {
         cancelProcessing()
         setAnalysisError(
           navigator.onLine
-            ? 'Plant analysis could not finish within 15 seconds. Your photo is still available — try again.'
+            ? 'Plant analysis could not finish within 15 seconds. Your photo is still available - try again.'
             : 'Plant analysis needs a connection for its first model download. Reconnect and try again.',
         )
       }

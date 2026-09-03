@@ -2,7 +2,7 @@ import { describe, it, expect } from 'vitest'
 import { findPlantStatus, catalogueSourceById, plantStatusDataset } from '@shared/catalogue'
 import { findPlantGuidance } from '@/data/plant-guidance'
 
-// AC Iteration 1 P6 — the PlantGuidancePanel's MissingGuidanceFallback must
+// AC Iteration 1 P6 - the PlantGuidancePanel's MissingGuidanceFallback must
 // still surface authoritative Malaysian status + safety message + source
 // provenance from the shared catalogue when the reviewed guidance card is
 // absent for a class. Guidance content ships from disk; nothing here should

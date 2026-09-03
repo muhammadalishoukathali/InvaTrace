@@ -961,7 +961,7 @@ const SEEDED_REPORTS: Report[] = [
     'Single shrub near picnic area.', 4),
   seedReport('seed-new-03', 'mikania-micrantha', 'uncertain', 0.51,
     3.1524, 101.6421, null, 'small_patch',
-    'Not sure if same vine — looks slightly different.', 7),
+    'Not sure if same vine - looks slightly different.', 7),
   seedReport('seed-trusted-04', 'lantana-camara', 'target', 0.87,
     3.1476, 101.6432, 8, 'large_area',
     'Dense understory patch spreading fast.', 12),
@@ -976,7 +976,7 @@ const RECOMMENDED_ACTION: Record<string, string> = {
   processing: 'Automated rule screening is running. Do not act yet.',
   screened: 'Rule-screened report. Follow the reviewed guidance for this species.',
   rejected: 'Duplicate evidence was rejected. No new map record was created.',
-  removed: 'Removal recorded. Recheck for regrowth in 2–3 weeks.',
+  removed: 'Removal recorded. Recheck for regrowth in 2-3 weeks.',
 }
 
 /** Bukit Kiara centre point - sample sightings get scattered within roughly 1km of this. */
@@ -1139,7 +1139,7 @@ const SPECIES_DETAIL: Record<string, unknown> = {
     referenceImageUrl: '/reference-images/mikania_micrantha.jpg',
     referenceImageCredit: 'Wikimedia · CC BY-SA',
     traits: [
-      { label: 'Leaf shape', value: 'Heart-shaped, opposite, 5–13 cm' },
+      { label: 'Leaf shape', value: 'Heart-shaped, opposite, 5-13 cm' },
       { label: 'Flower', value: 'Small white heads in dense clusters' },
       { label: 'Growth', value: 'Climbing vine, up to 27 mm per day' },
       { label: 'Stem', value: 'Ridged, green to brown, hairy at nodes' },
@@ -1159,11 +1159,11 @@ const SPECIES_DETAIL: Record<string, unknown> = {
     removalSteps: [
       { order: 1, action: 'Cut the vine at ground level', safe: true },
       { order: 2, action: 'Pull roots carefully if soil is moist', safe: true },
-      { order: 3, action: 'Bag all cut material — fragments can re-root', safe: true },
-      { order: 4, action: 'Check back in 2–3 weeks for regrowth', safe: true },
+      { order: 3, action: 'Bag all cut material - fragments can re-root', safe: true },
+      { order: 4, action: 'Check back in 2-3 weeks for regrowth', safe: true },
     ],
     doNotDo: [
-      'Do not compost — viable fragments will re-establish',
+      'Do not compost - viable fragments will re-establish',
       'Do not leave cut material on soil',
     ],
   },
@@ -1183,9 +1183,9 @@ const SPECIES_DETAIL: Record<string, unknown> = {
     referenceImageUrl: '/reference-images/chromolaena_odorata.jpg',
     referenceImageCredit: 'Wikimedia · CC BY-SA',
     traits: [
-      { label: 'Leaf shape', value: 'Opposite, ovate, 5–12 cm with serrated edges' },
+      { label: 'Leaf shape', value: 'Opposite, ovate, 5-12 cm with serrated edges' },
       { label: 'Flower', value: 'Pale purple to white, in terminal clusters' },
-      { label: 'Growth', value: 'Woody shrub or scrambler, 2–5 m' },
+      { label: 'Growth', value: 'Woody shrub or scrambler, 2-5 m' },
       { label: 'Stem', value: 'Soft-wooded, hairy, strong odour when crushed' },
     ],
     nativeTwin: null,
@@ -1195,7 +1195,7 @@ const SPECIES_DETAIL: Record<string, unknown> = {
       { order: 3, action: 'Bag and dispose of all flowering parts', safe: true },
     ],
     doNotDo: [
-      'Do not slash during seed season — seeds spread by wind',
+      'Do not slash during seed season - seeds spread by wind',
       'Do not burn on-site without permit',
     ],
   },

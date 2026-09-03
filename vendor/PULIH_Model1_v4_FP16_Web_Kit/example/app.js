@@ -44,7 +44,7 @@ predictButton.addEventListener("click", async () => {
     result.textContent = JSON.stringify(prediction, null, 2);
     status.textContent = prediction.acceptedAsKnown
       ? `Candidate: ${prediction.candidate.species?.display_name ?? prediction.candidate.machineLabel}`
-      : "Unknown/Other — request another photo or expert review.";
+      : "Unknown/Other - request another photo or expert review.";
   } catch (error) {
     status.textContent = `Prediction failed: ${error.message}`;
   } finally {

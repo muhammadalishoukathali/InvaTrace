@@ -1,5 +1,5 @@
 // Manual QA script. This is the "control group" for the cluttered-species
-// harness — same seven target species but clean, textbook single-plant
+// harness - same seven target species but clean, textbook single-plant
 // photos instead of messy field shots. Comparing the two result sets tells
 // me how much accuracy the model loses once backgrounds get busy. Runs
 // against dev:model-test (port 5174) so it's hitting the real classifier,
@@ -73,9 +73,9 @@ async function run(page: Page, img: typeof IMAGES[number]) {
         const body = await page.locator('body').innerText()
         const badge = body.match(/(Invasive species detected|Not a target species|Uncertain[^\n]*)/i)
         row.outcome_badge = badge?.[0] ?? 'unknown'
-        // Grab the top species heading — first h2 on the result page.
+        // Grab the top species heading - first h2 on the result page.
         const heading = await page.locator('h2').first().textContent().catch(() => null)
-        row.species_shown = heading?.trim() || '—'
+        row.species_shown = heading?.trim() || '-'
         const conf = body.match(/Confidence[\s\S]{0,80}?(\d{1,3})\s*%/)
         row.confidence = conf ? conf[1] + '%' : 'n/a'
         row.status_uncertain = /Status uncertain/.test(body)

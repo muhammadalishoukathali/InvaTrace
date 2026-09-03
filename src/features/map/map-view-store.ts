@@ -1,6 +1,6 @@
 /**
  * Holds the active map filters and whatever sighting is currently selected.
- * I deliberately kept this out of the URL — every filter tap would otherwise
+ * I deliberately kept this out of the URL - every filter tap would otherwise
  * push a new browser-history entry, which means Back would just undo filters
  * one at a time instead of leaving the map.
  *

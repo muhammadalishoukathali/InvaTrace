@@ -41,7 +41,7 @@ def test_categorise_reads_nested_tags_dict() -> None:
 
 
 def test_categorise_rejects_non_allow_listed_values() -> None:
-    # AC 4.3.1 — roads, farmland, water etc. must not be surfaced as nearest
+    # AC 4.3.1 - roads, farmland, water etc. must not be surfaced as nearest
     # features even when the imported OSM record has them tagged.
     assert _categorise({"highway": "motorway"}, _TRAIL_CATEGORIES) is None
     assert _categorise({"landuse": "farmland"}, _AREA_CATEGORIES) is None

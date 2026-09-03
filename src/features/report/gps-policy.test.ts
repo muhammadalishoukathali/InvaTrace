@@ -4,7 +4,7 @@ import {
   LOCATION_ACCURACY_INSUFFICIENT_MESSAGE,
 } from './gps-policy'
 
-// AC Iteration 1 P7 — the client's warning threshold and error copy must
+// AC Iteration 1 P7 - the client's warning threshold and error copy must
 // stay pinned to the same 300 m number the server enforces at
 // backend/app/config.py::screening_location_accuracy_max_m. A silent drift
 // here would let a user submit at 350 m without ever seeing the warning

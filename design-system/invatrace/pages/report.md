@@ -1,4 +1,4 @@
-# Page override — `/report` (Report wizard)
+# Page override - `/report` (Report wizard)
 
 Extends `../README.md`.
 

@@ -23,10 +23,10 @@ from app.db.models import MonitoredArea, Report, ReportSightingLink, Sighting, S
 from app.domain.action_guidance import action_summary, current_action_guide
 from app.services.storage import storage
 
-"""Public sighting feed and map — the read side of screened reports.
+"""Public sighting feed and map - the read side of screened reports.
 
 This is what the map/feed view calls. Only ever returns sightings in
-status screened or removed (never processing/rejected/needs_rescan — those
+status screened or removed (never processing/rejected/needs_rescan - those
 stay private on the reporter's own "my reports" list). Coordinates get
 run through app/core/privacy.py before going out, since untrusted reporters'
 exact locations shouldn't be publicly pinpointable.
@@ -54,7 +54,7 @@ def serialize_sighting(
         status=sighting.status,
         reporter_trust=sighting.reporter_trust,
     )
-    # Tells the frontend how confident to be about the place label — a real
+    # Tells the frontend how confident to be about the place label - a real
     # OSM match, one of our seeded reference places, or the generic
     # "somewhere in Malaysia" fallback when we couldn't resolve anything.
     place_source = (
@@ -93,7 +93,7 @@ def serialize_sighting(
     )
 
 
-# Main feed/map query — backs both the list view and the map's marker
+# Main feed/map query - backs both the list view and the map's marker
 # clustering. Supports filtering by species/status/risk/text search plus
 # either a lat/lng box or the bbox alias the map view sends when panning.
 @router.get("", response_model=SightingListResponse)
@@ -116,7 +116,7 @@ def list_sightings(
     session: Session = Depends(get_session),
 ) -> SightingListResponse:
     # bbox is just a friendlier alias for min/max lat/lng that the map
-    # component sends as one query param instead of four — unpack it into
+    # component sends as one query param instead of four - unpack it into
     # the same variables so the rest of the function doesn't care which
     # style the caller used.
     if bbox is not None:
@@ -139,11 +139,11 @@ def list_sightings(
     rate_limiter.check("sightings_read", client_address(request))
     offset = decode_cursor(cursor)
     # ReportSightingLink.active filters out reports that got merged into this
-    # sighting and then later unlinked (e.g. an admin fixed a bad merge) — we
+    # sighting and then later unlinked (e.g. an admin fixed a bad merge) - we
     # only want currently-active links counted toward report_count.
     count_expr = func.count(Report.id).filter(ReportSightingLink.active.is_(True))
     latest_expr = func.max(Report.observed_at).filter(ReportSightingLink.active.is_(True))
-    # AC 4.2.2 — representative confidence per aggregated sighting = the
+    # AC 4.2.2 - representative confidence per aggregated sighting = the
     # highest confidence across currently-linked reports. Defined consistently
     # for both list and detail endpoints.
     confidence_expr = func.max(Report.confidence).filter(ReportSightingLink.active.is_(True))
@@ -162,7 +162,7 @@ def list_sightings(
         .outerjoin(Trail, Trail.id == Sighting.trail_id)
         .outerjoin(ReportSightingLink, ReportSightingLink.sighting_id == Sighting.id)
         .outerjoin(Report, Report.id == ReportSightingLink.report_id)
-        # AC 4.2.1 — Iteration 1 public map/list expose only `screened`
+        # AC 4.2.1 - Iteration 1 public map/list expose only `screened`
         # sightings. `removed` stays in the DB for forward compatibility but
         # is not surfaced through the public API until the AC is amended.
         .where(Sighting.status == "screened")
@@ -205,7 +205,7 @@ def list_sightings(
     )
 
 
-# Single-sighting detail page — same privacy rules as the list endpoint, plus
+# Single-sighting detail page - same privacy rules as the list endpoint, plus
 # the removal action guidance the map marker's detail panel shows.
 @router.get("/{sighting_id}", response_model=SightingDetailResponse)
 def sighting_detail(
@@ -219,7 +219,7 @@ def sighting_detail(
 
         parsed_id = uuid.UUID(sighting_id)
     except ValueError as error:
-        # A malformed id isn't a real 400 — we don't want to leak "this
+        # A malformed id isn't a real 400 - we don't want to leak "this
         # exists but the id was wrong" vs "doesn't exist" so it's just 404.
         raise ApiProblem(404, "sighting_not_found", "Not found") from error
     row = session.execute(
@@ -239,7 +239,7 @@ def sighting_detail(
         .outerjoin(Report, Report.id == ReportSightingLink.report_id)
         .where(
             Sighting.id == parsed_id,
-            # AC 4.2.1 — Iteration 1 public detail also excludes `removed`.
+            # AC 4.2.1 - Iteration 1 public detail also excludes `removed`.
             Sighting.status == "screened",
         )
         .group_by(Sighting.id, Species.id, MonitoredArea.name, Trail.name)

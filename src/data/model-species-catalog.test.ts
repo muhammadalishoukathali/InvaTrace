@@ -9,7 +9,7 @@ import {
 
 describe('shared model species catalogue', () => {
   it('has one class per shared-catalogue plant-status record', () => {
-    // AC Iteration 1 P1 — the model manifest and the shared catalogue must
+    // AC Iteration 1 P1 - the model manifest and the shared catalogue must
     // agree on class count; the exposed catalogue merges the shared
     // catalogue's ui_state over the vendored model manifest's class list.
     expect(modelSpeciesCatalog.class_count).toBe(runtimeCatalog.class_count)
@@ -29,7 +29,7 @@ describe('shared model species catalogue', () => {
   })
 
   it('routes the three previously conflicting classes to their catalogue status', () => {
-    // AC Iteration 1 P1 required tests — Miconia crenata, Sphagneticola
+    // AC Iteration 1 P1 required tests - Miconia crenata, Sphagneticola
     // trilobata, and Lantana camara currently show the catalogue's
     // status_uncertain rather than the model manifest's "invasive".
     const deferred = ['miconia_crenata', 'sphagneticola_trilobata', 'lantana_camara']

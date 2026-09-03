@@ -1,4 +1,4 @@
-# AC Iteration 1 P11 — Render.com deploy blueprint for InvaTrace.
+# AC Iteration 1 P11 - Render.com deploy blueprint for InvaTrace.
 #
 # Two services here: the FastAPI backend (invatrace-api) and the Vite PWA
 # (invatrace-web). Postgres + Redis are NOT declared as Render services
@@ -7,7 +7,7 @@
 # postgis extension enabled, Upstash / Render Redis for Redis) and wire
 # DATABASE_URL / REDIS_URL through the Render dashboard.
 #
-# On first deploy — after both services are created — set the shared
+# On first deploy - after both services are created - set the shared
 # secrets in each service's env panel (marked `sync: false` below).
 # Schema migrations and reference-data load run in the container
 # entrypoint (backend/docker-entrypoint.sh) on every start, so no
@@ -21,7 +21,7 @@ services:
     region: singapore
     dockerfilePath: ./backend/Dockerfile
     healthCheckPath: /health/live
-    # AC 1.2.1 — migrations and reference-data load run in the container
+    # AC 1.2.1 - migrations and reference-data load run in the container
     # entrypoint (backend/docker-entrypoint.sh) so a fresh free-tier deploy
     # does not depend on Render's paid-only preDeployCommand step.
     envVars:
@@ -57,7 +57,7 @@ services:
       # verification + cleanup as background asyncio tasks.
       - key: RUN_WORKERS_IN_API
         value: "true"
-      # AC 2.3.3 — env-backed sliding submission rate limits. Pinned to the
+      # AC 2.3.3 - env-backed sliding submission rate limits. Pinned to the
       # spec numbers (10 per profile / 30 per IP / 10-minute window) so the
       # deployed config matches what the AC actually says. Nothing here bans
       # an account, the counter just ages out on its own.
@@ -73,13 +73,13 @@ services:
       # who retry the camera flow burn through 10 slots quickly.
       - key: UPLOAD_ACTIVE_GRANTS_PER_PROFILE
         value: "25"
-      # AC Iteration 1 P7 — single 300 m GPS accuracy policy. Kept explicit
+      # AC Iteration 1 P7 - single 300 m GPS accuracy policy. Kept explicit
       # in production so a config drift is caught at deploy review rather
       # than surprising a reporter with a rescan whose threshold is not
       # documented in the app UI.
       - key: SCREENING_LOCATION_ACCURACY_MAX_M
         value: "250"
-      # AC Iteration 1 P4 — duplicate detection must stay on in prod.
+      # AC Iteration 1 P4 - duplicate detection must stay on in prod.
       # Explicit so an operator toggling it in a dev env cannot leak the
       # flag through a rebased branch.
       - key: SCREENING_DISABLE_DUPLICATE_CHECK
@@ -89,7 +89,7 @@ services:
   # free plan (see RUN_WORKERS_IN_API above). On paid plans, add background
   # worker services here and flip RUN_WORKERS_IN_API to "false".
 
-  # AC Phase 5 — frontend PWA static site. Vite build output goes to dist/,
+  # AC Phase 5 - frontend PWA static site. Vite build output goes to dist/,
   # served with SPA rewrites so the React Router owns every non-asset URL.
   # VITE_API_BASE_URL must point at the invatrace-api service; every VITE_
   # var below bakes into the bundle so nothing here should be secret.
@@ -103,7 +103,7 @@ services:
       - type: rewrite
         source: /*
         destination: /index.html
-    # AC Iteration 1 P11 — long-lived caching for hashed Vite assets, and
+    # AC Iteration 1 P11 - long-lived caching for hashed Vite assets, and
     # a no-store for the service-worker entry point so an updated release
     # replaces the shell instead of a stale copy sitting in a browser cache.
     headers:

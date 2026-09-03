@@ -15,7 +15,7 @@ interface Props {
 
 /**
  * This is the drawer that slides in from the right and lists everything
- * sitting in the IndexedDB queue waiting to sync — it opens from
+ * sitting in the IndexedDB queue waiting to sync - it opens from
  * ReportQueueStatusBanner.tsx, which only has room to show a count. Here
  * you get the actual per-item detail: how many attempts it's had, the last
  * error message, whether it belongs to a different private profile (which

@@ -1,4 +1,4 @@
-# Page override — `/scan` (Capture → Result)
+# Page override - `/scan` (Capture → Result)
 
 Extends `../README.md`.
 
@@ -6,11 +6,11 @@ Extends `../README.md`.
 Field capture: user photographs a plant, on-device model classifies it into `target` / `other_plant` / `uncertain`, we display verdict + safe-action guidance.
 
 ## Layout
-- Standalone route stack — no AppShell chrome. Own quiet header with a 44 px back target + title "Scan a plant".
+- Standalone route stack - no AppShell chrome. Own quiet header with a 44 px back target + title "Scan a plant".
 - Content maxWidth 520 px, single column, generous vertical rhythm.
 
 ## Capture step
-- **Two-input pattern:** primary "Take a photo" button (uses `<input type="file" accept="image/*" capture="environment">`), secondary "Choose from gallery" (no `capture` attribute) — reliable on iOS Safari + Android Chrome.
+- **Two-input pattern:** primary "Take a photo" button (uses `<input type="file" accept="image/*" capture="environment">`), secondary "Choose from gallery" (no `capture` attribute) - reliable on iOS Safari + Android Chrome.
 - Camera area: 4 : 3 dark field viewfinder with framing corners and a direct "Open camera" action. Do not style it as a generic dashed upload drop-zone.
 - After capture: image preview with translucent X close (aria-label "Discard photo and retake") top-right.
 - Quality-gate result:
@@ -45,7 +45,7 @@ Three outcome branches:
 - CTAs: "Scan again" only (nothing to report).
 
 ### `uncertain`
-- Amber **OutcomeBadge**: `HelpCircle` + "Uncertain — another photo is needed".
+- Amber **OutcomeBadge**: `HelpCircle` + "Uncertain - another photo is needed".
 - Photo.
 - Card: "Could not determine species" + retake tips + confidence band (red because <50 %).
 - CTAs: "Scan again" + primary "Report sighting". If submitted, the automated
@@ -57,7 +57,7 @@ Three outcome branches:
 - Result screen enters with 200 ms opacity fade, no slide (respects reduced-motion by default).
 
 ## Anti-patterns
-- Do NOT show the raw model confidence to two decimals — round to whole percent.
-- Do NOT auto-submit a report from the Result screen — user must confirm every submission.
+- Do NOT show the raw model confidence to two decimals - round to whole percent.
+- Do NOT auto-submit a report from the Result screen - user must confirm every submission.
 - Do NOT hide "Do NOT do" list on target result to save space.
-- Do NOT display the species name as headline for `uncertain` — model isn't confident.
+- Do NOT display the species name as headline for `uncertain` - model isn't confident.

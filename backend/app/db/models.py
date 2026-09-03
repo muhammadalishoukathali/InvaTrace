@@ -42,14 +42,14 @@ from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.db.base import Base
 
-# JSON on SQLite for tests, JSONB on Postgres in real life — lets the test
+# JSON on SQLite for tests, JSONB on Postgres in real life - lets the test
 # suite run against sqlite without needing a real Postgres instance
 JSON_TYPE = JSON().with_variant(JSONB(), "postgresql")
 
 
 class TimestampMixin:
     """created_at/updated_at pair reused by most tables. Not every table gets
-    this — a few (Installation, RecoveryCode, etc) manage their own timestamp
+    this - a few (Installation, RecoveryCode, etc) manage their own timestamp
     columns because they don't need the auto-updating updated_at.
     """
 
@@ -62,7 +62,7 @@ class TimestampMixin:
 
 
 class Profile(TimestampMixin, Base):
-    """The pseudonymous "account" — no email or password attached to it.
+    """The pseudonymous "account" - no email or password attached to it.
 
     Identified externally by public_id (see app/core/security.py), and can
     have multiple Installations (one per device). trust_level starts at
@@ -101,7 +101,7 @@ class Installation(Base):
 
     We never store the raw installation token, only its HMAC (token_hash,
     see app/core/security.py:keyed_hash). revoked_at lets a user (or an
-    admin) kill one device's access — e.g. after "lost my phone" — without
+    admin) kill one device's access - e.g. after "lost my phone" - without
     touching the profile or its other installations.
     """
 
@@ -169,7 +169,7 @@ class RecoveryCode(Base):
 
 
 class Species(TimestampMixin, Base):
-    """Reference data for plants the app can identify — invasive species plus
+    """Reference data for plants the app can identify - invasive species plus
     enough native look-alikes to explain "this is what you might be confusing
     it with". id is a slug (not a UUID) since these are curated/seeded, not
     user-generated. action_guides holds the raw seasonal removal-guidance
@@ -214,7 +214,7 @@ class Species(TimestampMixin, Base):
 
 
 # location/geometry columns below are GENERATED (Computed) from lat/lng or an
-# imported geometry rather than set directly — write latitude/longitude (or
+# imported geometry rather than set directly - write latitude/longitude (or
 # geometry) and Postgres derives the PostGIS geography column for us. The
 # actual gist indexes for spatial queries are declared at the bottom of the
 # file rather than inline, since Index() needs the fully-defined column.
@@ -239,7 +239,7 @@ class MonitoredPlace(Base):
 
 
 class MonitoredArea(Base):
-    """Polygon areas imported from OpenStreetMap (see OsmImport) — parks,
+    """Polygon areas imported from OpenStreetMap (see OsmImport) - parks,
     reserves, forest boundaries. Used to label where a sighting happened
     (app/domain/place_association.py) with something more useful than a
     lat/lng dump.
@@ -352,7 +352,7 @@ class Scan(Base):
     confidence: Mapped[Decimal] = mapped_column(Numeric(6, 5), nullable=False)
     model_version: Mapped[str] = mapped_column(String(120), nullable=False)
     image_sha256: Mapped[bytes | None] = mapped_column(LargeBinary(32))
-    # AC 2.2.1 — persisted on the scan (rather than only on the report) so the
+    # AC 2.2.1 - persisted on the scan (rather than only on the report) so the
     # report's capture_source can be cross-checked against what the client
     # said at classification time.
     capture_source: Mapped[str | None] = mapped_column(String(20), nullable=True)
@@ -363,7 +363,7 @@ class Scan(Base):
 
 class Report(Base):
     """A single submission from a profile: one photo, one location, one
-    outcome. This is the "raw" record — it goes through the screening
+    outcome. This is the "raw" record - it goes through the screening
     worker (app/domain/evidence_screening.py + validation.py) and, if it
     passes, gets linked to a Sighting via ReportSightingLink (a Report never
     becomes public on its own). The lat/lng CheckConstraints hard-pin
@@ -409,13 +409,13 @@ class Report(Base):
     )
     capture_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), index=True, nullable=False)
     capture_source: Mapped[str] = mapped_column(String(20), nullable=False)
-    # AC 2.2.1 — every report is tied back to the scan the classifier produced
+    # AC 2.2.1 - every report is tied back to the scan the classifier produced
     # for that capture, so create_report can re-verify species/outcome/model
     # version/hash instead of trusting the submitted body alone.
     scan_id: Mapped[uuid.UUID] = mapped_column(
         UUID(as_uuid=True), ForeignKey("scans.id", ondelete="RESTRICT"), index=True, nullable=False
     )
-    # both indexed — the screening worker uses these to catch exact and
+    # both indexed - the screening worker uses these to catch exact and
     # near-duplicate photo replays, see app/domain/evidence_screening.py
     content_sha256: Mapped[bytes | None] = mapped_column(LargeBinary(32), index=True)
     perceptual_hash: Mapped[str | None] = mapped_column(String(160), index=True)
@@ -434,7 +434,7 @@ class Report(Base):
     idempotency_key: Mapped[str] = mapped_column(String(128), nullable=False)
     validation_reasons: Mapped[list[str]] = mapped_column(JSON_TYPE, default=list, nullable=False)
     validation_policy_version: Mapped[str | None] = mapped_column(String(120))
-    # AC 2.3.2 — self-reference to the retained report a near-duplicate merge
+    # AC 2.3.2 - self-reference to the retained report a near-duplicate merge
     # folded this one into. Nullable so non-merged reports leave it unset;
     # ON DELETE SET NULL keeps the merged report row intact if the retained
     # report is ever deleted for a legitimate reason.
@@ -452,13 +452,13 @@ class Report(Base):
 
 
 class Sighting(Base):
-    """The public-facing record — what the map/list actually shows. Created
+    """The public-facing record - what the map/list actually shows. Created
     once a Report clears screening (or merged into an existing Sighting if
     it's the same species nearby and recent, see app/domain/validation.py).
     Deliberately decoupled from Report: a sighting can have multiple reports
     linked to it over time (ReportSightingLink), and its own lat/lng gets
     passed through app/core/privacy.py's displacement logic before ever
-    reaching a public response — the raw Report coordinates never do.
+    reaching a public response - the raw Report coordinates never do.
     """
 
     __tablename__ = "sightings"
@@ -501,7 +501,7 @@ class Sighting(Base):
         String(380), default="Reported location, Malaysia", nullable=False
     )
     thumbnail_key: Mapped[str | None] = mapped_column(String(500))
-    # AC 4.3.1 — nearest OSM feature within 5 km computed at publication time
+    # AC 4.3.1 - nearest OSM feature within 5 km computed at publication time
     # by app.domain.place_association.nearest_osm_feature. Nullable so a
     # sighting outside the 5 km search radius still publishes cleanly.
     nearest_feature_type: Mapped[str | None] = mapped_column(String(30))
@@ -612,7 +612,7 @@ class Notification(Base):
 
 
 class AuditEvent(Base):
-    """Generic append-only audit trail — subject_type/subject_id is a loose
+    """Generic append-only audit trail - subject_type/subject_id is a loose
     polymorphic reference (not an FK) so this one table can log against any
     entity in the system without a constraint per subject type.
     acting_profile_id is nullable and SET NULL on delete since we still want
@@ -639,7 +639,7 @@ class IdempotencyRecord(Base):
     """Stores the response we sent for a given (profile, scope, idempotency_key)
     so a retried request gets the exact same response replayed back instead
     of re-running the operation. request_hash lets us detect the edge case
-    where a client reuses a key with a different body — see
+    where a client reuses a key with a different body - see
     app/core/idempotency.py:canonical_request_hash. expires_at bounds how
     long we bother remembering it.
     """
@@ -668,7 +668,7 @@ class IdempotencyRecord(Base):
 
 class AutomatedValidationDecision(Base):
     """Audit trail specifically for the deterministic screening worker's
-    decisions on a Report — kept separate from the generic AuditEvent table
+    decisions on a Report - kept separate from the generic AuditEvent table
     because this one needs structured fields (checks_json, reason_codes,
     merge_target_id) that are worth querying directly rather than digging
     through a JSON blob. policy_version lets us tell which ruleset produced
@@ -716,7 +716,7 @@ class OsmImport(Base):
     )
 
 
-# GiST indexes for the geography/geometry columns — regular btree indexes
+# GiST indexes for the geography/geometry columns - regular btree indexes
 # don't help with ST_DWithin/ST_Covers spatial queries, these do. Declared
 # here rather than inline on the columns since Index() needs the mapped
 # column objects to already exist.

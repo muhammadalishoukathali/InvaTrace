@@ -3,7 +3,7 @@
 > **LOGIC:** When building a page, first check `design-system/invatrace/pages/[page].md`.
 > If a page file exists, its rules **override** this guide. Otherwise, follow this guide.
 
-**Project:** InvaTrace — Invasive Plant Monitoring PWA (Malaysia · Bukit Kiara pilot)
+**Project:** InvaTrace - Invasive Plant Monitoring PWA (Malaysia · Bukit Kiara pilot)
 **Product Class:** Field utility + citizen-science reporting + automated validation
 **Design Dials:** Variance 3/10 (Centred / Minimal) · Motion 4/10 (Standard) · Density 6/10 (Standard)
 **Source of truth:** `src/styles/tokens.css`, the implemented interface, and this repository's brand assets.
@@ -19,7 +19,7 @@ The colour ramp is not up for a re-vote. It matches the InvaTrace brand kit and 
 | **Forest** (primary CTA, active nav) | `#1B7A50` | `--green` | Mikania-vine leaf saturation |
 | **Forest dark** (active text) | `#166341` | `--green-dark` | |
 | **Deep** (reversed surfaces, logo badge) | `#12402C` | `--deep` | |
-| **Sprout** (watch risk, secondary highlight) | `#D9880F` | `--amber` | The one warm accent — use sparingly |
+| **Sprout** (watch risk, secondary highlight) | `#D9880F` | `--amber` | The one warm accent - use sparingly |
 | **High-risk red** | `#C2412D` | `--red` | E1 target result, destructive-action warnings |
 | **Ink** (body text) | `#16201B` | `--ink` | |
 | **Body** | `#4B5A52` | `--body` | Muted body copy |
@@ -79,9 +79,9 @@ Density 6/10 = standard. 4/8-pt grid.
 
 ---
 
-## 5. Motion (dial 4/10 — Standard)
+## 5. Motion (dial 4/10 - Standard)
 
-- **Durations:** 150 ms micro-interaction · 200–300 ms state change · ≤400 ms sheet enter · ≤250 ms sheet exit.
+- **Durations:** 150 ms micro-interaction · 200-300 ms state change · ≤400 ms sheet enter · ≤250 ms sheet exit.
 - **Easing:** `ease-out` on enter, `ease-in` on exit, `cubic-bezier(.2,.8,.2,1)` for sheets. No linear on UI.
 - **Reduced motion:** honour `prefers-reduced-motion`. Skeletons and progress rings still animate; page transitions collapse to opacity only.
 - **What animates:** photo → result card cross-fade, pin sheet slide-up, FAB press ripple, offline banner slide-in.
@@ -101,7 +101,7 @@ Density 6/10 = standard. 4/8-pt grid.
 
 ## 7. Interaction
 
-- Tap feedback within 100 ms — `:active` scale(0.98) or `opacity(0.85)`.
+- Tap feedback within 100 ms - `:active` scale(0.98) or `opacity(0.85)`.
 - Every icon-only button has `aria-label`. Every disabled control also has `aria-disabled` + `pointer-events: none`.
 - Two-finger pinch reserved for MapLibre; use `touch-action: none` on the map canvas only.
 - Long-press: no hidden actions. Everything a user can do must have a visible affordance (spec §11).
@@ -113,7 +113,7 @@ Density 6/10 = standard. 4/8-pt grid.
 ## 8. Content
 
 - Voice: precise, unfussy, no exclamation marks. "Photo quality check passed" not "Great shot! 🎉".
-- Species names: Latin italic, common name plain. Never "Mikania sp." — always the full binomial.
+- Species names: Latin italic, common name plain. Never "Mikania sp." - always the full binomial.
 - Coordinates: 5-decimal precision (~1 m), tabular figures, mono font.
 - Model version: always shown next to any ML verdict so reviewers can identify which model produced it.
 - Consent statements: full sentence, present tense, opt-in check-box, never pre-checked.
@@ -125,11 +125,11 @@ Density 6/10 = standard. 4/8-pt grid.
 - Do NOT introduce unrelated purple or pink gradients into the conservation palette.
 - Do NOT use emoji as functional icons. Lucide only.
 - Do NOT recolour the mark outside the approved Forest / Sprout brand palette.
-- Do NOT add hover-only affordances — touch devices lose them.
+- Do NOT add hover-only affordances - touch devices lose them.
 - Do NOT swap the wordmark casing to all-caps.
 - Do NOT show a confidence percentage without the model version.
 - Do NOT render processing, rejected, rescan, or unavailable reports on the public map.
-- Do NOT rely on colour alone for risk — always pair with an icon or text chip.
+- Do NOT rely on colour alone for risk - always pair with an icon or text chip.
 - Do NOT add page transitions longer than 400 ms; users are outdoors on 3G.
 
 ---

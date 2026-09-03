@@ -1,6 +1,6 @@
 // Verification script for the permission radio gate on the scan-result page.
 // The guidance panel is supposed to stay hidden until the user picks an
-// answer, then show exactly one of two mutually exclusive blocks — this was
+// answer, then show exactly one of two mutually exclusive blocks - this was
 // a bug-prone spot early on (both blocks rendering, or neither), so it gets
 // its own targeted checks plus screenshots for each of the three states.
 import { test, expect, Page } from '@playwright/test'
@@ -39,7 +39,7 @@ async function bootstrapAndScan(page: Page) {
 }
 
 // Scrolls the inner scan-flow panel (not the window) down to wherever the
-// permission question currently sits — its position shifts depending on how
+// permission question currently sits - its position shifts depending on how
 // much guidance text is above it, so we search by text instead of a fixed
 // offset.
 async function scrollToPermissionGate(page: Page) {
@@ -61,7 +61,7 @@ test('permission gate: no guidance block until user picks', async ({ page }) => 
   await bootstrapAndScan(page)
 
   const body = await page.locator('body').innerText()
-  // Default state: neither block should be rendered — but the pick prompt is.
+  // Default state: neither block should be rendered - but the pick prompt is.
   expect(body).not.toContain('If protected or permission is unknown')
   expect(body).toContain('Pick one of the options above')
 

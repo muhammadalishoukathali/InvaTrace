@@ -114,7 +114,7 @@ def create_app() -> FastAPI:
             "Content-Type",
             "Idempotency-Key",
             "X-InvaTrace-Queued",
-            # AC Iteration 1 P1 — the report submission sends the client's
+            # AC Iteration 1 P1 - the report submission sends the client's
             # bundled catalogue version + SHA so the server can reject a
             # submission built against a stale offline catalogue. Both
             # headers MUST be preflight-allowed or CORS blocks the POST.

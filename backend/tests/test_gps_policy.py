@@ -1,6 +1,6 @@
 """Regression tests for the single 300 m GPS accuracy policy.
 
-AC Iteration 1 P7 — the whole pipeline shares one threshold. This test
+AC Iteration 1 P7 - the whole pipeline shares one threshold. This test
 asserts:
   1. The backend setting defaults to 300 m.
   2. The validation policy actually uses the setting's default when a
@@ -32,7 +32,7 @@ def test_backend_setting_defaults_to_300_metres() -> None:
     )
     assert match, "screening_location_accuracy_max_m must be declared with a Field default."
     assert match.group(1) == "250", (
-        f"Backend accuracy policy drifted from 250 m — found {match.group(1)}."
+        f"Backend accuracy policy drifted from 250 m - found {match.group(1)}."
         " Update the frontend gps-policy.ts constant to match."
     )
 

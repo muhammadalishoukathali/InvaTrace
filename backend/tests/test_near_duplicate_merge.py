@@ -8,7 +8,7 @@ bumped by worker processing and later merges) and not from GPS accuracy
 expansion.
 
 Runs as source-text asserts so backend Python env / a live PostGIS are not
-required — the actual PostGIS behaviour is exercised by the integration
+required - the actual PostGIS behaviour is exercised by the integration
 suite under ``RUN_INVATRACE_INTEGRATION=1``.
 """
 
@@ -54,7 +54,7 @@ def test_merge_target_is_scoped_to_same_profile() -> None:
 def test_merge_target_uses_exact_radius_no_accuracy_expansion() -> None:
     body = _merge_target_body()
     assert "settings.screening_duplicate_radius_max_m" in body, (
-        "Merge radius must come from screening_duplicate_radius_max_m — hard"
+        "Merge radius must come from screening_duplicate_radius_max_m - hard"
         " coded values or accuracy-based expansion would let cross-user reports"
         " inside the GPS fuzz zone get silently merged."
     )
@@ -79,7 +79,7 @@ def test_merge_target_uses_st_dwithin_and_orders_by_distance() -> None:
 
 def test_merge_target_window_uses_prior_report_observation_time() -> None:
     body = _merge_target_body()
-    # AC 2.3.2 — window compares prior *report* observed_at to the incoming
+    # AC 2.3.2 - window compares prior *report* observed_at to the incoming
     # report observed_at, not Sighting.updated_at (bumped by worker/merges)
     # and not datetime.now().
     assert "Report.observed_at >= window_start" in body, (
@@ -90,7 +90,7 @@ def test_merge_target_window_uses_prior_report_observation_time() -> None:
     )
     assert "Report.observed_at <= observation_time" in body, (
         "A prior report observed AFTER the incoming report cannot be a merge"
-        " target — the window is one-sided into the past."
+        " target - the window is one-sided into the past."
     )
     assert "Sighting.updated_at" not in body, (
         "Sighting.updated_at is bumped by worker processing and later merges"
@@ -142,7 +142,7 @@ def test_merge_target_tie_break_is_deterministic() -> None:
         assert expected in body, (
             f"Deterministic tie-break requires `{expected}` in the order_by."
         )
-    # Ordering must appear in the required sequence — closest first, then
+    # Ordering must appear in the required sequence - closest first, then
     # smallest time delta, then most recent, then id as final tie-break.
     positions = [
         body.index("distance_expr.asc()"),
@@ -158,7 +158,7 @@ def test_merge_target_tie_break_is_deterministic() -> None:
 def test_process_job_persists_merged_into_report_id() -> None:
     body = _process_job_body()
     assert "report.merged_into_report_id = merge_candidate.retained_report.id" in body, (
-        "AC 2.3.2 — the incoming report row must record the retained report"
+        "AC 2.3.2 - the incoming report row must record the retained report"
         " id so /api/v1/reports/{id} can expose retainedReportId without"
         " re-joining the audit log."
     )
@@ -178,7 +178,7 @@ def test_process_job_writes_audit_event_with_required_fields() -> None:
         '"mergeReason"',
     ):
         assert key in block, (
-            f"Merge audit metadata missing required key {key} — every AC 2.3.2"
+            f"Merge audit metadata missing required key {key} - every AC 2.3.2"
             " required field must be recorded in this dedicated event."
         )
 

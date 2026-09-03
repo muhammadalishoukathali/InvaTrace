@@ -1,6 +1,6 @@
 """Regression tests for the OSM nearest-feature lookup.
 
-AC Iteration 1 P10 — the importer must persist the OSM tag pair that
+AC Iteration 1 P10 - the importer must persist the OSM tag pair that
 matched (leisure/park, landuse/forest, natural/wood for areas; highway
 value for trails) into metadata_json, and the categoriser must recognise
 that metadata so `nearest_osm_feature` can actually return a value.

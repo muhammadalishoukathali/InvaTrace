@@ -159,7 +159,7 @@ def status_record_for_model_label(model_label: str) -> PlantStatusRecord | None:
 def verify_disk_checksums() -> None:
     """Checks the two catalogue JSON files on disk still match the sha256s
     listed in catalogue-manifest.json. I call this once at startup from the
-    readiness check — the idea is if somebody edited plant-status.json by
+    readiness check - the idea is if somebody edited plant-status.json by
     hand and forgot to regenerate the manifest, we should fail loud instead
     of silently serving mismatched data to the app.
     """
@@ -186,7 +186,7 @@ def assert_client_catalogue_matches(
     of sync with what the server has. Either field is optional on the request
     (older builds only sent the version string, newer ones send the sha too)
     so we check whichever ones were provided, but if any of them disagree we
-    bail out — the phone needs to grab the new bundle before it can report.
+    bail out - the phone needs to grab the new bundle before it can report.
     """
     manifest = load_manifest()
     if (
@@ -202,7 +202,7 @@ def assert_client_catalogue_matches(
         and client_plant_status_sha256 != manifest.plant_status_sha256
     ):
         raise CatalogueError(
-            "Catalogue plant-status.json checksum mismatch — the app must "
+            "Catalogue plant-status.json checksum mismatch - the app must "
             "reload before submitting reports."
         )
 

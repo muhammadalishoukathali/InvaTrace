@@ -64,7 +64,7 @@ def report_response(
     validation_retryable is passed in rather than derived purely from the
     report row because "validation_unavailable" can mean different things
     depending on whether the screening worker is expected to pick it back up
-    (e.g. Redis/DB was briefly down) — that context lives with the caller,
+    (e.g. Redis/DB was briefly down) - that context lives with the caller,
     not on the Report itself.
     """
     return ReportResponse(

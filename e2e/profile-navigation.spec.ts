@@ -1,5 +1,5 @@
 // Small suite for profile page navigation and the saved-record map popup.
-// Nothing backend-heavy here — mostly back-button behaviour and focus
+// Nothing backend-heavy here - mostly back-button behaviour and focus
 // management, which are easy to break silently during a routing refactor.
 import { expect, test } from '@playwright/test'
 

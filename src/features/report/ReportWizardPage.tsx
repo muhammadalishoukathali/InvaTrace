@@ -22,7 +22,7 @@ const STEP_LABEL: Record<string, string> = {
  * extent, then consent, then preview) under one shared header, back button
  * and progress bar, and swaps over to ReportSubmissionResult.tsx once the
  * draft has an outcome. If there's no draft and no outcome at all, we
- * redirect back to /scan — this page only really makes sense right after a
+ * redirect back to /scan - this page only really makes sense right after a
  * scan has seeded a draft through beginFromScan(), there's no other way in.
  */
 export function ReportWizardPage() {

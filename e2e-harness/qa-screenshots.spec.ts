@@ -1,4 +1,4 @@
-// One-off screenshot capture tool, not a real test suite — every test here
+// One-off screenshot capture tool, not a real test suite - every test here
 // exists to produce a labelled PNG in Downloads for showing progress to a
 // supervisor or dropping into the FYP writeup, not to assert correctness.
 // Covers the main screens across desktop and mobile widths plus the report
@@ -20,7 +20,7 @@ async function bootstrap(page: Page) {
   await page.waitForTimeout(2500)
 }
 
-// Same fake-green-blob trick as the overflow audit — lets the flow reach
+// Same fake-green-blob trick as the overflow audit - lets the flow reach
 // scan/result without a real photo, since the point here is capturing UI
 // states, not testing classification accuracy.
 async function uploadSyntheticGreen(page: Page) {
@@ -42,19 +42,19 @@ async function uploadSyntheticGreen(page: Page) {
 
 test.describe.configure({ mode: 'serial' })
 
-test('01 desktop map — no filters / no bell / OSM tiles / trimmed sidebar', async ({ page }) => {
+test('01 desktop map - no filters / no bell / OSM tiles / trimmed sidebar', async ({ page }) => {
   await page.setViewportSize({ width: 1280, height: 800 })
   await bootstrap(page)
   await page.screenshot({ path: path.join(OUT, '01-desktop-map.png'), fullPage: false })
 })
 
-test('02 mobile map — bottom nav = Map + Scan / OSM tiles', async ({ page }) => {
+test('02 mobile map - bottom nav = Map + Scan / OSM tiles', async ({ page }) => {
   await page.setViewportSize({ width: 390, height: 844 })
   await bootstrap(page)
   await page.screenshot({ path: path.join(OUT, '02-mobile-map.png'), fullPage: false })
 })
 
-test('03 sighting details sheet — trimmed', async ({ page }) => {
+test('03 sighting details sheet - trimmed', async ({ page }) => {
   await page.setViewportSize({ width: 390, height: 844 })
   await bootstrap(page)
   await page.locator('.map-pin').first().click()
@@ -62,7 +62,7 @@ test('03 sighting details sheet — trimmed', async ({ page }) => {
   await page.screenshot({ path: path.join(OUT, '03-sighting-sheet.png'), fullPage: false })
 })
 
-test('04 scan result — target identified, gallery unlocked report', async ({ page }) => {
+test('04 scan result - target identified, gallery unlocked report', async ({ page }) => {
   await page.setViewportSize({ width: 390, height: 844 })
   await bootstrap(page)
   await page.goto('http://localhost:5173/scan')
@@ -87,7 +87,7 @@ test('04 scan result — target identified, gallery unlocked report', async ({ p
   })
   await page.waitForTimeout(400)
   await page.screenshot({ path: path.join(OUT, '06-guidance-explicit-permission.png'), fullPage: false })
-  // Scroll to bottom — sources + status record + report button
+  // Scroll to bottom - sources + status record + report button
   await page.evaluate(() => {
     const el = document.querySelector<HTMLElement>('.scan-flow__main')
     if (el) el.scrollTop = el.scrollHeight
@@ -118,9 +118,9 @@ test('09 report page reached from gallery upload (proves DEV unlock)', async ({ 
   await page.screenshot({ path: path.join(OUT, '09-report-wizard-opened.png'), fullPage: false })
 })
 
-// Deliberately skips bootstrapIdentity() here — we want the recovery kit
+// Deliberately skips bootstrapIdentity() here - we want the recovery kit
 // screen itself, before the "continue" click that normally routes past it.
-test('10 recovery kit screen — 10 codes, ack checkbox', async ({ page }) => {
+test('10 recovery kit screen - 10 codes, ack checkbox', async ({ page }) => {
   await page.setViewportSize({ width: 390, height: 844 })
   await page.goto('http://localhost:5173/')
   await page.getByRole('button', { name: /Start privately/i }).click()

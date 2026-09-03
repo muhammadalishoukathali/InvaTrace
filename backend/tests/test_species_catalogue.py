@@ -1,4 +1,4 @@
-"""AC Iteration 1 P1 — shared/catalogue coverage tests.
+"""AC Iteration 1 P1 - shared/catalogue coverage tests.
 
 Every one of the 31 released classifier labels must resolve to exactly one
 plant-status record with a supported ui_state, and the three previously
@@ -52,7 +52,7 @@ def test_report_eligible_flag_matches_ui_state(record) -> None:
 
 
 def test_deferred_classes_resolve_to_status_uncertain() -> None:
-    # AC Iteration 1 P1 required tests — the three classes with only the
+    # AC Iteration 1 P1 required tests - the three classes with only the
     # model's own recognition category as evidence must display the
     # catalogue's status_uncertain rather than the model manifest's invasive.
     for label in ("miconia_crenata", "sphagneticola_trilobata", "lantana_camara"):

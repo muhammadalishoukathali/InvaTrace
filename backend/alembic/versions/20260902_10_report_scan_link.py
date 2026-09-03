@@ -1,4 +1,4 @@
-"""AC 2.2.1 — link every report to its originating scan.
+"""AC 2.2.1 - link every report to its originating scan.
 
 Adds ``reports.scan_id`` as a non-null foreign key to ``scans.id``. Existing
 ``reports`` rows are backfilled to whatever scan shares their (profile_id,
@@ -26,7 +26,7 @@ depends_on = None
 
 
 def upgrade() -> None:
-    # AC 2.2.1 — persist the capture source on the scan too, so the report's
+    # AC 2.2.1 - persist the capture source on the scan too, so the report's
     # capture_source can be verified against what the client sent at
     # classification time.
     op.add_column(

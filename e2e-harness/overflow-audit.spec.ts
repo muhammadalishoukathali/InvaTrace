@@ -1,4 +1,4 @@
-// Ad-hoc layout audit, not a real e2e test — nothing here asserts pass/fail
+// Ad-hoc layout audit, not a real e2e test - nothing here asserts pass/fail
 // in the Playwright sense, it just walks every major screen at three
 // viewport widths and flags any element that pokes past the visible edge.
 // Useful after CSS changes to catch horizontal scroll bugs on mobile before
@@ -49,7 +49,7 @@ async function bootstrap(page: Page) {
 
 // Draws a green blob canvas and feeds it in as a fake photo, so the audit
 // can reach the scan-result screen without needing a real plant image or a
-// live model — this config runs against the mocked API on 5173.
+// live model - this config runs against the mocked API on 5173.
 async function uploadSyntheticGreen(page: Page) {
   await page.goto('http://localhost:5173/scan')
   await page.waitForTimeout(500)
@@ -86,7 +86,7 @@ async function checkOverflow(page: Page, viewport: typeof VIEWPORTS[number], rou
           ? '.' + el.className.split(/\s+/).slice(0, 2).join('.')
           : ''
         const id = el.id ? '#' + el.id : ''
-        const label = `${tag}${id}${cls} — right ${Math.round(rect.right)}px > vw ${vw}px`
+        const label = `${tag}${id}${cls} - right ${Math.round(rect.right)}px > vw ${vw}px`
         if (!bad.some((b) => b.startsWith(`${tag}${id}${cls}`))) bad.push(label)
       }
       if (bad.length > 12) return
@@ -120,7 +120,7 @@ async function checkOverflow(page: Page, viewport: typeof VIEWPORTS[number], rou
   }
 }
 
-// Serial so each viewport walks the full route list in one page session —
+// Serial so each viewport walks the full route list in one page session -
 // running these in parallel would just multiply flakiness for no benefit,
 // since we're not measuring speed here.
 test.describe.configure({ mode: 'serial' })
@@ -130,12 +130,12 @@ for (const vp of VIEWPORTS) {
     await page.setViewportSize({ width: vp.width, height: vp.height })
     await bootstrap(page)
 
-    // /map — with pins loaded
+    // /map - with pins loaded
     await page.goto('http://localhost:5173/map')
     await page.waitForTimeout(1200)
     await checkOverflow(page, vp, '/map', '01-map')
 
-    // Open a sighting sheet — force-click bypasses actionability check when
+    // Open a sighting sheet - force-click bypasses actionability check when
     // pins overlap at the current zoom level. If no pin, skip silently.
     const pin = page.locator('.map-pin').first()
     if (await pin.count()) {

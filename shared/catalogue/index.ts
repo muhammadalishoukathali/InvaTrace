@@ -79,7 +79,7 @@ export function findPlantStatus(query: {
   speciesId?: string | null
   scientificName?: string | null
 }): PlantStatusRecord | null {
-  // Match model label first — the model manifest is the only guaranteed
+  // Match model label first - the model manifest is the only guaranteed
   // stable identifier for a class the ONNX model can output.
   if (query.modelLabel) {
     const hit = byModelLabel.get(normalize(query.modelLabel))

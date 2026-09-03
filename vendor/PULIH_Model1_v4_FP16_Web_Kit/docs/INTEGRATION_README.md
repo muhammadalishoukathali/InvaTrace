@@ -64,7 +64,7 @@ if (!result.acceptedAsKnown) {
 }
 ```
 
-Never determine Unknown from top-1 confidence alone. The validated decision uses four signals—MSP, top-two margin, energy, and entropy—followed by the calibrated logistic combiner in `open_set_rejection_config_v1.json`.
+Never determine Unknown from top-1 confidence alone. The validated decision uses four signals-MSP, top-two margin, energy, and entropy-followed by the calibrated logistic combiner in `open_set_rejection_config_v1.json`.
 
 ## 5. Exact preprocessing contract
 

@@ -7,7 +7,7 @@ import {
   isReportEligible,
 } from './malaysia-status'
 
-// AC Iteration 1 P3 — the Malaysian status decision must come from the
+// AC Iteration 1 P3 - the Malaysian status decision must come from the
 // authoritative catalogue on every classifiable outcome, and every downstream
 // pathway (report / action / no-op) must follow from it. These tests use
 // canonical records from the shipped plant-status.json fixture so a catalogue

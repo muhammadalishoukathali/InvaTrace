@@ -29,7 +29,7 @@ function Row({ item, role }: { item: NavItem; role: PseudonymousProfile['role'] 
       <span role="link" aria-disabled="true" title={LATER} style={itemStyle(false)}>
         <Icon name={item.icon} color="var(--icon)" />
         <span>{item.full}</span>
-        <span className="sr-only"> — {LATER}</span>
+        <span className="sr-only"> - {LATER}</span>
       </span>
     )
   }

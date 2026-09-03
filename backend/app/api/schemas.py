@@ -30,7 +30,7 @@ def to_camel(value: str) -> str:
 
 
 # Base class every schema in this file inherits from. extra="forbid" means an
-# unexpected field in the request body is a 422, not silently ignored — helps
+# unexpected field in the request body is a 422, not silently ignored - helps
 # catch frontend/backend drift early instead of debugging a mystery later.
 class ApiModel(BaseModel):
     model_config = ConfigDict(
@@ -62,13 +62,13 @@ ReportStatus = Literal[
 SightingStatus = Literal["screened", "removed"]
 Risk = Literal["high", "watch"]
 
-# 43 chars = a base64url-encoded 256-bit random value generated client-side —
+# 43 chars = a base64url-encoded 256-bit random value generated client-side -
 # this is the closest thing to a "password" in the whole auth model.
 InstallationSecret = Annotated[str, StringConstraints(pattern=r"^[A-Za-z0-9_-]{43}$")]
 DisplayName = Annotated[str, StringConstraints(max_length=80)]
 
 
-# Rejects control characters in free-text fields (display names, notes) —
+# Rejects control characters in free-text fields (display names, notes) -
 # mostly to stop someone smuggling weird terminal escape codes or null bytes
 # through into stored data / notifications.
 def _no_controls(value: str) -> str:
@@ -243,7 +243,7 @@ class SpeciesDetail(ApiModel):
     status_source_id: str | None = None
     status_reviewed_at: datetime | None = None
     general_information: str | None = None
-    # AC 1.2.3 — canonical "do not act" message tailored per Malaysia status.
+    # AC 1.2.3 - canonical "do not act" message tailored per Malaysia status.
     safety_message: str | None = None
     action_eligible: bool
     report_eligible: bool
@@ -260,7 +260,7 @@ class ScanCreateRequest(ApiModel):
     confidence: float = Field(ge=0, le=1)
     model_version: Annotated[str, StringConstraints(min_length=1, max_length=120)]
     image_sha256_hex: Annotated[str, StringConstraints(pattern=r"^[0-9a-fA-F]{64}$")] | None = None
-    # AC 2.2.1 — capture source recorded at classification time so the later
+    # AC 2.2.1 - capture source recorded at classification time so the later
     # report submission can be checked against it.
     capture_source: Literal["camera", "gallery"] | None = None
 
@@ -288,14 +288,14 @@ class PresignResponse(ApiModel):
     expires_at: datetime
 
 
-# Bounds are roughly Malaysia's bounding box — the app is scoped to that
+# Bounds are roughly Malaysia's bounding box - the app is scoped to that
 # region so we don't accept (or publish) coordinates from anywhere else.
 class GeoPoint(ApiModel):
     lat: float = Field(ge=0.8, le=7.5)
     lng: float = Field(ge=99.3, le=119.5)
 
 
-# Both fields must literally be True — pydantic rejects the request outright
+# Both fields must literally be True - pydantic rejects the request outright
 # if the client sends false, so there's no code path where we'd accidentally
 # accept a report the user didn't confirm as accurate/PII-free.
 class Consent(ApiModel):
@@ -320,7 +320,7 @@ class ReportSubmissionDetails(ApiModel):
 
 
 class ReportSubmission(ReportSubmissionDetails):
-    # Early comparison value only — the server re-hashes the uploaded bytes
+    # Early comparison value only - the server re-hashes the uploaded bytes
     # and rejects any mismatch (see reports.create_report). Never trusted
     # alone, and never echoed back in ReportResponse.submission.
     image_sha256: Annotated[str, StringConstraints(pattern=r"^[0-9a-fA-F]{64}$")] | None = None
@@ -342,14 +342,14 @@ class ReportSubmission(ReportSubmissionDetails):
         if observed.tzinfo is None:
             raise ValueError("observedAt must include a timezone")
         now = datetime.now(UTC)
-        # Small forgiveness window for clock skew between device and server —
+        # Small forgiveness window for clock skew between device and server -
         # a timestamp a couple minutes in the future gets clamped rather than
         # rejected, since phone clocks drift.
         future_max = now + timedelta(minutes=5)
         if observed > future_max:
             object.__setattr__(self, "observed_at", future_max)
         # Anything older than 30 days is probably a stale offline-queue entry
-        # or a bogus timestamp — reject rather than publish an old sighting
+        # or a bogus timestamp - reject rather than publish an old sighting
         # as if it just happened.
         if self.observed_at < now - timedelta(days=30):
             raise ValueError("observedAt is outside the reporting window")
@@ -371,7 +371,7 @@ class ReportResponse(ApiModel):
     tracking_url: str
     validation: ReportValidation
     sighting_id: str | None
-    # AC 2.3.2 — the retained report id when this row was merged into a
+    # AC 2.3.2 - the retained report id when this row was merged into a
     # prior report; null otherwise. Serialises as ``retainedReportId``.
     retained_report_id: str | None = None
 
@@ -401,11 +401,11 @@ class SightingResponse(ApiModel):
     last_reported_at: datetime
     place: PlaceAssociation
     thumbnail_url: str | None
-    # AC 4.2.2 — confidence associated with the representative (max across
+    # AC 4.2.2 - confidence associated with the representative (max across
     # currently-linked reports) so the detail panel can show how confident
     # the classifier was overall. Nullable for legacy rows lacking reports.
     confidence: float | None = None
-    # AC 4.3.1 — nearest OSM feature stored at publication time. Rendered
+    # AC 4.3.1 - nearest OSM feature stored at publication time. Rendered
     # first in the detail panel; a live client lookup is non-authoritative.
     nearest_feature_type: str | None = None
     nearest_feature_name: str | None = None

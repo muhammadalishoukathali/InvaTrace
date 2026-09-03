@@ -70,12 +70,12 @@ def problem_response(
 
 def _to_snake(value: str) -> str:
     # unused right now, was for converting pydantic's camelCase aliases back to
-    # snake_case in field error paths — left in case that's needed again
+    # snake_case in field error paths - left in case that's needed again
     return "".join("_" + c.lower() if c.isupper() else c for c in value).lstrip("_")
 
 
 def _summarize_pydantic_errors(error: RequestValidationError) -> list[dict[str, str]]:
-    """AC 2.2.2 — surface field-specific validation errors, not just a generic 400."""
+    """AC 2.2.2 - surface field-specific validation errors, not just a generic 400."""
     field_errors: list[dict[str, str]] = []
     for issue in error.errors():
         loc = [str(part) for part in issue.get("loc", []) if part not in ("body", "query", "path")]
@@ -91,7 +91,7 @@ def install_error_handlers(app: FastAPI) -> None:
 
     Four handlers, roughly in order of how "expected" the failure is:
     our own ApiProblem, pydantic validation, generic Starlette HTTP errors,
-    then a catch-all for anything that slipped through unhandled — that last
+    then a catch-all for anything that slipped through unhandled - that last
     one is what stops a raw traceback from ever reaching a client.
     """
 
@@ -114,14 +114,14 @@ def install_error_handlers(app: FastAPI) -> None:
     @app.exception_handler(StarletteHTTPException)
     async def handle_http(_request: Request, error: StarletteHTTPException) -> JSONResponse:
         # catches things like FastAPI's own 404 for unmatched routes, path param
-        # coercion failures etc — anything that raises HTTPException directly
+        # coercion failures etc - anything that raises HTTPException directly
         code = "not_found" if error.status_code == 404 else "request_failed"
         detail = str(error.detail) if isinstance(error.detail, str) else "The request failed."
         return problem_response(error.status_code, code, detail)
 
     @app.exception_handler(Exception)
     async def handle_unexpected(request: Request, error: Exception) -> JSONResponse:
-        # last resort — something we didn't anticipate blew up. Log the real
+        # last resort - something we didn't anticipate blew up. Log the real
         # exception server-side (with the stack trace) but never leak it to
         # the client, they just get a generic 500.
         log.exception(

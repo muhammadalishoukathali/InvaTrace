@@ -40,7 +40,7 @@ def acquire_idempotency_lock(
     Postgres advisory locks take a bigint, not a string, so we hash the
     (profile, scope, key) triple down to 8 bytes and reinterpret it as a
     signed 64-bit int. pg_advisory_xact_lock auto-releases at commit/rollback,
-    which is exactly what we want — no separate unlock call, no risk of
+    which is exactly what we want - no separate unlock call, no risk of
     holding the lock past the transaction. Two requests with the same key
     just queue up here instead of both hitting the insert-then-check race.
     """

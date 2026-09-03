@@ -1,7 +1,7 @@
 /**
  * Saves the user's own permission/safety choice for a given scan or map
- * sighting — "protected land or unsure" vs "I have the land manager's
- * permission" — into localStorage, keyed by that scan/sighting's id. I kept
+ * sighting - "protected land or unsure" vs "I have the land manager's
+ * permission" - into localStorage, keyed by that scan/sighting's id. I kept
  * this deliberately separate from scan-history-store.ts because it isn't a
  * record of what got scanned, it's a private safety note the device
  * remembers so PlantGuidancePanel doesn't have to re-ask the same question

@@ -1,6 +1,6 @@
 /**
- * The scan flow can be opened from a few different places — the map, the
- * reports list, the profile screen — and "back"/"cancel" needs to actually
+ * The scan flow can be opened from a few different places - the map, the
+ * reports list, the profile screen - and "back"/"cancel" needs to actually
  * return the user to wherever they came from, not just default to the map
  * every time. This file centralizes that round-trip logic: encode the origin
  * into router state on the way in, decode it on the way out, so

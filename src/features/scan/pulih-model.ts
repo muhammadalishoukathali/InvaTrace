@@ -3,7 +3,7 @@ import type { IdentifyResult } from '@/types'
 import { findPlantStatus } from '@shared/catalogue'
 
 /**
- * This is the actual ONNX inference boundary for the project — it owns the
+ * This is the actual ONNX inference boundary for the project - it owns the
  * PULIH model session end to end: downloading and checksum-verifying the
  * model weights, starting the onnxruntime-web session (WebGPU with a WASM
  * fallback), turning a photo into the tensor shape the model expects, and
@@ -11,7 +11,7 @@ import { findPlantStatus } from '@shared/catalogue'
  * rejection step that asks "is this even one of our 31 species in the first
  * place?"
  *
- * plant-model-adapter.ts sits above this file and doesn't touch ONNX at all —
+ * plant-model-adapter.ts sits above this file and doesn't touch ONNX at all -
  * it just decides which model implementation the app should be running (this
  * real one, a fake dev one, or a disabled stub) and adapts whichever gets
  * picked to the shape the UI code expects (detect/quality/identify). Nothing
@@ -201,7 +201,7 @@ async function imageToTensor(image: Blob, config: InferenceConfig): Promise<ort.
     if (bitmap.width < 1 || bitmap.height < 1) throw new Error('Image dimensions are invalid.')
     const size = config.input_size
     // 0.875 is the classic "resize short side then center-crop" ratio the
-    // model was trained with — same trick torchvision's ImageNet pipeline
+    // model was trained with - same trick torchvision's ImageNet pipeline
     // uses. Getting this wrong makes every prediction subtly off, because the
     // model would be seeing a slightly different field of view than what it
     // actually learned on during training.
@@ -226,7 +226,7 @@ async function imageToTensor(image: Blob, config: InferenceConfig): Promise<ort.
     // ONNX wants channel-first (CHW) data, but canvas gives back interleaved
     // RGBA (HWC). This loop de-interleaves the channels and applies the
     // per-channel mean/std normalization the model was trained with, both in
-    // one pass instead of two — it's worth combining since this runs on-device
+    // one pass instead of two - it's worth combining since this runs on-device
     // for every single scan.
     const chw = new Float32Array(3 * plane)
     for (let index = 0; index < plane; index += 1) {
@@ -253,7 +253,7 @@ function interpret(
   if (logits.length !== config.classes.length) {
     throw new Error(`Expected ${config.classes.length} logits but received ${logits.length}.`)
   }
-  // Temperature scaling — dividing the logits before softmax — is what makes
+  // Temperature scaling - dividing the logits before softmax - is what makes
   // the model's confidence numbers actually mean something. Raw softmax on an
   // overconfident classifier basically always outputs near-100% for
   // everything, which is useless when I'm trying to decide whether a result
@@ -268,7 +268,7 @@ function interpret(
     .map((probability, classIndex) => ({ probability, classIndex }))
     .sort((left, right) => right.probability - left.probability)
   // The model only ever knows about its 31 trained species, so left on its own
-  // it can never say "I don't recognise this plant at all" — it'll just always
+  // it can never say "I don't recognise this plant at all" - it'll just always
   // pick its best guess out of the 31, even for something completely
   // unrelated. These four signals (top probability, gap to the runner-up,
   // energy, entropy) feed into a separately-trained logistic regression
@@ -285,8 +285,8 @@ function interpret(
     ) / Math.log(probabilities.length),
   }
   // Standardizes each signal with the scaler stats from training, then runs
-  // logistic regression by hand — weights and intercept baked right into the
-  // config — to get a probability that this is an "unknown" plant, i.e. one
+  // logistic regression by hand - weights and intercept baked right into the
+  // config - to get a probability that this is an "unknown" plant, i.e. one
   // outside our catalogue.
   let unknownLogit = rejection.decision.intercept
   rejection.decision.feature_order.forEach((name, index) => {
@@ -408,7 +408,7 @@ export class PulihModel {
     let webGpuFallback = false
     const webGpuNavigator = navigator as Navigator & { gpu?: unknown }
     // WebGPU is a lot faster, so it's preferred whenever the device advertises
-    // it — but not every browser exposing navigator.gpu can actually create a
+    // it - but not every browser exposing navigator.gpu can actually create a
     // working session in practice, so falling through to WASM here beats
     // failing the whole scan over a GPU quirk.
     if (webGpuNavigator.gpu) {
@@ -436,7 +436,7 @@ export class PulihModel {
     }
     this.config = config
     this.rejection = rejection
-    // The model manifest's own malaysia_status field gets ignored here —
+    // The model manifest's own malaysia_status field gets ignored here -
     // the shared catalogue's ui_state is what's actually trusted. If a
     // class has no catalogue record at all, it gets downgraded to
     // status_uncertain, so an older bundled model can never quietly unlock

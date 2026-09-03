@@ -44,11 +44,11 @@ test('private access starts and bootstraps against the real API', async ({ page,
   await expect(page.getByRole('heading', { name: 'Live threat map' })).toBeVisible()
 })
 
-// AC Phase 6 — real-backend reporting coverage. Walks scan → presign →
+// AC Phase 6 - real-backend reporting coverage. Walks scan → presign →
 // upload → report → poll for screened → verify the published sighting is
 // visible on the public feed. Skips the browser UI (camera + model) and
 // drives the API directly so the assertions are stable, but every request
-// hits the real FastAPI stack — no MSW involved.
+// hits the real FastAPI stack - no MSW involved.
 test('reporting flow completes end-to-end against the real API', async ({ request }) => {
   const installationToken = base64Url(crypto.getRandomValues(new Uint8Array(32)))
   const started = await request.post('http://localhost:8000/api/v1/profiles/start', {

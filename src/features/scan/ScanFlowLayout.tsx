@@ -5,7 +5,7 @@ import { scanReturnPath } from '@/features/scan/scan-navigation'
 import './scan-flow.css'
 
 /**
- * Shared shell for the whole scan flow (capture -> processing -> result) — it
+ * Shared shell for the whole scan flow (capture -> processing -> result) - it
  * just renders the header with the back button and hosts whatever nested
  * route is active via Outlet. The back button doesn't do the same thing on
  * every step though: from the result screen it steps back to capture instead

@@ -1,8 +1,8 @@
-# InvaTrace Iteration 1 — Round 3 verification (final)
+# InvaTrace Iteration 1 - Round 3 verification (final)
 
 > <span style="color:#C00000">**Red text = new implementation shipped in this pass.** Previously flagged as mock-only or partial; now real code enforced end-to-end.</span>
 
-Independent re-verification after implementing every E2 anti-abuse control for real and closing the 2.1.4 lockout with a strict AC-literal rule. Only the deterministic rule pipeline (2.2.1) remains mock-only — that IS the E2 pipeline itself.
+Independent re-verification after implementing every E2 anti-abuse control for real and closing the 2.1.4 lockout with a strict AC-literal rule. Only the deterministic rule pipeline (2.2.1) remains mock-only - that IS the E2 pipeline itself.
 
 ## Full AC table
 
@@ -20,7 +20,7 @@ Independent re-verification after implementing every E2 anti-abuse control for r
 | 2.0 | 2.1.4 | ✅ Fully | <span style="color:#C00000">[handlers.ts `restoreBlocked` + `recordRestoreFailure` (strict 15-min sliding window, 5-attempts cap **per profileId AND per IP**)](../src/mocks/handlers.ts)</span> | <span style="color:#C00000">**NEW.** Replaced exponential-backoff-per-profile with the AC-literal rule: 5 failed restores per (profileId, IP) within a 15-minute sliding window → HTTP 429 + `Retry-After` seconds until the oldest failure in the window ages out. Cross-device restore, generic error, revocation all still present.</span> |
 | 2.0 | 2.2.1 | ⚠️ Mock-only | [handlers.ts:484-493](../src/mocks/handlers.ts) | Deterministic rule engine still lives inside MSW `setTimeout`. Genuinely awaiting the E2 pipeline redesign. |
 | 2.0 | 2.2.2 | ✅ Fully | [handlers.ts POST /reports (observedAt clamp)](../src/mocks/handlers.ts) | 5-min-future `observedAt` clamp enforced. |
-| 2.0 | 2.2.3 | ✅ Fully | [handlers.ts POST /reports](../src/mocks/handlers.ts), [SightingDetailsSheet.tsx:11-14](../src/features/map/SightingDetailsSheet.tsx) | Status transitions to `screened`; map + detail print "Community report — not expert validated". |
+| 2.0 | 2.2.3 | ✅ Fully | [handlers.ts POST /reports](../src/mocks/handlers.ts), [SightingDetailsSheet.tsx:11-14](../src/features/map/SightingDetailsSheet.tsx) | Status transitions to `screened`; map + detail print "Community report - not expert validated". |
 | 2.0 | 2.3.1 | ✅ Fully | <span style="color:#C00000">[report-queue.ts `sha256Hex`](../src/features/report/report-queue.ts) + [handlers.ts exact-dup branch](../src/mocks/handlers.ts)</span> | <span style="color:#C00000">**NEW.** Client computes SHA-256 with `crypto.subtle.digest` before submission; server dedups on same-owner + same-species + same-hash → returns earlier report with `status:'merged'`. No second public marker.</span> |
 | 2.0 | 2.3.2 | ✅ Fully | <span style="color:#C00000">[handlers.ts near-dup branch (Haversine + 10-min window)](../src/mocks/handlers.ts)</span> | <span style="color:#C00000">**NEW.** Server computes geodesic distance to each prior report; same owner + same species + within 25 m + within 10 min → `status:'merged'` with the earlier report ID.</span> |
 | 2.0 | 2.3.3 | ✅ Fully | <span style="color:#C00000">[handlers.ts `enforceReportRateLimit` (sliding window 10/token, 30/IP per 10 min)](../src/mocks/handlers.ts)</span> | <span style="color:#C00000">**NEW.** Overflow → HTTP 429 + `Retry-After` header calculated from oldest timestamp in the offending bucket.</span> |
@@ -35,7 +35,7 @@ Independent re-verification after implementing every E2 anti-abuse control for r
 | 4.0 | 4.1.1 | ✅ Fully | [ScanResultPage.tsx canReport](../src/features/scan/ScanResultPage.tsx) | Button hidden unless camera + not uncertain + reportEligible + reportable. |
 | 4.0 | 4.1.2 | ✅ Fully | [handlers.ts clamp](../src/mocks/handlers.ts), [ReportLocationStep.tsx](../src/features/report/ReportLocationStep.tsx) | 5-min-future clamp + explicit Retry location + Cancel-keep-scan buttons on denied GPS. |
 | 4.0 | 4.1.3 | ✅ Fully | [handlers.ts POST /reports](../src/mocks/handlers.ts), [report-queue.ts](../src/features/report/report-queue.ts) | Full-shape submission stored; failed transaction returns 500 without partial state. |
-| 4.0 | 4.1.4 | ✅ Fully | [ReportSubmissionResult.tsx](../src/features/report/ReportSubmissionResult.tsx) | "Report submitted" + verbatim "Community report — not expert validated" + View screening status. |
+| 4.0 | 4.1.4 | ✅ Fully | [ReportSubmissionResult.tsx](../src/features/report/ReportSubmissionResult.tsx) | "Report submitted" + verbatim "Community report - not expert validated" + View screening status. |
 | 4.0 | 4.2.1 | ✅ Fully | [ThreatMapPage.tsx](../src/features/map/ThreatMapPage.tsx) | One marker per sighting; parity with accessible list; community-report style. |
 | 4.0 | 4.2.2 | ✅ Fully | [SightingDetailsSheet.tsx](../src/features/map/SightingDetailsSheet.tsx) | Species + thumb + confidence + time + context + community line; no token/recovery-key leaks. |
 | 4.0 | 4.2.3 | ✅ Fully | [MapFilters.tsx](../src/features/map/MapFilters.tsx) + [ThreatMapPage.tsx AccessibleSightingList](../src/features/map/ThreatMapPage.tsx) | Filters reduce map + list; `sr-only` keyboard mirror. |
@@ -48,7 +48,7 @@ Independent re-verification after implementing every E2 anti-abuse control for r
 |---|---|
 | ✅ Fully implemented | **29** |
 | 🟡 Partial | 0 |
-| ⚠️ Mock-only | **1** (2.2.1 rule pipeline — the E2 pipeline itself) |
+| ⚠️ Mock-only | **1** (2.2.1 rule pipeline - the E2 pipeline itself) |
 | ❌ Not implemented | 0 |
 
 ## Per-epic verdict
@@ -62,15 +62,15 @@ Independent re-verification after implementing every E2 anti-abuse control for r
 
 ## <span style="color:#C00000">What changed in this final pass</span>
 
-1. <span style="color:#C00000">**AC 2.1.1** — verified that each recovery code is already 128-bit CSPRNG (`randomGroupedSecret(16)`), not 80-bit as an earlier audit claimed. Original AC met literally; no wording change and no code change needed.</span>
-2. <span style="color:#C00000">**AC 2.1.4** — replaced per-profile exponential backoff with the AC-literal rule: 5 failed restores per profileId **and** per IP within a strict 15-minute sliding window. Where a proxy `x-forwarded-for` header is present, the per-IP cap enforces alongside the per-profile cap. 429 + `Retry-After` on overflow.</span>
-3. <span style="color:#C00000">**AC 2.3.1** — client computes `imageSha256` via `crypto.subtle.digest`; server dedups by same-owner + same-species + same-hash → `status:'merged'`.</span>
-4. <span style="color:#C00000">**AC 2.3.2** — server computes Haversine + checks 10-min window; 25 m match → `status:'merged'` with earlier report ID.</span>
-5. <span style="color:#C00000">**AC 2.3.3** — sliding-window submission rate limiter (10/token, 30/IP per 10 min) → `429` + `Retry-After`.</span>
+1. <span style="color:#C00000">**AC 2.1.1** - verified that each recovery code is already 128-bit CSPRNG (`randomGroupedSecret(16)`), not 80-bit as an earlier audit claimed. Original AC met literally; no wording change and no code change needed.</span>
+2. <span style="color:#C00000">**AC 2.1.4** - replaced per-profile exponential backoff with the AC-literal rule: 5 failed restores per profileId **and** per IP within a strict 15-minute sliding window. Where a proxy `x-forwarded-for` header is present, the per-IP cap enforces alongside the per-profile cap. 429 + `Retry-After` on overflow.</span>
+3. <span style="color:#C00000">**AC 2.3.1** - client computes `imageSha256` via `crypto.subtle.digest`; server dedups by same-owner + same-species + same-hash → `status:'merged'`.</span>
+4. <span style="color:#C00000">**AC 2.3.2** - server computes Haversine + checks 10-min window; 25 m match → `status:'merged'` with earlier report ID.</span>
+5. <span style="color:#C00000">**AC 2.3.3** - sliding-window submission rate limiter (10/token, 30/IP per 10 min) → `429` + `Retry-After`.</span>
 
 ## <span style="color:#C00000">What is genuinely still deferred</span>
 
-Only **2.2.1 — the deterministic rule engine itself.** That code path is the E2 pipeline being redesigned. Everything the pipeline needs to reject or merge on (image hash, geospatial dedup, rate limits, future-time clamp) now returns real signals from real code.
+Only **2.2.1 - the deterministic rule engine itself.** That code path is the E2 pipeline being redesigned. Everything the pipeline needs to reject or merge on (image hash, geospatial dedup, rate limits, future-time clamp) now returns real signals from real code.
 
 ## Regression suite after final pass
 

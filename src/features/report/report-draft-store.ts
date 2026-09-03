@@ -6,11 +6,11 @@
  *
  * I kept this as a plain in-memory store with no persist middleware, which
  * means if the user reloads the page mid-wizard the whole draft is gone,
- * including the photo Blob sitting in memory — ReportWizardPage.tsx just
+ * including the photo Blob sitting in memory - ReportWizardPage.tsx just
  * redirects back to /scan when it sees draft and outcome are both null.
  * Could persist this to IndexedDB instead, but scan-history-store.ts only
  * keeps the scan metadata across reloads, not the raw photo bytes, so
- * there'd be nothing to actually resume the wizard with anyway — not worth
+ * there'd be nothing to actually resume the wizard with anyway - not worth
  * the extra complexity for this project.
  */
 import { create } from 'zustand'

@@ -34,14 +34,14 @@ screening workers, OSM imports, and test commands.
 
 ## Project documentation
 
-- [Codebase guide](docs/codebase-guide.md) — directory ownership and module boundaries.
-- [Product overview](docs/product.md) — users, purpose, constraints, and identity model.
-- [Identity architecture](docs/identity-architecture.md) — client/server security contract.
-- [Private access flow](docs/private-access-flow.md) — creation, recovery, and management states.
-- [Backend architecture](docs/backend-architecture.md) — services, ERDs, API sequences, and privacy.
-- [ML integration](docs/ml-integration.md) — browser E1 and deferred research boundaries.
-- [Deployment](docs/deployment.md) — Cloudflare Pages/R2, Render, and Neon runbook.
-- [Design system](design-system/invatrace/README.md) — tokens, components, and page-specific guidance.
+- [Codebase guide](docs/codebase-guide.md) - directory ownership and module boundaries.
+- [Product overview](docs/product.md) - users, purpose, constraints, and identity model.
+- [Identity architecture](docs/identity-architecture.md) - client/server security contract.
+- [Private access flow](docs/private-access-flow.md) - creation, recovery, and management states.
+- [Backend architecture](docs/backend-architecture.md) - services, ERDs, API sequences, and privacy.
+- [ML integration](docs/ml-integration.md) - browser E1 and deferred research boundaries.
+- [Deployment](docs/deployment.md) - Cloudflare Pages/R2, Render, and Neon runbook.
+- [Design system](design-system/invatrace/README.md) - tokens, components, and page-specific guidance.
 
 ## Private access
 

@@ -4,7 +4,7 @@ InvaTrace has no email/password. A "profile" is created on first launch and
 identified by an opaque public id (IVT-XXXX-...); the app itself holds an
 installation token that proves it's talking to that profile, and recovery
 codes let someone re-link a profile on a new device if they lose the
-installation token. Nothing here is stored in plaintext — see keyed_hash.
+installation token. Nothing here is stored in plaintext - see keyed_hash.
 This module is what app/api/routers/* depend on for require_auth/require_admin.
 """
 
@@ -55,7 +55,7 @@ def keyed_hash(secret: str, settings: Settings | None = None) -> bytes:
 def random_grouped_secret(byte_count: int = 16) -> str:
     """Generate a random secret, base32-encoded and chunked into groups of 4
     with dashes, for installation tokens and recovery codes. Grouping is
-    purely cosmetic — makes it easier to read/copy by eye — the entropy comes
+    purely cosmetic - makes it easier to read/copy by eye - the entropy comes
     entirely from secrets.token_bytes.
     """
     raw = secrets.token_bytes(byte_count)
@@ -111,7 +111,7 @@ def require_auth(
     """FastAPI dependency for any route that needs an authenticated profile.
 
     Decodes and validates the bearer JWT, then re-checks the installation
-    against the DB rather than trusting the token's claims blindly — a
+    against the DB rather than trusting the token's claims blindly - a
     token issued before a device was revoked would otherwise still decode
     fine right up until it expires. Every failure path collapses to a
     generic 401 (no "wrong password" vs "unknown user" distinction) so we

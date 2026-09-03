@@ -1,6 +1,6 @@
 """Regression tests for the production deploy blueprint.
 
-AC 1.2.1 + AC Iteration 1 P11 — the prod init on Render must satisfy a
+AC 1.2.1 + AC Iteration 1 P11 - the prod init on Render must satisfy a
 handful of non-obvious constraints that only bite once traffic hits the
 deployment:
 
@@ -9,12 +9,12 @@ deployment:
      hook is not available, so this is done by the container entrypoint
      (backend/docker-entrypoint.sh).
   2. The backend Docker build context is the repository root so the image
-     bundles both `backend/` and `shared/catalogue/` — one source of truth
+     bundles both `backend/` and `shared/catalogue/` - one source of truth
      for the plant-status catalogue between the PWA and the API.
   3. Uvicorn trusts Render's proxy headers, otherwise every request looks
      like it comes from Render's edge IP and the per-IP burst rate limit
      collapses to one shared bucket across the platform.
-  4. Duplicate detection stays on in prod — the dev-only kill switch
+  4. Duplicate detection stays on in prod - the dev-only kill switch
      must not silently follow a rebased branch to production.
   5. The single 250 m GPS policy is pinned explicitly at the platform
      level so a config drift is visible in code review, not surfaced by
@@ -40,7 +40,7 @@ def test_render_yaml_backend_uses_repo_root_build_context() -> None:
     render = _read("render.yaml")
     # rootDir would scope the Docker context to backend/ and lose shared/.
     assert "rootDir: backend" not in render, (
-        "AC 1.2.1 — backend Docker build must run from the repository root so"
+        "AC 1.2.1 - backend Docker build must run from the repository root so"
         " both backend/ and shared/catalogue/ land in the image."
     )
     assert "dockerfilePath: ./backend/Dockerfile" in render, (
@@ -53,7 +53,7 @@ def test_render_yaml_no_paid_predeploy_command_for_free_plan_backend() -> None:
     # preDeployCommand is a paid-plan-only feature; the container entrypoint
     # owns migration + reference-data init instead.
     assert "preDeployCommand:" not in render, (
-        "AC 1.2.1 — free-plan deploy must not rely on preDeployCommand;"
+        "AC 1.2.1 - free-plan deploy must not rely on preDeployCommand;"
         " docker-entrypoint.sh runs migrations and load-reference-data."
     )
 
@@ -85,7 +85,7 @@ def test_render_yaml_health_check_hits_the_liveness_endpoint() -> None:
 def test_backend_dockerfile_copies_shared_catalogue_into_the_image() -> None:
     dockerfile = _read("backend/Dockerfile")
     assert "COPY shared/catalogue /service/shared/catalogue" in dockerfile, (
-        "AC 1.2.1 — the shared plant-status catalogue must be baked into the"
+        "AC 1.2.1 - the shared plant-status catalogue must be baked into the"
         " backend image at /service/shared/catalogue so app.domain.catalogue"
         " resolves the same JSON the PWA ships."
     )
@@ -119,7 +119,7 @@ def test_backend_dockerfile_healthcheck_uses_the_liveness_endpoint() -> None:
 def test_docker_entrypoint_runs_migrations_and_reference_data_before_uvicorn() -> None:
     entrypoint = _read("backend/docker-entrypoint.sh")
     lines = [line.strip() for line in entrypoint.splitlines() if line.strip() and not line.strip().startswith("#")]
-    # AC 1.2.1 — alembic upgrade then reference-data load must both precede
+    # AC 1.2.1 - alembic upgrade then reference-data load must both precede
     # the exec uvicorn line so a fresh production database is ready before
     # the API accepts traffic.
     assert lines[0] == "set -eu", "Entrypoint must exit on error (set -eu)."
@@ -136,7 +136,7 @@ def test_docker_entrypoint_runs_migrations_and_reference_data_before_uvicorn() -
 
 def test_docker_entrypoint_never_seeds_demo_data() -> None:
     entrypoint = _read("backend/docker-entrypoint.sh")
-    # AC 1.2.1 — production start-up must never insert sample sightings.
+    # AC 1.2.1 - production start-up must never insert sample sightings.
     assert "seed-demo-data" not in entrypoint
     assert "invatrace seed" not in entrypoint
 
@@ -151,7 +151,7 @@ def test_docker_entrypoint_is_executable() -> None:
     assert path.is_file(), "docker-entrypoint.sh must exist."
     mode = path.stat().st_mode
     assert mode & 0o111, "docker-entrypoint.sh must be executable."
-    # POSIX line endings only — a stray CRLF makes `/bin/sh` fail with a
+    # POSIX line endings only - a stray CRLF makes `/bin/sh` fail with a
     # cryptic "not found" on the shebang line.
     raw = path.read_bytes()
     assert b"\r\n" not in raw, "docker-entrypoint.sh must use LF line endings."

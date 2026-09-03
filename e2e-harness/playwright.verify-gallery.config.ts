@@ -1,5 +1,5 @@
 // Targets verify-gallery-report.spec.ts on the mocked dev server (5173).
-// Only config in this set with screenshot: 'only-on-failure' turned on —
+// Only config in this set with screenshot: 'only-on-failure' turned on -
 // this spec doesn't capture screenshots deliberately like the QA scripts do,
 // so a failure shot is the only useful artifact if the gallery-upload path
 // breaks.

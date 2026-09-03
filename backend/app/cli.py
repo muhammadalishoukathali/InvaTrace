@@ -116,7 +116,7 @@ def main() -> None:
     cleanup_worker.add_argument("--interval-seconds", type=int)
     args = parser.parse_args()
     if args.command == "seed":
-        # Legacy dev entry point — rejects prod so a stray call cannot inject
+        # Legacy dev entry point - rejects prod so a stray call cannot inject
         # demo sightings into a live database (AC Phase 5 deployment split).
         if get_settings().app_env == "production":
             raise SystemExit(

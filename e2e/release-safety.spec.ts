@@ -26,14 +26,14 @@ async function chooseSyntheticGalleryPhoto(page: Page) {
 }
 
 // The permission guidance text carries legal/safety info, so it should only
-// appear once the user has picked an option — not shown by default, and not
+// appear once the user has picked an option - not shown by default, and not
 // showing the other option's text at the same time as this one's.
 test('gallery scans can be reported and reveal guidance only after a permission choice', async ({ page }) => {
   await startPrivateAccess(page)
   await chooseSyntheticGalleryPhoto(page)
 
   await expect(page.getByRole('button', { name: /Report sighting/i })).toBeVisible()
-  // AC 3.1.2 — the panel defaults to `protected_or_permission_unknown`,
+  // AC 3.1.2 - the panel defaults to `protected_or_permission_unknown`,
   // so observation / photography / reporting guidance is visible
   // immediately. Active-guidance copy for the authorised-site path must
   // still stay hidden until the user explicitly picks explicit permission.
@@ -49,7 +49,7 @@ test('gallery scans can be reported and reveal guidance only after a permission 
 })
 
 // Runs the same page-by-page overflow check at a small phone width and a
-// desktop width — horizontal scroll is the kind of regression that's easy to
+// desktop width - horizontal scroll is the kind of regression that's easy to
 // miss by eye but breaks usability on a real device.
 for (const viewport of [
   { name: 'small mobile', width: 320, height: 780 },

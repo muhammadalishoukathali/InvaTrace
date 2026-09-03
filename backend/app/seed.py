@@ -77,7 +77,7 @@ SPECIES = [
             "spread_prevention": [
                 "Bag every cut fragment before leaving the site",
                 "Clean tools, gloves, and boots before moving to a new area",
-                "Do not compost — even small pieces can re-root",
+                "Do not compost - even small pieces can re-root",
             ],
             "prohibited_actions": [
                 "Do not burn plant material on-site",
@@ -86,7 +86,7 @@ SPECIES = [
             "sources": _MIKANIA_SOURCES,
         },
         "traits": [
-            {"label": "Leaf shape", "value": "Heart-shaped, opposite, 5–13 cm"},
+            {"label": "Leaf shape", "value": "Heart-shaped, opposite, 5-13 cm"},
             {"label": "Flower", "value": "Small white heads in dense clusters"},
             {"label": "Growth", "value": "Climbing vine, up to 27 mm per day"},
             {"label": "Stem", "value": "Ridged, green to brown, hairy at nodes"},
@@ -104,11 +104,11 @@ SPECIES = [
         "removal_steps": [
             {"order": 1, "action": "Cut the vine at ground level", "safe": True},
             {"order": 2, "action": "Pull roots carefully if soil is moist", "safe": True},
-            {"order": 3, "action": "Bag all cut material — fragments can re-root", "safe": True},
-            {"order": 4, "action": "Check back in 2–3 weeks for regrowth", "safe": True},
+            {"order": 3, "action": "Bag all cut material - fragments can re-root", "safe": True},
+            {"order": 4, "action": "Check back in 2-3 weeks for regrowth", "safe": True},
         ],
         "do_not_do": [
-            "Do not compost — viable fragments will re-establish",
+            "Do not compost - viable fragments will re-establish",
             "Do not leave cut material on soil",
         ],
         "detail_available": True,
@@ -124,10 +124,10 @@ SPECIES = [
                     {"order": 2, "action": "Pull roots carefully if soil is moist", "safe": True},
                     {
                         "order": 3,
-                        "action": "Bag all cut material — fragments can re-root",
+                        "action": "Bag all cut material - fragments can re-root",
                         "safe": True,
                     },
-                    {"order": 4, "action": "Check back in 2–3 weeks for regrowth", "safe": True},
+                    {"order": 4, "action": "Check back in 2-3 weeks for regrowth", "safe": True},
                 ],
                 "doNotDo": [
                     "Do not compost or leave cut fragments on soil",
@@ -174,9 +174,9 @@ SPECIES = [
             "sources": _CHROMOLAENA_SOURCES,
         },
         "traits": [
-            {"label": "Leaf shape", "value": "Opposite, ovate, 5–12 cm with serrated edges"},
+            {"label": "Leaf shape", "value": "Opposite, ovate, 5-12 cm with serrated edges"},
             {"label": "Flower", "value": "Pale purple to white, in terminal clusters"},
-            {"label": "Growth", "value": "Woody shrub or scrambler, 2–5 m"},
+            {"label": "Growth", "value": "Woody shrub or scrambler, 2-5 m"},
             {"label": "Stem", "value": "Soft-wooded, hairy, strong odour when crushed"},
         ],
         "native_twin": None,
@@ -186,7 +186,7 @@ SPECIES = [
             {"order": 3, "action": "Bag and dispose of all flowering parts", "safe": True},
         ],
         "do_not_do": [
-            "Do not slash during seed season — seeds spread by wind",
+            "Do not slash during seed season - seeds spread by wind",
             "Do not burn on-site without permit",
         ],
         "detail_available": True,
@@ -245,7 +245,7 @@ SPECIES = [
                 "You would need to wade or use a boat to reach it",
             ],
             "spread_prevention": [
-                "Do not disturb the mat — fragments float and re-establish downstream",
+                "Do not disturb the mat - fragments float and re-establish downstream",
                 "Report the location for coordinated removal by trained crews",
             ],
             "prohibited_actions": [
@@ -306,7 +306,7 @@ _GENERIC_INVASIVE_GUIDANCE = {
     "spread_prevention": [
         "Do not disturb the plant; report the sighting first",
         "Clean tools, gloves, and boots before moving to a new area",
-        "Do not compost — many invasive species re-establish from fragments",
+        "Do not compost - many invasive species re-establish from fragments",
     ],
     "prohibited_actions": [
         "Do not burn plant material on-site",
@@ -318,7 +318,7 @@ _GENERIC_INVASIVE_GUIDANCE = {
 
 def _apply_shared_catalogue_to_species_seed() -> None:
     """Rebuilds the SPECIES list at import time from the shared catalogue
-    JSON — that file is where the Malaysian status actually lives, so I
+    JSON - that file is where the Malaysian status actually lives, so I
     don't want to hand-copy it here and then have the two drift apart.
     For the four species I actually wrote proper field-guide detail for,
     the hand-written entry above gets layered on top by id. Anything
@@ -351,7 +351,7 @@ def _apply_shared_catalogue_to_species_seed() -> None:
             "action_guides": [],
         })
         catalog_source = record.status_source_ids[0] if record.status_source_ids else None
-        # AC Iteration 1 — status columns always come from the catalogue,
+        # AC Iteration 1 - status columns always come from the catalogue,
         # never from hand-written seed detail, so a catalogue change flows
         # through to a re-seed without editing the seed file.
         detail["malaysia_status"] = record.ui_state
@@ -359,7 +359,7 @@ def _apply_shared_catalogue_to_species_seed() -> None:
         detail["status_reviewed_at"] = reviewed_at
         detail.setdefault("action_eligible", False)
         detail.setdefault("guidance_metadata", {})
-        # AC 1.2.2 — every invasive result must carry a general_information
+        # AC 1.2.2 - every invasive result must carry a general_information
         # paragraph so the invasive-result pathway shows a short description
         # plus its source. Catalogue text is the fallback when hand-written
         # detail is missing.
@@ -382,7 +382,7 @@ def _apply_shared_catalogue_to_species_seed() -> None:
         model_species.append(detail)
 
     if len(model_species) != len(records):
-        # If this ever fires the shared catalogue and this loop drifted apart —
+        # If this ever fires the shared catalogue and this loop drifted apart -
         # better to fail loudly here than silently seed a mismatched list.
         raise ValueError(
             "Development species seed does not match the shared plant-status catalogue "
@@ -443,7 +443,7 @@ def load_reference_data(session: Session) -> None:
     seed on purpose so I can safely re-run this in prod before a deploy
     without also dropping fake sightings into the map.
 
-    Re-running it is fine — I look up rows by id/name and update in place
+    Re-running it is fine - I look up rows by id/name and update in place
     rather than inserting new ones, so nothing gets duplicated.
     """
     for values in SPECIES:
@@ -482,7 +482,7 @@ def load_reference_data(session: Session) -> None:
 
 def seed_demo_data(session: Session) -> None:
     """Drops a handful of fake sightings scattered around Bukit Kiara so
-    the map isn't empty on a fresh dev DB — makes screenshots and pilot
+    the map isn't empty on a fresh dev DB - makes screenshots and pilot
     testing way easier. The CLI refuses to run this in production so we
     can't accidentally pollute the real data. Assumes load_reference_data
     has already run so the species rows exist to link to.
@@ -490,7 +490,7 @@ def seed_demo_data(session: Session) -> None:
     centre_lat, centre_lng = 3.1497, 101.6412
     actions = {
         "screened": "Rule-screened report. Follow the reviewed guidance for this species.",
-        "removed": "Removal recorded. Recheck for regrowth in 2–3 weeks.",
+        "removed": "Removal recorded. Recheck for regrowth in 2-3 weeks.",
     }
     for index, (species_id, status, risk, radius, angle) in enumerate(SIGHTING_SEED):
         sighting_id = uuid.uuid5(uuid.NAMESPACE_URL, f"invatrace-seed-sighting-{index + 1}")
@@ -521,7 +521,7 @@ def seed_development_data(session: Session) -> None:
     """Old entry point that just runs both seeds one after the other. I
     kept it around so the existing tests and the old `invatrace seed`
     command don't break, but for prod we call load_reference_data on its
-    own — the CLI blocks this one from running in production anyway.
+    own - the CLI blocks this one from running in production anyway.
     """
     load_reference_data(session)
     seed_demo_data(session)

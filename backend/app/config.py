@@ -36,7 +36,7 @@ class Settings(BaseSettings):
     location_privacy_key: str = "development-only-location-key-change-me"
     access_token_ttl_minutes: int = Field(default=15, ge=1, le=60)
     rate_limit_enabled: bool = True
-    # AC 2.3.3 — env-backed sliding submission rate limits.
+    # AC 2.3.3 - env-backed sliding submission rate limits.
     report_create_burst_limit: int = Field(default=10, ge=1, le=10_000)
     report_create_ip_burst_limit: int = Field(default=30, ge=1, le=10_000)
     report_create_burst_window_seconds: int = Field(default=600, ge=1, le=86_400)
@@ -67,7 +67,7 @@ class Settings(BaseSettings):
     screening_duplicate_radius_max_m: int = Field(default=25, ge=10, le=100)
     screening_duplicate_window_hours: int = Field(default=24, ge=1, le=168)
     screening_duplicate_window_minutes: int = Field(default=10, ge=1, le=1440)
-    # AC Iteration 1 P7 — a single 300 m GPS accuracy policy governs the
+    # AC Iteration 1 P7 - a single 300 m GPS accuracy policy governs the
     # entire pipeline: client soft warning, server hard rescan, audit trail.
     # The frontend does not enforce this as a hard block per AC 4.1.2, but
     # it must show the same 300 m threshold as the server so a user who

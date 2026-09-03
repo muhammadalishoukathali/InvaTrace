@@ -2,7 +2,7 @@ import { describe, it, expect } from 'vitest'
 import { readFileSync } from 'node:fs'
 import { fileURLToPath, URL } from 'node:url'
 
-// AC Iteration 1 P9 — the visual map is inert for non-sighted / keyboard-only
+// AC Iteration 1 P9 - the visual map is inert for non-sighted / keyboard-only
 // users. These tests pin the accessible-fallback contract with the ThreatMapPage
 // and MapFilters source so a future refactor cannot silently remove the
 // role="application" label, the always-rendered sr-only mirror list, or the
@@ -40,7 +40,7 @@ describe('map accessibility fallback', () => {
 
   it('the accessible list is always rendered, not gated on data', () => {
     // The JSX call site must not guard the fallback on `data`, `isLoading`,
-    // or `!isError` — otherwise SR users lose the mirror in exactly the
+    // or `!isError` - otherwise SR users lose the mirror in exactly the
     // states where the visual map is least usable.
     // Match the JSX with attributes; the leading `\n` skips the comment
     // that mentions <AccessibleSightingList/> as a self-closing token.

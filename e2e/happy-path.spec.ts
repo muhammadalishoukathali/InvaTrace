@@ -142,7 +142,7 @@ async function startPrivateAccess(page: Page, acknowledge = true) {
 // These "legacy" tests covered the old model where InvaTrace silently bootstrapped
 // an anonymous profile with no explicit consent step. That got replaced by the
 // private-access screen below (recovery kit, explicit opt-in), so these are
-// skipped rather than deleted — still handy if we ever need to check the old
+// skipped rather than deleted - still handy if we ever need to check the old
 // behaviour or roll something back.
 test.skip('legacy: fresh launch created a stable pseudonymous installation automatically', async ({ page }) => {
   const bootstrapBodies: Array<{ installationToken: string }> = []
@@ -367,7 +367,7 @@ test.skip('legacy: bootstrap created profiles while ignoring privilege fields', 
 })
 
 // Checks recovery codes and the access token never touch browser storage
-// before the user confirms they've saved the kit — if they did, closing the
+// before the user confirms they've saved the kit - if they did, closing the
 // tab early would leak credentials nobody meant to persist yet.
 test('private access creation saves a recovery kit, skips the optional name, and bootstraps later', async ({ page }) => {
   const payload = await startPrivateAccess(page, false)
@@ -509,7 +509,7 @@ test('interrupted recovery setup rotates the unseen batch after reload', async (
 })
 
 // Private access needs a live request to the backend, so a brand-new user who
-// opens the app offline shouldn't end up with a half-created profile — just a
+// opens the app offline shouldn't end up with a half-created profile - just a
 // clear message and a disabled button until they're back online.
 test('a first-ever offline launch explains the network requirement without creating a profile', async ({ page }) => {
   await page.addInitScript(() => {
@@ -602,7 +602,7 @@ test('private detector can scan, analyse, and submit', async ({ page, context })
 
 // A report queued while offline shouldn't try to bootstrap a session or
 // upload anything until the app is actually back online, and the bootstrap
-// has to finish before the queued report gets flushed — the upload needs a
+// has to finish before the queued report gets flushed - the upload needs a
 // valid session to attach to.
 test('offline launch restores locally, then reconnects before flushing reports', async ({ page }) => {
   const { profile } = await startPrivateAccess(page)

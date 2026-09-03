@@ -9,8 +9,8 @@ import type { InstallationIdentity } from '@/types'
 // stays "signed in" with no email/password account behind it), and we wanted
 // it in a store that isn't synchronous-blocking and isn't trivially readable
 // by every third-party script the way localStorage sometimes gets treated.
-// It still isn't a secure enclave — anyone with devtools access to this
-// browser profile can read it — but that's an accepted tradeoff for a
+// It still isn't a secure enclave - anyone with devtools access to this
+// browser profile can read it - but that's an accepted tradeoff for a
 // pseudonymous, installation-based identity model rather than a real secret.
 export const INSTALLATION_DB_NAME = 'invatrace-identity'
 const INSTALLATION_DB_VERSION = 1
@@ -44,7 +44,7 @@ function openInstallationDb(): Promise<IDBDatabase> {
 /** Create a random 32-byte installation token and encode it with characters
  *  that are safe to send in a URL or JSON request. Uses crypto.getRandomValues
  *  rather than Math.random since this token is the thing standing in for a
- *  password — it needs to be unguessable, not just unique. */
+ *  password - it needs to be unguessable, not just unique. */
 function generateInstallationToken(): string {
   const bytes = new Uint8Array(INSTALLATION_TOKEN_BYTES)
   crypto.getRandomValues(bytes)
@@ -179,7 +179,7 @@ export async function clearInstallationIdentity(): Promise<void> {
 // Only clears the record if it still matches the token we started with. This
 // guards against a race where the store already swapped in a newer
 // installation (e.g. the user restored access in another tab) between when
-// we decided to clear and when this actually runs — we don't want to nuke a
+// we decided to clear and when this actually runs - we don't want to nuke a
 // record that isn't ours anymore.
 export async function clearInstallationIdentityIfToken(expectedToken: string): Promise<void> {
   const db = await openInstallationDb()

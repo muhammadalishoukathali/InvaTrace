@@ -8,7 +8,7 @@ import './map-controls.css'
  * isolated/removed). It floats over the map inside ThreatMapPage.tsx. On
  * desktop I just show the card inline in the bottom-left corner since there's
  * room for it. On mobile there isn't, so I collapse it down to a small
- * "Legend" pill that expands into a centered card above the scan button —
+ * "Legend" pill that expands into a centered card above the scan button -
  * I wanted it to feel like a proper popover, not a tiny tooltip squashed
  * against the edge of the map.
  */
@@ -79,7 +79,7 @@ export function MapLegend() {
         )}
       </div>
       <Row colour="#C2412D" label="Hotspot (5+ reports)" />
-      <Row colour="#D9880F" label="Spreading (2–4 reports)" />
+      <Row colour="#D9880F" label="Spreading (2-4 reports)" />
       <Row colour="#2E7D3F" label="Isolated (1 report)" />
       <Row colour="#8B978F" label="Removed" muted />
       <p className="map-legend-card__note">

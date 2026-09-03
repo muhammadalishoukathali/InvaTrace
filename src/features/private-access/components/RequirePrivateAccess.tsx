@@ -4,7 +4,7 @@ import { usePrivateAccess } from '@/features/private-access/private-access-store
 
 /** Wraps every route that needs a private profile (map, scan, report, etc.)
  *  and blocks rendering until this installation has one. There's no
- *  email/password login to gate on here — the "auth" state we're checking
+ *  email/password login to gate on here - the "auth" state we're checking
  *  is whether private-access-store.ts resolved a valid installation/profile,
  *  so this is effectively the app's sign-in wall. */
 export function RequirePrivateAccess({ children }: { children: React.ReactNode }) {
@@ -21,7 +21,7 @@ export function RequirePrivateAccess({ children }: { children: React.ReactNode }
     )
   }
 
-  // Recovery codes were issued but never acknowledged as saved — don't let
+  // Recovery codes were issued but never acknowledged as saved - don't let
   // the user into the app with codes they might not have written down.
   if (status === 'recovery') return <Navigate to="/private-access/recovery" replace />
 

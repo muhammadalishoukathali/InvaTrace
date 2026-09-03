@@ -326,7 +326,7 @@
       "common_name": "Alligator weed",
       "ui_state": "invasive",
       "general_information": "Alternanthera philoxeroides is listed as invasive in Malaysia by MyIAS 2025. Aquatic and semi-aquatic herb that regrows from fragments.",
-      "safety_message": "Never disturb mechanically — fragments re-establish rapidly. Report only.",
+      "safety_message": "Never disturb mechanically - fragments re-establish rapidly. Report only.",
       "status_source_ids": ["myias-2025"],
       "status_reviewed_at": "2026-08-27",
       "report_eligible": true

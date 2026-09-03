@@ -5,7 +5,7 @@ Ranking: **BROKEN** = fires the wrong thing / traps the user, **DEAD** = intenti
 
 Legend: ✅ = fixed in the same pass as [image-pipeline-report.md](./image-pipeline-report.md).
 
-## BROKEN — user-visible regressions, ranked by impact
+## BROKEN - user-visible regressions, ranked by impact
 
 ### 1. ✅ Scan back button destroyed the scan result and skipped the capture screen
 File: `src/features/scan/ScanFlowLayout.tsx`
@@ -15,9 +15,9 @@ const goBack = () => { reset(); navigate(-1) }
 ```
 Two coupled failures:
 - On `/scan/result`, `navigate(-1)` jumps to `/map`, not back to the capture screen, because `ScanCapturePage` uses `navigate('/scan/result', { replace: true })` (`ScanCapturePage.tsx:214`). History is `/map → /scan/result`, so Back skipped capture entirely.
-- Regardless of the target, `reset()` runs first and wipes the captured photo, quality, result, and species detail from `useScan`. So the "retake" mental model was dead — the photo was gone before the user landed anywhere useful.
+- Regardless of the target, `reset()` runs first and wipes the captured photo, quality, result, and species detail from `useScan`. So the "retake" mental model was dead - the photo was gone before the user landed anywhere useful.
 
-Fix: deterministic navigation — from `/scan/result` return to `/scan` while preserving scan state, from `/scan` return to `/map` and clear the store.
+Fix: deterministic navigation - from `/scan/result` return to `/scan` while preserving scan state, from `/scan` return to `/map` and clear the store.
 
 ### 2. Camera-denied path on `ScanCapturePage` traps production users
 File: `src/features/scan/ScanCapturePage.tsx:112-159`
@@ -39,7 +39,7 @@ Called at `PrivateAccessLandingPage.tsx:69` for "Restore existing access". Same 
 
 Fix: internal (`/…`) hrefs use `<Link>`, external URLs keep the anchor fallback.
 
-### 5. `ScanResultPage` — no back button, and no way to retake without full reset
+### 5. `ScanResultPage` - no back button, and no way to retake without full reset
 File: `src/features/scan/ScanResultPage.tsx:17-20`
 ```ts
 const scanAgain = () => { useScan.getState().reset(); navigate('/scan', { replace: true }) }
@@ -63,9 +63,9 @@ const openCamera = async () => {
   if (cameraStarting || streamRef.current) return
   captureScanLocation()
 ```
-`captureScanLocation()` fires unconditionally — even if the user then denies camera, we've already prompted for GPS. Minor privacy/UX regression, but a wired-then-wrong handler.
+`captureScanLocation()` fires unconditionally - even if the user then denies camera, we've already prompted for GPS. Minor privacy/UX regression, but a wired-then-wrong handler.
 
-### 8. `ScanResultPage` — `startReport` silently no-ops when preconditions fail
+### 8. `ScanResultPage` - `startReport` silently no-ops when preconditions fail
 File: `src/features/scan/ScanResultPage.tsx:22-31`
 ```ts
 if (!imageBlob || !url || !observedAt || !captureId || source !== 'camera') return
@@ -85,7 +85,7 @@ Any brief backgrounding (notification shade, iOS permission prompt) kills the st
 
 ### 11. `NotificationsPanel` opens `n.linkTo` via `navigate()` with no validation
 File: `src/features/notifications/NotificationsPanel.tsx:55-58`
-If the server ever emits an absolute URL (e.g. `https://…`), `navigate()` treats it as a relative path and produces `/foo/https:/…`. Also no `replace` policy — clicking a notification while on `/reports/:id` pushes duplicate history entries.
+If the server ever emits an absolute URL (e.g. `https://…`), `navigate()` treats it as a relative path and produces `/foo/https:/…`. Also no `replace` policy - clicking a notification while on `/reports/:id` pushes duplicate history entries.
 
 ### 12. `ReportTrackingPage` has no back button or wizard exit
 File: `src/features/report/ReportTrackingPage.tsx:91-95`
@@ -106,17 +106,17 @@ File: `src/features/report/ReportSubmissionResult.tsx:68`
 ```
 `outcome.report.trackingUrl` is server-supplied. If the server ever returns an absolute URL, `navigate()` will 404 inside the SPA. No validation, no fallback.
 
-## DEAD — intentionally inert or acceptably empty
+## DEAD - intentionally inert or acceptably empty
 
-- Sidebar & bottom-tab items for `/trail`, `/sessions`, `/impact` render as `<span role="link" aria-disabled="true">` with the tooltip "Available in a later iteration" — `Sidebar.tsx:19-29`, `BottomTabs.tsx:20-32`. Correctly non-navigating; no route exists.
+- Sidebar & bottom-tab items for `/trail`, `/sessions`, `/impact` render as `<span role="link" aria-disabled="true">` with the tooltip "Available in a later iteration" - `Sidebar.tsx:19-29`, `BottomTabs.tsx:20-32`. Correctly non-navigating; no route exists.
 - `AppShell` catch-all `<Navigate to="/map" replace />` at `router.tsx:62` swallows accidental hits to those disabled paths.
-- `SightingDetailsSheet` "Try again" retry (`SightingDetailsSheet.tsx:69`) — active only when the query errored, otherwise not rendered. Fine.
-- `PrivateAccessLandingPage` "Check storage again" (`PrivateAccessLandingPage.tsx:71-73`) — visible only in `storage-error`. Fine.
-- `MapLegend` open/close buttons (`MapLegend.tsx:14, 41`) — mobile-only, work; on desktop the "Hide legend" button is intentionally not rendered.
-- DEV-only gallery upload on `ScanCapturePage.tsx:309-322` — clearly labeled dev-only.
-- Access management "Cancel" buttons on rotate/revoke confirmations — inline, work as no-ops.
+- `SightingDetailsSheet` "Try again" retry (`SightingDetailsSheet.tsx:69`) - active only when the query errored, otherwise not rendered. Fine.
+- `PrivateAccessLandingPage` "Check storage again" (`PrivateAccessLandingPage.tsx:71-73`) - visible only in `storage-error`. Fine.
+- `MapLegend` open/close buttons (`MapLegend.tsx:14, 41`) - mobile-only, work; on desktop the "Hide legend" button is intentionally not rendered.
+- DEV-only gallery upload on `ScanCapturePage.tsx:309-322` - clearly labeled dev-only.
+- Access management "Cancel" buttons on rotate/revoke confirmations - inline, work as no-ops.
 
-## WORKS — verified wired to real logic
+## WORKS - verified wired to real logic
 
 Navigation & shell
 - Sidebar "New scan" → `/scan` (`Sidebar.tsx:63`).
@@ -126,11 +126,11 @@ Navigation & shell
 - Skip-link anchor to `#main-content` (`AppShell.tsx:38`).
 
 Report wizard flow
-- Wizard back arrow (`ReportWizardPage.tsx:50`) — see item #6 for the guard.
+- Wizard back arrow (`ReportWizardPage.tsx:50`) - see item #6 for the guard.
 - Location step: geolocation button, retry, `canProceed` gate on 100 m accuracy (`ReportLocationStep.tsx:29-114`).
 - Consent step: both checkboxes gate `canProceed` (`ReportConsentStep.tsx:9,43`).
 - Preview step: `submit()` posts via `submitReport`, sets outcome, disables while submitting (`ReportPreviewStep.tsx:21-116`).
-- Submission result: three action buttons all navigate + reset stores (`ReportSubmissionResult.tsx:10-96`) — modulo #15.
+- Submission result: three action buttons all navigate + reset stores (`ReportSubmissionResult.tsx:10-96`) - modulo #15.
 
 Map interactions
 - Search input + clear button (`MapFilters.tsx:50-71`).
@@ -149,7 +149,7 @@ Restore flow
 - Form submit validates non-empty fields, calls `restorePrivate`, redirects to `/map` on success (`RestorePrivateAccessPage.tsx:29-45`).
 
 Access management (`AccessManagementPage.tsx`)
-- Copy ID, save display name, replace codes with confirm dialog, revoke installation with confirm dialog — all wired (`:126-175`).
+- Copy ID, save display name, replace codes with confirm dialog, revoke installation with confirm dialog - all wired (`:126-175`).
 
 Notifications
 - Toggle open/close, mark all read, per-item mark-and-navigate (`NotificationsPanel.tsx:55-59, 141-144, 158-176`). Modulo #11.

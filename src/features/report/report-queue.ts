@@ -1,7 +1,7 @@
 /**
  * This whole file handles what happens when a report submission can't
  * finish right away. Normally submitting means: ask the server for an
- * upload URL, upload the photo to it, then create the report — three
+ * upload URL, upload the photo to it, then create the report - three
  * network calls that all need to succeed. If any one of them fails (bad
  * connection while out in the field, most likely) we save the report and
  * the photo blob locally in IndexedDB instead of just losing the user's
@@ -94,9 +94,9 @@ const REUSABLE_UPLOAD_ERRORS = new Set([
 ])
 
 /* Decides whether a failed submission should get queued for a retry or
- * just fail outright and surface an error. Anything that looks temporary —
+ * just fail outright and surface an error. Anything that looks temporary -
  * being offline, a network blip, the upload URL expiring, the server being
- * overloaded or rate-limiting us — gets queued. But if the screening
+ * overloaded or rate-limiting us - gets queued. But if the screening
  * pipeline itself rejected the submission (a 4xx that isn't one of the
  * upload-token codes), retrying won't change anything, it'll just be the
  * same rejection again, so we don't bother queueing those. */
@@ -117,7 +117,7 @@ async function createReport(
   // We send along the bundled catalogue version and its checksum so the
   // backend can catch it with a 409 if this client's plant-status data has
   // drifted out of date, rather than silently committing against stale
-  // data. This is a lazy import on purpose — it keeps the module
+  // data. This is a lazy import on purpose - it keeps the module
   // tree-shakeable when report-queue.ts gets loaded on a page that never
   // actually submits anything, like the history view.
   const { catalogueVersion, plantStatusChecksum } = await import('@shared/catalogue')
@@ -143,7 +143,7 @@ interface SubmitOutcome {
 /**
  * Submits one report end to end. If a network or server failure happens
  * partway through, we just save the report locally with whatever photo key
- * it had (possibly empty if we never even got that far) — the retry logic
+ * it had (possibly empty if we never even got that far) - the retry logic
  * later on always grabs a fresh upload URL rather than reusing the old one,
  * since those URLs expire.
  */
@@ -213,7 +213,7 @@ async function sendQueuedReport(item: QueuedReport): Promise<Report> {
     return await createReport(item.submission, item.id, true)
   } catch (error) {
     // If the upload URL went stale, just retrying createReport won't fix
-    // anything — we have to redo the whole upload with a fresh presigned URL
+    // anything - we have to redo the whole upload with a fresh presigned URL
     // first. We suffix the retry's idempotency key with the attempt count so
     // it doesn't collide with the original, now-dead upload key on the server.
     if (!(error instanceof ApiError) || !error.code || !REUSABLE_UPLOAD_ERRORS.has(error.code)) {

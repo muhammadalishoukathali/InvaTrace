@@ -5,8 +5,8 @@ import { ReportNextButton } from './components/ReportNextButton'
 
 const EXTENT_OPTIONS: { value: ExtentSize; title: string; desc: string; ha: string }[] = [
   { value: 'single', title: 'Single plant', desc: 'A lone specimen you can easily point at.', ha: '~1 m²' },
-  { value: 'small_patch', title: 'Small patch', desc: 'A cluster you could walk around in under a minute.', ha: '5–50 m²' },
-  { value: 'large_area', title: 'Large area', desc: 'Spread widely — needs a crew to survey.', ha: '> 500 m²' },
+  { value: 'small_patch', title: 'Small patch', desc: 'A cluster you could walk around in under a minute.', ha: '5-50 m²' },
+  { value: 'large_area', title: 'Large area', desc: 'Spread widely - needs a crew to survey.', ha: '> 500 m²' },
 ]
 
 /**
@@ -14,7 +14,7 @@ const EXTENT_OPTIONS: { value: ExtentSize; title: string; desc: string; ha: stri
  * This is where the user tells us roughly how big the infestation is (just
  * a single plant, a small patch, or a large area) and can add a free text
  * note if they want. We don't validate the notes field at all here, it's
- * optional — both fields just get carried through and bundled into the
+ * optional - both fields just get carried through and bundled into the
  * final submission on the preview step.
  */
 export function ReportExtentStep() {

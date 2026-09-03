@@ -3,7 +3,7 @@ import { readFileSync } from 'node:fs'
 import { fileURLToPath } from 'node:url'
 import { dirname, resolve } from 'node:path'
 
-// AC 2.3.2 — merged branch in the submission-result screen. No jsdom /
+// AC 2.3.2 - merged branch in the submission-result screen. No jsdom /
 // testing-library is wired into this project's Vitest config, so these are
 // source-text asserts on the component file. They pin the invariants that
 // the branch exists, says the merged evidence joined an existing sighting,

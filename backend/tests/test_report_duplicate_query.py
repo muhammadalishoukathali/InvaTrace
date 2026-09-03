@@ -1,6 +1,6 @@
 """Regression tests for the exact-duplicate detection query.
 
-AC Iteration 1 P4 — the router shortcut in `app/api/routers/reports.py`
+AC Iteration 1 P4 - the router shortcut in `app/api/routers/reports.py`
 must scope on species_id and return the *earliest* matching report, and
 the worker's `_find_owner_species_replay` in `app/workers/verification.py`
 must order by created_at ascending with a deterministic secondary key.
@@ -31,7 +31,7 @@ def test_router_duplicate_lookup_scopes_on_species_and_orders_ascending() -> Non
     block = source.split(marker, 1)[1].split("if duplicate is not None:", 1)[0]
 
     assert "Report.species_id == body.species_id" in block, (
-        "Router duplicate check must filter on species_id — otherwise the"
+        "Router duplicate check must filter on species_id - otherwise the"
         " same photo classified as a different species is swallowed as a replay."
     )
     assert "Report.created_at.asc()" in block, (

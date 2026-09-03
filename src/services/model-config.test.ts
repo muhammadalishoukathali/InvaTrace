@@ -16,7 +16,7 @@ const targetResult = {
   speciesId: 'mikania-micrantha',
 }
 
-// AC 1.1.3 / P2 — every branch of the server-authoritative gate lands the
+// AC 1.1.3 / P2 - every branch of the server-authoritative gate lands the
 // result in the same shape the UI reads. When the gate cannot run the local
 // result must still surface, only reporting is blocked (serverAccepted=false).
 describe('applyServerAcceptance', () => {
@@ -29,7 +29,7 @@ describe('applyServerAcceptance', () => {
   })
 
   it('keeps local result when no config is available but marks it unaccepted', () => {
-    // AC Iteration 1 P2 — a slow/unavailable backend must not prevent the
+    // AC Iteration 1 P2 - a slow/unavailable backend must not prevent the
     // local classification from appearing. Reporting stays blocked via
     // serverAccepted=false until the gate confirms.
     const out = applyServerAcceptance(targetResult, null)
