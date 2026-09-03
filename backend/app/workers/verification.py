@@ -200,13 +200,14 @@ def process_job(job_id: str) -> None:
             # Same photo bytes or same capture id from a *different* profile is
             # treated as spam/replay outright, before we even bother screening
             # the image - see _is_exact_replay.
-            exact_replay = _is_exact_replay(
+            dedup_disabled = settings.screening_disable_duplicate_check
+            exact_replay = False if dedup_disabled else _is_exact_replay(
                 session,
                 report=report,
                 content_sha256=content_sha256,
             )
             owner_species_merge_sighting = None
-            if not exact_replay:
+            if not exact_replay and not dedup_disabled:
                 # Not the same as exact_replay above - this is the *same*
                 # reporter re-submitting the same photo for the same species,
                 # which is a legit "I'm confirming my earlier sighting" case
@@ -229,7 +230,8 @@ def process_job(job_id: str) -> None:
                 # prior sighting BEFORE the perceptual replay check would otherwise
                 # reject it as a cross-species look-alike.
                 if (
-                    not screening.failure_reasons
+                    not dedup_disabled
+                    and not screening.failure_reasons
                     and report.species_id
                     and owner_species_merge_sighting is None
                 ):

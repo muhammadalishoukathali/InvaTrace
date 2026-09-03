@@ -67,6 +67,10 @@ class Settings(BaseSettings):
     screening_duplicate_radius_max_m: int = Field(default=25, ge=10, le=100)
     screening_duplicate_window_hours: int = Field(default=24, ge=1, le=168)
     screening_duplicate_window_minutes: int = Field(default=10, ge=1, le=1440)
+    # Turn off exact + perceptual duplicate-image checks so usability testers
+    # can reuse the same reference photo across scans/reports without hitting
+    # replay rejection. Off by default in prod; flip to true in the test env.
+    screening_disable_duplicate_check: bool = False
     worker_poll_seconds: float = Field(default=2, ge=0.1, le=60)
     worker_max_attempts: int = Field(default=5, ge=1, le=20)
     worker_job_lease_seconds: int = Field(default=300, ge=30, le=3600)
