@@ -146,17 +146,18 @@ def create_report(
     # same scan): return the earlier Report as if this were a replay instead
     # of writing a second row. Per-profile scope so two people submitting the
     # same reference image still each get their own report.
-    duplicate = session.scalar(
-        select(Report)
-        .where(
-            Report.profile_id == auth.profile.id,
-            Report.content_sha256 == server_hash,
+    if not get_settings().screening_disable_duplicate_check:
+        duplicate = session.scalar(
+            select(Report)
+            .where(
+                Report.profile_id == auth.profile.id,
+                Report.content_sha256 == server_hash,
+            )
+            .order_by(Report.created_at.desc())
         )
-        .order_by(Report.created_at.desc())
-    )
-    if duplicate is not None:
-        response.status_code = 200
-        return report_response(duplicate)
+        if duplicate is not None:
+            response.status_code = 200
+            return report_response(duplicate)
     species = session.get(Species, body.species_id) if body.species_id else None
     if body.species_id and not species:
         raise ApiProblem(400, "unknown_species", "The species is not supported.")
