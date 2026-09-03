@@ -35,7 +35,21 @@ settings = get_settings()
 # without it we'd occasionally get "server closed the connection" errors on
 # the first query after the DB has been idle for a while. pool_recycle keeps
 # us under whatever idle-connection timeout the DB/proxy enforces.
-engine = create_engine(settings.database_url, pool_pre_ping=True, pool_recycle=300)
+# connect_args.prepare_threshold=None disables psycopg3's server-side prepared
+# statements. When DATABASE_URL points at a pooler in transaction mode (e.g.
+# PgBouncer, or the Render/Supabase shared pooler) the same backend connection
+# is handed to different logical sessions, and psycopg3's auto-generated
+# `_pg3_0` prepared-statement name collides with one left behind by a prior
+# checkout — surfacing as `DuplicatePreparedStatement: prepared statement
+# "_pg3_0" already exists` on the very first query after boot. Turning
+# prepared statements off entirely is safe because our workload is dominated
+# by short, non-hot-path queries where the plan-cache win is negligible.
+engine = create_engine(
+    settings.database_url,
+    pool_pre_ping=True,
+    pool_recycle=300,
+    connect_args={"prepare_threshold": None},
+)
 SessionLocal = sessionmaker(bind=engine, expire_on_commit=False, autoflush=False)
 
 
