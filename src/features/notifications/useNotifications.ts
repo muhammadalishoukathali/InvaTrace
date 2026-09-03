@@ -1,15 +1,15 @@
 /**
- * Custom hook pair for the notification bell: `useNotifications` polls the
- * unread list every 30 seconds while the tab is visible (background polling
- * is off so hidden tabs don't make unnecessary requests), and
- * `useMarkNotificationRead` marks one or all notifications read.
+ * Two hooks for the notification bell. useNotifications polls the unread
+ * list every 30s while the tab's actually visible - turned background
+ * polling off so a hidden tab doesn't keep hammering the API for no reason.
+ * useMarkNotificationRead handles marking one or all as read.
  *
- * Call `useNotifications` anywhere you need the current unread count or list
- * — right now that's just NotificationsPanel.tsx. It's gated on
- * `sessionReady` from private-access-store.ts so it doesn't fire before a
- * profile exists. Gotcha: `markOne`/`markAll` do a hard `refetchQueries`
- * rather than an optimistic update, so the panel briefly shows the old read
- * state until the refetch resolves.
+ * useNotifications can be called anywhere you need the count/list, though
+ * right now that's only NotificationsPanel.tsx. It's gated on sessionReady
+ * from private-access-store.ts so it doesn't fire before there's a profile.
+ * One gotcha I ran into: markOne/markAll do a full refetchQueries instead of
+ * an optimistic update, so the panel briefly still shows the old unread
+ * state until that refetch comes back. Good enough for now, could revisit.
  */
 import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { api } from '@/services/api-client'

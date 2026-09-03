@@ -1,6 +1,7 @@
-/** Notification button and panel used in the application header. Selecting a
- *  notification marks it as read and opens its route when `linkTo` is present.
- *  Desktop uses a dropdown; mobile renders a bottom sheet over the page. */
+/** The bell button and panel in the header. Clicking a notification marks it
+ *  read and, if the server sent a linkTo, navigates there too. Desktop shows
+ *  a dropdown, mobile gets a bottom sheet over the page instead - didn't want
+ *  a dropdown getting cut off or feeling cramped on a small screen. */
 import { useEffect, useRef, useState } from 'react'
 import { createPortal } from 'react-dom'
 import { useLocation, useNavigate } from 'react-router-dom'
@@ -31,10 +32,10 @@ const KIND_TINT: Record<NotificationKind, string> = {
 }
 
 /**
- * The bell icon and its dropdown/sheet of notifications, rendered in the app
- * header on every screen. Reads notification data from useNotifications.ts;
- * clicking an item marks it read and follows `linkTo` if the server set one
- * (e.g. straight to a screened report or the relevant map sighting).
+ * Bell icon plus its dropdown/sheet, shows up in the header on every screen.
+ * Pulls the actual notification data from useNotifications.ts. Clicking an
+ * item marks it read and, if the server gave it a linkTo, jumps there - could
+ * be straight to a screened report or the relevant sighting on the map.
  */
 export function NotificationsPanel() {
   const [open, setOpen] = useState(false)
@@ -49,8 +50,8 @@ export function NotificationsPanel() {
   const items = data?.items ?? []
 
   useEffect(() => {
-    // Desktop closes the dropdown when the user clicks elsewhere. Mobile uses
-    // the sheet background for the same behavior, so this listener is not needed.
+    // this listener is only for desktop - clicking outside closes the dropdown.
+    // mobile doesn't need it since the sheet backdrop already handles that
     if (!open || !isDesktop) return
     const onDown = (e: MouseEvent) => {
       if (wrapper.current && !wrapper.current.contains(e.target as Node)) setOpen(false)
@@ -62,8 +63,9 @@ export function NotificationsPanel() {
   const openItem = (n: AppNotification) => {
     if (!n.read) void markOne(n.id)
     if (n.linkTo) {
-      // An absolute URL from the server would otherwise be mis-parsed by
-      // React Router as a relative path (e.g. `/foo/https:/…`).
+      // had to special-case absolute URLs here - if I just passed them to
+      // navigate(), React Router treats them as a relative path and you end
+      // up with something broken like "/foo/https:/…"
       if (/^https?:\/\//i.test(n.linkTo)) {
         window.open(n.linkTo, '_blank', 'noopener,noreferrer')
       } else {
@@ -123,8 +125,8 @@ export function NotificationsPanel() {
   )
 }
 
-/** The actual list of notifications, shared between the desktop dropdown and
- *  mobile sheet layouts so we only style the list markup once. */
+/** Pulled the list itself out into its own component so the desktop dropdown
+ *  and mobile sheet can share it - only had to write the list styling once. */
 function PanelBody({
   items, unread, onItem, onMarkAll, onClose, layout,
 }: {

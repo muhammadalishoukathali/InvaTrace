@@ -12,9 +12,11 @@ const EXTENT_LABEL = {
 
 /**
  * Step 4 of 4 in the report wizard (location, extent, consent, preview) —
- * the final review-and-submit screen. Kicks off submitReport(), which may
- * finish immediately or fall back to the offline queue; either way the
- * result gets stored as the draft outcome for ReportSubmissionResult.tsx.
+ * the last screen before it actually goes out. Hitting submit calls
+ * submitReport(), which either finishes right away or, if we're offline or
+ * the request fails, falls back to saving it in the local queue instead.
+ * Either way we don't handle that difference here — we just store whatever
+ * outcome comes back so ReportSubmissionResult.tsx can decide what to show.
  */
 export function ReportPreviewStep() {
   const [submitError, setSubmitError] = useState<string | null>(null)
@@ -48,9 +50,10 @@ export function ReportPreviewStep() {
     }
   }
 
-  // AC 4.1.2 — accuracy is a soft warning at the location step, not a hard
-  // block. Match that here: require a finite non-negative accuracy value but
-  // don't second-guess a fix the user already accepted.
+  // Same rule as the location step: accuracy is only a soft warning there,
+  // not something we block on, so we keep that consistent here too — just
+  // check it's a real non-negative number and leave it at that. We're not
+  // going to second-guess a fix the user already accepted earlier.
   const hasFiniteAccuracy = draft.locationAccuracyM !== null
     && Number.isFinite(draft.locationAccuracyM)
     && draft.locationAccuracyM >= 0

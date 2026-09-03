@@ -449,10 +449,12 @@ def _is_exact_replay(session, *, report: Report, content_sha256: bytes) -> bool:
 def _find_owner_species_replay(
     session, *, report: Report, content_sha256: bytes
 ) -> tuple[Report, Sighting] | None:
-    """AC 2.3.1: same anonymous identity + same species + same SHA-256 (or
-    capture id) → merge with the prior sighting. Returns the retained
-    (report, sighting) pair so the caller can persist ``merged_into_report_id``
-    and write the merge audit event with the retained report id."""
+    """AC 2.3.1 case — same anonymous user resubmitting the same photo for
+    the same species. We treat that as them re-confirming their own earlier
+    sighting, so we merge into the older one instead of rejecting as a
+    duplicate. Returns the (retained report, its sighting) pair so the
+    caller can set merged_into_report_id on the new row and log the merge
+    audit event pointing at the right kept-report id."""
     if not report.species_id:
         return None
     prior_report = session.scalar(

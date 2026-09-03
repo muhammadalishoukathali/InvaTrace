@@ -2,7 +2,9 @@ interface LogoProps {
   size?: number
 }
 
-/** InvaTrace app mark: a clover observed through a field lens. */
+/** The InvaTrace app mark - basically a clover as seen through a field lens,
+ *  which felt fitting given the whole point of the app is spotting invasive
+ *  plants out in the field. */
 export function Logo({ size = 40 }: LogoProps) {
   return (
     <img
@@ -18,7 +20,7 @@ export function Logo({ size = 40 }: LogoProps) {
   )
 }
 
-/** Horizontal brand lockup for headers and entry screens. */
+/** Logo plus wordmark side by side, for headers and the entry screens. */
 export function LogoWordmark() {
   return (
     <div className="brand-lockup" aria-label="InvaTrace">

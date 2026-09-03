@@ -1,8 +1,12 @@
 /**
- * Stores reports in IndexedDB when submission cannot finish. A submission first
- * requests an upload URL, uploads the photo, and creates the report. If any step
- * fails, the report and photo are saved locally. `flushQueue` retries the same
- * steps after the connection and API session are available again.
+ * This whole file handles what happens when a report submission can't
+ * finish right away. Normally submitting means: ask the server for an
+ * upload URL, upload the photo to it, then create the report — three
+ * network calls that all need to succeed. If any one of them fails (bad
+ * connection while out in the field, most likely) we save the report and
+ * the photo blob locally in IndexedDB instead of just losing the user's
+ * work. `flushQueue` is what goes back and retries all those same steps
+ * once we're back online and the API session is ready again.
  */
 import type { PresignedUpload, QueuedReport, Report, ReportSubmission } from '@/types'
 import { api, ApiError } from '@/services/api-client'
@@ -57,8 +61,8 @@ async function deleteQueuedReport(id: string): Promise<void> {
   })
 }
 
-/** Ask the API for a temporary upload URL, upload the image, and return the
- *  photo key that must be included in the report request. */
+/* Asks the API for a temporary upload URL, PUTs the image straight to it,
+ * and hands back the photo key that has to go into the report request. */
 async function uploadImage(blob: Blob, idempotencyKey: string): Promise<string> {
   const presigned = await api<PresignedUpload>('/api/v1/uploads/presign', {
     method: 'POST',
@@ -89,11 +93,13 @@ const REUSABLE_UPLOAD_ERRORS = new Set([
   'upload_changed',
 ])
 
-/** Decides whether a failed submission gets queued for retry or just fails
- *  outright. Anything that looks transient (offline, network blip, upload
- *  URL expiry, server overload/rate-limit) is retryable; a rejection from
- *  the trust pipeline itself (4xx other than the upload-token codes) is not
- *  — retrying wouldn't change the outcome and would just spam the API. */
+/* Decides whether a failed submission should get queued for a retry or
+ * just fail outright and surface an error. Anything that looks temporary —
+ * being offline, a network blip, the upload URL expiring, the server being
+ * overloaded or rate-limiting us — gets queued. But if the screening
+ * pipeline itself rejected the submission (a 4xx that isn't one of the
+ * upload-token codes), retrying won't change anything, it'll just be the
+ * same rejection again, so we don't bother queueing those. */
 function shouldRetry(error: unknown): boolean {
   if (typeof navigator !== 'undefined' && !navigator.onLine) return true
   if (error instanceof UploadError || error instanceof TypeError) return true
@@ -108,11 +114,12 @@ async function createReport(
   idempotencyKey: string,
   queuedRetry: boolean,
 ): Promise<Report> {
-  // AC Iteration 1 P1 — announce the bundled catalogue version + checksum so
-  // the backend can 409 out any submission that would otherwise commit
-  // against a drifted plant-status record. Imported lazily to keep this
-  // module tree-shakeable when the report queue is loaded on a page that
-  // never actually submits (e.g. history view).
+  // We send along the bundled catalogue version and its checksum so the
+  // backend can catch it with a 409 if this client's plant-status data has
+  // drifted out of date, rather than silently committing against stale
+  // data. This is a lazy import on purpose — it keeps the module
+  // tree-shakeable when report-queue.ts gets loaded on a page that never
+  // actually submits anything, like the history view.
   const { catalogueVersion, plantStatusChecksum } = await import('@shared/catalogue')
   return api<Report>('/api/v1/reports', {
     method: 'POST',
@@ -134,9 +141,11 @@ interface SubmitOutcome {
 }
 
 /**
- * Submit one report from start to finish. A network or server failure stores
- * the report locally with an empty photo key. The retry starts with a new upload
- * URL because temporary upload URLs can expire.
+ * Submits one report end to end. If a network or server failure happens
+ * partway through, we just save the report locally with whatever photo key
+ * it had (possibly empty if we never even got that far) — the retry logic
+ * later on always grabs a fresh upload URL rather than reusing the old one,
+ * since those URLs expire.
  */
 export async function submitReport(
   submission: Omit<ReportSubmission, 'photoKey'>,
@@ -144,12 +153,14 @@ export async function submitReport(
 ): Promise<SubmitOutcome> {
   const ownerProfileId = usePrivateAccess.getState().profile?.id
   if (!ownerProfileId) throw new Error('Private access must be ready before submitting a report.')
-  // Derive the queue id (which becomes the report-create Idempotency-Key) from
-  // the scan's stable captureId, not a fresh UUID per call. A second Submit
-  // click after a slow network — or a re-entry into the wizard for the same
-  // scan — then hits the server with the same key and replays the original
-  // response instead of creating a second Report row. Different profile / photo
-  // still yields a different key via the sha256 mix-in.
+  // We derive the queue id (which doubles as the report-create
+  // Idempotency-Key) from the scan's stable captureId instead of just
+  // generating a fresh UUID every call. That way if the user double-taps
+  // Submit on a slow connection, or re-enters the wizard for the same scan,
+  // the server sees the same key both times and just replays the original
+  // response instead of creating a duplicate Report row. Mixing in the
+  // photo's sha256 and the profile id still gives a different key if either
+  // of those actually change.
   const imageSha256 = await sha256Hex(imageBlob)
   const queuedId = await deriveQueuedId(submission.captureId, ownerProfileId, imageSha256)
   let photoKey = ''
@@ -201,10 +212,10 @@ async function sendQueuedReport(item: QueuedReport): Promise<Report> {
   try {
     return await createReport(item.submission, item.id, true)
   } catch (error) {
-    // A stale/expired upload URL isn't fixable by retrying createReport as-is —
-    // we have to redo the upload with a fresh presigned URL first. The retry
-    // idempotency key is suffixed with the attempt count so it doesn't collide
-    // with the original (now-dead) upload key on the server.
+    // If the upload URL went stale, just retrying createReport won't fix
+    // anything — we have to redo the whole upload with a fresh presigned URL
+    // first. We suffix the retry's idempotency key with the attempt count so
+    // it doesn't collide with the original, now-dead upload key on the server.
     if (!(error instanceof ApiError) || !error.code || !REUSABLE_UPLOAD_ERRORS.has(error.code)) {
       throw error
     }
@@ -219,7 +230,8 @@ async function sendQueuedReport(item: QueuedReport): Promise<Report> {
   }
 }
 
-/** Try each retryable report owned by the current private profile once. */
+/* Goes through each retryable report that belongs to the current private
+ * profile and gives it one attempt. */
 export async function flushQueue(): Promise<{ sent: number; failed: number; skipped: number }> {
   if (typeof navigator !== 'undefined' && !navigator.onLine) {
     return { sent: 0, failed: 0, skipped: 0 }
@@ -229,10 +241,12 @@ export async function flushQueue(): Promise<{ sent: number; failed: number; skip
   const items = await readQueuedReports()
   let sent = 0, failed = 0, skipped = 0
   for (const item of items) {
-    // The queue is one shared IndexedDB store, so it can hold reports from a
-    // previous private profile on this device (e.g. after a restore) or ones
-    // the trust pipeline already told us won't succeed on retry — skip both
-    // rather than resending them under the wrong identity or forever.
+    // The queue is one shared IndexedDB store for the whole device, so it
+    // can end up holding reports left over from a different private profile
+    // (say, after restoring a different profile on the same device), or
+    // reports the screening pipeline already told us will never succeed on
+    // retry. We skip both cases rather than resending under the wrong
+    // identity, or retrying something forever that's never going to work.
     if (item.ownerProfileId !== ownerProfileId || item.retryable === false) {
       skipped++
       continue

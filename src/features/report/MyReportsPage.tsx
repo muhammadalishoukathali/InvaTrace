@@ -41,10 +41,13 @@ function speciesName(speciesId: string | null): string {
 }
 
 /**
- * "My records" screen — merges submitted reports fetched from the API with
- * scans that only exist in local scan history (not submitted yet, or queued
- * offline). Lets the user jump back into any record's map location or
- * tracking page. Reached from the profile screen, not part of the wizard.
+ * This is the "My records" page. The tricky part building this was that a
+ * user's history is actually two different sources stitched together: reports
+ * that made it to the server, and scans sitting only in local history because
+ * they were never submitted (or got queued offline and haven't synced yet).
+ * So this page merges both lists so the user sees one continuous history
+ * instead of two separate screens. You get here from the profile page, it's
+ * not part of the report wizard itself.
  */
 export function MyReportsPage() {
   const online = useOnline()

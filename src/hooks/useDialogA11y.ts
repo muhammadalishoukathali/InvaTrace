@@ -14,8 +14,10 @@ interface Options {
   returnFocus?: () => HTMLElement | null
 }
 
-/** Keeps keyboard focus inside an open dialog, closes it with Escape, and
- *  returns focus to the element that opened it. */
+/** Handles the accessibility bits every dialog needs: traps tab focus inside
+ *  it while open, closes on Escape, and puts focus back on whatever opened
+ *  it once it's done. Wrote this once and reuse it everywhere I have a
+ *  modal/dialog instead of redoing this logic each time. */
 export function useDialogA11y(
   dialogRef: RefObject<HTMLElement | null>,
   onClose: () => void,

@@ -11,13 +11,14 @@ import type { IdentifyResult, SpeciesDetail } from '@/types'
 import './scan-result.css'
 
 /**
- * Shows the outcome of a finished scan (target species, other plant, or
- * uncertain), the confidence band, and — for identified species — the
- * Malaysia status and PlantGuidancePanel with removal/reporting guidance.
- * This is the E1 identification result review screen from the product docs:
- * the point where the user checks the model's suggestion before deciding
- * whether to start a report. Redirects back to capture if there's no result
- * in scan-store yet (e.g. a direct link or a page refresh mid-flow).
+ * Shows what a finished scan came back with — target species, other plant,
+ * or uncertain — plus the confidence band, and for identified species the
+ * Malaysia status and the PlantGuidancePanel with removal/reporting steps.
+ * This is basically the identification review screen from the requirements:
+ * the point where the user actually checks the model's guess before deciding
+ * whether to bother starting a report. If there's no result sitting in
+ * scan-store yet (a direct link, or a page refresh mid-flow), it just
+ * bounces back to capture instead of showing a blank page.
  */
 export function ScanResultPage() {
   const navigate = useNavigate()
@@ -57,32 +58,32 @@ export function ScanResultPage() {
     navigate('/report', { state: location.state })
   }
 
-  // AC Iteration 1 P3 — the Malaysian ui_state and every downstream
-  // action/report decision are resolved by resolveResultPathway from the
-  // authoritative catalogue. Raw model outcomes are no longer trusted to
-  // classify the plant as invasive on their own.
+  // The Malaysia ui_state, and everything downstream that depends on it, all
+  // gets resolved through resolveResultPathway against the shared catalogue —
+  // I stopped trusting the raw model outcome on its own to decide whether
+  // something's invasive, since the catalogue is the actual authoritative source.
   const pathway = resolveResultPathway(result)
   const statusUncertain = pathway.pathway === 'status_uncertain'
-  // An explicit server veto (reportEligible === false) still wins over the
-  // catalogue's own permission. Undefined leaves the catalogue in charge.
+  // An explicit server veto (reportEligible === false) still overrides whatever
+  // the catalogue says. If it's undefined though, the catalogue stays in charge.
   const serverReportEligible = speciesDetail?.reportEligible
   const reportEligible = serverReportEligible === false ? false : pathway.canReport
-  // Both camera capture and file-picker upload are trusted for the report
-  // flow. Desktop testers and users without camera permission would otherwise
-  // hit a dead-end when the identification succeeds but Report never appears.
+  // Trusting both camera capture and gallery upload for the report flow matters
+  // because otherwise desktop testers, or anyone without camera permission,
+  // would hit a dead end where identification succeeds but Report just never
+  // shows up.
   const trustedCapture = captureSource === 'camera' || captureSource === 'gallery'
-  // AC 2.2.1 — the Report button stays disabled until the server-side scan
-  // record was persisted. Retryable failure surfaces its own control below.
+  // Report stays disabled until the scan record is actually persisted
+  // server-side; a retryable failure gets its own control further down.
   const scanReady = scanPersistStatus === 'ok'
-  // AC Iteration 1 P2 — reporting also stays blocked when the classification
-  // was accepted locally but the server-authoritative model-config gate was
-  // unreachable. The result still displays; only Report is held back until
-  // the gate has been able to confirm.
+  // Reporting also stays blocked if the classification was accepted locally but
+  // the server-side model-config gate couldn't be reached. The result still
+  // displays fine — it's only Report that waits for the gate to confirm.
   const gateConfirmed = result.serverAccepted !== false
   const canReport = trustedCapture && reportEligible && scanReady && gateConfirmed
-  // Never let an information-only or status-uncertain record hit the
-  // in-panel removal/containment flow, even if a stale server flag says
-  // actionEligible=true.
+  // I don't want an information-only or status-uncertain record ever reaching
+  // the in-panel removal/containment flow, even if a stale server flag claims
+  // actionEligible is true — the pathway check here overrides that.
   const guidanceActionEligible = pathway.canAction
     ? speciesDetail?.actionEligible
     : false
@@ -91,9 +92,9 @@ export function ScanResultPage() {
     <div className="scan-result">
       <OutcomeBadge pathway={pathway.pathway} />
 
-      {/* AC Iteration 1 P2 (AC 1.1.2 DoD) — every classification result must
-          carry the model-generated disclosure. Kept as a short standalone
-          sentence so screen readers announce it before the finding. */}
+      {/* Every classification result needs to carry this disclosure that it came
+          from a model, not a human. Kept as its own short sentence so screen
+          readers announce it before getting into the actual finding. */}
       <p className="scan-result__disclosure" role="note">
         This identification was generated by the InvaTrace image-recognition model.
       </p>
@@ -150,8 +151,9 @@ export function ScanResultPage() {
           scientificName={result.scientificName}
           speciesName={result.speciesName}
           plantId={result.speciesId}
-          // Information-only records forward actionEligible=false so the
-          // panel omits removal controls even without a server veto.
+          // Passing false here for information-only records is what makes the
+          // panel drop its removal controls, even when there's no server veto
+          // telling it to.
           actionEligible={guidanceActionEligible}
           decisionContext={captureId ? { id: `scan:${captureId}`, kind: 'scan' } : undefined}
           showReferenceImage={false}
@@ -209,10 +211,10 @@ export function ScanResultPage() {
   )
 }
 
-// AC Iteration 1 P3 — the badge label reflects the catalogue-derived
-// pathway, not the raw model outcome. A target-outcome plant that maps to
-// an information-only or status-uncertain catalogue record must never be
-// labelled "Invasive in Malaysia".
+// The badge label follows the catalogue-derived pathway, not the raw model
+// outcome — a plant the model flagged as "target" but that actually maps to an
+// information-only or status-uncertain catalogue record should never end up
+// labelled "Invasive in Malaysia" just because of that raw outcome.
 const PATHWAY_CONFIG: Record<ResultPathway, {
   label: string; bg: string; border: string; color: string; icon: string
 }> = {
@@ -246,7 +248,9 @@ function TargetResult({
   })
   const referenceImage = detail.referenceImageUrl
     ?? (modelSpecies ? modelReferenceImageUrl(modelSpecies) : null)
-  // Detailed safety and removal guidance is rendered once in the shared panel.
+  // The detailed safety/removal guidance itself only gets rendered once, down
+  // in the shared PlantGuidancePanel — this component just handles the header,
+  // native-twin comparison, and reference photo.
   return (
     <>
       <div style={{ marginTop: 16 }}>
@@ -375,9 +379,9 @@ function OtherPlantResult({ result }: { result: IdentifyResult }) {
 }
 
 function InformationOnlyResult({ result }: { result: IdentifyResult }) {
-  // AC Iteration 1 P3 — information-only records are surfaced with neutral
-  // framing: identify the plant, offer nothing to act on or report. Full
-  // context lives in the PlantGuidancePanel below.
+  // Information-only records get deliberately neutral framing here — just
+  // identify the plant, don't give the user anything to act on or report.
+  // The actual full context lives in the PlantGuidancePanel further down.
   const modelSpecies = findModelSpecies({
     speciesId: result.speciesId ?? null,
     scientificName: result.scientificName ?? null,
@@ -445,7 +449,9 @@ function UncertainResult({ result }: { result: IdentifyResult }) {
 function UnsupportedTargetResult({ result }: { result: IdentifyResult }) {
   const displayName = result.speciesName ?? result.scientificName ?? 'Possible invasive plant'
   const scientific = result.scientificName && result.scientificName !== displayName ? result.scientificName : null
-  // A catalogue reference photo remains useful when detailed guidance is absent.
+  // Even when there's no detailed guidance card for this plant, a catalogue
+  // reference photo is still worth showing so the user has something to
+  // compare against.
   const guidance = findPlantGuidance({
     scientificName: result.scientificName ?? null,
     modelLabel: result.speciesName ?? null,
@@ -480,7 +486,7 @@ function UnsupportedTargetResult({ result }: { result: IdentifyResult }) {
           </figcaption>
         </figure>
       )}
-      {/* Keep the result summary short; full guidance follows below. */}
+      {/* Kept this summary short on purpose — the full guidance is further down. */}
       <p style={{ marginTop: 8, color: 'var(--body)', fontSize: 13.5, lineHeight: 1.6 }}>
         {guidance?.general_information
           ? firstSentence(guidance.general_information)
@@ -491,14 +497,16 @@ function UnsupportedTargetResult({ result }: { result: IdentifyResult }) {
   )
 }
 
-/** Trims a longer description down to its first sentence for compact result
- *  boxes. Falls back to the full text if no sentence boundary is found. */
+/** Cuts a longer description down to just its first sentence, for the compact
+ *  result boxes. If it can't find a sentence boundary it just returns the
+ *  whole text rather than mangling it. */
 function firstSentence(text: string): string {
   const match = text.match(/^.*?[.!?](?=\s|$)/)
   return match ? match[0] : text
 }
 
-/** Converts an ISO date to a month and year, or returns an invalid value unchanged. */
+/** Turns an ISO date into something like "March 2025" for display. If the
+ *  format looks off, just hands the original string back instead of throwing. */
 function humanReviewedDate(iso: string): string {
   const match = iso.match(/^(\d{4})-(\d{2})/)
   if (!match) return iso

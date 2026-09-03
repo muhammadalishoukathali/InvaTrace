@@ -18,10 +18,11 @@ const TITLES: Record<string, [string, string]> = {
 }
 
 /**
- * Root layout for every authenticated screen (map, profile, records). Renders
- * the sidebar or bottom tabs depending on viewport, a shared header with the
- * page title, and an Outlet for the active route. Mounted at "/" in
- * src/app/router.tsx behind RequirePrivateAccess.
+ * This is the shared shell around every screen once you've got a profile set
+ * up - map, profile, records all render inside it. Picks sidebar vs bottom
+ * tabs based on viewport, does the header/title, and drops the active route
+ * into an Outlet. Gets mounted at "/" in src/app/router.tsx behind
+ * RequirePrivateAccess, so nothing here should ever render without a profile.
  */
 export function AppShell() {
   const isDesktop = useIsDesktop()
@@ -31,14 +32,15 @@ export function AppShell() {
   const navigate = useNavigate()
   const headingRef = useRef<HTMLHeadingElement>(null)
 
-  // Move focus to the page heading on every route change so screen-reader
-  // users get an announcement of where they landed, same as a full page load
-  // would give them — react-router doesn't reset focus on its own.
+  // One of the accessibility ACs asked for screen readers to announce where
+  // you land after navigating. React Router doesn't move focus on its own
+  // (it's an SPA, no real page load happening), so I do it manually here -
+  // just shove focus onto the heading whenever the pathname changes.
   useEffect(() => { headingRef.current?.focus() }, [pathname])
 
-  // RequirePrivateAccess should stop us getting here without a profile, but
-  // this guards the brief render between that check resolving and the
-  // profile actually landing in the store.
+  // in theory RequirePrivateAccess already stops us getting here without a
+  // profile, but there's a brief moment between that check passing and the
+  // profile actually being in the store, so this just covers that gap
   if (!profile) return null
   const [title, subtitle] = pathname.startsWith('/reports/')
     ? ['Report details', 'Status and screening result']

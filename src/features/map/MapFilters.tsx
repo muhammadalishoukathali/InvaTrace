@@ -8,7 +8,9 @@ import { modelSpeciesCatalog } from '@/data/model-species-catalog'
 import type { SightingStatus, Risk } from '@/types'
 import './map-controls.css'
 
-/** Every invasive class emitted by the bundled model. */
+/** All the invasive classes the bundled model can actually output — I filter
+ *  the full species catalog down to just these so the filter chips only ever
+ *  show something the model would realistically flag. */
 export const MAP_FILTER_SPECIES = modelSpeciesCatalog.classes
   .filter((species) => species.malaysia_status === 'invasive')
   .map((species) => ({
@@ -27,10 +29,13 @@ const RISKS: { id: Risk; label: string; dot: string }[] = [
 ]
 
 /**
- * Search box plus species/risk/status filter chips for the threat map. Sits
- * above the map in ThreatMapPage.tsx; filter state itself lives in
- * map-view-store.ts so the map's marker-rebuild effect can read it too.
- * Desktop shows chips inline, mobile opens them in a bottom sheet.
+ * Search box plus the species/risk/status filter chips that sit above the
+ * threat map. I kept the actual filter state out of this component and put
+ * it in map-view-store.ts instead, because the map's marker-rebuild effect
+ * in ThreatMapPage.tsx needs to read the same values and I didn't want to
+ * prop-drill between two components that aren't parent/child. On desktop
+ * there's enough room to lay the chips out inline; on mobile they wouldn't
+ * fit in one row so I move them into a bottom sheet instead.
  */
 export function MapFilters() {
   const isDesktop = useIsDesktop()
@@ -43,8 +48,9 @@ export function MapFilters() {
 
   return (
     <div className="map-toolbar">
-      {/* The search box is always visible. On mobile, the filter button opens
-          the choices in a bottom sheet because the chips do not fit in one row. */}
+      {/* Search box stays visible no matter the screen size. On mobile the
+          filter button below opens the same choices in a bottom sheet since
+          the chips would overflow if I tried to cram them into one row. */}
       <div className="map-toolbar__row">
         <label className="field-shell map-search" style={{
           display: 'flex', alignItems: 'center', gap: 8, flex: 1, minWidth: 0,
@@ -88,10 +94,11 @@ export function MapFilters() {
         )}
       </div>
 
-      {/* Desktop has enough width to show every filter as an inline chip.
-          AC Iteration 1 P9 — each chip cluster is grouped semantically so a
-          screen-reader user hears "Species filters, 12 items" instead of an
-          undifferentiated stream of pressed / not-pressed buttons. */}
+      {/* Desktop has enough width to lay out every filter as an inline chip.
+          I grouped each chip cluster with role="group" and an aria-label for
+          AC Iteration 1 P9 (accessibility) — without that a screen-reader
+          user just hears a long run of pressed/not-pressed buttons with no
+          way to tell "Species filters" apart from "Risk filters". */}
       {isDesktop && (
         <div style={{ display: 'flex', gap: 6, alignItems: 'center', flexWrap: 'wrap' }}>
           <div role="group" aria-label="Species filters" style={{ display: 'contents' }}>
@@ -127,7 +134,8 @@ export function MapFilters() {
         </div>
       )}
 
-      {/* On mobile, render the same filter choices in a keyboard-accessible dialog. */}
+      {/* Mobile gets the same filter choices, just rendered inside a
+          keyboard-accessible dialog instead of an inline row. */}
       {!isDesktop && sheetOpen && (
         <FiltersSheet
           onClose={() => setSheetOpen(false)}
@@ -145,15 +153,15 @@ export function MapFilters() {
   )
 }
 
-/** Small vertical rule between chip groups on the desktop filter bar. */
+/** Just a thin vertical rule so the desktop chip groups don't blur together. */
 function Divider() {
   return <span aria-hidden style={{
     width: 1, height: 22, background: 'var(--border)', margin: '0 4px',
   }} />
 }
 
-/** Mobile-only bottom sheet version of the filter controls, opened from the
- *  "Filters" trigger button in MapFilters when the screen is too narrow for chips. */
+/** Mobile-only bottom sheet with the same filter controls, opened from the
+ *  "Filters" button up top once the screen is too narrow for inline chips. */
 function FiltersSheet({
   onClose, selectedSpecies, selectedStatuses, selectedRisks,
   toggleSpecies, toggleStatus, toggleRisk, clearFilters, active,
@@ -171,8 +179,9 @@ function FiltersSheet({
   const dialogRef = useRef<HTMLElement>(null)
   useDialogA11y(dialogRef, onClose)
 
-  /* Render the sheet under document.body so the map canvas and controls cannot
-   * appear above it. The map container creates its own stacking layer. */
+  /* I portal this into document.body so the map canvas and its controls can
+   * never sneak above the sheet — the map container sets up its own stacking
+   * context, so without the portal the sheet would end up stuck behind it. */
   return createPortal(
     <>
       <div onClick={onClose} aria-hidden className="app-sheet-backdrop" />
@@ -234,7 +243,7 @@ function FiltersSheet({
   )
 }
 
-/** One labelled section (Risk level / Species / Status) inside the mobile filter sheet. */
+/** One labelled section (Risk level / Species / Status) in the mobile filter sheet. */
 function FilterGroup({ title, description, children }: {
   title: string; description: string; children: React.ReactNode
 }) {
@@ -249,7 +258,7 @@ function FilterGroup({ title, description, children }: {
   )
 }
 
-/** One toggleable row inside a mobile FilterGroup, e.g. a single species checkbox. */
+/** One toggleable row inside a mobile FilterGroup — e.g. a single species checkbox. */
 function FilterOption({ label, on, onClick, dot }: {
   label: string; on: boolean; onClick: () => void; dot?: string
 }) {
@@ -267,7 +276,7 @@ function FilterOption({ label, on, onClick, dot }: {
   )
 }
 
-/** Toggleable pill used for the desktop inline filter bar (species/risk/status). */
+/** Toggleable pill for the desktop inline filter bar (species/risk/status). */
 function Chip({ label, on, onClick, dot }: {
   label: string; on: boolean; onClick: () => void; dot?: string
 }) {

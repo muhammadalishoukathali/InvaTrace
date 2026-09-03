@@ -1,12 +1,13 @@
 import type { GeoPoint, IdentifyResult } from '@/types'
 
 /**
- * Durable local log of past scans (species, outcome, confidence, location,
- * whether it was later submitted as a report), capped at 50 and kept in
- * localStorage so a volunteer can look back at what they've scanned even
- * offline. This is separate from scan-store.ts, which only holds the scan
- * that's currently in progress and gets wiped on reset — this file is the
- * append-only history that survives across scans and app restarts.
+ * A durable local log of past scans — species, outcome, confidence, location,
+ * whether it was later submitted as a report — capped at 50 records and kept
+ * in localStorage so a volunteer can look back at what they've scanned even
+ * while offline. This is separate from scan-store.ts on purpose: that store
+ * only holds the scan currently in progress and gets wiped on every reset,
+ * whereas this file is the append-only history that's meant to survive
+ * across scans and app restarts.
  */
 export interface ScanHistoryRecord {
   captureId: string
@@ -19,8 +20,9 @@ export interface ScanHistoryRecord {
   confidence: number
   modelVersion: string
   reportable: boolean
-  /** Captured with the scan when geolocation was available. Older records do
-   *  not have these fields and remain valid without a map action. */
+  /** Only present when geolocation was actually available at scan time. Older
+   *  records won't have these fields at all, and that's fine — they stay
+   *  valid, they just can't be shown on the map. */
   location?: GeoPoint | null
   locationAccuracyM?: number | null
   submission?: {
@@ -123,7 +125,8 @@ export function clearScanHistory(storage: StorageLike | null = browserStorage())
   try {
     storage.setItem(STORAGE_KEY, JSON.stringify({ version: 1, records: [] } satisfies StoredScanHistory))
   } catch {
-    // Storage can become unavailable after the page has loaded.
+    // Storage can go away mid-session, so this just quietly gives up instead
+    // of throwing.
   }
 }
 

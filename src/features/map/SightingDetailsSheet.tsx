@@ -23,10 +23,11 @@ const OSM_FEATURE_LABEL: Record<string, string> = {
 }
 
 /**
- * Bottom sheet with the full detail view for a single map sighting: species
- * photo, risk tier, report count, nearby place, and guidance. Rendered once
- * inside ThreatMapPage.tsx and opens whenever `selectedId` in map-view-store.ts
- * is set (by clicking a pin or picking a row from the accessible sighting list).
+ * Full detail view for a single map sighting, shown as a bottom sheet:
+ * species photo, risk tier, report count, nearby place, and the guidance
+ * panel. It only gets rendered once inside ThreatMapPage.tsx and opens
+ * whenever `selectedId` in map-view-store.ts gets set — that happens either
+ * by clicking a pin or picking a row from the accessible sighting list.
  */
 export function SightingDetailsSheet() {
   const { selectedId, select } = useMapView()
@@ -46,7 +47,8 @@ export function SightingDetailsSheet() {
     staleTime: 60_000,
   })
 
-  // The nearby feature enriches the record but never blocks viewing it.
+  // Nearby-place lookup is just enrichment, so I don't want it blocking the
+  // sheet from opening — it runs as its own query, separate from the main one.
   const { data: nearestOsm } = useQuery({
     queryKey: ['osm-nearest', data?.location.lat, data?.location.lng],
     queryFn: () => fetchNearestOsmFeature(data!.location.lat, data!.location.lng),
@@ -91,10 +93,11 @@ export function SightingDetailsSheet() {
             </div>
           ) : (
             <>
-              {/* AC 4.2.2 — published evidence image comes first via a
-                  presigned thumbnailUrl. The catalogue reference photo
-                  below is a labelled "reference" fallback, never a
-                  substitute for the reporter's actual evidence. */}
+              {/* AC 4.2.2 wants the actual evidence photo shown first, so this
+                  goes above the catalogue reference photo. It comes through a
+                  presigned thumbnailUrl. The reference photo below is clearly
+                  labelled "reference" — I didn't want it read as if it were
+                  the reporter's own evidence. */}
               <EvidenceThumbnail thumbnailUrl={data.thumbnailUrl} speciesName={data.speciesName} />
               <PlantReferenceMedia latinName={data.latinName} speciesName={data.speciesName} />
 
@@ -122,7 +125,7 @@ export function SightingDetailsSheet() {
                 <h3 id="sighting-record-heading">Report information</h3>
                 <dl>
                   <MetaRow label="Reported" value={formatTime(data.lastReportedAt)} />
-                  {/* AC 4.2.2 — model confidence displayed with the report. */}
+                  {/* AC 4.2.2 also asks for model confidence next to the report. */}
                   {typeof data.confidence === 'number' && (
                     <MetaRow
                       label="Model confidence"
@@ -178,10 +181,11 @@ export function SightingDetailsSheet() {
   )
 }
 
-/** AC 4.2.2 — the actual reporter-submitted photo, served via a short-lived
- *  presigned URL from the sightings API. Rendered above the catalogue
- *  reference so the panel shows the evidence first. Absent thumbnailUrl
- *  falls back silently to the reference-image row below. */
+/** The actual reporter-submitted photo (AC 4.2.2), served through a
+ *  short-lived presigned URL from the sightings API. It's rendered above the
+ *  catalogue reference photo so the evidence shows first. If thumbnailUrl
+ *  isn't set I just render nothing here and let the reference-image row
+ *  below carry the panel instead. */
 function EvidenceThumbnail({
   thumbnailUrl, speciesName,
 }: { thumbnailUrl: string | null; speciesName: string }) {
@@ -202,7 +206,9 @@ function EvidenceThumbnail({
   )
 }
 
-/** Uses the reviewed species image, never a reporter's uploaded photo. */
+/** This one only ever shows the reviewed catalogue image, never a reporter's
+ *  own upload — keeping those two image sources visually distinct is the
+ *  whole point of splitting this out from EvidenceThumbnail above. */
 function PlantReferenceMedia({ latinName, speciesName }: { latinName: string; speciesName: string }) {
   const guidance = findPlantGuidance({
     scientificName: latinName,
@@ -225,7 +231,7 @@ function PlantReferenceMedia({ latinName, speciesName }: { latinName: string; sp
   )
 }
 
-/** One label/value row (with an optional sub-note) in the "Report information" list. */
+/** One label/value row (plus an optional sub-note) in the "Report information" list. */
 function MetaRow({ label, value, sub, mono }: {
   label: string; value: string; sub?: string; mono?: boolean
 }) {
@@ -238,11 +244,12 @@ function MetaRow({ label, value, sub, mono }: {
   )
 }
 
-// AC 4.3.1 — the stored nearest feature (computed by the backend at
-// publication time) is authoritative and rendered first. The live Overpass
-// fetch is retained as non-authoritative enrichment; it is only used when
-// the server did not persist a nearest feature. AC 4.3.2 — no server value
-// and no live match → exact "No named trail, park or forest found nearby".
+// Per AC 4.3.1, the nearest-feature name the backend computed and stored at
+// publication time is treated as authoritative and shown first if present.
+// The live Overpass fetch above is just enrichment I fall back to when the
+// server never persisted a nearest feature. And per AC 4.3.2, if neither one
+// has anything, this falls through to the exact copy "No named trail, park
+// or forest found nearby" rather than an empty field.
 function nearbyPlaceLabel(
   data: SightingDetail,
   nearestOsm: Awaited<ReturnType<typeof fetchNearestOsmFeature>> | undefined,

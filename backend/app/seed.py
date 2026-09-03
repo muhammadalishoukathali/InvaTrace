@@ -317,10 +317,14 @@ _GENERIC_INVASIVE_GUIDANCE = {
 
 
 def _apply_shared_catalogue_to_species_seed() -> None:
-    """Rebuilds SPECIES from the shared/catalogue/plant-status.json records
-    (the single source of truth for Malaysian status). Hand-written detail
-    above is layered in wherever it exists by ``id``, and generic invasive
-    guidance is added for reportable species without curated content."""
+    """Rebuilds the SPECIES list at import time from the shared catalogue
+    JSON — that file is where the Malaysian status actually lives, so I
+    don't want to hand-copy it here and then have the two drift apart.
+    For the four species I actually wrote proper field-guide detail for,
+    the hand-written entry above gets layered on top by id. Anything
+    invasive that's still missing guidance gets a generic safe-removal
+    block so the UI never shows an invasive result with nothing attached.
+    """
     records = load_status_records()
     manifest = load_manifest()
     detailed_by_id = {item["id"]: item for item in SPECIES}
@@ -434,13 +438,13 @@ LEGACY_SEED_SPECIES_IDS = {"clidemia-hirta"}
 
 
 def load_reference_data(session: Session) -> None:
-    """AC Phase 5 — production-safe reference data loader.
+    """Loads the reference rows (species catalogue + hand-picked KL parks)
+    that the app can't run without. Kept separate from the demo-sightings
+    seed on purpose so I can safely re-run this in prod before a deploy
+    without also dropping fake sightings into the map.
 
-    Upserts the 31-class species catalogue (Malaysian status, guidance
-    metadata, review dates) and hand-seeded MonitoredPlace anchors used by
-    the place-association fallback. Idempotent: existing rows are updated
-    in place rather than duplicated. Safe to run repeatedly in production
-    pre-deploy; contains no demo reports/sightings.
+    Re-running it is fine — I look up rows by id/name and update in place
+    rather than inserting new ones, so nothing gets duplicated.
     """
     for values in SPECIES:
         existing = session.get(Species, values["id"])
@@ -477,12 +481,11 @@ def load_reference_data(session: Session) -> None:
 
 
 def seed_demo_data(session: Session) -> None:
-    """AC Phase 5 — development-only demo data.
-
-    Inserts example sightings around Bukit Kiara so a fresh dev database
-    has content on the map. Must never run in production; the CLI enforces
-    that with an ``app_env == "production"`` refusal. Depends on
-    ``load_reference_data`` having populated the species catalogue first.
+    """Drops a handful of fake sightings scattered around Bukit Kiara so
+    the map isn't empty on a fresh dev DB — makes screenshots and pilot
+    testing way easier. The CLI refuses to run this in production so we
+    can't accidentally pollute the real data. Assumes load_reference_data
+    has already run so the species rows exist to link to.
     """
     centre_lat, centre_lng = 3.1497, 101.6412
     actions = {
@@ -515,11 +518,10 @@ def seed_demo_data(session: Session) -> None:
 
 
 def seed_development_data(session: Session) -> None:
-    """Back-compat convenience wrapper: reference data then demo data.
-
-    Existing callers (tests, `invatrace seed`) keep working. Production
-    deploys should call ``load_reference_data`` directly instead — the CLI
-    refuses ``seed`` and ``seed-demo-data`` in production for that reason.
+    """Old entry point that just runs both seeds one after the other. I
+    kept it around so the existing tests and the old `invatrace seed`
+    command don't break, but for prod we call load_reference_data on its
+    own — the CLI blocks this one from running in production anyway.
     """
     load_reference_data(session)
     seed_demo_data(session)

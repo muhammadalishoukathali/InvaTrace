@@ -4,8 +4,9 @@ import { Icon } from './Icon'
 interface Props { children: ReactNode; fallback?: (retry: () => void, err: Error) => ReactNode }
 interface State { err: Error | null }
 
-/** Catches render-time crashes below any subtree so a broken component does
- *  not blank the whole app. Retry re-mounts the subtree. */
+/** Standard React error boundary - catches crashes in whatever subtree it
+ *  wraps so one broken component doesn't take down the entire app with a
+ *  blank white screen. Retry just re-mounts the subtree and hopes for the best. */
 export class ErrorBoundary extends Component<Props, State> {
   state: State = { err: null }
   static getDerivedStateFromError(err: Error) { return { err } }

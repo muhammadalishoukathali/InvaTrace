@@ -1,7 +1,7 @@
 import { useSyncExternalStore } from 'react'
 
-/** Returns the browser's current connection state and updates components when
- *  the browser fires an online or offline event. */
+// helper that subscribes a component to the browser's online/offline events
+// so useSyncExternalStore can re-render whenever the connection state flips
 function subscribe(cb: () => void) {
   window.addEventListener('online', cb)
   window.addEventListener('offline', cb)

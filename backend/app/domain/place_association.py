@@ -34,12 +34,15 @@ _NEAREST_CANDIDATE_LIMIT = 20
 
 @dataclass(frozen=True)
 class NearestOsmFeature:
-    """AC 4.3.1 — stored nearest named OSM feature within 5 km of a sighting.
+    """The nearest named OSM thing within 5km that we actually want to show
+    on a sighting (AC 4.3.1).
 
-    ``distance_m`` is the PostGIS geography distance from the report point to
-    the feature geometry, rounded to two decimal places. `feature_type` is the
-    OSM ``highway``/``leisure``/``landuse``/``natural`` tag value that put
-    the feature into the allow-list (path/footway/track/park/forest/wood).
+    distance_m is the PostGIS geography distance from the reported point to
+    the feature's geometry, rounded to 2dp so we're not storing meaningless
+    precision. feature_type is whichever OSM tag value (highway/leisure/
+    landuse/natural) got the feature into our small allow-list — so it'll
+    be one of path, footway, track, park, forest, wood. Anything else we
+    just ignore.
     """
 
     feature_type: str
@@ -124,16 +127,18 @@ def associate_place(
 def nearest_osm_feature(
     session: Session, *, latitude: float, longitude: float
 ) -> NearestOsmFeature | None:
-    """Return the actual nearest named OSM feature within 5 km of the point,
-    across both trail lines (path/footway/track) and area polygons (park/
-    forest/wood). Returns ``None`` when no allow-listed named feature falls
-    inside the search radius; the caller (report screening → sighting
-    publication) leaves the stored columns unset in that case, and the
+    """Finds the actual nearest named trail or park/forest area within 5km
+    of the point, looking at both the trail lines table (paths/footways/
+    tracks) and the polygon areas table (park/forest/wood). Returns None
+    if nothing named in our allow-list is close enough — in that case the
+    screening worker just leaves the columns null on the sighting and the
     detail panel shows "No named trail, park or forest found nearby".
 
-    PostGIS distance is measured against the imported feature geometry, not
-    against a reduced/public location — the stored value is authoritative;
-    a live client lookup is only ever enrichment (AC 4.3.1).
+    Distance is computed against the imported OSM geometry, not against
+    whatever fuzzy public location we eventually show on the map. The idea
+    here is that the stored value is the source of truth — if the client
+    ever does its own live lookup it's only for extra context, we don't
+    trust it to override what we saved (AC 4.3.1).
     """
     point = func.ST_SetSRID(func.ST_MakePoint(longitude, latitude), 4326)
     geography = cast(point, Geography("POINT", srid=4326))
@@ -196,8 +201,11 @@ def nearest_osm_feature(
 
 
 def _categorise(metadata: dict, allowed: set[str]) -> str | None:
-    """OSM tags land in metadata_json under mixed key names by importer
-    version; try the common tag keys and return the first allowed value."""
+    """Different versions of the OSM importer dumped tags into metadata_json
+    under slightly different keys, so we just try the common ones in order
+    and return the first value that's in our allow-list. Bit ugly but it's
+    the price of not re-importing all the OSM data every time we tweak the
+    importer."""
     for key in ("highway", "leisure", "landuse", "natural", "category", "type"):
         raw = metadata.get(key)
         if isinstance(raw, str) and raw in allowed:

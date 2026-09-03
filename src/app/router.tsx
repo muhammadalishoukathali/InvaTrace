@@ -8,9 +8,10 @@ import { PrivateAccessLandingPage } from '@/features/private-access/pages/Privat
 import { RestorePrivateAccessPage } from '@/features/private-access/pages/RestorePrivateAccessPage'
 import { RecoveryKitSetupPage } from '@/features/private-access/pages/RecoveryKitSetupPage'
 
-// These screens are downloaded only when their route opens. Keeping MapLibre,
-// scanning, reporting, and map code out of the first bundle makes the
-// private-access screen usable sooner on a slow field connection.
+// I lazy load these because MapLibre especially is a pretty big chunk, and
+// bundling it into the main entry meant the private-access screen (which is
+// the very first thing anyone sees) was loading way slower than it needed to
+// on a bad connection. Splitting per route fixed that.
 const ThreatMapPage = lazy(() => import('@/features/map/ThreatMapPage')
   .then((module) => ({ default: module.ThreatMapPage })))
 const AccessManagementPage = lazy(() => import('@/features/private-access/pages/AccessManagementPage')
@@ -26,8 +27,9 @@ const ReportTrackingPage = lazy(() => import('@/features/report/ReportTrackingPa
 const MyReportsPage = lazy(() => import('@/features/report/MyReportsPage')
   .then((module) => ({ default: module.MyReportsPage })))
 
-// Wraps a lazy-loaded page in its own Suspense boundary so one slow chunk
-// doesn't hold up rendering of AppShell or the surrounding route tree.
+// small helper so I don't have to wrap every single lazy route in its own
+// Suspense manually - also means one slow chunk loading doesn't block AppShell
+// or the rest of the route tree from rendering around it
 function loadRoute(content: ReactNode) {
   return <Suspense fallback={<RouteLoadingState />}>{content}</Suspense>
 }
@@ -41,12 +43,14 @@ function RouteLoadingState() {
   )
 }
 
-// Route tree, roughly in three groups: the unauthenticated /private-access
-// flow (guarded by PrivateAccessRouteGuard so it redirects once a profile
-// already exists), the main AppShell layout (guarded by RequirePrivateAccess
-// so nothing here renders without a profile), and the standalone /scan and
-// /report flows, which use their own layouts instead of AppShell because
-// they need a focused, distraction-free screen without the sidebar/tabs.
+// Route tree ended up in three groups, roughly matching the three states a
+// user can be in. First is the /private-access flow for anyone without a
+// profile yet - PrivateAccessRouteGuard redirects away from it once a
+// profile exists so people can't land back on the setup screen. Second is
+// the normal AppShell layout, gated by RequirePrivateAccess so nothing in
+// here can render without a profile. Third is /scan and /report, which
+// skip AppShell on purpose - for those I wanted a focused screen with no
+// sidebar or tabs getting in the way while someone's mid-scan.
 export const router = createBrowserRouter([
   {
     path: '/auth/*',

@@ -4,8 +4,10 @@ import { ReportNextButton } from './components/ReportNextButton'
 
 /**
  * Step 3 of 4 in the report wizard (location, extent, consent, preview).
- * Makes the contributor explicitly confirm accuracy and that the photo has
- * no personal info before we let them see the submission preview.
+ * We added this consent step because one of the ACs needed the user to
+ * actually confirm the report is accurate and that the photo doesn't have
+ * anyone's face, plate number or house address in it before it goes any
+ * further. Only after both boxes are ticked do they get to the preview.
  */
 export function ReportConsentStep() {
   const { draft, setConsent, next } = useReportDraft()

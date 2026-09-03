@@ -4,13 +4,14 @@ import { hashBitmap } from './image-processing'
 import { PulihModel } from './pulih-model'
 
 /**
- * This is the seam between the scan UI and the model. It picks which
- * ModelAdapter implementation gets used (the real PULIH ONNX model from
- * pulih-model.ts, a deterministic fake for local dev, or a fail-closed stub
- * when no model is configured) and gives all three the same
- * detect/quality/identify shape so ScanCapturePage doesn't need to know or
- * care which one is running. pulih-model.ts owns the actual ONNX session;
- * this file just decides when to use it and normalizes its output.
+ * This is the seam between the scan UI and whatever model is actually
+ * running. It picks which ModelAdapter implementation gets used — the real
+ * PULIH ONNX model from pulih-model.ts, a deterministic fake for local dev,
+ * or a fail-closed stub when nothing is configured — and gives all three the
+ * same detect/quality/identify shape, so ScanCapturePage doesn't need to know
+ * or care which one it's actually talking to. pulih-model.ts owns the real
+ * ONNX session; this file's job is just deciding when to use it and
+ * normalizing whatever comes back.
  */
 interface ModelAdapter {
   detect(image: ImageBitmap): Promise<{ box: BBox | null }>
@@ -22,9 +23,11 @@ const DEVELOPMENT_MODEL_VERSION = `development-${modelSpeciesCatalog.model_versi
 const DEVELOPMENT_UNKNOWN_BUCKETS = 5
 
 /**
- * Deterministic stand-in for local UI development. It mirrors the real
- * model's complete class catalogue and Malaysia-status split instead of
- * maintaining a second, hand-written species list.
+ * A deterministic stand-in for local UI development, so I'm not stuck waiting
+ * on the real ~30MB model just to work on the screens. It mirrors the real
+ * model's full class catalogue and Malaysia-status split instead of me
+ * hand-maintaining a second species list that would inevitably drift out of
+ * sync with the real one.
  */
 export function developmentIdentifyResultForHash(imageHash: number): IdentifyResult {
   const classes = modelSpeciesCatalog.classes
@@ -90,7 +93,8 @@ class DevelopmentModelAdapter implements ModelAdapter {
 
 }
 
-/** Keeps scanning fail-closed when the real model is deliberately disabled. */
+/** Makes scanning fail closed on purpose, for whenever the real model is
+ *  deliberately turned off rather than just unavailable. */
 class UnavailableAdapter implements ModelAdapter {
   async detect(): Promise<{ box: BBox | null }> {
     throw new Error('Plant model unavailable')
@@ -114,8 +118,10 @@ class PulihAdapter implements ModelAdapter {
   private readonly model = sharedPulihModel
 
   async detect(image: ImageBitmap): Promise<{ box: BBox | null }> {
-    // Model 1 is a frozen centre-crop classifier, not a detector. Returning the
-    // exact crop used by preprocessing keeps framing guidance honest.
+    // Model 1 is a frozen centre-crop classifier, not an actual object
+    // detector, so there's no real bounding box to return. Returning the exact
+    // crop that preprocessing uses keeps the on-screen framing guide honest
+    // about what the model is actually going to look at.
     const side = Math.round(Math.min(image.width, image.height) * 0.875)
     return {
       box: {
@@ -148,10 +154,11 @@ let adapter: ModelAdapter | null = null
 export function getAdapter(): ModelAdapter {
   if (!adapter) {
     const fakeModelSetting = import.meta.env.VITE_ENABLE_FAKE_MODEL
-    // Only ever fake the model in dev. VITE_ENABLE_FAKE_MODEL is the explicit
-    // switch; if it's unset we still fall back to fake when the rest of the
-    // app is already running on mocked API data (VITE_ENABLE_MOCKS), so
-    // "mock mode" doesn't require downloading the real ~30 MiB model.
+    // The fake model only ever runs in dev. VITE_ENABLE_FAKE_MODEL is the
+    // explicit switch, but if it's left unset I still fall back to the fake
+    // one whenever the rest of the app is already running on mocked API data
+    // (VITE_ENABLE_MOCKS) — that way "mock mode" doesn't force downloading the
+    // real ~30 MiB model just to poke around the UI.
     const fakeAllowed = import.meta.env.DEV && (
       fakeModelSetting === 'true'
       || (fakeModelSetting !== 'false' && import.meta.env.VITE_ENABLE_MOCKS === 'true')

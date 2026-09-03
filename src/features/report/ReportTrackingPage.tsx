@@ -34,21 +34,25 @@ const COPY: Record<ReportStatus, { title: string; body: string }> = {
 }
 
 /**
- * Private per-report status screen — shows a single contributor where their
- * own report stands in the automated screening pipeline (processing,
- * published, merged, needs rescan, rejected). Per product.md, screening
- * decisions are made inspectable through reason codes, but only at this
- * scoped level: we filter out the generic "automated_rule_screened" code and
- * show plain-language copy for the rest, never the raw rule internals or
- * other people's reports. Polls while a report is still processing (or
- * stuck in validation_unavailable but retryable) since screening runs async.
+ * This is the private status page a single contributor sees for their own
+ * report — where it currently stands in the automated screening pipeline
+ * (processing, published, merged, needs rescan, rejected). One of the
+ * requirements was that screening decisions shouldn't be a total black box,
+ * so we do show reason codes here, but only in plain language and only for
+ * this user's own report — we filter out the generic
+ * "automated_rule_screened" code since that one doesn't actually tell the
+ * user anything useful, and we never expose the raw rule internals or
+ * anyone else's reports. It polls while the report is still processing (or
+ * stuck in validation_unavailable but still retryable) since screening
+ * happens asynchronously on the backend.
  */
 export function ReportTrackingPage() {
   const { reportId } = useParams()
   const navigate = useNavigate()
   const goBack = () => {
-    // History depth is unreliable when opened from a notification, so fall back
-    // to the records index whenever we cannot pop within the app.
+    // If this page was opened straight from a notification, browser history
+    // might just be one entry deep, so navigate(-1) could bounce the user
+    // right out of the app. We fall back to the records list instead.
     if (window.history.length > 1) navigate(-1)
     else navigate('/reports')
   }

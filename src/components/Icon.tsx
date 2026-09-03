@@ -22,15 +22,17 @@ const REGISTRY: Record<string, LucideIcon> = {
 interface Props { name: string; size?: number; color?: string; strokeWidth?: number }
 
 /**
- * Looks up a Lucide icon by string name and renders it. Used everywhere
- * instead of importing lucide-react icons directly so nav items and other
- * data-driven UI (see src/app/nav.ts) can reference icons by name.
+ * Basically a name-to-component lookup for Lucide icons. The reason this
+ * exists instead of just importing icons directly wherever I need them is
+ * that stuff like src/app/nav.ts is data-driven - the nav items are just
+ * plain objects with an icon name string, and this is what turns that string
+ * back into an actual icon.
  */
 export function Icon({ name, size = 19, color = 'currentColor', strokeWidth = 1.9 }: Props) {
   const Cmp = REGISTRY[name]
-  // Unknown name (e.g. a typo in NAV, or a name not yet added to REGISTRY)
-  // renders an empty placeholder instead of crashing so a bad icon name
-  // doesn't take down the whole screen.
+  // if the name doesn't match anything (typo in NAV, or I just forgot to add
+  // it to REGISTRY) this renders an empty placeholder instead of throwing -
+  // better a missing icon than the whole screen crashing over it
   if (!Cmp) return <span style={{ width: size, height: size, display: 'inline-block', flexShrink: 0 }} />
   return <Cmp size={size} color={color} strokeWidth={strokeWidth} aria-hidden="true" />
 }

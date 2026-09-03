@@ -1,12 +1,14 @@
 /**
- * Finds the nearest named OSM feature within 5 km. Queries the
- * public Overpass API for `highway=path|footway|track`, `leisure=park`,
- * `landuse=forest`, and `natural=wood` in that priority order, and returns the
- * nearest tagged feature with its human-readable name and geodesic distance.
+ * Looks for the nearest named OSM feature within 5km of a point. Hits the
+ * public Overpass API for paths/footways/tracks, parks, forests, and woods
+ * (checked in that priority order) and returns whichever tagged feature is
+ * closest, with a readable name and the geodesic distance.
  *
- * Failure is soft: on network error / timeout / empty result the caller receives
- * `null` and the UI falls back to "No named trail, park or forest found nearby".
- * This never blocks report saving or publishing.
+ * I made failure soft on purpose - if the network drops, it times out, or
+ * there's just nothing nearby, the caller just gets null back and the UI
+ * falls back to "No named trail, park or forest found nearby" instead of
+ * an error. This location context is nice-to-have, not essential, so it
+ * should never block someone from saving or publishing a report.
  */
 
 export interface OsmNearestFeature {
@@ -36,8 +38,8 @@ interface OverpassResponse {
 }
 
 function buildQuery(lat: number, lon: number): string {
-  // One combined request covers every supported tag group; the
-  // client picks the nearest per priority afterwards.
+  // doing this as one combined Overpass query instead of separate requests
+  // per tag group - cheaper on the API, and I just sort by priority client-side after
   const around = `around:${RADIUS_M},${lat},${lon}`
   return `
     [out:json][timeout:5];
@@ -54,7 +56,7 @@ function buildQuery(lat: number, lon: number): string {
   `.trim()
 }
 
-/** Great-circle distance in metres between two WGS84 points (Haversine). */
+/** Haversine formula for great-circle distance between two WGS84 points, in metres. */
 export function haversineMetres(a: { lat: number; lon: number }, b: { lat: number; lon: number }): number {
   const R = 6_371_000
   const toRad = (deg: number) => (deg * Math.PI) / 180
@@ -78,8 +80,9 @@ function classify(tags: Record<string, string> | undefined): OsmNearestFeature['
   return null
 }
 
-// Priority: named paths first (a walker on a trail cares about the trail
-// name), then containing park/forest/wood polygons.
+// ranked named paths highest since if you're on a trail you probably care
+// about the trail's name specifically, then falls back to whatever park,
+// forest, or wood polygon contains you
 const PRIORITY: Record<OsmNearestFeature['featureType'], number> = {
   highway_path: 1,
   highway_footway: 2,
@@ -125,8 +128,9 @@ export async function fetchNearestOsmFeature(
         haversineMetres({ lat, lon }, { lat: centre.lat, lon: centre.lon }),
       )
       const priorityRank = PRIORITY[featureType]
-      // Prefer shorter distances; within equal proximity brackets prefer the
-      // higher-priority class (paths beat parks beat forest polygons).
+      // closer wins normally, but if two features are roughly the same
+      // distance (within 50m) I let the priority class decide instead - a
+      // path 10m closer than a park shouldn't necessarily beat the park
       if (
         !best
         || distanceM < best.distanceM - 50
