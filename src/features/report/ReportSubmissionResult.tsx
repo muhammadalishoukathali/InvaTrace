@@ -38,6 +38,9 @@ export function ReportSubmissionResult() {
   const initialReport = outcome?.kind === 'submitted' ? outcome.report : null
   const [status, setStatus] = useState<Report['status'] | null>(initialReport?.status ?? null)
   const [sightingId, setSightingId] = useState<string | null>(initialReport?.sightingId ?? null)
+  const [retainedReportId, setRetainedReportId] = useState<string | null>(
+    initialReport?.retainedReportId ?? null,
+  )
   const reportId = initialReport?.id ?? null
   useEffect(() => {
     if (!reportId) return
@@ -49,6 +52,7 @@ export function ReportSubmissionResult() {
         if (cancelled) return
         setStatus(latest.status)
         setSightingId(latest.sightingId ?? null)
+        setRetainedReportId(latest.retainedReportId ?? null)
       } catch {
         // Network blip — keep the pending wording; the next tick retries.
       }
@@ -77,6 +81,49 @@ export function ReportSubmissionResult() {
             <button type="button" onClick={() => done(sightingId ? `/map?sighting=${sightingId}` : '/map')}>
               View on map
             </button>
+          </div>
+        </section>
+      </main>
+    )
+  }
+
+  if (submitted && status === 'merged') {
+    // AC 2.3.2 — merged branch: name the existing same-species sighting the
+    // incoming evidence joined, and prefer a jump to that sighting on the
+    // map with the retained report as a fallback so the user can still open
+    // the shared record. The published-report copy is intentionally absent
+    // here — merging does not create a new marker.
+    const retainedTrackingDestination = retainedReportId ? `/reports/${retainedReportId}` : null
+    return (
+      <main className="report-submission-result">
+        <section className="report-submission-result__body" aria-live="polite">
+          <h1>Added to a recent nearby report</h1>
+          <p>
+            A recent report of the same species was already logged nearby, so this
+            evidence was merged with that existing sighting instead of creating a
+            new marker.
+          </p>
+          <p>Community report - not expert validated</p>
+          <div className="report-submission-result__actions">
+            {sightingId && (
+              <button type="button" onClick={() => done(`/map?sighting=${sightingId}`)}>
+                View existing sighting
+              </button>
+            )}
+            {retainedTrackingDestination && (
+              <button
+                type="button"
+                className="report-submission-result__secondary"
+                onClick={() => done(retainedTrackingDestination)}
+              >
+                View report
+              </button>
+            )}
+            {!sightingId && !retainedTrackingDestination && (
+              <button type="button" onClick={() => done('/map')}>
+                Back to map
+              </button>
+            )}
           </div>
         </section>
       </main>

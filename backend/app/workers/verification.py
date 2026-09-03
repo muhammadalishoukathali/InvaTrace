@@ -23,6 +23,7 @@ import io
 import time
 import uuid
 import warnings
+from dataclasses import dataclass
 from datetime import UTC, datetime, timedelta
 
 import structlog
@@ -206,13 +207,13 @@ def process_job(job_id: str) -> None:
                 report=report,
                 content_sha256=content_sha256,
             )
-            owner_species_merge_sighting = None
+            owner_species_replay: tuple[Report, Sighting] | None = None
             if not exact_replay and not dedup_disabled:
                 # Not the same as exact_replay above - this is the *same*
                 # reporter re-submitting the same photo for the same species,
                 # which is a legit "I'm confirming my earlier sighting" case
                 # rather than spam, so it merges instead of getting rejected.
-                owner_species_merge_sighting = _find_owner_species_replay(
+                owner_species_replay = _find_owner_species_replay(
                     session,
                     report=report,
                     content_sha256=content_sha256,
@@ -233,7 +234,7 @@ def process_job(job_id: str) -> None:
                     not dedup_disabled
                     and not screening.failure_reasons
                     and report.species_id
-                    and owner_species_merge_sighting is None
+                    and owner_species_replay is None
                 ):
                     _lock_screening_units(session, "perceptual-screening")
                     perceptual_match_id, perceptual_match_distance = _find_perceptual_replay(
@@ -263,25 +264,36 @@ def process_job(job_id: str) -> None:
                 )
             )
 
-            merge_target = None
-            merge_distance_m = None
-            if owner_species_merge_sighting is not None and base_decision.status in {
+            merge_candidate: MergeCandidate | None = None
+            merge_reason: str | None = None
+            if owner_species_replay is not None and base_decision.status in {
                 "screened",
                 "needs_rescan",
             }:
-                # Same reporter re-confirming their own sighting - always merge,
-                # distance is meaningless here so just call it 0.
-                merge_target = owner_species_merge_sighting
-                merge_distance_m = 0.0
+                # Same anonymous identity re-confirming their own sighting -
+                # always merge; distance/time delta are meaningless here so
+                # both come back as 0.
+                prior_report, prior_sighting = owner_species_replay
+                merge_candidate = MergeCandidate(
+                    retained_report=prior_report,
+                    sighting=prior_sighting,
+                    distance_m=0.0,
+                    time_difference_seconds=0.0,
+                )
+                merge_reason = "same_owner_same_species_exact_replay"
             elif base_decision.status == "screened" and reportable_species_id:
-                # Different reporter, but close enough in space/time to the same
-                # species - fold it into the existing sighting instead of
-                # creating a near-duplicate pin on the map.
-                merge_target, merge_distance_m = _find_merge_target(
+                # AC 2.3.2 — same anonymous identity, same species, prior
+                # observation within 25 m and 10 min → fold into that
+                # sighting instead of creating a near-duplicate pin.
+                merge_candidate = _find_merge_target(
                     session,
                     report=report,
                     species_id=reportable_species_id,
                 )
+                if merge_candidate is not None:
+                    merge_reason = "same_owner_same_species_within_25m_and_10m"
+            merge_target = merge_candidate.sighting if merge_candidate else None
+            merge_distance_m = merge_candidate.distance_m if merge_candidate else None
             # Re-run evaluate() with the merge target plugged in (and image
             # checks cleared, since they already passed in base_decision) so the
             # final decision correctly comes back as "merged" rather than "screened".
@@ -307,6 +319,11 @@ def process_job(job_id: str) -> None:
             report.status = decision.status
             report.validation_reasons = list(decision.reason_codes)
             report.validation_policy_version = POLICY_VERSION
+            # AC 2.3.2 — record the retained report id on the incoming row so
+            # /api/v1/reports/{id} can expose retainedReportId and downstream
+            # queries can trace the merge chain without joining the audit log.
+            if decision.status == "merged" and merge_candidate is not None:
+                report.merged_into_report_id = merge_candidate.retained_report.id
 
             thumbnail_bytes = _make_thumbnail(image) if decision.status == "screened" else None
             published_sighting = _publish_decision(
@@ -336,26 +353,27 @@ def process_job(job_id: str) -> None:
                 merge_target=merge_target,
                 published_sighting=published_sighting,
             )
-            # AC 2.3.2 — dedicated merge audit event carrying who/when/why so
-            # the decision is inspectable independently of the general
-            # screening-completed event above.
-            if decision.status == "merged" and merge_target is not None:
+            # AC 2.3.2 — dedicated merge audit event carrying every required
+            # field (incoming + retained report ids, species, calculated
+            # distance and observation-time delta, reason code) so the merge
+            # decision is inspectable independently of the general
+            # screening-completed event above. subject is the incoming report
+            # so the audit row is queryable by the report id the user tracks.
+            if decision.status == "merged" and merge_candidate is not None:
                 session.add(
                     AuditEvent(
                         event_type="report.merged_into_sighting",
                         acting_profile_id=report.profile_id,
-                        subject_type="sighting",
-                        subject_id=str(merge_target.id),
+                        subject_type="report",
+                        subject_id=str(report.id),
                         metadata_json={
-                            "reportId": str(report.id),
-                            "distanceM": merge_distance_m,
-                            "windowMinutes": get_settings().screening_duplicate_window_minutes,
-                            "radiusM": get_settings().screening_duplicate_radius_max_m,
-                            "trigger": (
-                                "owner_species_replay"
-                                if merge_distance_m == 0.0
-                                else "same_owner_nearby"
-                            ),
+                            "incomingReportId": str(report.id),
+                            "retainedReportId": str(merge_candidate.retained_report.id),
+                            "sightingId": str(merge_candidate.sighting.id),
+                            "speciesId": reportable_species_id,
+                            "calculatedDistanceM": merge_candidate.distance_m,
+                            "timeDifferenceSeconds": merge_candidate.time_difference_seconds,
+                            "mergeReason": merge_reason,
                         },
                     )
                 )
@@ -430,8 +448,11 @@ def _is_exact_replay(session, *, report: Report, content_sha256: bytes) -> bool:
 
 def _find_owner_species_replay(
     session, *, report: Report, content_sha256: bytes
-) -> Sighting | None:
-    """AC 2.3.1: same anonymous identity + same species + same SHA-256 (or capture id) → merge with prior sighting."""
+) -> tuple[Report, Sighting] | None:
+    """AC 2.3.1: same anonymous identity + same species + same SHA-256 (or
+    capture id) → merge with the prior sighting. Returns the retained
+    (report, sighting) pair so the caller can persist ``merged_into_report_id``
+    and write the merge audit event with the retained report id."""
     if not report.species_id:
         return None
     prior_report = session.scalar(
@@ -463,7 +484,10 @@ def _find_owner_species_replay(
     )
     if link is None:
         return None
-    return session.get(Sighting, link.sighting_id)
+    sighting = session.get(Sighting, link.sighting_id)
+    if sighting is None:
+        return None
+    return prior_report, sighting
 
 
 def _find_perceptual_replay(
@@ -519,46 +543,100 @@ def _make_thumbnail(image: bytes) -> bytes:
             return output.getvalue()
 
 
+@dataclass(frozen=True)
+class MergeCandidate:
+    """Structured result of a near-duplicate merge lookup.
+
+    Explicit named fields so callers cannot accidentally swap distance and
+    time-difference around, and the retained *report* is exposed alongside its
+    published sighting because AC 2.3.2 requires both the retained report id
+    (for the API response and the audit event) and the sighting id (so the UI
+    can jump to the existing map marker).
+    """
+
+    retained_report: Report
+    sighting: Sighting
+    distance_m: float
+    time_difference_seconds: float
+
+
 def _find_merge_target(
     session,
     *,
     report: Report,
     species_id: str,
-) -> tuple[Sighting | None, float | None]:
-    """AC 2.3.2: same owner + same species + stored-coordinate distance ≤ 25 m
-    + within 10 min → merge with existing sighting. The radius is exactly 25 m
-    regardless of the client-reported GPS accuracy — expanding by accuracy
-    silently created merges across other users' reports that happened to sit
-    inside the fuzz zone.
+) -> MergeCandidate | None:
+    """AC 2.3.2: same anonymous owner + same species + stored-report distance
+    ≤ 25 m + within 10 observation minutes → merge with the existing sighting.
 
-    AC Iteration 1 P5 — the 10-minute window is anchored on the report's
-    observation time, not `datetime.now()`. A queued or replayed submission
-    that reaches the worker hours after the observation would otherwise be
-    checked against sightings active *now*, which is the wrong pair — the
-    AC compares observations to observations."""
+    Distance and the observation-time delta come from stored *report*
+    evidence. Sighting.updated_at is unsuitable for the time window because
+    worker processing and later merges bump it. Radius is a hard 25 m
+    regardless of client-reported GPS accuracy — expanding by accuracy
+    silently pulled cross-user reports inside the fuzz zone into the same
+    sighting.
+
+    When multiple candidates qualify the tie-break is deterministic:
+      1. shortest distance
+      2. smallest observation-time difference
+      3. most recent qualifying prior observation
+      4. prior report id (stable final tie-breaker)
+    """
     settings = get_settings()
     radius_m = settings.screening_duplicate_radius_max_m
     window_minutes = settings.screening_duplicate_window_minutes
     observation_time = report.observed_at or datetime.now(UTC)
-    cutoff = observation_time - timedelta(minutes=window_minutes)
+    window_start = observation_time - timedelta(minutes=window_minutes)
+
+    distance_expr = func.ST_Distance(Sighting.location, report.location)
+    # Non-negative observation-time delta in seconds — prior_observed_at is
+    # guaranteed ≤ observation_time by the WHERE clause below.
+    time_diff_expr = func.abs(
+        func.extract("epoch", observation_time - Report.observed_at)
+    )
+
     candidate_row = session.execute(
-        select(Sighting, func.ST_Distance(Sighting.location, report.location))
+        select(
+            Report,
+            Sighting,
+            distance_expr.label("distance_m"),
+            time_diff_expr.label("time_diff_s"),
+        )
+        .join(ReportSightingLink, ReportSightingLink.report_id == Report.id)
+        .join(Sighting, Sighting.id == ReportSightingLink.sighting_id)
         .where(
-            Sighting.species_id == species_id,
-            Sighting.status == "screened",
-            # AC 2.3.2 — merge only into sightings owned by the same anonymous
-            # profile; cross-owner near-coincidences must stay distinct on the map.
+            ReportSightingLink.active.is_(True),
+            Report.id != report.id,
+            # AC 2.3.2 — merge only within a single anonymous identity;
+            # cross-owner near-coincidences must publish as their own pins.
+            Report.profile_id == report.profile_id,
             Sighting.source_profile_id == report.profile_id,
-            Sighting.updated_at >= cutoff,
+            Report.species_id == species_id,
+            Report.status.in_(["screened", "merged"]),
+            Sighting.status == "screened",
+            Report.observed_at >= window_start,
+            Report.observed_at <= observation_time,
             func.ST_DWithin(Sighting.location, report.location, radius_m),
         )
-        .order_by(func.ST_Distance(Sighting.location, report.location))
+        .order_by(
+            distance_expr.asc(),
+            time_diff_expr.asc(),
+            Report.observed_at.desc(),
+            Report.id.asc(),
+        )
         .limit(1)
     ).first()
     if candidate_row is None:
-        return None, None
-    candidate, distance = candidate_row
-    return candidate, round(float(distance), 3) if distance is not None else None
+        return None
+    prior_report, sighting, distance, time_diff = candidate_row
+    return MergeCandidate(
+        retained_report=prior_report,
+        sighting=sighting,
+        distance_m=round(float(distance), 3) if distance is not None else 0.0,
+        time_difference_seconds=(
+            round(float(time_diff), 3) if time_diff is not None else 0.0
+        ),
+    )
 
 
 def _publish_decision(

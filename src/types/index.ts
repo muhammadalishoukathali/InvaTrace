@@ -234,6 +234,12 @@ export interface Report {
     screeningMethod: 'deterministic_rules' | null
   }
   sightingId: string | null
+  /**
+   * AC 2.3.2 — id of the earlier report that this one was merged into.
+   * Null on non-merged reports. `id` remains the incoming report id so
+   * /reports/{id} continues to track this submission.
+   */
+  retainedReportId: string | null
   /** Server-scoped owner used to detect duplicate reports from one profile. */
   ownerProfileId?: string
 }
