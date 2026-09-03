@@ -103,8 +103,9 @@ class RateLimiter:
         self.enabled = settings.rate_limit_enabled
         self.fail_closed = settings.app_env == "production"
         self.redis = Redis.from_url(settings.redis_url, decode_responses=True)
-        # Temporary — testers reported the AC 2.3.3 caps not firing in prod.
-        # Logging init state so I can rule out the enabled flag being off.
+        # Log the flag state at boot so a future prod incident where the AC
+        # caps stop firing is one grep away instead of another guess-and-push
+        # loop like the one that caught this the first time.
         logger.info(
             "rate_limiter.init enabled=%s fail_closed=%s app_env=%s",
             self.enabled,
@@ -210,24 +211,15 @@ class RateLimiter:
         every request" path used by submission and read scopes.
         """
         if not self.enabled:
-            # Same temporary diag — if this warning shows up in prod I know the
-            # enabled flag flipped off somewhere, which would explain testers
-            # blowing past the AC caps.
+            # Loud on purpose — if this ever shows up in prod it means the AC
+            # rate caps are silently off and testers can walk past them, which
+            # is exactly the bug this warning exists to catch early.
             logger.warning("rate_limiter.skipped scope=%s reason=disabled", scope)
             return
         limit = _limit_for(scope)
         if limit.algorithm == "sliding":
             self._sliding_add(scope, identity, limit)
             count, retry_after = self._sliding_count(scope, identity, limit)
-            # Temporary — logging what count comes back per check so I can see
-            # if the sliding window is actually growing between requests.
-            logger.info(
-                "rate_limiter.check scope=%s id=%s count=%d limit=%d",
-                scope,
-                self._safe_key(identity)[:12],
-                count,
-                limit.requests,
-            )
             if count > limit.requests:
                 raise ApiProblem(
                     429,

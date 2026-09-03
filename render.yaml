@@ -57,6 +57,13 @@ services:
       # verification + cleanup as background asyncio tasks.
       - key: RUN_WORKERS_IN_API
         value: "true"
+      # AC 2.3.3 - the actual master switch. Pydantic's default is already
+      # true, but a stale dashboard override once flipped this to false in
+      # prod and every rate check silently no-op'd - testers uploaded past
+      # the AC cap without hitting a single 429. Pinned here so the blueprint
+      # always wins over anything sitting in the dashboard.
+      - key: RATE_LIMIT_ENABLED
+        value: "true"
       # AC 2.3.3 - env-backed sliding submission rate limits. Pinned to the
       # spec numbers (10 per profile / 30 per IP / 10-minute window) so the
       # deployed config matches what the AC actually says. Nothing here bans
