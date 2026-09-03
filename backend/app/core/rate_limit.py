@@ -19,6 +19,7 @@ requests through so I can actually work without Redis running.
 from __future__ import annotations
 
 import hashlib
+import logging
 import time
 import uuid
 from dataclasses import dataclass
@@ -30,6 +31,8 @@ from redis.exceptions import RedisError
 
 from app.config import get_settings
 from app.core.errors import ApiProblem
+
+logger = logging.getLogger(__name__)
 
 Algorithm = Literal["fixed", "sliding"]
 
@@ -100,6 +103,14 @@ class RateLimiter:
         self.enabled = settings.rate_limit_enabled
         self.fail_closed = settings.app_env == "production"
         self.redis = Redis.from_url(settings.redis_url, decode_responses=True)
+        # Temporary — testers reported the AC 2.3.3 caps not firing in prod.
+        # Logging init state so I can rule out the enabled flag being off.
+        logger.info(
+            "rate_limiter.init enabled=%s fail_closed=%s app_env=%s",
+            self.enabled,
+            self.fail_closed,
+            settings.app_env,
+        )
 
     @staticmethod
     def _safe_key(value: str) -> str:
@@ -199,11 +210,24 @@ class RateLimiter:
         every request" path used by submission and read scopes.
         """
         if not self.enabled:
+            # Same temporary diag — if this warning shows up in prod I know the
+            # enabled flag flipped off somewhere, which would explain testers
+            # blowing past the AC caps.
+            logger.warning("rate_limiter.skipped scope=%s reason=disabled", scope)
             return
         limit = _limit_for(scope)
         if limit.algorithm == "sliding":
             self._sliding_add(scope, identity, limit)
             count, retry_after = self._sliding_count(scope, identity, limit)
+            # Temporary — logging what count comes back per check so I can see
+            # if the sliding window is actually growing between requests.
+            logger.info(
+                "rate_limiter.check scope=%s id=%s count=%d limit=%d",
+                scope,
+                self._safe_key(identity)[:12],
+                count,
+                limit.requests,
+            )
             if count > limit.requests:
                 raise ApiProblem(
                     429,
