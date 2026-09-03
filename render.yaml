@@ -57,14 +57,14 @@ services:
       # verification + cleanup as background asyncio tasks.
       - key: RUN_WORKERS_IN_API
         value: "true"
-      # AC 2.3.3 — env-backed sliding submission rate limits. Raised from
-      # the code defaults (10 / 30 / 600s) for the pilot testing window so
-      # a tester who scans repeatedly does not hit a 10-min soft-block. All
-      # limits still age out automatically; nothing here bans an account.
+      # AC 2.3.3 — env-backed sliding submission rate limits. Pinned to the
+      # spec numbers (10 per profile / 30 per IP / 10-minute window) so the
+      # deployed config matches what the AC actually says. Nothing here bans
+      # an account, the counter just ages out on its own.
       - key: REPORT_CREATE_BURST_LIMIT
-        value: "25"
+        value: "10"
       - key: REPORT_CREATE_IP_BURST_LIMIT
-        value: "60"
+        value: "30"
       - key: REPORT_CREATE_BURST_WINDOW_SECONDS
         value: "600"
       # Outstanding presigned-URL quota per profile. Raised from the code
