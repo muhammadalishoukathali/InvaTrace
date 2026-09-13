@@ -1,7 +1,7 @@
 {
   "$schema": "./approved-species.schema.json",
   "schema_version": "invatrace.approved-species.v1",
-  "catalogue_version": "2.1.0",
+  "catalogue_version": "2.2.0",
   "reviewed_at": "2026-09-13",
   "jurisdiction": "Malaysia",
   "record_count": 32,

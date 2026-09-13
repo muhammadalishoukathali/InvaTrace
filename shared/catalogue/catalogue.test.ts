@@ -9,6 +9,7 @@ import {
   approvedCatalogueAsset,
   approvedCatalogueAssetForSpecies,
   catalogueManifest,
+  catalogueDetailsDataset,
   catalogueSourceById,
   findPlantStatus,
   plantStatusChecksum,
@@ -21,11 +22,13 @@ import plantStatusSchema from './schemas/plant-status.schema.json'
 import manifestSchema from './schemas/catalogue-manifest.schema.json'
 import referenceImagesSchema from './schemas/reference-images.schema.json'
 import referenceImages from './reference-images.json'
+import catalogueDetailsSchema from './schemas/catalogue-details.schema.json'
 
 const STATUS_PATH = fileURLToPath(new URL('./plant-status.json', import.meta.url))
 const GUIDANCE_PATH = fileURLToPath(new URL('./plant-guidance.json', import.meta.url))
 const APPROVED_PATH = fileURLToPath(new URL('./approved-species.json', import.meta.url))
 const REFERENCE_IMAGES_PATH = fileURLToPath(new URL('./reference-images.json', import.meta.url))
+const CATALOGUE_DETAILS_PATH = fileURLToPath(new URL('./catalogue-details.json', import.meta.url))
 const PUBLIC_ROOT = fileURLToPath(new URL('../../public/', import.meta.url))
 
 function ajv() {
@@ -51,6 +54,25 @@ describe('Iteration 2 approved species catalogue', () => {
     expect(approvedSpeciesDataset.records).toHaveLength(32)
     expect(new Set(approvedSpeciesDataset.records.map((record) => record.species_id)).size).toBe(32)
     expect(new Set(approvedSpeciesDataset.records.map((record) => record.scientific_name)).size).toBe(32)
+  })
+
+  it('has complete source-backed reviewed details for the same 32 plants', () => {
+    const validate = ajv().compile(catalogueDetailsSchema)
+    expect(validate(catalogueDetailsDataset), JSON.stringify(validate.errors)).toBe(true)
+    expect(catalogueDetailsDataset.records).toHaveLength(32)
+    expect(new Set(catalogueDetailsDataset.records.map((record) => record.species_id)))
+      .toEqual(new Set(approvedSpeciesDataset.records.map((record) => record.species_id)))
+    const knownSources = new Set(catalogueDetailsDataset.sources.map((source) => source.source_id))
+    for (const record of catalogueDetailsDataset.records) {
+      expect(record.identifying_characteristics.length).toBeGreaterThan(20)
+      expect(record.typical_habitat.length).toBeGreaterThan(15)
+      expect(record.documented_impacts.length).toBeGreaterThan(20)
+      expect(record.safe_response_guidance.length).toBeGreaterThan(0)
+      for (const ids of Object.values(record.source_ids)) {
+        expect(ids.length).toBeGreaterThan(0)
+        expect(ids.every((sourceId) => knownSources.has(sourceId))).toBe(true)
+      }
+    }
   })
 
   it('excludes Ageratina adenophora and legacy model-only plants', () => {
@@ -155,6 +177,7 @@ describe('shared catalogue manifest', () => {
     const guidanceBytes = readFileSync(GUIDANCE_PATH)
     const approvedBytes = readFileSync(APPROVED_PATH)
     const referenceImageBytes = readFileSync(REFERENCE_IMAGES_PATH)
+    const catalogueDetailBytes = readFileSync(CATALOGUE_DETAILS_PATH)
     expect(createHash('sha256').update(approvedBytes).digest('hex'))
       .toBe(catalogueManifest.files['approved-species.json'].sha256)
     expect(approvedBytes.length).toBe(catalogueManifest.files['approved-species.json'].byte_length)
@@ -166,6 +189,10 @@ describe('shared catalogue manifest', () => {
       .toBe(catalogueManifest.files['reference-images.json'].sha256)
     expect(referenceImageBytes.length)
       .toBe(catalogueManifest.files['reference-images.json'].byte_length)
+    expect(createHash('sha256').update(catalogueDetailBytes).digest('hex'))
+      .toBe(catalogueManifest.files['catalogue-details.json'].sha256)
+    expect(catalogueDetailBytes.length)
+      .toBe(catalogueManifest.files['catalogue-details.json'].byte_length)
     expect(plantStatusChecksum())
       .toBe(catalogueManifest.files['plant-status.json'].sha256)
   })

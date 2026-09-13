@@ -20,6 +20,7 @@ from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from app.api.routers.location import _classify_area
+from app.data_release import validate_data_release
 from app.db.models import (
     MonitoredArea,
     OccurrenceRecord,
@@ -30,6 +31,8 @@ from app.domain.catalogue import approved_species_record
 
 OSM_DIRECTION_SOURCE = "OpenStreetMap directed waterway preprocessing"
 SUPPORTED_PLACE_TYPES = {"park", "forest", "wood", "trail"}
+MAX_SNAP_DISTANCE_M = Decimal("50")
+EVIDENCE_SCHEMA_VERSION = "invatrace.osm-waterway-evidence.v1"
 
 
 @dataclass(frozen=True)
@@ -59,7 +62,10 @@ def _place_matches_type(session: Session, place_id: uuid.UUID, place_type: str) 
     if place_type == "trail":
         place = session.get(Trail, place_id)
         metadata = place.metadata_json if place is not None else None
-        return place is not None and (metadata or {}).get("geometry_status", "available") == "available"
+        return (
+            place is not None
+            and (metadata or {}).get("geometry_status", "available") == "available"
+        )
     place = session.get(MonitoredArea, place_id)
     if place is None:
         return False
@@ -75,12 +81,55 @@ def import_waterway_evidence_json(
     *,
     source_path: Path,
     data_version: str,
+    release_manifest_path: Path | None = None,
 ) -> WaterwayImportResult:
     """Import validated output from the directed-waterway preprocessing stage."""
     payload = json.loads(source_path.read_text(encoding="utf-8"))
-    records = payload.get("records") if isinstance(payload, dict) else payload
+    if not isinstance(payload, dict):
+        raise ValueError("waterway evidence must use the auditable v1 object envelope")
+    if payload.get("schemaVersion") != EVIDENCE_SCHEMA_VERSION:
+        raise ValueError(f"waterway evidence must use {EVIDENCE_SCHEMA_VERSION}")
+    if payload.get("dataVersion") != data_version:
+        raise ValueError("waterway evidence dataVersion does not match the requested version")
+    release = (
+        validate_data_release(
+            release_manifest_path,
+            source_path,
+            expected_dataset_id="osm-malaysia-waterway-evidence",
+        )
+        if release_manifest_path is not None
+        else None
+    )
+    if release is not None and (
+        release.source != payload.get("source")
+        or release.source_url != payload.get("sourceUrl")
+        or release.upstream_version != data_version
+        or release.licence != payload.get("licence")
+        or release.licence_url != payload.get("licenceUrl")
+    ):
+        raise ValueError("waterway evidence envelope does not match its release manifest")
+    source_sha256 = payload.get("sourceSha256")
+    if (
+        not isinstance(source_sha256, str)
+        or len(source_sha256) != 64
+        or any(character not in "0123456789abcdef" for character in source_sha256)
+    ):
+        raise ValueError("waterway evidence sourceSha256 must be a lowercase SHA-256 digest")
+    required_provenance = ("source", "sourceUrl", "sourceTimestamp", "licence", "licenceUrl")
+    if any(
+        not isinstance(payload.get(field), str) or not payload[field].strip()
+        for field in required_provenance
+    ):
+        raise ValueError("waterway evidence provenance is incomplete")
+    try:
+        source_timestamp = datetime.fromisoformat(payload["sourceTimestamp"].replace("Z", "+00:00"))
+    except ValueError as exc:
+        raise ValueError("waterway evidence sourceTimestamp is invalid") from exc
+    if source_timestamp.tzinfo is None:
+        raise ValueError("waterway evidence sourceTimestamp must include a timezone")
+    records = payload.get("records")
     if not isinstance(records, list):
-        raise ValueError("waterway evidence JSON must be an array or an object with a records array")
+        raise ValueError("waterway evidence object must contain a records array")
     data_version = data_version.strip()
     if not data_version:
         raise ValueError("data_version is required")
@@ -151,9 +200,7 @@ def import_waterway_evidence_json(
         if not network_id:
             reasons["missing_waterway_network_id"] += 1
             continue
-        direction_source = str(
-            _value(raw, "directionSource", "direction_source") or ""
-        ).strip()
+        direction_source = str(_value(raw, "directionSource", "direction_source") or "").strip()
         if direction_source != OSM_DIRECTION_SOURCE:
             reasons["untrusted_direction_source"] += 1
             continue
@@ -164,6 +211,29 @@ def import_waterway_evidence_json(
             or upstream_distance > Decimal("5000")
         ):
             reasons["upstream_distance_out_of_range"] += 1
+            continue
+        occurrence_snap_distance = _decimal(
+            _value(raw, "occurrenceSnapDistanceM", "occurrence_snap_distance_m")
+        )
+        place_snap_distance = _decimal(_value(raw, "placeSnapDistanceM", "place_snap_distance_m"))
+        if (
+            occurrence_snap_distance is None
+            or place_snap_distance is None
+            or occurrence_snap_distance < 0
+            or place_snap_distance < 0
+            or occurrence_snap_distance > MAX_SNAP_DISTANCE_M
+            or place_snap_distance > MAX_SNAP_DISTANCE_M
+        ):
+            reasons["snap_distance_out_of_range"] += 1
+            continue
+        try:
+            occurrence_osm_way_id = int(_value(raw, "occurrenceOsmWayId", "occurrence_osm_way_id"))
+            place_osm_way_id = int(_value(raw, "placeOsmWayId", "place_osm_way_id"))
+        except (TypeError, ValueError):
+            reasons["missing_or_invalid_osm_way_id"] += 1
+            continue
+        if occurrence_osm_way_id <= 0 or place_osm_way_id <= 0:
+            reasons["missing_or_invalid_osm_way_id"] += 1
             continue
 
         key = (place_type, place_id, occurrence.id, network_id)
@@ -178,6 +248,10 @@ def import_waterway_evidence_json(
                 occurrence_id=occurrence.id,
                 waterway_network_id=network_id,
                 upstream_distance_m=upstream_distance,
+                occurrence_snap_distance_m=occurrence_snap_distance,
+                place_snap_distance_m=place_snap_distance,
+                occurrence_osm_way_id=occurrence_osm_way_id,
+                place_osm_way_id=place_osm_way_id,
                 direction_source=OSM_DIRECTION_SOURCE,
                 data_version=data_version,
                 imported_at=now,

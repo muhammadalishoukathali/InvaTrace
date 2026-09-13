@@ -11,9 +11,10 @@ from app.core.errors import ApiProblem
 from app.domain.catalogue import (
     approved_catalogue_image_for_species,
     approved_species_record,
+    catalogue_detail_record,
     load_approved_dataset,
     load_approved_species,
-    load_guidance_dataset,
+    load_catalogue_details_dataset,
 )
 
 router = APIRouter(prefix="/api/v1/catalogue", tags=["catalogue"])
@@ -53,6 +54,7 @@ class CatalogueSource(ApiModel):
     publisher: str
     url: str
     accessed: date
+    reuse_status: str | None = None
 
 
 class CatalogueSpeciesDetail(CatalogueSpeciesSummary):
@@ -66,13 +68,6 @@ class CatalogueSpeciesDetail(CatalogueSpeciesSummary):
     sources: list[CatalogueSource]
     last_reviewed: date
     catalogue_version: str
-
-
-def _guidance_by_species_id() -> dict[str, dict]:
-    return {
-        item["plant_id"].replace("_", "-"): item
-        for item in load_guidance_dataset().get("plants", [])
-    }
 
 
 def _image_for(species_id: str) -> CatalogueImage | None:
@@ -128,37 +123,30 @@ def catalogue_detail(species_id: str) -> CatalogueSpeciesDetail:
     if record is None:
         raise ApiProblem(404, "catalogue_species_not_found", "Not found")
     dataset = load_approved_dataset()
-    guidance = _guidance_by_species_id().get(record.species_id)
+    detail = catalogue_detail_record(record.species_id)
+    if detail is None:
+        raise ApiProblem(503, "catalogue_detail_unavailable", "Catalogue detail unavailable")
     evidence_sources = {source["source_id"]: source for source in dataset.get("sources", [])}
-    sources = [
-        CatalogueSource.model_validate(evidence_sources[source_id])
-        for source_id in record.evidence_source_ids
-        if source_id in evidence_sources
-    ]
-    safe_steps: list[str] = []
-    if guidance:
-        protected_path = (guidance.get("actions") or {}).get("protected_or_permission_unknown")
-        if protected_path:
-            safe_steps = [item["text"] for item in protected_path.get("steps", [])]
-    identifying = (
-        guidance.get("general_information")
-        if guidance
-        else "Identification characteristics have not yet been reviewed for this catalogue entry."
-    )
+    detail_sources = {
+        source["source_id"]: source
+        for source in load_catalogue_details_dataset().get("sources", [])
+    }
+    cited_ids = tuple(dict.fromkeys((*record.evidence_source_ids, *detail.source_ids)))
+    sources = []
+    for source_id in cited_ids:
+        raw_source = evidence_sources.get(source_id) or detail_sources.get(source_id)
+        if raw_source:
+            sources.append(CatalogueSource.model_validate(raw_source))
     return CatalogueSpeciesDetail(
         **_summary(record).model_dump(),
         accepted_scientific_name=record.accepted_scientific_name,
-        identifying_characteristics=identifying,
-        habitats=list(record.habitats),
-        impacts=(
-            "Reviewed impact detail is not yet available in InvaTrace."
-            if not guidance
-            else "See the cited plant guidance sources for reviewed impact and spread context."
-        ),
-        safe_response_guidance=safe_steps or [NO_SAFE_ACTION],
+        identifying_characteristics=detail.identifying_characteristics,
+        habitats=[detail.typical_habitat],
+        impacts=detail.documented_impacts,
+        safe_response_guidance=list(detail.safe_response_guidance) or [NO_SAFE_ACTION],
         formal_severity_assessment=NO_SEVERITY,
         evidence_summary=record.evidence_summary,
         sources=sources,
-        last_reviewed=record.status_reviewed_at,
+        last_reviewed=detail.reviewed_at,
         catalogue_version=dataset["catalogue_version"],
     )

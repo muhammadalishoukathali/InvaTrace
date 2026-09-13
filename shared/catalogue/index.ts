@@ -8,6 +8,7 @@ import manifestJson from './catalogue-manifest.json'
 import statusJson from './plant-status.json'
 import guidanceJson from './plant-guidance.json'
 import approvedSpeciesJson from './approved-species.json'
+import catalogueDetailsJson from './catalogue-details.json'
 
 export type PlantUiState = 'invasive' | 'information_only' | 'status_uncertain'
 
@@ -31,6 +32,31 @@ export interface CatalogueSource {
   publisher: string
   url: string
   accessed: string
+  reuse_status?: string
+}
+
+export interface CatalogueDetailRecord {
+  species_id: string
+  identifying_characteristics: string
+  typical_habitat: string
+  documented_impacts: string
+  safe_response_guidance: string[]
+  source_ids: {
+    identification: string[]
+    habitat: string[]
+    impacts: string[]
+    guidance: string[]
+  }
+  reviewed_at: string
+}
+
+export interface CatalogueDetailsDataset {
+  schema_version: 'invatrace.catalogue.details.v1'
+  catalogue_version: string
+  reviewed_at: string
+  record_count: 32
+  sources: Array<CatalogueSource & { reuse_status: string }>
+  records: CatalogueDetailRecord[]
 }
 
 export interface PlantStatusDataset {
@@ -82,6 +108,7 @@ export interface CatalogueManifest {
     'plant-status.json': { sha256: string; byte_length: number; schema_version: string; record_count?: number }
     'plant-guidance.json': { sha256: string; byte_length: number; schema_version: string; record_count?: number }
     'reference-images.json': { sha256: string; byte_length: number; schema_version: string; record_count?: number }
+    'catalogue-details.json': { sha256: string; byte_length: number; schema_version: string; record_count?: number }
   }
 }
 
@@ -111,6 +138,7 @@ export interface ApprovedSpeciesDataset {
 export const catalogueManifest = manifestJson as CatalogueManifest
 export const plantStatusDataset = statusJson as unknown as PlantStatusDataset
 export const approvedSpeciesDataset = approvedSpeciesJson as unknown as ApprovedSpeciesDataset
+export const catalogueDetailsDataset = catalogueDetailsJson as unknown as CatalogueDetailsDataset
 
 // Deliberately re-exported as `unknown` to keep the frontend's richer
 // PlantGuidanceDataset type as the single typed shape for guidance.

@@ -32,6 +32,7 @@ PLANT_GUIDANCE_PATH = CATALOGUE_ROOT / "plant-guidance.json"
 MANIFEST_PATH = CATALOGUE_ROOT / "catalogue-manifest.json"
 APPROVED_SPECIES_PATH = CATALOGUE_ROOT / "approved-species.json"
 REFERENCE_IMAGES_PATH = CATALOGUE_ROOT / "reference-images.json"
+CATALOGUE_DETAILS_PATH = CATALOGUE_ROOT / "catalogue-details.json"
 
 VALID_UI_STATES = frozenset({"invasive", "information_only", "status_uncertain"})
 
@@ -86,6 +87,19 @@ class CatalogueManifest:
     approved_species_byte_length: int
     reference_images_sha256: str
     reference_images_byte_length: int
+    catalogue_details_sha256: str
+    catalogue_details_byte_length: int
+
+
+@dataclass(frozen=True)
+class CatalogueDetailRecord:
+    species_id: str
+    identifying_characteristics: str
+    typical_habitat: str
+    documented_impacts: str
+    safe_response_guidance: tuple[str, ...]
+    source_ids: tuple[str, ...]
+    reviewed_at: date
 
 
 @dataclass(frozen=True)
@@ -132,6 +146,8 @@ def load_manifest() -> CatalogueManifest:
             approved_species_byte_length=int(files["approved-species.json"]["byte_length"]),
             reference_images_sha256=files["reference-images.json"]["sha256"],
             reference_images_byte_length=int(files["reference-images.json"]["byte_length"]),
+            catalogue_details_sha256=files["catalogue-details.json"]["sha256"],
+            catalogue_details_byte_length=int(files["catalogue-details.json"]["byte_length"]),
         )
     except (KeyError, ValueError) as exc:
         raise CatalogueError(f"Catalogue manifest is malformed: {exc}") from exc
@@ -299,6 +315,60 @@ def load_guidance_dataset() -> dict[str, Any]:
     return _read_json(PLANT_GUIDANCE_PATH)
 
 
+@lru_cache(maxsize=1)
+def load_catalogue_details_dataset() -> dict[str, Any]:
+    data = _read_json(CATALOGUE_DETAILS_PATH)
+    approved = load_approved_species()
+    approved_ids = {record.species_id for record in approved}
+    raw_records = data.get("records", [])
+    if data.get("record_count") != 32 or len(raw_records) != 32:
+        raise CatalogueError("catalogue-details.json must contain exactly 32 records")
+    if data.get("catalogue_version") != load_approved_dataset().get("catalogue_version"):
+        raise CatalogueError("catalogue-details.json version does not match approved catalogue")
+    source_ids = {source.get("source_id") for source in data.get("sources", [])}
+    detail_ids = {record.get("species_id") for record in raw_records}
+    if detail_ids != approved_ids:
+        raise CatalogueError("catalogue-details.json species must exactly match the approved 32")
+    for raw in raw_records:
+        grouped_ids = raw.get("source_ids") or {}
+        cited = {
+            source_id
+            for group in ("identification", "habitat", "impacts", "guidance")
+            for source_id in grouped_ids.get(group, [])
+        }
+        if cited - source_ids:
+            raise CatalogueError(
+                f"Unknown catalogue detail source(s) for {raw.get('species_id')}: "
+                f"{sorted(cited - source_ids)}"
+            )
+    return data
+
+
+def catalogue_detail_record(species_id: str) -> CatalogueDetailRecord | None:
+    normalized = species_id.strip().lower().replace("_", "-")
+    for raw in load_catalogue_details_dataset()["records"]:
+        if raw["species_id"] != normalized:
+            continue
+        grouped_ids = raw["source_ids"]
+        cited = tuple(
+            dict.fromkeys(
+                source_id
+                for group in ("identification", "habitat", "impacts", "guidance")
+                for source_id in grouped_ids[group]
+            )
+        )
+        return CatalogueDetailRecord(
+            species_id=raw["species_id"],
+            identifying_characteristics=raw["identifying_characteristics"],
+            typical_habitat=raw["typical_habitat"],
+            documented_impacts=raw["documented_impacts"],
+            safe_response_guidance=tuple(raw["safe_response_guidance"]),
+            source_ids=cited,
+            reviewed_at=date.fromisoformat(raw["reviewed_at"]),
+        )
+    return None
+
+
 def status_record_for_species(species_id: str) -> PlantStatusRecord | None:
     normalized = species_id.strip().lower().replace("_", "-")
     for record in load_status_records():
@@ -347,6 +417,13 @@ def verify_disk_checksums() -> None:
             "reference-images.json checksum drift: "
             f"expected {manifest.reference_images_sha256}, got {actual_reference_images}"
         )
+    actual_catalogue_details = _sha256(CATALOGUE_DETAILS_PATH)
+    if actual_catalogue_details != manifest.catalogue_details_sha256:
+        raise CatalogueError(
+            "catalogue-details.json checksum drift: "
+            f"expected {manifest.catalogue_details_sha256}, got {actual_catalogue_details}"
+        )
+    load_catalogue_details_dataset()
 
 
 def assert_client_catalogue_matches(

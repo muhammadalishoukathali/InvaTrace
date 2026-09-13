@@ -23,12 +23,13 @@ from app.db.models import (
     PlaceOccurrenceWaterwayEvidence,
     Species,
     Trail,
+    WaterwayDataset,
 )
 from app.domain.catalogue import (
     approved_catalogue_image_for_species,
     approved_species_record,
 )
-from app.waterway_import import OSM_DIRECTION_SOURCE
+from app.waterway_import import MAX_SNAP_DISTANCE_M, OSM_DIRECTION_SOURCE
 
 router = APIRouter(prefix="/api/v1/places", tags=["places"])
 
@@ -269,6 +270,11 @@ def plant_associations(
         PlaceOccurrenceWaterwayEvidence.place_type == place_type,
         PlaceOccurrenceWaterwayEvidence.direction_source == OSM_DIRECTION_SOURCE,
         PlaceOccurrenceWaterwayEvidence.upstream_distance_m <= 5000,
+        PlaceOccurrenceWaterwayEvidence.occurrence_snap_distance_m <= MAX_SNAP_DISTANCE_M,
+        PlaceOccurrenceWaterwayEvidence.place_snap_distance_m <= MAX_SNAP_DISTANCE_M,
+        PlaceOccurrenceWaterwayEvidence.data_version.in_(
+            select(WaterwayDataset.version).where(WaterwayDataset.active.is_(True))
+        ),
     )
     upstream_match = PlaceOccurrenceWaterwayEvidence.id.is_not(None)
     columns = [

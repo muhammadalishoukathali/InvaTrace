@@ -108,8 +108,17 @@ docker compose exec api python -m app.cli set-profile-access \
 - API: `uvicorn app.main:app --host 0.0.0.0 --port 8000`
 - Worker: `python -m app.cli worker`
 - One worker pass for diagnostics: `python -m app.cli worker --once`
-- OSM import: `python -m app.cli import-osm malaysia.osm.pbf --source-date
-  2026-08-01T00:00:00+00:00 --confirm-malaysia-clipped`
+- OSM place import: `python -m app.cli import-osm <regional.osm.pbf> --source-date
+  <source-timestamp> --release-manifest <osm-release.json> --country-boundary
+  <malaysia.geojson> --country-boundary-manifest <boundary-release.json>`
+- Protected-area extraction/import: `python -m app.cli extract-osm-protected-areas ...`
+  followed by `python -m app.cli import-protected-areas ...`; both commands require
+  the fixed source and boundary release manifests shown by `--help`.
+- Directed waterway graph/evidence: `python -m app.cli preprocess-osm-waterways ...`.
+  The preprocessor stores the graph and imports only evidence that passes every
+  snap, uncertainty, direction, continuity and 5 km network-distance gate.
+- Audited waterway evidence import: `python -m app.cli import-waterway-evidence
+  <evidence.json> --data-version <version> --release-manifest <release.json>`
 - Expired upload cleanup: `python -m app.cli cleanup-uploads`
 - Scheduled expired upload cleanup: `python -m app.cli cleanup-worker`
 - Migrate: `alembic upgrade head`
