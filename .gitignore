@@ -6,6 +6,7 @@ public/models/pulih-model1-v4
 /public/reference-images/*.jpg
 /public/reference-images/*.jpeg
 /public/reference-images/*.png
+/public/reference-images/.catalogue-image-staging/
 /vendor/PULIH_Model1_v4_FP16_Web_Kit/model/*.onnx
 .env
 .env.local
@@ -30,3 +31,4 @@ backend/.ruff_cache
 **/__pycache__
 *.py[cod]
 e2e-harness/.scratch/
+.production-data/

@@ -3,9 +3,8 @@ import { Link } from 'react-router-dom'
 import { Icon } from '@/components/Icon'
 import { useOnline } from '@/hooks/useOnline'
 import {
-  approvedCatalogueAsset,
+  approvedCatalogueAssetForSpecies,
   approvedSpeciesDataset,
-  rawGuidanceJson,
   type ApprovedSpeciesDataset,
 } from '@shared/catalogue'
 import {
@@ -19,20 +18,11 @@ import {
 } from './offline-catalogue'
 import './catalogue.css'
 
-interface GuidanceRecord {
-  plant_id: string
-  reference_image?: string
-  reference_image_credit?: string
-}
-
-const guidanceById = new Map(
-  ((rawGuidanceJson as { plants: GuidanceRecord[] }).plants ?? [])
-    .map((record) => [record.plant_id.replaceAll('_', '-'), record]),
-)
-const bundledApprovedImageUrls = new Set(
-  [...guidanceById.values()]
-    .map((record) => record.reference_image)
-    .filter((url): url is string => Boolean(approvedCatalogueAsset(url))),
+const bundledApprovedImages = Object.fromEntries(
+  approvedSpeciesDataset.records.flatMap((record) => {
+    const asset = approvedCatalogueAssetForSpecies(record.species_id)
+    return asset ? [[record.species_id, asset.url]] : []
+  }),
 )
 
 export function CataloguePage() {
@@ -40,9 +30,8 @@ export function CataloguePage() {
   const [query, setQuery] = useState('')
   const [installed, setInstalled] = useState<InstalledCataloguePack | null>(() => installedCataloguePack())
   const [dataset, setDataset] = useState<ApprovedSpeciesDataset>(approvedSpeciesDataset)
-  const [guidance, setGuidance] = useState(guidanceById)
   const [assetUrls, setAssetUrls] = useState<Record<string, string>>({})
-  const [approvedImageUrls, setApprovedImageUrls] = useState(bundledApprovedImageUrls)
+  const [approvedImages, setApprovedImages] = useState<Record<string, string>>(bundledApprovedImages)
   const releasePack = useRef<(() => void) | null>(null)
   const [packState, setPackState] = useState<'idle' | 'working' | 'error'>('idle')
   const normalized = query.trim().toLocaleLowerCase()
@@ -60,12 +49,10 @@ export function CataloguePage() {
     void loadInstalledCatalogueData().then((pack) => {
       if (!active || !pack) return
       setDataset(pack.approved)
-      setGuidance(new Map(pack.guidance.plants.map((record) => [
-        String(record.plant_id).replaceAll('_', '-'),
-        record as unknown as GuidanceRecord,
-      ])))
       setAssetUrls(pack.assetUrls)
-      setApprovedImageUrls(new Set(Object.keys(pack.approvedImages)))
+      setApprovedImages(Object.fromEntries(
+        Object.values(pack.approvedImages).map((asset) => [asset.species_id, asset.url]),
+      ))
       releasePack.current?.()
       releasePack.current = pack.release
     })
@@ -83,14 +70,12 @@ export function CataloguePage() {
       const pack = await loadInstalledCatalogueData()
       if (pack) {
         setDataset(pack.approved)
-        setGuidance(new Map(pack.guidance.plants.map((record) => [
-          String(record.plant_id).replaceAll('_', '-'),
-          record as unknown as GuidanceRecord,
-        ])))
         releasePack.current?.()
         releasePack.current = pack.release
         setAssetUrls(pack.assetUrls)
-        setApprovedImageUrls(new Set(Object.keys(pack.approvedImages)))
+        setApprovedImages(Object.fromEntries(
+          Object.values(pack.approvedImages).map((asset) => [asset.species_id, asset.url]),
+        ))
       }
       setPackState('idle')
     } catch {
@@ -103,11 +88,10 @@ export function CataloguePage() {
     await removeCataloguePack()
     setInstalled(null)
     setDataset(approvedSpeciesDataset)
-    setGuidance(guidanceById)
     releasePack.current?.()
     releasePack.current = null
     setAssetUrls({})
-    setApprovedImageUrls(bundledApprovedImageUrls)
+    setApprovedImages(bundledApprovedImages)
     setPackState('idle')
   }
 
@@ -178,13 +162,13 @@ export function CataloguePage() {
       ) : (
         <ol className="catalogue-list" aria-label={`${records.length} catalogue plants`}>
           {records.map((record) => {
-            const plantGuidance = guidance.get(record.species_id)
+            const imageUrl = approvedImages[record.species_id]
             return (
               <li key={record.species_id}>
                 <Link to={`/catalogue/${record.species_id}`}>
                   <span className="catalogue-list__image">
-                    {plantGuidance?.reference_image && approvedImageUrls.has(plantGuidance.reference_image) ? (
-                      <img src={assetUrls[plantGuidance.reference_image] ?? plantGuidance.reference_image} alt="" loading="lazy" />
+                    {imageUrl ? (
+                      <img src={assetUrls[imageUrl] ?? imageUrl} alt="" loading="lazy" />
                     ) : <Icon name="Leaf" size={24} color="var(--green)" />}
                   </span>
                   <span className="catalogue-list__names">

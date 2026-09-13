@@ -18,8 +18,10 @@ from typing import Any
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
+from app.data_release import validate_data_release
 from app.db.models import OccurrenceRecord
 from app.domain.catalogue import load_approved_species
+from app.geojson_validation import CountryPolygon, country_polygons, point_in_country
 
 
 @dataclass(frozen=True)
@@ -61,81 +63,17 @@ def _decimal(value: Any) -> Decimal | None:
     return parsed if parsed.is_finite() else None
 
 
-def _point_on_segment(
-    longitude: float,
-    latitude: float,
-    left: list[float],
-    right: list[float],
-) -> bool:
-    cross = (longitude - left[0]) * (right[1] - left[1]) - (
-        latitude - left[1]
-    ) * (right[0] - left[0])
-    if abs(cross) > 1e-12:
-        return False
-    return (
-        min(left[0], right[0]) - 1e-12 <= longitude <= max(left[0], right[0]) + 1e-12
-        and min(left[1], right[1]) - 1e-12
-        <= latitude
-        <= max(left[1], right[1]) + 1e-12
-    )
-
-
-def _point_in_ring(longitude: float, latitude: float, ring: list[list[float]]) -> bool:
-    inside = False
-    for index, left in enumerate(ring):
-        right = ring[(index + 1) % len(ring)]
-        if _point_on_segment(longitude, latitude, left, right):
-            return True
-        if (left[1] > latitude) != (right[1] > latitude):
-            intersection = (right[0] - left[0]) * (latitude - left[1]) / (
-                right[1] - left[1]
-            ) + left[0]
-            if longitude < intersection:
-                inside = not inside
-    return inside
-
-
-def _country_polygons(source_path: Path) -> list[list[list[list[float]]]]:
+def _country_polygons(source_path: Path) -> list[CountryPolygon]:
     payload = json.loads(source_path.read_text(encoding="utf-8"))
-    if payload.get("type") == "FeatureCollection":
-        geometries = [
-            feature.get("geometry")
-            for feature in payload.get("features", [])
-            if isinstance(feature, dict)
-        ]
-    elif payload.get("type") == "Feature":
-        geometries = [payload.get("geometry")]
-    else:
-        geometries = [payload]
-    polygons: list[list[list[list[float]]]] = []
-    for geometry in geometries:
-        if not isinstance(geometry, dict):
-            continue
-        if geometry.get("type") == "Polygon":
-            coordinates = geometry.get("coordinates")
-            if isinstance(coordinates, list):
-                polygons.append(coordinates)
-        elif geometry.get("type") == "MultiPolygon":
-            coordinates = geometry.get("coordinates")
-            if isinstance(coordinates, list):
-                polygons.extend(coordinates)
-    if not polygons or any(not polygon or len(polygon[0]) < 4 for polygon in polygons):
-        raise ValueError("country boundary must contain valid Polygon or MultiPolygon geometry")
-    return polygons
+    return country_polygons(payload)
 
 
 def _inside_country_boundary(
     longitude: float,
     latitude: float,
-    polygons: list[list[list[list[float]]]],
+    polygons: list[CountryPolygon],
 ) -> bool:
-    for polygon in polygons:
-        if not _point_in_ring(longitude, latitude, polygon[0]):
-            continue
-        if any(_point_in_ring(longitude, latitude, hole) for hole in polygon[1:]):
-            continue
-        return True
-    return False
+    return point_in_country(longitude, latitude, polygons)
 
 
 def import_occurrence_json(
@@ -145,6 +83,8 @@ def import_occurrence_json(
     source: str,
     processed_data_version: str,
     country_boundary_path: Path,
+    country_boundary_manifest_path: Path | None = None,
+    release_manifest_path: Path | None = None,
 ) -> OccurrenceImportResult:
     """Import a JSON array (or ``{"records": [...]}``) after AC 5.1.2 validation."""
     payload = json.loads(source_path.read_text(encoding="utf-8"))
@@ -155,6 +95,20 @@ def import_occurrence_json(
     processed_data_version = processed_data_version.strip()
     if not source or not processed_data_version:
         raise ValueError("source and processed_data_version are required")
+    if country_boundary_manifest_path is not None:
+        validate_data_release(
+            country_boundary_manifest_path,
+            country_boundary_path,
+            expected_dataset_id="malaysia-national-boundary",
+        )
+    if release_manifest_path is not None:
+        validate_data_release(
+            release_manifest_path,
+            source_path,
+            expected_dataset_id="gbif-malaysia-occurrences",
+        )
+        if source.casefold() != "gbif":
+            raise ValueError("the reviewed GBIF release must be imported with source='GBIF'")
     country_polygons = _country_polygons(country_boundary_path)
 
     known_ids = set(
@@ -183,7 +137,10 @@ def import_occurrence_json(
         if str(_value(raw, "countryCode", "country_code") or "").strip().upper() != "MY":
             reasons["country_not_malaysia"] += 1
             continue
-        if str(_value(raw, "occurrenceStatus", "occurrence_status") or "").strip() != "Present":
+        if (
+            str(_value(raw, "occurrenceStatus", "occurrence_status") or "").strip().casefold()
+            != "present"
+        ):
             reasons["occurrence_not_present"] += 1
             continue
         latitude = _decimal(_value(raw, "decimalLatitude", "latitude"))
@@ -231,6 +188,17 @@ def import_occurrence_json(
                 occurrence_status="Present",
                 coordinate_uncertainty_m=uncertainty,
                 observed_year=observed_year,
+                metadata_json={
+                    "event_date": _value(raw, "eventDate", "event_date"),
+                    "dataset_key": _value(raw, "datasetKey", "dataset_key"),
+                    "dataset_title": _value(raw, "datasetTitle", "dataset_title"),
+                    "publishing_organization_key": _value(
+                        raw, "publishingOrgKey", "publishing_organization_key"
+                    ),
+                    "licence": _value(raw, "license", "licence"),
+                    "references": _value(raw, "references", "source_url"),
+                    "basis_of_record": _value(raw, "basisOfRecord", "basis_of_record"),
+                },
                 processed_data_version=processed_data_version,
                 imported_at=now,
             )

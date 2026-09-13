@@ -25,9 +25,8 @@ from app.db.models import (
     Trail,
 )
 from app.domain.catalogue import (
-    approved_catalogue_image,
+    approved_catalogue_image_for_species,
     approved_species_record,
-    load_guidance_dataset,
 )
 from app.waterway_import import OSM_DIRECTION_SOURCE
 
@@ -123,13 +122,13 @@ def _place_metadata(place: MonitoredArea | Trail) -> tuple[str, str, str]:
 
 
 def _reference_image_url(species_id: str) -> str | None:
-    for item in load_guidance_dataset().get("plants", []):
-        if item.get("plant_id", "").replace("_", "-") != species_id:
-            continue
-        image_url = item.get("reference_image")
-        if isinstance(image_url, str) and approved_catalogue_image(image_url) is not None:
-            return image_url
-    return None
+    image = approved_catalogue_image_for_species(species_id)
+    return image.url if image is not None else None
+
+
+def _stored_geometry(place_id: uuid.UUID, place_type: PlaceType):
+    model = Trail if place_type == "trail" else MonitoredArea
+    return select(model.geometry).where(model.id == place_id).scalar_subquery()
 
 
 def _rank_components(
@@ -168,8 +167,9 @@ def _place_detail_response(
     place_type: PlaceType,
 ) -> PlaceDetail:
     geometry_status, source, geometry_version = _place_metadata(place)
+    stored_geometry = _stored_geometry(place.id, place_type)
     geojson_raw = session.scalar(
-        select(func.ST_AsGeoJSON(cast(place.geometry, Geometry(srid=4326))))
+        select(func.ST_AsGeoJSON(cast(stored_geometry, Geometry(srid=4326))))
     )
     if not geojson_raw:
         raise ApiProblem(422, "unsupported_place_geometry", "This place has no usable geometry.")
@@ -260,8 +260,9 @@ def plant_associations(
     place, place_type = _place(session, place_id)
     _, _, geometry_version = _place_metadata(place)
     radius_m = 750 if place_type == "trail" else 1000
-    distance = func.ST_Distance(place.geometry, OccurrenceRecord.location)
-    spatial_match = func.ST_DWithin(place.geometry, OccurrenceRecord.location, radius_m)
+    stored_geometry = _stored_geometry(place.id, place_type)
+    distance = func.ST_Distance(stored_geometry, OccurrenceRecord.location)
+    spatial_match = func.ST_DWithin(stored_geometry, OccurrenceRecord.location, radius_m)
     waterway_join = and_(
         PlaceOccurrenceWaterwayEvidence.occurrence_id == OccurrenceRecord.id,
         PlaceOccurrenceWaterwayEvidence.place_id == place.id,
@@ -286,7 +287,7 @@ def plant_associations(
         )
     else:
         inside = func.ST_Covers(
-            cast(place.geometry, Geometry("MULTIPOLYGON", srid=4326)),
+            cast(stored_geometry, Geometry("MULTIPOLYGON", srid=4326)),
             cast(OccurrenceRecord.location, Geometry("POINT", srid=4326)),
         )
         statement = (

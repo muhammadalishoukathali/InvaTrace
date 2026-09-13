@@ -9,7 +9,7 @@ from fastapi import APIRouter, Query
 from app.api.schemas import ApiModel
 from app.core.errors import ApiProblem
 from app.domain.catalogue import (
-    approved_catalogue_image,
+    approved_catalogue_image_for_species,
     approved_species_record,
     load_approved_dataset,
     load_approved_species,
@@ -26,9 +26,11 @@ class CatalogueImage(ApiModel):
     url: str
     creator: str
     license: str
+    license_url: str
     source_title: str
     source_url_or_identifier: str
     reviewed_at: date
+    attribution_text: str
 
 
 class CatalogueSpeciesSummary(ApiModel):
@@ -73,32 +75,29 @@ def _guidance_by_species_id() -> dict[str, dict]:
     }
 
 
-def _image_for(guidance: dict | None) -> CatalogueImage | None:
-    if not guidance:
-        return None
-    url = guidance.get("reference_image")
-    if not isinstance(url, str):
-        return None
-    image = approved_catalogue_image(url)
+def _image_for(species_id: str) -> CatalogueImage | None:
+    image = approved_catalogue_image_for_species(species_id)
     if image is None:
         return None
     return CatalogueImage(
         url=image.url,
         creator=image.creator,
         license=image.licence,
+        license_url=image.licence_url,
         source_title=image.source_title,
         source_url_or_identifier=image.source_url_or_identifier,
         reviewed_at=image.reviewed_at,
+        attribution_text=image.attribution_text,
     )
 
 
-def _summary(record, guidance: dict | None) -> CatalogueSpeciesSummary:
+def _summary(record) -> CatalogueSpeciesSummary:
     return CatalogueSpeciesSummary(
         species_id=record.species_id,
         scientific_name=record.scientific_name,
         common_names=list(record.common_names),
         malaysia_status="Present",
-        image=_image_for(guidance),
+        image=_image_for(record.species_id),
     )
 
 
@@ -107,7 +106,6 @@ def list_catalogue(
     q: str | None = Query(default=None, max_length=120),
 ) -> CatalogueListResponse:
     dataset = load_approved_dataset()
-    guidance = _guidance_by_species_id()
     query = (q or "").strip().casefold()
     records = load_approved_species()
     if query:
@@ -120,7 +118,7 @@ def list_catalogue(
     return CatalogueListResponse(
         catalogue_version=dataset["catalogue_version"],
         reviewed_at=date.fromisoformat(dataset["reviewed_at"]),
-        items=[_summary(record, guidance.get(record.species_id)) for record in records],
+        items=[_summary(record) for record in records],
     )
 
 
@@ -148,7 +146,7 @@ def catalogue_detail(species_id: str) -> CatalogueSpeciesDetail:
         else "Identification characteristics have not yet been reviewed for this catalogue entry."
     )
     return CatalogueSpeciesDetail(
-        **_summary(record, guidance).model_dump(),
+        **_summary(record).model_dump(),
         accepted_scientific_name=record.accepted_scientific_name,
         identifying_characteristics=identifying,
         habitats=list(record.habitats),

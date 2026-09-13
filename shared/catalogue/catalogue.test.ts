@@ -7,6 +7,7 @@ import runtimeCatalog from '../../public/models/pulih-model1-v4/species_31.json'
 import {
   approvedSpeciesDataset,
   approvedCatalogueAsset,
+  approvedCatalogueAssetForSpecies,
   catalogueManifest,
   catalogueSourceById,
   findPlantStatus,
@@ -18,10 +19,14 @@ import {
 import approvedSpeciesSchema from './approved-species.schema.json'
 import plantStatusSchema from './schemas/plant-status.schema.json'
 import manifestSchema from './schemas/catalogue-manifest.schema.json'
+import referenceImagesSchema from './schemas/reference-images.schema.json'
+import referenceImages from './reference-images.json'
 
 const STATUS_PATH = fileURLToPath(new URL('./plant-status.json', import.meta.url))
 const GUIDANCE_PATH = fileURLToPath(new URL('./plant-guidance.json', import.meta.url))
 const APPROVED_PATH = fileURLToPath(new URL('./approved-species.json', import.meta.url))
+const REFERENCE_IMAGES_PATH = fileURLToPath(new URL('./reference-images.json', import.meta.url))
+const PUBLIC_ROOT = fileURLToPath(new URL('../../public/', import.meta.url))
 
 function ajv() {
   const validator = new Ajv2020({ allErrors: true, strict: false })
@@ -149,6 +154,7 @@ describe('shared catalogue manifest', () => {
     const statusBytes = readFileSync(STATUS_PATH)
     const guidanceBytes = readFileSync(GUIDANCE_PATH)
     const approvedBytes = readFileSync(APPROVED_PATH)
+    const referenceImageBytes = readFileSync(REFERENCE_IMAGES_PATH)
     expect(createHash('sha256').update(approvedBytes).digest('hex'))
       .toBe(catalogueManifest.files['approved-species.json'].sha256)
     expect(approvedBytes.length).toBe(catalogueManifest.files['approved-species.json'].byte_length)
@@ -156,6 +162,10 @@ describe('shared catalogue manifest', () => {
       .toBe(catalogueManifest.files['plant-status.json'].sha256)
     expect(createHash('sha256').update(guidanceBytes).digest('hex'))
       .toBe(catalogueManifest.files['plant-guidance.json'].sha256)
+    expect(createHash('sha256').update(referenceImageBytes).digest('hex'))
+      .toBe(catalogueManifest.files['reference-images.json'].sha256)
+    expect(referenceImageBytes.length)
+      .toBe(catalogueManifest.files['reference-images.json'].byte_length)
     expect(plantStatusChecksum())
       .toBe(catalogueManifest.files['plant-status.json'].sha256)
   })
@@ -166,18 +176,40 @@ describe('shared catalogue manifest', () => {
     expect(catalogueManifest.last_reviewed).toBe(approvedSpeciesDataset.reviewed_at)
   })
 
-  it('never approves an image without complete provenance metadata', () => {
+  it('approves exactly one locally verified provenance image for each approved species', () => {
+    const validateReferenceImages = ajv().compile(referenceImagesSchema)
+    expect(validateReferenceImages(referenceImages), JSON.stringify(validateReferenceImages.errors))
+      .toBe(true)
+    expect(catalogueManifest.assets).toHaveLength(32)
+    expect(catalogueManifest.assets.every((asset) => asset.review_status === 'approved')).toBe(true)
+    expect(new Set(catalogueManifest.assets.map((asset) => asset.species_id)).size).toBe(32)
+    expect(new Set(catalogueManifest.assets.map((asset) => asset.url)).size).toBe(32)
+
+    for (const record of approvedSpeciesDataset.records) {
+      const asset = approvedCatalogueAssetForSpecies(record.species_id)
+      expect(asset).not.toBeNull()
+      if (!asset) continue
+      const bytes = readFileSync(`${PUBLIC_ROOT}${asset.url}`)
+      expect(bytes.length).toBe(asset.byte_length)
+      expect(createHash('sha256').update(bytes).digest('hex')).toBe(asset.sha256)
+      expect(asset.creator).not.toBe('')
+      expect(asset.licence_url).toMatch(/^https?:\/\//)
+      expect(asset.source_url_or_identifier).toMatch(/^https:\/\/commons\.wikimedia\.org\//)
+      expect(asset.attribution_text).toContain('Wikimedia Commons')
+    }
+    expect(approvedCatalogueAsset('/reference-images/mikania_micrantha.jpg')?.species_id)
+      .toBe('mikania-micrantha')
+  })
+
+  it('rejects an approved image when provenance metadata is incomplete', () => {
     const validate = ajv().compile(manifestSchema)
     const invalid = structuredClone(catalogueManifest) as unknown as {
       assets: Array<Record<string, unknown>>
     }
     invalid.assets = [{
       ...invalid.assets[0],
-      review_status: 'approved',
+      creator: '',
     }]
     expect(validate(invalid)).toBe(false)
-    expect(catalogueManifest.assets.every((asset) => asset.review_status === 'provenance_pending'))
-      .toBe(true)
-    expect(approvedCatalogueAsset('/reference-images/mikania_micrantha.jpg')).toBeNull()
   })
 })

@@ -1,0 +1,43 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://invatrace.local/schemas/reference-images.schema.json",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schema_version", "catalogue_version", "source", "source_terms", "record_count", "records"],
+  "properties": {
+    "$schema": {"type": "string"},
+    "schema_version": {"const": "invatrace.catalogue.reference-images.v1"},
+    "catalogue_version": {"type": "string", "pattern": "^\\d+\\.\\d+\\.\\d+$"},
+    "source": {"const": "Wikimedia Commons"},
+    "source_terms": {"type": "string", "format": "uri"},
+    "record_count": {"const": 32},
+    "records": {
+      "type": "array",
+      "minItems": 32,
+      "maxItems": 32,
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["species_id", "scientific_name", "verified_taxon_name", "wikidata_taxon_id", "verification", "local_url", "sha256", "byte_length", "source_title", "source_url_or_identifier", "creator", "licence", "licence_url", "retrieved_at", "reviewed_at", "attribution_text"],
+        "properties": {
+          "species_id": {"type": "string", "pattern": "^[a-z0-9]+(?:-[a-z0-9]+)+$"},
+          "scientific_name": {"type": "string", "minLength": 3},
+          "verified_taxon_name": {"type": "string", "minLength": 3},
+          "wikidata_taxon_id": {"type": "string", "pattern": "^Q[1-9][0-9]*$"},
+          "verification": {"enum": ["wikidata_p18", "commons_exact_taxon_title"]},
+          "local_url": {"type": "string", "pattern": "^/reference-images/[a-z0-9_]+\\.jpg$"},
+          "sha256": {"type": "string", "pattern": "^[0-9a-f]{64}$"},
+          "byte_length": {"type": "integer", "minimum": 10000},
+          "source_title": {"type": "string", "pattern": "^File:"},
+          "source_url_or_identifier": {"type": "string", "format": "uri"},
+          "creator": {"type": "string", "minLength": 1},
+          "licence": {"type": "string", "minLength": 1},
+          "licence_url": {"type": "string", "format": "uri"},
+          "retrieved_at": {"type": "string", "format": "date"},
+          "reviewed_at": {"type": "string", "format": "date"},
+          "attribution_text": {"type": "string", "minLength": 10}
+        }
+      }
+    }
+  }
+}

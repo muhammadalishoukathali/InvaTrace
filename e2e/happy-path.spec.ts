@@ -560,7 +560,10 @@ test('private detector can scan, analyse, and submit', async ({ page, context })
   await expect(page.getByRole('heading', { name: 'Photograph a clear plant feature' })).toBeVisible()
 
   await page.locator('input[aria-label="Choose photo from gallery"]').setInputFiles(
-    path.join(process.cwd(), 'public/reference-images/mikania_micrantha.jpg'),
+    // Keep the classifier-flow fixture independent from the reviewed catalogue
+    // image release. The hyphenated asset belongs to the existing model kit;
+    // the underscored asset is allowed to change when image provenance is refreshed.
+    path.join(process.cwd(), 'public/reference-images/mikania-micrantha.jpg'),
   )
 
   await expect(page.getByText('Photo quality check passed')).toBeVisible({ timeout: 5000 })

@@ -16,40 +16,45 @@ const catalogueDir = resolve(root, 'shared/catalogue')
 const statusPath = resolve(catalogueDir, 'plant-status.json')
 const guidancePath = resolve(catalogueDir, 'plant-guidance.json')
 const approvedPath = resolve(catalogueDir, 'approved-species.json')
+const referenceImagesPath = resolve(catalogueDir, 'reference-images.json')
 const manifestPath = resolve(catalogueDir, 'catalogue-manifest.json')
 
 const statusRaw = readFileSync(statusPath)
 const guidanceRaw = readFileSync(guidancePath)
 const approvedRaw = readFileSync(approvedPath)
+const referenceImagesRaw = readFileSync(referenceImagesPath)
 const status = JSON.parse(statusRaw.toString('utf-8'))
 const guidance = JSON.parse(guidanceRaw.toString('utf-8'))
 const approved = JSON.parse(approvedRaw.toString('utf-8'))
+const referenceImages = JSON.parse(referenceImagesRaw.toString('utf-8'))
 const approvedIds = new Set(approved.records.map((record) => record.species_id))
 
 const sha256 = (buf) => createHash('sha256').update(buf).digest('hex')
-const assets = guidance.plants
-  .filter((plant) => approvedIds.has(plant.plant_id.replaceAll('_', '-')) && plant.reference_image)
-  .map((plant) => {
-    const assetPath = resolve(root, 'public', plant.reference_image.replace(/^\//, ''))
+if (referenceImages.record_count !== 32 || referenceImages.records.length !== 32) {
+  throw new Error('reference-images.json must contain exactly 32 records')
+}
+const assets = referenceImages.records
+  .map((image) => {
+    if (!approvedIds.has(image.species_id)) throw new Error(`unapproved image species: ${image.species_id}`)
+    const assetPath = resolve(root, 'public', image.local_url.replace(/^\//, ''))
     const bytes = readFileSync(assetPath)
-    const base = {
-      url: plant.reference_image,
-      sha256: sha256(bytes),
-      byte_length: bytes.length,
-    }
-    const attribution = plant.reference_image_attribution
-    const required = ['creator', 'licence', 'source_title', 'source_url_or_identifier', 'reviewed_at']
-    if (!attribution || !required.every((field) => typeof attribution[field] === 'string' && attribution[field].trim())) {
-      return { ...base, review_status: 'provenance_pending' }
+    if (sha256(bytes) !== image.sha256 || bytes.length !== image.byte_length) {
+      throw new Error(`reference image integrity mismatch: ${image.species_id}`)
     }
     return {
-      ...base,
+      species_id: image.species_id,
+      url: image.local_url,
+      sha256: image.sha256,
+      byte_length: bytes.length,
       review_status: 'approved',
-      creator: attribution.creator.trim(),
-      licence: attribution.licence.trim(),
-      source_title: attribution.source_title.trim(),
-      source_url_or_identifier: attribution.source_url_or_identifier.trim(),
-      reviewed_at: attribution.reviewed_at.trim(),
+      creator: image.creator,
+      licence: image.licence,
+      licence_url: image.licence_url,
+      source_title: image.source_title,
+      source_url_or_identifier: image.source_url_or_identifier,
+      retrieved_at: image.retrieved_at,
+      reviewed_at: image.reviewed_at,
+      attribution_text: image.attribution_text,
     }
   })
 
@@ -80,6 +85,12 @@ const manifest = {
       byte_length: guidanceRaw.length,
       schema_version: guidance.schema_version,
       record_count: guidance.plants.length,
+    },
+    'reference-images.json': {
+      sha256: sha256(referenceImagesRaw),
+      byte_length: referenceImagesRaw.length,
+      schema_version: referenceImages.schema_version,
+      record_count: referenceImages.records.length,
     },
   },
 }

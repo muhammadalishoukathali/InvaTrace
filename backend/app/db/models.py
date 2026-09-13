@@ -284,6 +284,7 @@ class ProtectedAreaDataset(Base):
     coverage_geometry: Mapped[Any] = mapped_column(
         Geography("MULTIPOLYGON", srid=4326, spatial_index=False), nullable=False
     )
+    metadata_json: Mapped[dict[str, Any]] = mapped_column(JSON_TYPE, default=dict, nullable=False)
     active: Mapped[bool] = mapped_column(Boolean, default=False, index=True, nullable=False)
 
 
@@ -335,6 +336,7 @@ class OccurrenceRecord(Base):
     occurrence_status: Mapped[str] = mapped_column(String(20), default="Present", nullable=False)
     coordinate_uncertainty_m: Mapped[int] = mapped_column(Integer, nullable=False)
     observed_year: Mapped[int | None] = mapped_column(Integer)
+    metadata_json: Mapped[dict[str, Any]] = mapped_column(JSON_TYPE, default=dict, nullable=False)
     processed_data_version: Mapped[str] = mapped_column(String(120), nullable=False)
     imported_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), server_default=func.now(), nullable=False

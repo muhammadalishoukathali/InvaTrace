@@ -1,6 +1,7 @@
 import approvedRaw from '@shared/catalogue/approved-species.json?raw'
 import guidanceRaw from '@shared/catalogue/plant-guidance.json?raw'
 import statusRaw from '@shared/catalogue/plant-status.json?raw'
+import referenceImagesRaw from '@shared/catalogue/reference-images.json?raw'
 import {
   catalogueManifest,
   type ApprovedCatalogueAsset,
@@ -34,6 +35,7 @@ const rawFiles: Record<string, string> = {
   'approved-species.json': approvedRaw,
   'plant-guidance.json': guidanceRaw,
   'plant-status.json': statusRaw,
+  'reference-images.json': referenceImagesRaw,
 }
 
 export function cataloguePackSize(): number {
