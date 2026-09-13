@@ -12,6 +12,18 @@
   font-style: italic;
 }
 
+.scan-result__catalogue-link {
+  display: inline-flex;
+  min-height: 44px;
+  align-items: center;
+  margin-top: 12px;
+  color: var(--green-dark);
+  font-size: 13px;
+  font-weight: 650;
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+
 .scan-result__action-dock {
   position: fixed;
   z-index: 20;

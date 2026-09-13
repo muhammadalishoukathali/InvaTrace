@@ -1,5 +1,9 @@
 import type { IdentifyResult, MalaysiaStatusState } from '@/types'
-import { findPlantStatus, plantStatusDataset, type PlantStatusRecord } from '@shared/catalogue'
+import {
+  findApprovedSpecies,
+  plantStatusDataset,
+  type ApprovedSpeciesRecord,
+} from '@shared/catalogue'
 
 /**
  * Malaysian status gets resolved once, from the shared catalogue
@@ -49,7 +53,7 @@ export function deriveMalaysiaStatusState(result: IdentifyResult): MalaysiaStatu
   if (result.outcome === 'uncertain') return null
   if (isVersionMismatch(result.modelVersion)) return 'status_uncertain'
   const catalogueRecord = resolveCatalogueRecord(result)
-  if (catalogueRecord) return catalogueRecord.ui_state
+  if (catalogueRecord) return 'invasive'
   // Second chance: maybe the model adapter already attached a ui_state itself.
   const carried = result.malaysiaStatus
   if (carried && VALID_UI_STATES.has(carried as MalaysiaStatusState)) {
@@ -102,8 +106,8 @@ export function resolveResultPathway(result: IdentifyResult): ResolvedPathway {
   return { pathway: 'status_uncertain', statusState: 'status_uncertain', canReport: false, canAction: false }
 }
 
-function resolveCatalogueRecord(result: IdentifyResult): PlantStatusRecord | null {
-  return findPlantStatus({
+function resolveCatalogueRecord(result: IdentifyResult): ApprovedSpeciesRecord | null {
+  return findApprovedSpecies({
     speciesId: result.speciesId ?? null,
     scientificName: result.scientificName ?? null,
   })

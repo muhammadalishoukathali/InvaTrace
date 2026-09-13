@@ -4,13 +4,28 @@ import type {
   AccessOverview, PseudonymousProfile, SightingDetail,
 } from '@/types'
 import {
-  findModelSpecies, modelReferenceImageUrl, modelSpeciesCatalog,
+  findModelSpecies, modelReferenceImageUrl,
 } from '@/data/model-species-catalog'
+import { approvedSpeciesDataset, findApprovedSpecies } from '@shared/catalogue'
 
 const url = (p: string) => `*${p}`
 
 const mockReports: Report[] = []
 const mockReportIdempotency = new Map<string, { request: string; response: Report }>()
+const mockRemovalBySighting = new Map<string, {
+  reportId: string
+  sightingId: string
+  status: 'removal_reported'
+  removalReportedAt: string
+  accuracyM: number
+  distanceM: number
+}>()
+interface MockAdoption {
+  adoptionId: string
+  profileId: string
+  placeId: string
+  adoptedAt: string
+}
 
 interface MockScan {
   id: string
@@ -33,6 +48,7 @@ const mockUploadIdempotency = new Map<string, {
 }>()
 const sessions = new Map<string, { profile: PseudonymousProfile; installationId: string; token: string }>()
 const MOCK_SERVER_KEY = 'invatrace-mock-server-v2'
+const MOCK_ADOPTIONS_KEY = 'invatrace-mock-adoptions-v1'
 const MOCK_HASH_PEPPER = 'development-only-invatrace-mock-pepper'
 
 // a sliding-window counter is fine for the browser mock - production uses
@@ -120,6 +136,22 @@ function loadMockServer(): MockServerState {
 
 function saveMockServer(state: MockServerState): void {
   if (typeof localStorage !== 'undefined') localStorage.setItem(MOCK_SERVER_KEY, JSON.stringify(state))
+}
+
+function loadMockAdoptions(): MockAdoption[] {
+  if (typeof localStorage === 'undefined') return []
+  try {
+    const parsed = JSON.parse(localStorage.getItem(MOCK_ADOPTIONS_KEY) ?? '[]') as MockAdoption[]
+    return Array.isArray(parsed) ? parsed : []
+  } catch {
+    return []
+  }
+}
+
+function saveMockAdoptions(adoptions: MockAdoption[]): void {
+  if (typeof localStorage !== 'undefined') {
+    localStorage.setItem(MOCK_ADOPTIONS_KEY, JSON.stringify(adoptions))
+  }
 }
 
 async function secretHash(secret: string): Promise<string> {
@@ -462,44 +494,65 @@ export const handlers = [
 
   http.get(url('/api/v1/species'), () =>
     HttpResponse.json({
-      items: modelSpeciesCatalog.classes.map((species) => ({
-        id: species.machine_label.replaceAll('_', '-'),
-        name: species.display_name,
+      items: approvedSpeciesDataset.records.map((species) => ({
+        id: species.species_id,
+        name: species.common_names[0],
         latinName: species.scientific_name,
-        isInvasive: species.malaysia_status === 'invasive',
-        malaysiaStatus: species.malaysia_status,
-        statusSource: species.status_source,
+        isInvasive: true,
+        malaysiaStatus: 'invasive',
+        statusSource: species.evidence_source_ids[0],
       })),
     })),
 
   http.get(url('/api/v1/species/:id'), ({ params }) => {
     const id = params.id as string
-    const modelSpecies = findModelSpecies({ speciesId: id })
-    if (!modelSpecies) return HttpResponse.json({ detail: 'Species not found.' }, { status: 404 })
-    const invasive = modelSpecies.malaysia_status === 'invasive'
+    const approved = findApprovedSpecies({ speciesId: id })
+    if (!approved) return HttpResponse.json({ detail: 'Species not found.' }, { status: 404 })
+    const modelSpecies = findModelSpecies({ scientificName: approved.scientific_name })
     const detail = SPECIES_DETAIL[id] as Record<string, unknown> | undefined
     return HttpResponse.json({
       commonNames: [],
-      risk: invasive ? 'high' : 'watch',
+      risk: 'high',
       actionEligible: false,
       statusReviewedAt: null,
       traits: [],
       nativeTwin: null,
       removalSteps: [],
-      doNotDo: invasive
-        ? ['Detailed field guidance for this plant is not yet available in InvaTrace.']
-        : ['Leave this plant in place. It is not a model-listed invasive target.'],
+      doNotDo: ['Detailed field guidance for this plant is not yet available in InvaTrace.'],
       ...detail,
       id,
-      name: modelSpecies.display_name,
-      latinName: modelSpecies.scientific_name,
-      isInvasive: invasive,
-      reportable: invasive,
-      reportEligible: invasive,
-      malaysiaStatus: modelSpecies.malaysia_status,
-      statusSourceId: modelSpecies.status_source,
-      referenceImageUrl: modelReferenceImageUrl(modelSpecies),
-      referenceImageCredit: 'Species reference image',
+      name: approved.common_names[0],
+      latinName: approved.scientific_name,
+      isInvasive: true,
+      reportable: true,
+      reportEligible: true,
+      malaysiaStatus: 'invasive',
+      statusSourceId: approved.evidence_source_ids[0],
+      referenceImageUrl: modelSpecies ? modelReferenceImageUrl(modelSpecies) : undefined,
+      referenceImageCredit: modelSpecies ? 'Species reference image' : undefined,
+    })
+  }),
+
+  http.post(url('/api/v1/location-context'), async ({ request }) => {
+    const body = (await request.json()) as { latitude?: number; longitude?: number; accuracyM?: number }
+    if (typeof body.latitude !== 'number' || typeof body.longitude !== 'number'
+      || typeof body.accuracyM !== 'number' || body.accuracyM < 0) {
+      return HttpResponse.json({ code: 'invalid_location', detail: 'Location context is invalid.' }, { status: 422 })
+    }
+    const uncertain = body.accuracyM > 250
+    return HttpResponse.json({
+      contextState: uncertain ? 'boundary_uncertain' : 'no_protected_area_intersection',
+      insideProtectedArea: uncertain ? null : false,
+      boundarySource: uncertain ? null : 'Development boundary fixture',
+      boundaryVersion: uncertain ? null : 'mock-boundaries-2026-09-01',
+      boundaryUpdatedAt: uncertain ? null : '2026-09-01T00:00:00Z',
+      protectedAreaName: null,
+      accuracyM: body.accuracyM,
+      actionEligible: !uncertain,
+      permissionConfirmationRequired: true,
+      disclaimer: uncertain
+        ? 'Protected-area status is uncertain because GPS accuracy is greater than 250 m. Observe and report only; do not touch, collect, cut or remove the plant.'
+        : 'No mapped protected-area intersection was found in the development boundary fixture. This does not establish ownership, access rights, or removal permission; confirm permission first.',
     })
   }),
 
@@ -642,6 +695,12 @@ export const handlers = [
     if (body.outcome !== 'target' && body.predictedSpeciesId != null) {
       return HttpResponse.json({ code: 'scan_species_not_allowed', detail: 'Only target scans may include predictedSpeciesId.' }, { status: 422 })
     }
+    if (body.predictedSpeciesId && !findApprovedSpecies({ speciesId: body.predictedSpeciesId })) {
+      return HttpResponse.json({
+        code: 'species_not_approved',
+        detail: 'This plant is not in the approved InvaTrace catalogue.',
+      }, { status: 422 })
+    }
     const existing = mockScans.find((s) => s.profileId === session.profile.id && s.captureId === body.captureId)
     if (existing) {
       return HttpResponse.json({
@@ -705,6 +764,12 @@ export const handlers = [
     }
 
     const submission = (await request.json()) as ReportSubmission
+    if (submission.speciesId && !findApprovedSpecies({ speciesId: submission.speciesId })) {
+      return HttpResponse.json({
+        code: 'species_not_approved',
+        detail: 'This plant is not in the approved InvaTrace catalogue.',
+      }, { status: 422 })
+    }
     // for AC 2.2.1 - the scan for this capture has to already be persisted
     // via /api/v1/scans before a report references it. enforcing the same
     // consistency checks the real backend does
@@ -826,6 +891,247 @@ export const handlers = [
       : HttpResponse.json({ detail: 'Not found' }, { status: 404 })
   }),
 
+  http.post(url('/api/v1/reports/:id/removal'), async ({ params, request }) => {
+    const session = sessionForRequest(request)
+    if (!session) return sessionUnavailable()
+    const report = findReport(params.id as string)
+    if (!report) {
+      return HttpResponse.json({ detail: 'Not found' }, { status: 404 })
+    }
+    if (!report.sightingId || !['screened', 'merged'].includes(report.status)) {
+      return HttpResponse.json({
+        code: 'removal_not_available',
+        detail: 'Removal can only be reported for a published sighting.',
+      }, { status: 409 })
+    }
+    const existing = mockRemovalBySighting.get(report.sightingId)
+    if (existing) return HttpResponse.json(existing)
+    const body = (await request.json()) as {
+      latitude?: number
+      longitude?: number
+      accuracyM?: number
+      capturedAt?: string
+    }
+    const capturedAt = typeof body.capturedAt === 'string' ? new Date(body.capturedAt) : null
+    if (typeof body.latitude !== 'number' || typeof body.longitude !== 'number'
+      || typeof body.accuracyM !== 'number' || body.accuracyM > 250 || body.accuracyM < 0
+      || !capturedAt || Number.isNaN(capturedAt.getTime())
+      || Math.abs(Date.now() - capturedAt.getTime()) > 5 * 60 * 1000) {
+      return HttpResponse.json({
+        code: 'fresh_location_required',
+        detail: 'Use a fresh location with accuracy of 250 m or better, then confirm the removal report.',
+      }, { status: 422 })
+    }
+    const sighting = SIGHTINGS.find((item) => item.id === report.sightingId)
+    if (!sighting) return HttpResponse.json({ detail: 'Not found' }, { status: 404 })
+    const distanceM = haversineMetres(
+      { lat: body.latitude, lng: body.longitude },
+      sighting.location,
+    )
+    if (distanceM > 250) {
+      return HttpResponse.json({
+        code: 'outside_removal_radius',
+        detail: 'You must be within 250 m of the original sighting to report removal.',
+      }, { status: 422 })
+    }
+    const response = {
+      reportId: report.id,
+      sightingId: sighting.id,
+      status: 'removal_reported' as const,
+      removalReportedAt: new Date().toISOString(),
+      accuracyM: body.accuracyM,
+      distanceM: Math.round(distanceM * 10) / 10,
+    }
+    mockRemovalBySighting.set(sighting.id, response)
+    sighting.status = 'removal_reported'
+    sighting.removalReportedAt = response.removalReportedAt
+    return HttpResponse.json(response)
+  }),
+
+  http.get(url('/api/v1/places/at-location'), ({ request }) => {
+    const search = new URL(request.url).searchParams
+    const latitude = Number(search.get('lat'))
+    const longitude = Number(search.get('lon'))
+    if (!Number.isFinite(latitude) || !Number.isFinite(longitude)) {
+      return HttpResponse.json({ detail: 'Invalid location' }, { status: 422 })
+    }
+    const nearest = MOCK_PLACE_CENTRES
+      .map((item) => ({
+        ...item,
+        distanceM: haversineMetres(
+          { lat: latitude, lng: longitude },
+          { lat: item.latitude, lng: item.longitude },
+        ),
+      }))
+      .sort((left, right) => left.distanceM - right.distanceM)[0]
+    const place = nearest && nearest.distanceM <= 2_000
+      ? MOCK_PLACES.find((item) => item.placeId === nearest.placeId) ?? null
+      : null
+    return HttpResponse.json({
+      place: place ? mockPlaceResponse(place) : null,
+    })
+  }),
+
+  http.get(url('/api/v1/places/:id/plant-associations'), ({ params }) => {
+    const place = MOCK_PLACES.find((item) => item.placeId === params.id)
+    if (!place) return HttpResponse.json({ detail: 'Not found' }, { status: 404 })
+    const items = MOCK_ASSOCIATIONS.filter((item) => item.placeIds.includes(place.placeId))
+      .map((item) => ({
+        speciesId: item.speciesId,
+        scientificName: item.scientificName,
+        commonNames: item.commonNames,
+        malaysiaStatus: item.malaysiaStatus,
+        imageUrl: item.imageUrl,
+        occurrenceCount: item.occurrenceCount,
+        mostRecentYear: item.mostRecentYear,
+        evidence: item.evidence,
+        catalogueUrl: item.catalogueUrl,
+      }))
+    return HttpResponse.json({
+      placeId: place.placeId,
+      placeName: place.name,
+      placeType: place.type,
+      geometryVersion: place.geometryVersion,
+      processedDataVersions: items.length ? ['development-occurrence-sample-v1'] : [],
+      waterwayDataVersions: [],
+      occurrenceUpdatedAt: items.length ? '2026-09-01T00:00:00Z' : null,
+      disclaimer: 'Associations are based on historical occurrence records and mapped buffers. They are not probabilities and do not show current presence or absence.',
+      items,
+    })
+  }),
+
+  http.get(url('/api/v1/places/:id'), ({ params }) => {
+    const place = MOCK_PLACES.find((item) => item.placeId === params.id)
+    return place
+      ? HttpResponse.json(mockPlaceResponse(place))
+      : HttpResponse.json({ detail: 'Not found' }, { status: 404 })
+  }),
+
+  http.get(url('/api/v1/places'), () => HttpResponse.json({
+    items: MOCK_PLACES.map(mockPlaceResponse),
+  })),
+
+  http.post(url('/api/v1/adopted-areas'), async ({ request }) => {
+    const session = sessionForRequest(request)
+    if (!session) return sessionUnavailable()
+    const body = (await request.json()) as { placeId?: string }
+    const place = MOCK_PLACES.find((item) => item.placeId === body.placeId)
+    if (!place) return HttpResponse.json({ detail: 'Not found' }, { status: 404 })
+    const adoptions = loadMockAdoptions()
+    const existing = adoptions.find((item) => (
+      item.profileId === session.profile.id && item.placeId === place.placeId
+    ))
+    if (existing) return HttpResponse.json({ ...existing, disclaimer: BOOKMARK_DISCLAIMER })
+    const adoption = {
+      adoptionId: crypto.randomUUID(),
+      profileId: session.profile.id,
+      placeId: place.placeId,
+      adoptedAt: new Date().toISOString(),
+    }
+    adoptions.push(adoption)
+    saveMockAdoptions(adoptions)
+    return HttpResponse.json({ ...adoption, disclaimer: BOOKMARK_DISCLAIMER }, { status: 201 })
+  }),
+
+  http.get(url('/api/v1/adopted-areas'), ({ request }) => {
+    const session = sessionForRequest(request)
+    if (!session) return sessionUnavailable()
+    const sort = new URL(request.url).searchParams.get('sort')
+    const items = loadMockAdoptions()
+      .filter((item) => item.profileId === session.profile.id)
+      .map((adoption) => mockAdoptionCard(adoption))
+      .sort((left, right) => sort === 'name'
+        ? left.name.localeCompare(right.name)
+        : Date.parse(right.mostRecentReportAt ?? right.adoptedAt)
+          - Date.parse(left.mostRecentReportAt ?? left.adoptedAt))
+    return HttpResponse.json({ items, disclaimer: BOOKMARK_DISCLAIMER })
+  }),
+
+  http.get(url('/api/v1/adopted-areas/:id/activity'), ({ params, request }) => {
+    const session = sessionForRequest(request)
+    if (!session) return sessionUnavailable()
+    const adoption = loadMockAdoptions().find((item) => (
+      item.adoptionId === params.id && item.profileId === session.profile.id
+    ))
+    if (!adoption) return HttpResponse.json({ detail: 'Not found' }, { status: 404 })
+    const place = MOCK_PLACES.find((item) => item.placeId === adoption.placeId)!
+    const search = new URL(request.url).searchParams
+    const cutoffDays = search.get('period') === '30' ? 30 : search.get('period') === '60' ? 60 : null
+    const nowMs = Date.now()
+    const allMarkers = SIGHTINGS
+      .filter((item) => (
+        findApprovedSpecies({ speciesId: item.speciesId })
+        && mockPlaceContains(place, item.location)
+      ))
+      .map((item) => ({
+        sightingId: item.id,
+        speciesId: item.speciesId,
+        scientificName: item.latinName,
+        communityLabel: 'Community report - not expert validated',
+        observationDate: item.lastReportedAt,
+        status: item.status === 'removal_reported' || item.status === 'removed'
+          ? 'removal_reported' : 'screened',
+        statusDate: item.removalReportedAt ?? item.lastReportedAt,
+        latitude: item.location.lat,
+        longitude: item.location.lng,
+        precisionReduced: item.precisionReduced,
+      }))
+    const markers = allMarkers.filter((marker) => (
+      (!search.get('species_id') || marker.speciesId === search.get('species_id'))
+      && (!search.get('status') || marker.status === search.get('status'))
+      && (!cutoffDays || (
+        Date.parse(marker.observationDate) > nowMs - cutoffDays * 86400000
+        && Date.parse(marker.observationDate) <= nowMs
+      ))
+    ))
+    const recentActiveMarkers = markers.filter((marker) => (
+      marker.status === 'screened'
+      && Date.parse(marker.observationDate) > nowMs - 30 * 86400000
+      && Date.parse(marker.observationDate) <= nowMs
+    ))
+    const concentrations = mockConcentrations(recentActiveMarkers)
+    const recent = markers.filter((marker) => (
+      Date.parse(marker.observationDate) > nowMs - 30 * 86400000
+      && Date.parse(marker.observationDate) <= nowMs
+    )).length
+    const prior = markers.filter((marker) => {
+      const age = nowMs - Date.parse(marker.observationDate)
+      return age >= 30 * 86400000 && age < 60 * 86400000
+    }).length
+    return HttpResponse.json({
+      adoptionId: adoption.adoptionId,
+      placeId: place.placeId,
+      name: place.name,
+      type: place.type,
+      geometry: place.geometry,
+      geometryVersion: place.geometryVersion,
+      markers,
+      filteredCount: markers.length,
+      concentrationCount: concentrations.reduce((total, item) => total + item.reportCount, 0),
+      concentrations,
+      comparison: {
+        recent0To29Days: recent,
+        prior30To59Days: prior,
+        direction: recent > prior ? 'increased' : recent < prior ? 'decreased' : 'unchanged',
+      },
+      emptyMessage: markers.length ? null : 'No community reports recorded for this area.',
+      disclaimer: BOOKMARK_DISCLAIMER,
+    })
+  }),
+
+  http.delete(url('/api/v1/adopted-areas/:id'), ({ params, request }) => {
+    const session = sessionForRequest(request)
+    if (!session) return sessionUnavailable()
+    const adoptions = loadMockAdoptions()
+    const index = adoptions.findIndex((item) => (
+      item.adoptionId === params.id && item.profileId === session.profile.id
+    ))
+    if (index < 0) return HttpResponse.json({ detail: 'Not found' }, { status: 404 })
+    adoptions.splice(index, 1)
+    saveMockAdoptions(adoptions)
+    return new HttpResponse(null, { status: 204 })
+  }),
+
   // threat-map endpoints below. reducing precision on sensitive coordinates
   // here too, since the real production API is expected to apply this same
   // privacy rule server-side
@@ -853,6 +1159,7 @@ export const handlers = [
       recommendedAction: RECOMMENDED_ACTION[raw.status],
       reporterTrust: 'Trusted',
       actionGuide: raw.speciesId === 'mikania-micrantha' ? MOCK_ACTION_GUIDE : null,
+      removalReportId: raw.status === 'screened' ? removalReportIdForSighting(raw.id) : null,
     }
     return HttpResponse.json(detail)
   }),
@@ -897,6 +1204,195 @@ const PLACES: { name: string; lat: number; lng: number }[] = [
   { name: 'KLCC Park · East pond',            lat: 3.1570, lng: 101.7145 },
   { name: 'Kota Damansara Community Forest',  lat: 3.1691, lng: 101.5900 },
   { name: 'Bukit Gasing · North gate',        lat: 3.1044, lng: 101.6538 },
+]
+
+const BOOKMARK_DISCLAIMER = 'This is a non-exclusive monitoring bookmark. It does not create ownership, management responsibility, access rights, or permission to remove plants.'
+const MOCK_PLACES = [
+  {
+    placeId: '10000000-0000-4000-8000-000000000001',
+    name: 'Bukit Kiara',
+    type: 'park' as const,
+    geometryStatus: 'available',
+    source: 'OpenStreetMap development extract',
+    geometryVersion: 'mock-osm-2026-09-01',
+    geometry: {
+      type: 'Polygon' as const,
+      coordinates: [[[101.632, 3.143], [101.651, 3.143], [101.651, 3.158], [101.632, 3.158], [101.632, 3.143]]],
+    },
+  },
+  {
+    placeId: '10000000-0000-4000-8000-000000000002',
+    name: 'Taman Tugu Trail',
+    type: 'trail' as const,
+    geometryStatus: 'available',
+    source: 'OpenStreetMap development extract',
+    geometryVersion: 'mock-osm-2026-09-01',
+    geometry: {
+      type: 'LineString' as const,
+      coordinates: [[101.662, 3.147], [101.668, 3.151], [101.673, 3.154]],
+    },
+  },
+  {
+    placeId: '10000000-0000-4000-8000-000000000003',
+    name: 'Kota Damansara Community Forest',
+    type: 'forest' as const,
+    geometryStatus: 'available',
+    source: 'OpenStreetMap development extract',
+    geometryVersion: 'mock-osm-2026-09-01',
+    geometry: {
+      type: 'Polygon' as const,
+      coordinates: [[[101.58, 3.16], [101.60, 3.16], [101.60, 3.18], [101.58, 3.18], [101.58, 3.16]]],
+    },
+  },
+]
+
+const MOCK_PLACE_CENTRES = [
+  { placeId: MOCK_PLACES[0].placeId, latitude: 3.1505, longitude: 101.6415 },
+  { placeId: MOCK_PLACES[1].placeId, latitude: 3.1510, longitude: 101.6680 },
+  { placeId: MOCK_PLACES[2].placeId, latitude: 3.1700, longitude: 101.5900 },
+]
+
+function mockPlaceResponse(place: typeof MOCK_PLACES[number]) {
+  return {
+    placeId: place.placeId,
+    displayName: place.name,
+    placeType: place.type,
+    geometryStatus: place.geometryStatus,
+    source: place.source,
+    geometryVersion: place.geometryVersion,
+    geometry: place.geometry,
+    viewPlantsUrl: `/places/${place.placeId}/plant-associations`,
+  }
+}
+
+function mockPlaceContains(
+  place: typeof MOCK_PLACES[number],
+  point: { lat: number; lng: number },
+): boolean {
+  if (place.geometry.type === 'Polygon') {
+    const ring = place.geometry.coordinates[0]
+    let inside = false
+    for (let index = 0, previous = ring.length - 1; index < ring.length; previous = index++) {
+      const [x, y] = ring[index]
+      const [previousX, previousY] = ring[previous]
+      if (
+        (y > point.lat) !== (previousY > point.lat)
+        && point.lng < ((previousX - x) * (point.lat - y)) / (previousY - y) + x
+      ) inside = !inside
+    }
+    return inside
+  }
+  const line = place.geometry.coordinates as number[][]
+  return line.slice(1).some((end, index) => (
+    pointToSegmentMetres(point, line[index], end) <= 750
+  ))
+}
+
+function pointToSegmentMetres(
+  point: { lat: number; lng: number },
+  start: number[],
+  end: number[],
+): number {
+  const latitudeScale = 111_195
+  const longitudeScale = latitudeScale * Math.cos(point.lat * Math.PI / 180)
+  const ax = (start[0] - point.lng) * longitudeScale
+  const ay = (start[1] - point.lat) * latitudeScale
+  const bx = (end[0] - point.lng) * longitudeScale
+  const by = (end[1] - point.lat) * latitudeScale
+  const abX = bx - ax
+  const abY = by - ay
+  const divisor = abX * abX + abY * abY
+  const projection = divisor === 0
+    ? 0
+    : Math.max(0, Math.min(1, -(ax * abX + ay * abY) / divisor))
+  return Math.hypot(ax + projection * abX, ay + projection * abY)
+}
+
+function mockConcentrations(markers: Array<{
+  sightingId: string
+  latitude: number
+  longitude: number
+  observationDate: string
+}>) {
+  const remaining = [...markers].sort((left, right) => (
+    Date.parse(left.observationDate) - Date.parse(right.observationDate)
+    || left.sightingId.localeCompare(right.sightingId)
+  ))
+  const groups: typeof markers[] = []
+  while (remaining.length) {
+    const first = remaining.shift()!
+    const group = [first]
+    for (const candidate of remaining) {
+      if (group.every((member) => haversineMetres(
+        { lat: member.latitude, lng: member.longitude },
+        { lat: candidate.latitude, lng: candidate.longitude },
+      ) <= 250)) group.push(candidate)
+    }
+    if (group.length >= 3) {
+      groups.push(group)
+      const selected = new Set(group.map((marker) => marker.sightingId))
+      for (let index = remaining.length - 1; index >= 0; index--) {
+        if (selected.has(remaining[index].sightingId)) remaining.splice(index, 1)
+      }
+    }
+  }
+  return groups.map((group, index) => ({
+    concentrationId: `recent-${index + 1}`,
+    reportCount: group.length,
+    latitude: group.reduce((total, marker) => total + marker.latitude, 0) / group.length,
+    longitude: group.reduce((total, marker) => total + marker.longitude, 0) / group.length,
+  }))
+}
+
+const MOCK_ASSOCIATIONS = [
+  {
+    placeIds: [MOCK_PLACES[0].placeId, MOCK_PLACES[1].placeId],
+    speciesId: 'mikania-micrantha',
+    scientificName: 'Mikania micrantha',
+    commonNames: ['Mile-a-minute weed'],
+    malaysiaStatus: 'Present' as const,
+    imageUrl: null,
+    occurrenceCount: 4,
+    mostRecentYear: 2025,
+    evidence: {
+      types: ['inside_boundary', 'nearby_buffer'] as const,
+      insideCount: 3,
+      nearbyCount: 1,
+      trailCount: 0,
+      upstreamCount: 0,
+      nearestDistanceM: 18,
+      insideComponent: 4,
+      proximityComponent: 0,
+      recordCountComponent: 0.4,
+      upstreamComponent: 0,
+      rankScore: 4.4,
+    },
+    catalogueUrl: '/catalogue/mikania-micrantha',
+  },
+  {
+    placeIds: [MOCK_PLACES[0].placeId],
+    speciesId: 'chromolaena-odorata',
+    scientificName: 'Chromolaena odorata',
+    commonNames: ['Siam weed'],
+    malaysiaStatus: 'Present' as const,
+    imageUrl: null,
+    occurrenceCount: 2,
+    mostRecentYear: 2024,
+    evidence: {
+      types: ['inside_boundary'] as const,
+      insideCount: 2,
+      nearbyCount: 0,
+      trailCount: 0,
+      upstreamCount: 0,
+      nearestDistanceM: 42,
+      insideComponent: 4,
+      proximityComponent: 0,
+      recordCountComponent: 0.2,
+      upstreamComponent: 0,
+      rankScore: 4.2,
+    },
+    catalogueUrl: '/catalogue/chromolaena-odorata',
+  },
 ]
 
 /** Seed reports used by the report-status mock responses. */
@@ -962,13 +1458,18 @@ const SEEDED_REPORTS: Report[] = [
   seedReport('seed-new-03', 'mikania-micrantha', 'uncertain', 0.51,
     3.1524, 101.6421, null, 'small_patch',
     'Not sure if same vine - looks slightly different.', 7),
-  seedReport('seed-trusted-04', 'lantana-camara', 'target', 0.87,
+  seedReport('seed-trusted-04', 'leucaena-leucocephala', 'target', 0.87,
     3.1476, 101.6432, 8, 'large_area',
     'Dense understory patch spreading fast.', 12),
   seedReport('seed-new-05', 'eichhornia-crassipes', 'target', 0.94,
     3.1503, 101.6455, 25, 'large_area',
     'Pond fully covered.', 20),
 ]
+
+SEEDED_REPORTS.forEach((report, index) => {
+  report.status = 'screened'
+  report.sightingId = `s-${String(index + 1).padStart(2, '0')}`
+})
 
 // sample sightings for the dev/mock API
 
@@ -977,6 +1478,7 @@ const RECOMMENDED_ACTION: Record<string, string> = {
   screened: 'Rule-screened report. Follow the reviewed guidance for this species.',
   rejected: 'Duplicate evidence was rejected. No new map record was created.',
   removed: 'Removal recorded. Recheck for regrowth in 2-3 weeks.',
+  removal_reported: 'A community member reported removal. This has not been expert validated.',
 }
 
 /** Bukit Kiara centre point - sample sightings get scattered within roughly 1km of this. */
@@ -1018,8 +1520,8 @@ const SEED: Omit<
   { id: 's-05', speciesId: 'chromolaena-odorata', speciesName: 'Siam weed', latinName: 'Chromolaena odorata', status: 'screened', risk: 'high', reportCount: 1 },
   { id: 's-06', speciesId: 'eichhornia-crassipes', speciesName: 'Water hyacinth', latinName: 'Eichhornia crassipes', status: 'screened', risk: 'high', reportCount: 5 },
   { id: 's-07', speciesId: 'eichhornia-crassipes', speciesName: 'Water hyacinth', latinName: 'Eichhornia crassipes', status: 'screened', risk: 'high', reportCount: 2 },
-  { id: 's-08', speciesId: 'lantana-camara', speciesName: 'Lantana camara', latinName: 'Lantana camara', status: 'screened', risk: 'high', reportCount: 3 },
-  { id: 's-09', speciesId: 'lantana-camara', speciesName: 'Lantana camara', latinName: 'Lantana camara', status: 'screened', risk: 'high', reportCount: 1 },
+  { id: 's-08', speciesId: 'leucaena-leucocephala', speciesName: 'Leucaena', latinName: 'Leucaena leucocephala', status: 'screened', risk: 'high', reportCount: 3 },
+  { id: 's-09', speciesId: 'leucaena-leucocephala', speciesName: 'Leucaena', latinName: 'Leucaena leucocephala', status: 'screened', risk: 'high', reportCount: 1 },
   { id: 's-10', speciesId: 'mikania-micrantha', speciesName: 'Mikania micrantha', latinName: 'Mikania micrantha', status: 'removed', risk: 'high', reportCount: 2 },
 ]
 
@@ -1066,15 +1568,54 @@ const SIGHTINGS: Sighting[] = SEED.map((sighting, index) => {
 })
 
 const SIGHTING_SPECIES: Record<string, Pick<Sighting, 'speciesName' | 'latinName' | 'risk'>> = Object.fromEntries(
-  modelSpeciesCatalog.classes.map((modelClass) => [
-    modelClass.machine_label.replaceAll('_', '-'),
+  approvedSpeciesDataset.records.map((species) => [
+    species.species_id,
     {
-      speciesName: modelClass.display_name,
-      latinName: modelClass.scientific_name,
-      risk: modelClass.malaysia_status === 'invasive' ? 'high' as const : 'watch' as const,
+      speciesName: species.common_names[0],
+      latinName: species.scientific_name,
+      risk: 'high' as const,
     },
   ]),
 )
+
+function mockAdoptionCard(adoption: MockAdoption) {
+  const place = MOCK_PLACES.find((item) => item.placeId === adoption.placeId)!
+  const approved = SIGHTINGS.filter((item) => (
+    findApprovedSpecies({ speciesId: item.speciesId })
+    && mockPlaceContains(place, item.location)
+  ))
+  const active = approved.filter((item) => item.status === 'screened')
+  const last30 = Date.now() - 30 * 86400000
+  const mostRecentReportAt = approved
+    .map((item) => item.lastReportedAt)
+    .sort((left, right) => Date.parse(right) - Date.parse(left))[0] ?? null
+  return {
+    adoptionId: adoption.adoptionId,
+    placeId: place.placeId,
+    name: place.name,
+    type: place.type,
+    adoptedAt: adoption.adoptedAt,
+    mostRecentReportAt,
+    geometryVersion: place.geometryVersion,
+    metricsLabel: 'Community monitoring activity' as const,
+    metrics: {
+      activeReports: active.length,
+      distinctApprovedSpecies: new Set(active.map((item) => item.speciesId)).size,
+      newReportsLast30Days: approved.filter((item) => (
+        Date.parse(item.lastReportedAt) > last30 && Date.parse(item.lastReportedAt) <= Date.now()
+      )).length,
+      removalReportsLast30Days: approved.filter((item) => (
+        item.status === 'removal_reported'
+        && item.removalReportedAt != null
+        && Date.parse(item.removalReportedAt) > last30
+        && Date.parse(item.removalReportedAt) <= Date.now()
+      )).length,
+      daysSinceMostRecentReport: mostRecentReportAt
+        ? Math.max(0, Math.floor((Date.now() - Date.parse(mostRecentReportAt)) / 86400000))
+        : null,
+    },
+  }
+}
 
 export function resolveSightingSpecies(
   speciesId: string,
@@ -1121,6 +1662,11 @@ function publishReportSighting(report: Report): string {
     screeningMethod: 'deterministic_rules',
   })
   return sightingId
+}
+
+function removalReportIdForSighting(sightingId: string): string | null {
+  if (sightingId.startsWith('report-')) return sightingId.slice('report-'.length)
+  return SEEDED_REPORTS.find((report) => report.sightingId === sightingId)?.id ?? null
 }
 
 const SPECIES_DETAIL: Record<string, unknown> = {

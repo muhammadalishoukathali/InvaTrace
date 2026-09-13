@@ -35,4 +35,6 @@ def test_duplicate_deletion_keys_use_one_conflict_safe_insert() -> None:
     assert len(session.statements) == 1
     compiled = session.statements[0].compile(dialect=postgresql.dialect())
     assert "ON CONFLICT (object_key) DO NOTHING" in str(compiled)
-    assert [value for name, value in compiled.params.items() if name.startswith("object_key")] == [key]
+    assert [value for name, value in compiled.params.items() if name.startswith("object_key")] == [
+        key
+    ]

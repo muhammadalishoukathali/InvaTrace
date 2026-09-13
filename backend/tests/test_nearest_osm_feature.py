@@ -37,12 +37,15 @@ def _load_categorise():
     wanted_funcs = {"_categorise"}
     extracted: list[ast.stmt] = []
     for node in tree.body:
-        if isinstance(node, ast.Assign) and any(
-            isinstance(target, ast.Name) and target.id in wanted_names
-            for target in node.targets
+        if (
+            isinstance(node, ast.Assign)
+            and any(
+                isinstance(target, ast.Name) and target.id in wanted_names
+                for target in node.targets
+            )
+            or isinstance(node, ast.FunctionDef)
+            and node.name in wanted_funcs
         ):
-            extracted.append(node)
-        elif isinstance(node, ast.FunctionDef) and node.name in wanted_funcs:
             extracted.append(node)
     module_ast = ast.Module(body=extracted, type_ignores=[])
     namespace: dict[str, object] = {}

@@ -12,7 +12,7 @@ from __future__ import annotations
 import asyncio
 import re
 import uuid
-from contextlib import asynccontextmanager
+from contextlib import asynccontextmanager, suppress
 
 import structlog
 from fastapi import FastAPI, Request
@@ -20,10 +20,13 @@ from fastapi.middleware.cors import CORSMiddleware
 
 from app.api.routers import (
     admin,
+    adopted_areas,
+    catalogue,
     health,
     identity,
     location,
     notifications,
+    places,
     reports,
     scans,
     sightings,
@@ -70,14 +73,24 @@ async def _lifespan(app: FastAPI):
         from app.cli import cleanup_uploads_once
         from app.workers.verification import run_worker
 
-        tasks.append(asyncio.create_task(
-            _run_worker_loop("verification", lambda: run_worker(once=True), settings.worker_poll_seconds),
-            name="invatrace.verification-worker",
-        ))
-        tasks.append(asyncio.create_task(
-            _run_worker_loop("cleanup", lambda: cleanup_uploads_once(500), settings.upload_cleanup_interval_seconds),
-            name="invatrace.cleanup-worker",
-        ))
+        tasks.append(
+            asyncio.create_task(
+                _run_worker_loop(
+                    "verification", lambda: run_worker(once=True), settings.worker_poll_seconds
+                ),
+                name="invatrace.verification-worker",
+            )
+        )
+        tasks.append(
+            asyncio.create_task(
+                _run_worker_loop(
+                    "cleanup",
+                    lambda: cleanup_uploads_once(500),
+                    settings.upload_cleanup_interval_seconds,
+                ),
+                name="invatrace.cleanup-worker",
+            )
+        )
         log.info("in_process_workers_started")
     try:
         yield
@@ -85,10 +98,8 @@ async def _lifespan(app: FastAPI):
         for task in tasks:
             task.cancel()
         for task in tasks:
-            try:
+            with suppress(asyncio.CancelledError, Exception):
                 await task
-            except (asyncio.CancelledError, Exception):
-                pass
 
 
 def create_app() -> FastAPI:
@@ -182,6 +193,9 @@ def create_app() -> FastAPI:
         reports.router,
         sightings.router,
         location.router,
+        catalogue.router,
+        places.router,
+        adopted_areas.router,
         admin.router,
     ):
         app.include_router(router)

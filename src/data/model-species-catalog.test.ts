@@ -2,29 +2,25 @@ import { existsSync } from 'node:fs'
 import { fileURLToPath } from 'node:url'
 import { describe, expect, it } from 'vitest'
 import runtimeCatalog from '../../public/models/pulih-model1-v4/species_31.json'
-import { plantStatusDataset } from '@shared/catalogue'
+import { approvedSpeciesDataset, findApprovedSpecies } from '@shared/catalogue'
 import {
   findModelSpecies, modelReferenceImageUrl, modelSpeciesCatalog,
 } from './model-species-catalog'
 
 describe('shared model species catalogue', () => {
-  it('has one class per shared-catalogue plant-status record', () => {
-    // AC Iteration 1 P1 - the model manifest and the shared catalogue must
-    // agree on class count; the exposed catalogue merges the shared
-    // catalogue's ui_state over the vendored model manifest's class list.
+  it('keeps the pending business catalogue separate from the shipped model', () => {
     expect(modelSpeciesCatalog.class_count).toBe(runtimeCatalog.class_count)
-    expect(modelSpeciesCatalog.classes).toHaveLength(plantStatusDataset.records.length)
+    expect(modelSpeciesCatalog.classes).toHaveLength(runtimeCatalog.class_count)
+    expect(approvedSpeciesDataset.records).toHaveLength(32)
   })
 
-  it('derives every ui_state from the shared catalogue', () => {
-    // Every model class carries the ui_state (not the raw catalog value).
+  it('only marks old model classes invasive when they are approved', () => {
     const allowed = new Set(['invasive', 'information_only', 'status_uncertain'])
     for (const cls of modelSpeciesCatalog.classes) {
       expect(allowed.has(cls.malaysia_status)).toBe(true)
-      const record = plantStatusDataset.records.find((r) => r.model_label === cls.machine_label)
-      expect(record).toBeDefined()
-      expect(cls.malaysia_status).toBe(record?.ui_state)
-      expect(cls.status_source).toBe(record?.status_source_ids[0] ?? '')
+      const approved = findApprovedSpecies({ scientificName: cls.scientific_name })
+      expect(cls.catalogue_approved).toBe(approved !== null)
+      expect(cls.malaysia_status).toBe(approved ? 'invasive' : 'status_uncertain')
     }
   })
 

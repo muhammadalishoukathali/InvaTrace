@@ -1,20 +1,107 @@
 {
   "$schema": "./schemas/catalogue-manifest.schema.json",
-  "schema_version": "invatrace.catalogue.manifest.v1",
-  "catalogue_version": "1.0.0",
-  "content_version": "1.0.0",
+  "schema_version": "invatrace.catalogue.manifest.v2",
+  "catalogue_version": "2.0.0",
+  "content_version": "2.0.0",
   "model_version": "oe_v4_31class_web_fp16",
-  "last_reviewed": "2026-08-29",
+  "last_reviewed": "2026-09-08",
+  "generated_at": "2026-09-13T10:14:18.089Z",
+  "assets": [
+    {
+      "url": "/reference-images/leucaena_leucocephala.jpg",
+      "sha256": "f44ac700156caae33f61f6c3cb63da6d605d9219ce1c5a1c34ee0de40c77a6e6",
+      "byte_length": 241815,
+      "review_status": "provenance_pending"
+    },
+    {
+      "url": "/reference-images/bidens_pilosa.jpg",
+      "sha256": "83a8f907159bc9b10d8deb2d3d0772b1f75da6cfc4a3a7e500003415401607df",
+      "byte_length": 103075,
+      "review_status": "provenance_pending"
+    },
+    {
+      "url": "/reference-images/chromolaena_odorata.jpg",
+      "sha256": "73660b87698f9fe66420fa5c1df87a59436339d8dbc6058cd30d3c6cbd62f057",
+      "byte_length": 225400,
+      "review_status": "provenance_pending"
+    },
+    {
+      "url": "/reference-images/eichhornia_crassipes.jpg",
+      "sha256": "fe3e4823d5fb32e9f4894ed380cf0330943b0ce49d5fee2f2d181a159cf9d9bc",
+      "byte_length": 261416,
+      "review_status": "provenance_pending"
+    },
+    {
+      "url": "/reference-images/mikania_micrantha.jpg",
+      "sha256": "96735583ec819c582d17aa5728784e47e9547b4d3412204fe9aec1a714820847",
+      "byte_length": 155000,
+      "review_status": "provenance_pending"
+    },
+    {
+      "url": "/reference-images/oxalis_corniculata.jpg",
+      "sha256": "15aa6546e161145e77c7aa92623cfe5fc50dee65c48d0c4cdbb71c56ac61220e",
+      "byte_length": 116387,
+      "review_status": "provenance_pending"
+    },
+    {
+      "url": "/reference-images/psidium_guajava.jpg",
+      "sha256": "cb7966595e4fad81b116beb26b93def320f4c98227297ef130fbde530d36a01d",
+      "byte_length": 159344,
+      "review_status": "provenance_pending"
+    },
+    {
+      "url": "/reference-images/asclepias_curassavica.jpg",
+      "sha256": "844f0da91ae67d2518d32d8117a5061f88275219b234b11d89eb5011758e5fe7",
+      "byte_length": 205226,
+      "review_status": "provenance_pending"
+    },
+    {
+      "url": "/reference-images/megathyrsus_maximus.jpg",
+      "sha256": "7b57d4a2466f600439120149de2365f522512a261eff597cb96a51e13c2cffbd",
+      "byte_length": 297625,
+      "review_status": "provenance_pending"
+    },
+    {
+      "url": "/reference-images/mimosa_diplotricha.jpg",
+      "sha256": "6bbf1268c677627fe02239375f207ec434a9b4f229886f9a24302eea2b2123b4",
+      "byte_length": 635980,
+      "review_status": "provenance_pending"
+    },
+    {
+      "url": "/reference-images/mimosa_pigra.jpg",
+      "sha256": "8f377a0155f82255eb57c85b830577d0e6be18520d713fee16a926eefb50e6c5",
+      "byte_length": 284323,
+      "review_status": "provenance_pending"
+    },
+    {
+      "url": "/reference-images/parthenium_hysterophorus.jpg",
+      "sha256": "90653fc0a1261da3e8261c05cbbc34b9d9927a98ca1f00a8bc6285d2c77c21bc",
+      "byte_length": 604981,
+      "review_status": "provenance_pending"
+    },
+    {
+      "url": "/reference-images/sida_acuta.jpg",
+      "sha256": "6e12cc81600c37cef0ae455eba8772d1d6fac176bd7cce633baab642cb7dca15",
+      "byte_length": 194133,
+      "review_status": "provenance_pending"
+    }
+  ],
   "files": {
+    "approved-species.json": {
+      "sha256": "90df314a34dc06bc7b1bba9658c79b5681c20cb67503eb6595459b39c6a55875",
+      "byte_length": 21708,
+      "schema_version": "invatrace.approved-species.v1",
+      "record_count": 32
+    },
     "plant-status.json": {
-      "sha256": "3c23d12353e1db2180c04e00b1675e90c17edb027f39458bb89a27c60c382ac8",
-      "byte_length": 19941,
+      "sha256": "f43680a0eec3ee6a9f9d8cfbea272c7ca33e906db75e93c052adf5807f3215f6",
+      "byte_length": 19939,
       "schema_version": "invatrace.catalogue.plant-status.v1",
       "record_count": 31
     },
     "plant-guidance.json": {
-      "sha256": "2696c3a31b60df2968d5e194b331d3728c1601ebee25527330d452f051e33334",
-      "byte_length": 105905,
+      "sha256": "e25bfc2efd0529d6a1e53e10d7ae4f70315a3dbd2d0c506174df9c6dbb803660",
+      "byte_length": 105883,
       "schema_version": "1.0",
       "record_count": 28
     }

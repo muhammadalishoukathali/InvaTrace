@@ -202,10 +202,14 @@ def process_job(job_id: str) -> None:
             # treated as spam/replay outright, before we even bother screening
             # the image - see _is_exact_replay.
             dedup_disabled = settings.screening_disable_duplicate_check
-            exact_replay = False if dedup_disabled else _is_exact_replay(
-                session,
-                report=report,
-                content_sha256=content_sha256,
+            exact_replay = (
+                False
+                if dedup_disabled
+                else _is_exact_replay(
+                    session,
+                    report=report,
+                    content_sha256=content_sha256,
+                )
             )
             owner_species_replay: tuple[Report, Sighting] | None = None
             if not exact_replay and not dedup_disabled:
@@ -593,9 +597,7 @@ def _find_merge_target(
     distance_expr = func.ST_Distance(Sighting.location, report.location)
     # Non-negative observation-time delta in seconds - prior_observed_at is
     # guaranteed ≤ observation_time by the WHERE clause below.
-    time_diff_expr = func.abs(
-        func.extract("epoch", observation_time - Report.observed_at)
-    )
+    time_diff_expr = func.abs(func.extract("epoch", observation_time - Report.observed_at))
 
     candidate_row = session.execute(
         select(
@@ -635,9 +637,7 @@ def _find_merge_target(
         retained_report=prior_report,
         sighting=sighting,
         distance_m=round(float(distance), 3) if distance is not None else 0.0,
-        time_difference_seconds=(
-            round(float(time_diff), 3) if time_diff is not None else 0.0
-        ),
+        time_difference_seconds=(round(float(time_diff), 3) if time_diff is not None else 0.0),
     )
 
 

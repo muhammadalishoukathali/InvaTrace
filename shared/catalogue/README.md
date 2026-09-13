@@ -1,13 +1,19 @@
 # shared/catalogue
 
-Single source of truth for InvaTrace Iteration 1 plant status and safe guidance.
+Single source of truth for the InvaTrace Malaysian plant catalogue and safe guidance.
 
 Both the frontend (`src/data/*`) and backend (`backend/app/seed.py`, ORM loaders)
 read from this directory. Never maintain a parallel copy elsewhere.
 
 ## Files
 
-- `plant-status.json` - 31 species records (one per PULIH model class) with the
+- `approved-species.json` - the evidence-reviewed Iteration 2 allowlist of exactly
+  32 invasive plants recorded as present in Malaysia. Catalogue, reporting,
+  occurrence association, and adoption analytics must never associate a species
+  outside this file.
+- `plant-status.json` - compatibility metadata for the currently shipped 31-class
+  PULIH model. It is not the business allowlist and may contain model classes that
+  are intentionally unsupported by the current catalogue.
   authoritative Malaysian `ui_state`, `general_information`, `safety_message`,
   `status_source_ids`, `status_reviewed_at`, and `report_eligible` flag.
 - `plant-guidance.json` - reviewed per-species safe guidance (safe passive
@@ -25,9 +31,9 @@ read from this directory. Never maintain a parallel copy elsewhere.
 2. Bump `catalogue_version` in `catalogue-manifest.json`.
 3. Run `node scripts/update-catalogue-manifest.mjs` to refresh the SHA-256
    checksums and `content_version`. Commit the manifest change.
-4. Run frontend `npm test` and backend catalogue tests to confirm the
-   schema is satisfied and the model manifest / catalogue class counts still
-   align.
+4. Run frontend `npm test` and backend catalogue tests. The approved catalogue
+   must contain exactly 32 unique species. The classifier manifest is validated
+   separately because the replacement 32-class model is still pending.
 
 The frontend and backend must ship the same `catalogue_version` and matching
 `sha256` for `plant-status.json`. Report submission is rejected with a

@@ -14,7 +14,6 @@ from pydantic import (
     model_validator,
 )
 
-
 """Pydantic request/response models for the whole API.
 
 Field names are snake_case in Python but serialize as camelCase (to_camel
@@ -23,6 +22,7 @@ every router having to do the conversion by hand. Grouped roughly by
 router: identity/access stuff first, then species, scans, uploads, reports,
 sightings, notifications, admin.
 """
+
 
 def to_camel(value: str) -> str:
     first, *rest = value.split("_")
@@ -59,7 +59,7 @@ ReportStatus = Literal[
     "rejected",
     "validation_unavailable",
 ]
-SightingStatus = Literal["screened", "removed"]
+SightingStatus = Literal["screened", "removed", "removal_reported"]
 Risk = Literal["high", "watch"]
 
 # 43 chars = a base64url-encoded 256-bit random value generated client-side -
@@ -205,8 +205,11 @@ class GuidanceSource(ApiModel):
 
 class SeasonalActionGuide(ApiModel):
     action_mode: Literal[
-        "remove", "contain", "report_only",
-        "active_guidance", "site_manager_confirmation_required",
+        "remove",
+        "contain",
+        "report_only",
+        "active_guidance",
+        "site_manager_confirmation_required",
     ]
     guidance_mode: GuidanceMode
     plant_id: str
@@ -399,6 +402,7 @@ class SightingResponse(ApiModel):
     precision_reduced: bool
     report_count: int
     last_reported_at: datetime
+    removal_reported_at: datetime | None = None
     place: PlaceAssociation
     thumbnail_url: str | None
     # AC 4.2.2 - confidence associated with the representative (max across
@@ -417,6 +421,7 @@ class SightingDetailResponse(SightingResponse):
     recommended_action: str
     action_guide: SeasonalActionGuide | None
     reporter_trust: TrustLevel
+    removal_report_id: str | None = None
 
 
 class SightingListResponse(ApiModel):

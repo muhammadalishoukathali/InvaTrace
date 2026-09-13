@@ -21,12 +21,13 @@ export interface NavItem {
  *  positions stable across iterations so nothing jumps around between demos. */
 export const NAV: NavItem[] = [
   { id: 'map',      path: '/map',      label: 'Map',      full: 'Threat map',   icon: 'MapPinned',    iteration: 1 },
+  { id: 'catalogue', path: '/catalogue', label: 'Plants', full: 'Plant catalogue', icon: 'BookOpen', iteration: 2 },
   { id: 'reports',  path: '/reports',  label: 'Records',  full: 'My records',   icon: 'ClipboardList', iteration: 1 },
-  // only add stuff here once the route actually exists, otherwise it just shows a dead link
+  { id: 'areas', path: '/adopted-areas', label: 'Areas', full: 'Monitoring areas', icon: 'Map', iteration: 2 },
 ]
 
 export const isEnabled = (item: NavItem, role: Role): boolean =>
-  item.iteration === 1 && (!item.roles || item.roles.includes(role))
+  item.iteration <= 2 && (!item.roles || item.roles.includes(role))
 
 export const visibleNav = (role: Role): NavItem[] =>
   // filters out anything not ready yet so we don't show buttons that go nowhere

@@ -23,7 +23,6 @@ from app.api.routers import identity
 from app.core.security import BASE32_ALPHABET, random_grouped_secret
 from app.main import app
 
-
 # Crockford-style alphabet (see security.BASE32_ALPHABET): 32 symbols, no
 # I/O/0/1. Each symbol is 5 bits, so ceil(128 / 5) = 26 encoded chars.
 BASE32_RE = re.compile(rf"^[{re.escape(BASE32_ALPHABET)}]+(?:-[{re.escape(BASE32_ALPHABET)}]+)*$")
@@ -54,10 +53,7 @@ def test_recovery_codes_come_from_secrets_module() -> None:
     # AC 2.1.1 - raw codes must come from a CSPRNG. `secrets.token_bytes`
     # is the CSPRNG the module is documented to use; guard against a lazy
     # substitution with `random.random()` or similar.
-    source = (
-        __import__("inspect")
-        .getsource(random_grouped_secret)
-    )
+    source = __import__("inspect").getsource(random_grouped_secret)
     assert "secrets.token_bytes" in source
 
 
@@ -83,12 +79,18 @@ def test_recovery_batch_helper_returns_ten_unique_raw_codes() -> None:
     # the DB (session.add / flush); pass a stand-in session so we can
     # inspect the raw codes it returned without needing Postgres up.
     class _StubSession:
-        def add(self, *_args, **_kwargs) -> None: pass
-        def add_all(self, *_args, **_kwargs) -> None: pass
-        def flush(self) -> None: pass
+        def add(self, *_args, **_kwargs) -> None:
+            pass
+
+        def add_all(self, *_args, **_kwargs) -> None:
+            pass
+
+        def flush(self) -> None:
+            pass
 
     raw_codes, _created_at = identity.create_recovery_batch(
-        _StubSession(), profile_id=__import__("uuid").uuid4(),
+        _StubSession(),
+        profile_id=__import__("uuid").uuid4(),
     )
     assert len(raw_codes) == 10
     assert len(set(raw_codes)) == 10

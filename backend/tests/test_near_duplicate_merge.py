@@ -139,9 +139,7 @@ def test_merge_target_tie_break_is_deterministic() -> None:
         "Report.observed_at.desc()",
         "Report.id.asc()",
     ):
-        assert expected in body, (
-            f"Deterministic tie-break requires `{expected}` in the order_by."
-        )
+        assert expected in body, f"Deterministic tie-break requires `{expected}` in the order_by."
     # Ordering must appear in the required sequence - closest first, then
     # smallest time delta, then most recent, then id as final tie-break.
     positions = [
@@ -217,10 +215,7 @@ def test_merge_audit_reason_codes_distinguish_replay_from_nearby() -> None:
 
 def test_alembic_migration_adds_merged_into_report_id_column() -> None:
     migration = (
-        REPO_ROOT
-        / "alembic"
-        / "versions"
-        / "20260903_12_report_merged_into_report.py"
+        REPO_ROOT / "alembic" / "versions" / "20260903_12_report_merged_into_report.py"
     ).read_text()
     assert "ADD COLUMN merged_into_report_id UUID" in migration
     assert "ON DELETE SET NULL" in migration

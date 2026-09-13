@@ -75,10 +75,12 @@ def main() -> None:
     modules yet."""
     parser = argparse.ArgumentParser(prog="invatrace")
     commands = parser.add_subparsers(dest="command", required=True)
-    commands.add_parser("seed", help="deprecated: run load-reference-data + seed-demo-data (development only)")
+    commands.add_parser(
+        "seed", help="deprecated: run load-reference-data + seed-demo-data (development only)"
+    )
     commands.add_parser(
         "load-reference-data",
-        help="idempotently load the 31-class species catalogue and MonitoredPlace anchors (prod-safe)",
+        help="idempotently load the approved 32-species catalogue and MonitoredPlace anchors (prod-safe)",
     )
     commands.add_parser(
         "seed-demo-data",
@@ -105,6 +107,35 @@ def main() -> None:
         action="store_true",
         help="required guard: confirm the extract is already clipped to Malaysia",
     )
+    occurrences = commands.add_parser(
+        "import-occurrences",
+        help="validate and import versioned Malaysian historical occurrence JSON",
+    )
+    occurrences.add_argument("path", type=Path)
+    occurrences.add_argument("--source", required=True)
+    occurrences.add_argument("--processed-data-version", required=True)
+    occurrences.add_argument(
+        "--country-boundary",
+        type=Path,
+        required=True,
+        help="reviewed Malaysia Polygon/MultiPolygon GeoJSON used to reject coordinate mismatch",
+    )
+    waterways = commands.add_parser(
+        "import-waterway-evidence",
+        help="import place-specific evidence from directed OSM waterway preprocessing",
+    )
+    waterways.add_argument("path", type=Path)
+    waterways.add_argument("--data-version", required=True)
+    boundaries = commands.add_parser(
+        "import-protected-areas",
+        help="validate and activate a versioned protected-area GeoJSON release",
+    )
+    boundaries.add_argument("path", type=Path)
+    boundaries.add_argument("--source", required=True)
+    boundaries.add_argument("--version", required=True)
+    boundaries.add_argument("--updated-at", type=datetime.fromisoformat, required=True)
+    boundaries.add_argument("--coverage-note", required=True)
+    boundaries.add_argument("--coverage-geojson", type=Path, required=True)
     cleanup = commands.add_parser(
         "cleanup-uploads", help="delete expired, unsubmitted photo uploads"
     )
@@ -150,12 +181,58 @@ def main() -> None:
         # pull in the pyosmium native extension, which the API/worker images
         # do not need at runtime.
         from app.osm_import import import_malaysia_pbf
+
         with SessionLocal() as session:
             imported = import_malaysia_pbf(
                 session, source_path=args.path.resolve(), source_date=args.source_date
             )
         print(
             f"Imported {imported.area_count} named areas and {imported.trail_count} named trails."
+        )
+    elif args.command == "import-occurrences":
+        from app.occurrence_import import import_occurrence_json
+
+        with SessionLocal() as session:
+            result = import_occurrence_json(
+                session,
+                source_path=args.path.resolve(),
+                source=args.source,
+                processed_data_version=args.processed_data_version,
+                country_boundary_path=args.country_boundary.resolve(),
+            )
+        print(
+            f"Imported {result.accepted} records; excluded {result.excluded}. "
+            f"Version: {result.processed_data_version}. Reasons: {result.exclusion_reasons}"
+        )
+    elif args.command == "import-protected-areas":
+        from app.protected_area_import import import_protected_area_geojson
+
+        with SessionLocal() as session:
+            result = import_protected_area_geojson(
+                session,
+                source_path=args.path.resolve(),
+                source=args.source,
+                version=args.version,
+                updated_at=args.updated_at,
+                coverage_note=args.coverage_note,
+                coverage_path=args.coverage_geojson.resolve(),
+            )
+        print(
+            f"Protected-area release {result.source}/{result.version} is active with "
+            f"{result.feature_count} features. Existing: {result.already_present}."
+        )
+    elif args.command == "import-waterway-evidence":
+        from app.waterway_import import import_waterway_evidence_json
+
+        with SessionLocal() as session:
+            result = import_waterway_evidence_json(
+                session,
+                source_path=args.path.resolve(),
+                data_version=args.data_version,
+            )
+        print(
+            f"Imported {result.accepted} waterway evidence rows; excluded {result.excluded}. "
+            f"Version: {result.data_version}. Reasons: {result.exclusion_reasons}"
         )
     elif args.command in {"cleanup-uploads", "cleanup-worker"}:
         if args.limit < 1 or args.limit > 10_000:

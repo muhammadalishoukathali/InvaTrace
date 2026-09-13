@@ -9,7 +9,7 @@
 import modelManifest from '../../vendor/PULIH_Model1_v4_FP16_Web_Kit/model/species_31.json'
 import {
   findPlantStatus,
-  plantStatusDataset,
+  findApprovedSpecies,
   type PlantStatusRecord,
 } from '@shared/catalogue'
 
@@ -22,6 +22,8 @@ export interface ModelSpeciesClass {
   malaysia_status: PlantStatusRecord['ui_state']
   /** First reviewed status source ID from the shared catalogue, if there is one. */
   status_source: string
+  /** Whether this legacy model class is in the Iteration 2 business allowlist. */
+  catalogue_approved: boolean
 }
 
 export interface ModelSpeciesCatalog {
@@ -47,34 +49,21 @@ interface RawModelManifest {
 
 const rawManifest = modelManifest as RawModelManifest
 
-if (rawManifest.class_count !== plantStatusDataset.records.length) {
-  // this should never actually happen, but if the model manifest and the
-  // catalogue ever disagree on class count I'd rather the build just fail
-  // loudly than ship something with silently mismatched species data
-  throw new Error(
-    'InvaTrace catalogue and model manifest disagree on class count ' +
-      `(manifest=${rawManifest.class_count}, catalogue=${plantStatusDataset.records.length}).`,
-  )
-}
-
 export const modelSpeciesCatalog: ModelSpeciesCatalog = {
   schema_version: rawManifest.schema_version,
   model_version: rawManifest.model_version,
   class_count: rawManifest.class_count,
   classes: rawManifest.classes.map((entry) => {
     const record = findPlantStatus({ modelLabel: entry.machine_label })
-    if (!record) {
-      throw new Error(
-        `InvaTrace catalogue is missing a plant-status record for model class "${entry.machine_label}".`,
-      )
-    }
+    const approved = findApprovedSpecies({ scientificName: entry.scientific_name })
     return {
       class_index: entry.class_index,
       machine_label: entry.machine_label,
       scientific_name: entry.scientific_name,
       display_name: entry.display_name,
-      malaysia_status: record.ui_state,
-      status_source: record.status_source_ids[0] ?? '',
+      malaysia_status: approved ? 'invasive' : 'status_uncertain',
+      status_source: approved?.evidence_source_ids[0] ?? record?.status_source_ids[0] ?? '',
+      catalogue_approved: approved !== null,
     }
   }),
 }

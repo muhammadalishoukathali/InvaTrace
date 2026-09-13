@@ -15,6 +15,9 @@ const TITLES: Record<string, [string, string]> = {
   '/map': ['Live threat map', 'Bukit Kiara · updated 2 hours ago'],
   '/profile': ['My profile', 'Identity, recovery and device access'],
   '/reports': ['My records', 'Your submitted field reports'],
+  '/catalogue': ['Plant catalogue', '32 evidence-reviewed invasive plants'],
+  '/adopted-areas': ['Monitoring areas', 'Your non-exclusive monitoring bookmarks'],
+  '/places': ['Browse places', 'Mapped parks, forests and trails'],
 }
 
 /**
@@ -44,9 +47,15 @@ export function AppShell() {
   if (!profile) return null
   const [title, subtitle] = pathname.startsWith('/reports/')
     ? ['Report details', 'Status and screening result']
-    : TITLES[pathname] ?? [NAV.find((n) => n.path === pathname)?.full ?? 'InvaTrace', '']
+    : pathname.startsWith('/catalogue/')
+      ? ['Plant details', 'Reviewed catalogue information and sources']
+      : pathname.startsWith('/adopted-areas/')
+        ? ['Community activity', 'Factual reports within your monitoring bookmark']
+        : pathname.startsWith('/places/')
+          ? ['Place details', 'Historical occurrence associations']
+        : TITLES[pathname] ?? [NAV.find((n) => n.path === pathname)?.full ?? 'InvaTrace', '']
   const pageFillsAvailableSpace = pathname === '/map'
-  const showBottomTabs = !isDesktop && pathname === '/map'
+  const showBottomTabs = !isDesktop
   const showProfileBack = !isDesktop && pathname === '/profile'
   const showProfileShortcut = !isDesktop && pathname !== '/profile' && pathname !== '/reports'
   const profileReturnTo = profileReturnPath(location.state)
@@ -108,7 +117,7 @@ export function AppShell() {
         </main>
       </div>
 
-      {showBottomTabs && <BottomTabs />}
+      {showBottomTabs && <BottomTabs role={profile.role} />}
     </div>
   )
 }

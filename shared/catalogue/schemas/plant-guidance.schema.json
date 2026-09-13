@@ -319,8 +319,12 @@
           "pattern": "^/reference-images/[a-z0-9_-]+\\.(jpg|jpeg|png|webp)$"
         },
         "reference_image_credit": {
-          "type": "string"
+          "type": "string",
+          "pattern": "^.+ · .+$"
         }
+      },
+      "dependentRequired": {
+        "reference_image": ["reference_image_credit"]
       },
       "additionalProperties": false
     }

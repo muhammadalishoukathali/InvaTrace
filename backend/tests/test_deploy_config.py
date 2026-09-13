@@ -118,13 +118,19 @@ def test_backend_dockerfile_healthcheck_uses_the_liveness_endpoint() -> None:
 
 def test_docker_entrypoint_runs_migrations_and_reference_data_before_uvicorn() -> None:
     entrypoint = _read("backend/docker-entrypoint.sh")
-    lines = [line.strip() for line in entrypoint.splitlines() if line.strip() and not line.strip().startswith("#")]
+    lines = [
+        line.strip()
+        for line in entrypoint.splitlines()
+        if line.strip() and not line.strip().startswith("#")
+    ]
     # AC 1.2.1 - alembic upgrade then reference-data load must both precede
     # the exec uvicorn line so a fresh production database is ready before
     # the API accepts traffic.
     assert lines[0] == "set -eu", "Entrypoint must exit on error (set -eu)."
     alembic_idx = next(i for i, line in enumerate(lines) if line == "alembic upgrade head")
-    load_idx = next(i for i, line in enumerate(lines) if line == "python -m app.cli load-reference-data")
+    load_idx = next(
+        i for i, line in enumerate(lines) if line == "python -m app.cli load-reference-data"
+    )
     uvicorn_idx = next(i for i, line in enumerate(lines) if line.startswith("exec uvicorn"))
     assert alembic_idx < load_idx < uvicorn_idx, (
         "Entrypoint order must be: alembic upgrade, load-reference-data, exec uvicorn."

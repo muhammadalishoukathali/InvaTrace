@@ -21,15 +21,15 @@ def test_load_and_seed_are_separately_callable() -> None:
     assert callable(seed.seed_development_data)
 
 
-def test_species_catalogue_covers_31_classes() -> None:
-    # Every entry in the model catalogue must round-trip through the seed
-    # so a fresh production DB has reference data for every releasable label.
+def test_species_catalogue_is_the_closed_32_species_allowlist() -> None:
     ids = {entry["id"] for entry in seed.SPECIES}
     # The full 31 come from the model catalogue merger; explicitly seeded
     # rows include the four hand-written ones plus one legacy id retained
     # for cleanup logic - so the seed always exceeds 30 entries after
     # _apply_model_catalog_to_species_seed() runs at import time.
-    assert len(ids) >= 30, f"expected >=30 seeded species, got {len(ids)}"
+    assert len(ids) == 32
+    assert "ageratina-adenophora" not in ids
+    assert "lantana-camara" not in ids
 
 
 def test_demo_seed_never_runs_in_production_via_cli(monkeypatch: pytest.MonkeyPatch) -> None:

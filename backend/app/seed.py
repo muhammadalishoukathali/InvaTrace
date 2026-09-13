@@ -18,7 +18,7 @@ from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from app.db.models import MonitoredPlace, Report, Sighting, Species
-from app.domain.catalogue import load_manifest, load_status_records
+from app.domain.catalogue import load_approved_species, load_manifest
 
 # Citation metadata attached to each species' guidance_metadata.sources - shown
 # to the user so the "this plant is invasive" claim isn't just asserted, it's
@@ -320,19 +320,19 @@ def _apply_shared_catalogue_to_species_seed() -> None:
     """Rebuilds the SPECIES list at import time from the shared catalogue
     JSON - that file is where the Malaysian status actually lives, so I
     don't want to hand-copy it here and then have the two drift apart.
-    For the four species I actually wrote proper field-guide detail for,
-    the hand-written entry above gets layered on top by id. Anything
-    invasive that's still missing guidance gets a generic safe-removal
-    block so the UI never shows an invasive result with nothing attached.
+    For species with reviewed field-guide detail, the hand-written entry
+    above gets layered on top by id. Missing guidance stays missing so the
+    action-guidance domain can return its explicit observe-and-report fallback
+    without presenting generic statements as species-reviewed content.
     """
-    records = load_status_records()
+    records = load_approved_species()
     manifest = load_manifest()
     detailed_by_id = {item["id"]: item for item in SPECIES}
     model_species: list[dict[str, object]] = []
 
     for record in records:
         species_id = record.species_id
-        invasive = record.is_invasive
+        invasive = True
         # Convert to timezone-aware datetime for the Species.status_reviewed_at
         # column (existing rows are all UTC-anchored).
         reviewed_at = datetime(
@@ -341,20 +341,23 @@ def _apply_shared_catalogue_to_species_seed() -> None:
             record.status_reviewed_at.day,
             tzinfo=UTC,
         )
-        detail = detailed_by_id.get(species_id, {
-            "common_names": [],
-            "traits": [],
-            "native_twin": None,
-            "removal_steps": [],
-            "do_not_do": [],
-            "detail_available": False,
-            "action_guides": [],
-        })
-        catalog_source = record.status_source_ids[0] if record.status_source_ids else None
+        detail = detailed_by_id.get(
+            species_id,
+            {
+                "common_names": [],
+                "traits": [],
+                "native_twin": None,
+                "removal_steps": [],
+                "do_not_do": [],
+                "detail_available": False,
+                "action_guides": [],
+            },
+        )
+        catalog_source = record.evidence_source_ids[0]
         # AC Iteration 1 - status columns always come from the catalogue,
         # never from hand-written seed detail, so a catalogue change flows
         # through to a re-seed without editing the seed file.
-        detail["malaysia_status"] = record.ui_state
+        detail["malaysia_status"] = "invasive"
         detail["status_source"] = catalog_source
         detail["status_reviewed_at"] = reviewed_at
         detail.setdefault("action_eligible", False)
@@ -364,21 +367,22 @@ def _apply_shared_catalogue_to_species_seed() -> None:
         # plus its source. Catalogue text is the fallback when hand-written
         # detail is missing.
         if not detail.get("general_information"):
-            detail["general_information"] = record.general_information
-        if invasive and not detail.get("guidance_metadata"):
-            detail["guidance_metadata"] = dict(_GENERIC_INVASIVE_GUIDANCE)
-        elif invasive:
+            detail["general_information"] = record.evidence_summary
+        if invasive and detail.get("guidance_metadata"):
             merged = dict(_GENERIC_INVASIVE_GUIDANCE)
             merged.update(detail.get("guidance_metadata") or {})
             detail["guidance_metadata"] = merged
-        detail.update({
-            "id": species_id,
-            "name": record.common_name or record.scientific_name,
-            "latin_name": record.scientific_name,
-            "is_invasive": invasive,
-            "risk": "high" if invasive else None,
-            "reportable": record.report_eligible,
-        })
+        detail.update(
+            {
+                "id": species_id,
+                "name": record.common_names[0],
+                "latin_name": record.scientific_name,
+                "common_names": list(record.common_names),
+                "is_invasive": invasive,
+                "risk": "high" if invasive else None,
+                "reportable": True,
+            }
+        )
         model_species.append(detail)
 
     if len(model_species) != len(records):
@@ -429,8 +433,8 @@ SIGHTING_SEED = [
     ("chromolaena-odorata", "screened", "high", 0.0037, 4.7),
     ("eichhornia-crassipes", "screened", "high", 0.0028, 5.9),
     ("eichhornia-crassipes", "screened", "high", 0.0045, 0.9),
-    ("lantana-camara", "screened", "high", 0.0022, 2.0),
-    ("lantana-camara", "screened", "high", 0.0033, 3.1),
+    ("leucaena-leucocephala", "screened", "high", 0.0022, 2.0),
+    ("leucaena-leucocephala", "screened", "high", 0.0033, 3.1),
     ("mikania-micrantha", "removed", "high", 0.0016, 4.2),
 ]
 
@@ -509,11 +513,13 @@ def seed_demo_data(session: Session) -> None:
             for key, value in values.items():
                 setattr(existing, key, value)
         else:
-            session.add(Sighting(
-                id=sighting_id,
-                created_at=datetime.now(UTC) - timedelta(hours=index + 1),
-                **values,
-            ))
+            session.add(
+                Sighting(
+                    id=sighting_id,
+                    created_at=datetime.now(UTC) - timedelta(hours=index + 1),
+                    **values,
+                )
+            )
     session.commit()
 
 

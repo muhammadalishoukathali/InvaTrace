@@ -1,6 +1,6 @@
 import * as ort from 'onnxruntime-web/webgpu'
 import type { IdentifyResult } from '@/types'
-import { findPlantStatus } from '@shared/catalogue'
+import { findApprovedSpecies, findPlantStatus } from '@shared/catalogue'
 
 /**
  * This is the actual ONNX inference boundary for the project - it owns the
@@ -444,8 +444,9 @@ export class PulihModel {
     this.speciesByLabel = new Map(
       catalog.classes.map((entry) => {
         const record = findPlantStatus({ modelLabel: entry.machine_label })
-        const overlaidStatus = record?.ui_state ?? 'status_uncertain'
-        const overlaidSource = record?.status_source_ids[0] ?? ''
+        const approved = findApprovedSpecies({ scientificName: entry.scientific_name })
+        const overlaidStatus = approved ? 'invasive' : 'status_uncertain'
+        const overlaidSource = approved?.evidence_source_ids[0] ?? record?.status_source_ids[0] ?? ''
         return [
           entry.machine_label,
           { ...entry, malaysia_status: overlaidStatus, status_source: overlaidSource },

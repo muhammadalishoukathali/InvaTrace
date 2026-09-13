@@ -18,7 +18,6 @@ from sqlalchemy.orm import Session
 
 from app.db.models import MonitoredArea, MonitoredPlace, Trail
 
-
 # AC 4.3.1 - only these OSM feature classes count toward the stored nearest
 # result. Anything else in the imported data (roads, farmland, water) is
 # ignored so the surfaced label is genuinely useful for a field volunteer.
@@ -166,9 +165,7 @@ def nearest_osm_feature(
     for row in trail_rows:
         category = _categorise(row[1] or {}, _TRAIL_CATEGORIES)
         if category is not None:
-            candidates.append(
-                NearestOsmFeature(category, row[0], round(float(row[2]), 2))
-            )
+            candidates.append(NearestOsmFeature(category, row[0], round(float(row[2]), 2)))
             break
 
     area_rows = session.execute(
@@ -187,16 +184,16 @@ def nearest_osm_feature(
     for row in area_rows:
         category = _categorise(row[1] or {}, _AREA_CATEGORIES)
         if category is not None:
-            candidates.append(
-                NearestOsmFeature(category, row[0], round(float(row[2]), 2))
-            )
+            candidates.append(NearestOsmFeature(category, row[0], round(float(row[2]), 2)))
             break
 
     if not candidates:
         return None
     # Tie-break: shortest distance wins; equal distances prefer trail (path)
     # over area because a named trail is more specific field-guidance context.
-    candidates.sort(key=lambda feature: (feature.distance_m, feature.feature_type not in _TRAIL_CATEGORIES))
+    candidates.sort(
+        key=lambda feature: (feature.distance_m, feature.feature_type not in _TRAIL_CATEGORIES)
+    )
     return candidates[0]
 
 
@@ -213,8 +210,10 @@ def _categorise(metadata: dict, allowed: set[str]) -> str | None:
     tags = metadata.get("tags")
     if isinstance(tags, dict):
         for key, value in tags.items():
-            if isinstance(value, str) and value in allowed and key in {
-                "highway", "leisure", "landuse", "natural"
-            }:
+            if (
+                isinstance(value, str)
+                and value in allowed
+                and key in {"highway", "leisure", "landuse", "natural"}
+            ):
                 return value
     return None

@@ -5,6 +5,7 @@ import { modelSpeciesCatalog } from '@/data/model-species-catalog'
 import { plantGuidanceDataset } from '@/data/plant-guidance'
 import { developmentIdentifyResultForHash } from '@/features/scan/plant-model-adapter'
 import { MAP_FILTER_SPECIES } from '@/features/map/MapFilters'
+import { approvedSpeciesDataset, findApprovedSpecies } from '@shared/catalogue'
 
 class MemoryStorage implements Storage {
   private values = new Map<string, string>()
@@ -40,21 +41,20 @@ afterAll(() => server.close())
 beforeEach(() => localStorage.clear())
 
 describe('reported sighting species labels', () => {
-  it('exposes exactly the 31 model classes with the catalogue status split', async () => {
+  it('exposes exactly the closed 32-species business catalogue', async () => {
     const response = await fetch('http://localhost/api/v1/species')
     const body = await response.json() as {
       items: Array<{ id: string; isInvasive: boolean; malaysiaStatus: string }>
     }
     expect(response.status).toBe(200)
-    expect(body.items).toHaveLength(31)
-    expect(body.items.filter((item) => item.isInvasive)).toHaveLength(13)
-    expect(body.items.filter((item) => !item.isInvasive)).toHaveLength(18)
+    expect(body.items).toHaveLength(32)
+    expect(body.items.every((item) => item.isInvasive && item.malaysiaStatus === 'invasive')).toBe(true)
     expect(new Set(body.items.map((item) => item.id))).toEqual(new Set(
-      modelSpeciesCatalog.classes.map((item) => item.machine_label.replaceAll('_', '-')),
+      approvedSpeciesDataset.records.map((item) => item.species_id),
     ))
   })
 
-  it('makes the fake development model emit every catalogue class with its real status', () => {
+  it('keeps the 31-class development model operational while gating reportability', () => {
     const results = modelSpeciesCatalog.classes.map((_, index) => developmentIdentifyResultForHash(index))
     expect(results.map((result) => result.speciesId)).toEqual(
       modelSpeciesCatalog.classes.map((item) => item.machine_label.replaceAll('_', '-')),
@@ -64,24 +64,20 @@ describe('reported sighting species labels', () => {
     expect(developmentIdentifyResultForHash(31).outcome).toBe('uncertain')
   })
 
-  it('derives map filters and guidance status from the model catalogue', () => {
-    const invasive = modelSpeciesCatalog.classes.filter((item) => item.malaysia_status === 'invasive')
-    expect(MAP_FILTER_SPECIES).toHaveLength(13)
+  it('derives public map filters from the approved catalogue, not model-only classes', () => {
+    expect(MAP_FILTER_SPECIES).toHaveLength(32)
     expect(MAP_FILTER_SPECIES.map((item) => item.id)).toEqual(
-      invasive.map((item) => item.machine_label.replaceAll('_', '-')),
+      approvedSpeciesDataset.records.map((item) => item.species_id),
     )
-    for (const plant of plantGuidanceDataset.plants) {
-      const modelClass = modelSpeciesCatalog.classes.find((item) => item.machine_label === plant.plant_id)
-      expect(modelClass).toBeDefined()
-      expect(plant.malaysia_status.category === 'invasive').toBe(
-        modelClass?.malaysia_status === 'invasive',
-      )
-    }
+    expect(MAP_FILTER_SPECIES.some((item) => item.id === 'lantana-camara')).toBe(false)
+    expect(plantGuidanceDataset.plants.some((plant) => (
+      findApprovedSpecies({ speciesId: plant.plant_id }) == null
+    ))).toBe(true)
   })
 
   it('keeps the model identification for Mimosa diplotricha on the map', () => {
     expect(resolveSightingSpecies('mimosa-diplotricha')).toEqual({
-      speciesName: 'Mimosa diplotricha',
+      speciesName: 'Giant sensitive plant',
       latinName: 'Mimosa diplotricha',
       risk: 'high',
     })
@@ -94,21 +90,19 @@ describe('reported sighting species labels', () => {
     })
   })
 
-  it('has exact display coverage for every class the model can emit', () => {
-    expect(modelSpeciesCatalog.class_count).toBe(31)
-    expect(modelSpeciesCatalog.classes).toHaveLength(31)
-    for (const modelClass of modelSpeciesCatalog.classes) {
-      const speciesId = modelClass.machine_label.replaceAll('_', '-')
+  it('has exact display coverage for every approved business catalogue entry', () => {
+    for (const species of approvedSpeciesDataset.records) {
+      const speciesId = species.species_id
       expect(resolveSightingSpecies(speciesId)).toMatchObject({
-        speciesName: modelClass.display_name,
-        latinName: modelClass.scientific_name,
+        speciesName: species.common_names[0],
+        latinName: species.scientific_name,
       })
     }
   })
 
-  it('returns a general reference image for every model species detail', async () => {
-    for (const modelClass of modelSpeciesCatalog.classes) {
-      const speciesId = modelClass.machine_label.replaceAll('_', '-')
+  it('returns only approved species details and never fabricates missing images', async () => {
+    for (const species of approvedSpeciesDataset.records) {
+      const speciesId = species.species_id
       const response = await fetch(`http://localhost/api/v1/species/${speciesId}`)
       const detail = await response.json() as {
         latinName: string
@@ -117,11 +111,12 @@ describe('reported sighting species labels', () => {
         referenceImageUrl: string | null
       }
       expect(response.status).toBe(200)
-      expect(detail.latinName).toBe(modelClass.scientific_name)
-      expect(detail.isInvasive).toBe(modelClass.malaysia_status === 'invasive')
-      expect(detail.reportEligible).toBe(modelClass.malaysia_status === 'invasive')
-      expect(detail.referenceImageUrl).toMatch(/^\/reference-images\/.+\.jpg$/)
+      expect(detail.latinName).toBe(species.scientific_name)
+      expect(detail.isInvasive).toBe(true)
+      expect(detail.reportEligible).toBe(true)
+      if (detail.referenceImageUrl) expect(detail.referenceImageUrl).toMatch(/^\/reference-images\/.+\.jpg$/)
     }
+    expect((await fetch('http://localhost/api/v1/species/lantana-camara')).status).toBe(404)
   })
 })
 
@@ -246,5 +241,55 @@ describe('private access mock contract', () => {
     })
     expect(revoked.status).toBe(401)
     expect(current.status).toBe(200)
+  })
+})
+
+describe('Iteration 2 place and adoption mock contract', () => {
+  it('uses owner-scoped adoptions and the selected place geometry', async () => {
+    const owner = await start(installationToken('P'))
+    const other = await start(installationToken('Q'))
+    const authorization = { Authorization: `Bearer ${owner.payload.accessToken}` }
+    const places = await (await fetch('http://localhost/api/v1/places')).json() as {
+      items: Array<{ placeId: string; displayName: string }>
+    }
+    const bukit = places.items.find((item) => item.displayName === 'Bukit Kiara')!
+    const taman = places.items.find((item) => item.displayName === 'Taman Tugu Trail')!
+    const adopt = async (placeId: string) => {
+      const response = await fetch('http://localhost/api/v1/adopted-areas', {
+        method: 'POST',
+        headers: { ...authorization, 'Content-Type': 'application/json' },
+        body: JSON.stringify({ placeId }),
+      })
+      return { response, body: await response.json() as { adoptionId: string } }
+    }
+    const bukitAdoption = await adopt(bukit.placeId)
+    const tamanAdoption = await adopt(taman.placeId)
+    expect(bukitAdoption.response.status).toBe(201)
+    expect(tamanAdoption.response.status).toBe(201)
+
+    const bukitActivity = await (await fetch(
+      `http://localhost/api/v1/adopted-areas/${bukitAdoption.body.adoptionId}/activity`,
+      { headers: authorization },
+    )).json() as { filteredCount: number; emptyMessage: string | null }
+    const tamanActivity = await (await fetch(
+      `http://localhost/api/v1/adopted-areas/${tamanAdoption.body.adoptionId}/activity`,
+      { headers: authorization },
+    )).json() as { filteredCount: number; emptyMessage: string | null }
+    expect(bukitActivity.filteredCount).toBeGreaterThan(0)
+    expect(tamanActivity).toMatchObject({
+      filteredCount: 0,
+      emptyMessage: 'No community reports recorded for this area.',
+    })
+
+    const otherDelete = await fetch(
+      `http://localhost/api/v1/adopted-areas/${bukitAdoption.body.adoptionId}`,
+      { method: 'DELETE', headers: { Authorization: `Bearer ${other.payload.accessToken}` } },
+    )
+    expect(otherDelete.status).toBe(404)
+    const ownerDelete = await fetch(
+      `http://localhost/api/v1/adopted-areas/${bukitAdoption.body.adoptionId}`,
+      { method: 'DELETE', headers: authorization },
+    )
+    expect(ownerDelete.status).toBe(204)
   })
 })

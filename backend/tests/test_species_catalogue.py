@@ -13,6 +13,7 @@ import pytest
 from app.api.routers.species import _SAFETY_MESSAGE, _STATUS_TO_UI
 from app.domain.catalogue import (
     VALID_UI_STATES,
+    load_approved_species,
     load_manifest,
     load_status_records,
     status_record_for_model_label,
@@ -26,6 +27,13 @@ def test_catalogue_has_expected_class_count() -> None:
     manifest = load_manifest()
     assert len(_RECORDS) == 31, "shared catalogue must contain 31 plant-status records"
     assert manifest.plant_status_sha256, "manifest must record a sha256 for plant-status.json"
+
+
+def test_iteration_2_allowlist_has_exactly_32_unique_species() -> None:
+    records = load_approved_species()
+    assert len(records) == 32
+    assert len({record.species_id for record in records}) == 32
+    assert "ageratina-adenophora" not in {record.species_id for record in records}
 
 
 def test_manifest_checksums_match_disk() -> None:

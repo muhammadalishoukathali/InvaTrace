@@ -4,14 +4,14 @@ import { NAV, isEnabled, visibleNav } from './nav'
 describe('navigation gating', () => {
   it('enables only destinations available in the current release', () => {
     const enabled = NAV.filter((i) => isEnabled(i, 'Volunteer')).map((i) => i.id)
-    expect(enabled).toEqual(['map', 'reports'])
+    expect(enabled).toEqual(['map', 'catalogue', 'reports', 'areas'])
   })
 
-  it('hides not-yet-enabled destinations from every role', () => {
+  it('shows Iteration 2 destinations to every field role', () => {
     for (const role of ['Detector', 'Volunteer'] as const) {
       const ids = visibleNav(role).map((i) => i.id)
-      expect(ids).toEqual(['map', 'reports'])
-      expect(NAV.filter((i) => i.iteration > 1).every((i) => !isEnabled(i, role))).toBe(true)
+      expect(ids).toEqual(['map', 'catalogue', 'reports', 'areas'])
+      expect(NAV.filter((i) => i.iteration <= 2).every((i) => isEnabled(i, role))).toBe(true)
     }
   })
 })

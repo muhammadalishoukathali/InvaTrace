@@ -1,7 +1,8 @@
-import { useQuery } from '@tanstack/react-query'
+import { useState } from 'react'
+import { useMutation, useQuery } from '@tanstack/react-query'
 import { Link, useNavigate, useParams } from 'react-router-dom'
-import { api } from '@/services/api-client'
-import type { Report, ReportStatus } from '@/types'
+import { api, ApiError } from '@/services/api-client'
+import type { PlaceDetail, RemovalReportResponse, Report, ReportStatus, SightingDetail } from '@/types'
 import { usePrivateAccess } from '@/features/private-access/private-access-store'
 import { LOCATION_ACCURACY_INSUFFICIENT_MESSAGE } from './gps-policy'
 import './report-tracking.css'
@@ -57,6 +58,14 @@ export function ReportTrackingPage() {
     else navigate('/reports')
   }
   const profileId = usePrivateAccess((state) => state.profile?.id ?? null)
+  const [removalFix, setRemovalFix] = useState<{
+    latitude: number
+    longitude: number
+    accuracyM: number
+    capturedAt: string
+  } | null>(null)
+  const [locationError, setLocationError] = useState<string | null>(null)
+  const [adoptionDismissed, setAdoptionDismissed] = useState(false)
   const query = useQuery({
     queryKey: ['report', profileId, reportId],
     queryFn: () => api<Report>(`/api/v1/reports/${reportId}`),
@@ -69,6 +78,61 @@ export function ReportTrackingPage() {
         : false
     ),
   })
+  const sighting = useQuery({
+    queryKey: ['sighting', query.data?.sightingId],
+    queryFn: () => api<SightingDetail>(`/api/v1/sightings/${query.data!.sightingId}`),
+    enabled: Boolean(query.data?.sightingId),
+  })
+  const removal = useMutation({
+    mutationFn: (fix: NonNullable<typeof removalFix>) => api<RemovalReportResponse>(
+      `/api/v1/reports/${reportId}/removal`,
+      {
+        method: 'POST',
+        body: JSON.stringify(fix),
+      },
+    ),
+    onSuccess: () => void sighting.refetch(),
+  })
+  const adoptionPlace = useQuery({
+    queryKey: ['report-adoption-place', reportId, query.data?.submission.location],
+    queryFn: () => api<{ place: PlaceDetail | null }>(
+      `/api/v1/places/at-location?lat=${query.data!.submission.location.lat}&lon=${query.data!.submission.location.lng}`,
+    ),
+    enabled: Boolean(
+      query.data
+      && (query.data.status === 'screened' || query.data.status === 'merged')
+      && query.data.sightingId,
+    ),
+  })
+  const adopt = useMutation({
+    mutationFn: (placeId: string) => api<{ adoptionId: string }>(
+      '/api/v1/adopted-areas',
+      { method: 'POST', body: JSON.stringify({ placeId }) },
+    ),
+  })
+
+  const captureRemovalLocation = () => {
+    setLocationError(null)
+    setRemovalFix(null)
+    if (!navigator.geolocation) {
+      setLocationError('Location is unavailable in this browser. The removal report was not submitted.')
+      return
+    }
+    navigator.geolocation.getCurrentPosition(
+      (position) => {
+        setRemovalFix({
+          latitude: position.coords.latitude,
+          longitude: position.coords.longitude,
+          accuracyM: position.coords.accuracy,
+          capturedAt: new Date(position.timestamp).toISOString(),
+        })
+      },
+      () => setLocationError(
+        'A fresh location could not be obtained. Allow location access and try again at the plant.',
+      ),
+      { enableHighAccuracy: true, maximumAge: 0, timeout: 15_000 },
+    )
+  }
 
   if (query.isLoading) {
     return (
@@ -133,6 +197,83 @@ export function ReportTrackingPage() {
           </section>
         )}
 
+        {(report.status === 'screened' || report.status === 'merged')
+          && adoptionPlace.data?.place
+          && !adoptionDismissed && (
+          <section className="report-tracking__adoption" aria-labelledby="report-adoption-heading">
+            <h2 id="report-adoption-heading">Adopt this area for monitoring?</h2>
+            <p>
+              Your report is inside or along <strong>{adoptionPlace.data.place.displayName}</strong>.
+              Save it as a non-exclusive monitoring bookmark. This does not grant ownership,
+              responsibility, access rights or removal permission.
+            </p>
+            {adopt.isSuccess ? (
+              <p role="status">{adoptionPlace.data.place.displayName} is adopted for monitoring.</p>
+            ) : (
+              <div>
+                <button
+                  type="button"
+                  onClick={() => adopt.mutate(adoptionPlace.data!.place!.placeId)}
+                  disabled={adopt.isPending}
+                >
+                  {adopt.isPending ? 'Adding…' : 'Adopt for monitoring'}
+                </button>
+                <button type="button" onClick={() => setAdoptionDismissed(true)}>Not now</button>
+              </div>
+            )}
+          </section>
+        )}
+
+        {(report.status === 'screened' || report.status === 'merged')
+          && report.sightingId && sighting.data?.status === 'screened' && (
+          <section className="report-tracking__removal" aria-labelledby="removal-report-heading">
+            <h2 id="removal-report-heading">Mark as removed</h2>
+            <p>
+              Use a fresh browser location at the plant. The server accepts a fix only when its
+              accuracy is 250 metres or better and it is within 250 metres of the original report.
+            </p>
+            {removal.data ? (
+              <p className="report-tracking__removal-success" role="status">
+                Removal reported {formatSubmittedAt(removal.data.removalReportedAt)}.
+                {' '}Location accuracy was ±{removal.data.accuracyM} m.
+              </p>
+            ) : (
+              <>
+                <button
+                  type="button"
+                  className="report-tracking__location-button"
+                  onClick={captureRemovalLocation}
+                  disabled={removal.isPending}
+                >
+                  Use my current location
+                </button>
+                {removalFix && (
+                  <div className="report-tracking__location-fix" role="status">
+                    <strong>Fresh location accuracy: ±{removalFix.accuracyM} m</strong>
+                    <span>Coordinates are captured by the browser and cannot be edited.</span>
+                    {removalFix.accuracyM <= 250 ? (
+                      <button
+                        type="button"
+                        onClick={() => removal.mutate(removalFix)}
+                        disabled={removal.isPending}
+                      >
+                        {removal.isPending ? 'Submitting…' : 'Confirm removal report'}
+                      </button>
+                    ) : (
+                      <span role="alert">Accuracy is above 250 m. Move closer and request a new fix.</span>
+                    )}
+                  </div>
+                )}
+                {(locationError || removal.isError) && (
+                  <p className="report-tracking__removal-error" role="alert">
+                    {locationError ?? removalErrorMessage(removal.error)}
+                  </p>
+                )}
+              </>
+            )}
+          </section>
+        )}
+
         <div className="report-tracking__actions">
           {report.status === 'needs_rescan' && <Link to="/scan" state={{ returnTo: '/reports' }}>Retake scan</Link>}
           {report.sightingId && (
@@ -167,3 +308,13 @@ const formatSubmittedAt = (value: string) => new Intl.DateTimeFormat(undefined, 
   dateStyle: 'medium',
   timeStyle: 'short',
 }).format(new Date(value))
+
+function removalErrorMessage(error: Error | null): string {
+  if (error instanceof ApiError) {
+    if (error.code === 'removal_too_far') return 'You are more than 250 metres from the original report.'
+    if (error.code === 'removal_accuracy_too_low') return 'Location accuracy must be 250 metres or better.'
+    if (error.code === 'removal_location_stale') return 'The location fix expired. Request a fresh location.'
+    if (error.code === 'removal_not_available') return 'This report can no longer be marked as removed.'
+  }
+  return 'The removal report could not be submitted. Check the connection and try again.'
+}

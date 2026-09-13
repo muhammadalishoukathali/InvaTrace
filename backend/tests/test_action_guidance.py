@@ -26,9 +26,7 @@ def _stub_species(**overrides) -> SimpleNamespace:
     defaults = dict(
         id="mikania-micrantha",
         guidance_metadata={
-            "sources": [
-                {"id": "src-1", "title": "Test source", "publisher": "InvaTrace"}
-            ],
+            "sources": [{"id": "src-1", "title": "Test source", "publisher": "InvaTrace"}],
             "stop_conditions": ["A stop condition applies here."],
             "spread_prevention": ["Bag fragments before transport."],
             "prohibited_actions": ["Do not apply broadcast herbicide."],
@@ -60,9 +58,7 @@ def test_observe_and_report_fallback_preserves_provenance() -> None:
 
 def test_current_action_guide_falls_back_when_no_guide_matches_month() -> None:
     # No action_guides + non-matching month → observe-and-report fallback.
-    guide = current_action_guide(
-        _stub_species(), observed_at=datetime(2026, 6, 15, tzinfo=UTC)
-    )
+    guide = current_action_guide(_stub_species(), observed_at=datetime(2026, 6, 15, tzinfo=UTC))
     assert guide is not None
     assert guide.guidance_mode == "report_only"
     assert guide.plant_id == "mikania-micrantha"
@@ -79,9 +75,7 @@ def test_current_action_guide_selects_month_matched_guide() -> None:
                 "guidanceMode": "active_guidance",
                 "steps": [{"order": 1, "action": "Cut stems", "safe": True}],
                 "revision": "dry-v1",
-                "sources": [
-                    {"id": "src-1", "title": "Test source", "publisher": "InvaTrace"}
-                ],
+                "sources": [{"id": "src-1", "title": "Test source", "publisher": "InvaTrace"}],
             }
         ]
     )
@@ -109,9 +103,7 @@ def test_guidance_modes_all_valid(guidance_mode: str) -> None:
                 "guidanceMode": guidance_mode,
                 "steps": [],
                 "revision": "test-v1",
-                "sources": [
-                    {"id": "src-1", "title": "Test source", "publisher": "InvaTrace"}
-                ],
+                "sources": [{"id": "src-1", "title": "Test source", "publisher": "InvaTrace"}],
             }
         ]
     )

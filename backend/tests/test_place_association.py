@@ -8,19 +8,19 @@ named trail, park or forest found nearby").
 from __future__ import annotations
 
 from app.domain.place_association import (
-    NearestOsmFeature,
     _AREA_CATEGORIES,
     _TRAIL_CATEGORIES,
+    NearestOsmFeature,
     _categorise,
 )
 
 
 def test_trail_categories_are_the_expected_allow_list() -> None:
-    assert _TRAIL_CATEGORIES == {"path", "footway", "track"}
+    assert {"path", "footway", "track"} == _TRAIL_CATEGORIES
 
 
 def test_area_categories_are_the_expected_allow_list() -> None:
-    assert _AREA_CATEGORIES == {"park", "forest", "wood"}
+    assert {"park", "forest", "wood"} == _AREA_CATEGORIES
 
 
 def test_categorise_picks_direct_highway_tag() -> None:
@@ -35,9 +35,7 @@ def test_categorise_picks_direct_area_tag() -> None:
 
 
 def test_categorise_reads_nested_tags_dict() -> None:
-    assert (
-        _categorise({"tags": {"highway": "track"}}, _TRAIL_CATEGORIES) == "track"
-    )
+    assert _categorise({"tags": {"highway": "track"}}, _TRAIL_CATEGORIES) == "track"
 
 
 def test_categorise_rejects_non_allow_listed_values() -> None:

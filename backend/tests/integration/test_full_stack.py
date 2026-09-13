@@ -12,6 +12,7 @@ normal CI unit test runs).
 from __future__ import annotations
 
 import base64
+import hashlib
 import os
 import random
 import time
@@ -142,9 +143,6 @@ def upload_photo(client: httpx.Client, token: str, key: str, photo: bytes) -> st
     return first["photoKey"]
 
 
-import hashlib
-
-
 def create_scan(
     client: httpx.Client,
     token: str,
@@ -186,7 +184,8 @@ def create_report(
     # AC 2.2.1 - reports without an owner-scoped scan for the capture are
     # rejected. Persist the scan first so this test walks the real path.
     create_scan(
-        client, token,
+        client,
+        token,
         capture_id=capture_id,
         confidence=confidence,
         model_version=model_version,
@@ -485,7 +484,7 @@ def test_scan_report_publish_sighting_end_to_end() -> None:
         for index in range(0, 640, 32):
             draw.ellipse(
                 (index, 40 + (unique_seed % 100), index + 60, 200 + (unique_seed % 100)),
-                fill=((unique_seed >> 8) & 0xff, (unique_seed >> 16) & 0xff, 90),
+                fill=((unique_seed >> 8) & 0xFF, (unique_seed >> 16) & 0xFF, 90),
             )
         buf = BytesIO()
         unique_image.save(buf, format="JPEG", quality=90)
@@ -525,7 +524,12 @@ def test_scan_report_publish_sighting_end_to_end() -> None:
         # populated they must be an allow-listed type.
         if detail["nearestFeatureType"] is not None:
             assert detail["nearestFeatureType"] in {
-                "path", "footway", "track", "park", "forest", "wood",
+                "path",
+                "footway",
+                "track",
+                "park",
+                "forest",
+                "wood",
             }
             assert detail["nearestFeatureName"]
             assert detail["nearestFeatureDistanceM"] is not None
@@ -548,7 +552,8 @@ def test_report_cannot_swap_species_or_confidence_from_scan() -> None:
 
         capture_id = str(uuid.uuid4())
         create_scan(
-            client, token,
+            client,
+            token,
             capture_id=capture_id,
             confidence=0.91,
             model_version="oe_v4_31class_web_fp16",
@@ -609,9 +614,7 @@ def test_report_cannot_swap_species_or_confidence_from_scan() -> None:
 
         # AC 4.1.3 - none of the rejected attempts must have left behind a
         # report row, so listing the profile's reports shows zero entries.
-        listing = assert_ok(
-            client.get("/api/v1/reports/mine", headers=auth(token))
-        ).json()
+        listing = assert_ok(client.get("/api/v1/reports/mine", headers=auth(token))).json()
         assert listing["items"] == []
 
 

@@ -7,6 +7,7 @@
 import manifestJson from './catalogue-manifest.json'
 import statusJson from './plant-status.json'
 import guidanceJson from './plant-guidance.json'
+import approvedSpeciesJson from './approved-species.json'
 
 export type PlantUiState = 'invasive' | 'information_only' | 'status_uncertain'
 
@@ -42,24 +43,84 @@ export interface PlantStatusDataset {
   sources: CatalogueSource[]
 }
 
+export interface PendingCatalogueAsset {
+  url: string
+  sha256: string
+  byte_length: number
+  review_status: 'provenance_pending'
+}
+
+export interface ApprovedCatalogueAsset {
+  url: string
+  sha256: string
+  byte_length: number
+  review_status: 'approved'
+  creator: string
+  licence: string
+  source_title: string
+  source_url_or_identifier: string
+  reviewed_at: string
+}
+
+export type CatalogueAsset = PendingCatalogueAsset | ApprovedCatalogueAsset
+
 export interface CatalogueManifest {
   schema_version: string
   catalogue_version: string
   content_version: string
   model_version: string
   last_reviewed: string
+  generated_at: string
+  assets: CatalogueAsset[]
   files: {
+    'approved-species.json': { sha256: string; byte_length: number; schema_version: string; record_count?: number }
     'plant-status.json': { sha256: string; byte_length: number; schema_version: string; record_count?: number }
     'plant-guidance.json': { sha256: string; byte_length: number; schema_version: string; record_count?: number }
   }
 }
 
+export interface ApprovedSpeciesRecord {
+  species_id: string
+  scientific_name: string
+  accepted_scientific_name?: string
+  common_names: string[]
+  malaysia_status: 'Present'
+  evidence_source_ids: string[]
+  evidence_summary: string
+  habitats: Array<'terrestrial' | 'freshwater'>
+  water_dispersed: boolean
+  status_reviewed_at: string
+}
+
+export interface ApprovedSpeciesDataset {
+  schema_version: 'invatrace.approved-species.v1'
+  catalogue_version: string
+  reviewed_at: string
+  jurisdiction: 'Malaysia'
+  record_count: 32
+  records: ApprovedSpeciesRecord[]
+  sources: CatalogueSource[]
+}
+
 export const catalogueManifest = manifestJson as CatalogueManifest
 export const plantStatusDataset = statusJson as unknown as PlantStatusDataset
+export const approvedSpeciesDataset = approvedSpeciesJson as unknown as ApprovedSpeciesDataset
 
 // Deliberately re-exported as `unknown` to keep the frontend's richer
 // PlantGuidanceDataset type as the single typed shape for guidance.
 export const rawGuidanceJson = guidanceJson as unknown
+
+export function isApprovedCatalogueAsset(
+  asset: CatalogueAsset,
+): asset is ApprovedCatalogueAsset {
+  return asset.review_status === 'approved'
+}
+
+export function approvedCatalogueAsset(url: string | null | undefined): ApprovedCatalogueAsset | null {
+  if (!url) return null
+  const asset = catalogueManifest.assets.find((candidate) => candidate.url === url)
+  return asset && isApprovedCatalogueAsset(asset) ? asset : null
+}
 
 const normalize = (value: string): string => value.trim().toLowerCase()
 const speciesIdKey = (value: string): string => normalize(value).replace(/_/g, '-')
@@ -67,11 +128,43 @@ const speciesIdKey = (value: string): string => normalize(value).replace(/_/g, '
 const byModelLabel = new Map<string, PlantStatusRecord>()
 const bySpeciesId = new Map<string, PlantStatusRecord>()
 const byScientificName = new Map<string, PlantStatusRecord>()
+const approvedBySpeciesId = new Map<string, ApprovedSpeciesRecord>()
+const approvedByScientificName = new Map<string, ApprovedSpeciesRecord>()
 
 for (const record of plantStatusDataset.records) {
   byModelLabel.set(normalize(record.model_label), record)
   bySpeciesId.set(speciesIdKey(record.species_id), record)
   byScientificName.set(normalize(record.scientific_name), record)
+}
+
+for (const record of approvedSpeciesDataset.records) {
+  approvedBySpeciesId.set(speciesIdKey(record.species_id), record)
+  approvedByScientificName.set(normalize(record.scientific_name), record)
+  if (record.accepted_scientific_name) {
+    approvedByScientificName.set(normalize(record.accepted_scientific_name), record)
+  }
+}
+
+export function findApprovedSpecies(query: {
+  speciesId?: string | null
+  scientificName?: string | null
+}): ApprovedSpeciesRecord | null {
+  if (query.speciesId) {
+    const hit = approvedBySpeciesId.get(speciesIdKey(query.speciesId))
+    if (hit) return hit
+  }
+  if (query.scientificName) {
+    const hit = approvedByScientificName.get(normalize(query.scientificName))
+    if (hit) return hit
+  }
+  return null
+}
+
+export function isApprovedSpecies(query: {
+  speciesId?: string | null
+  scientificName?: string | null
+}): boolean {
+  return findApprovedSpecies(query) !== null
 }
 
 export function findPlantStatus(query: {
@@ -104,6 +197,10 @@ export function catalogueSourceById(sourceId: string): CatalogueSource | undefin
 
 export function catalogueVersion(): string {
   return catalogueManifest.catalogue_version
+}
+
+export function approvedSpeciesChecksum(): string {
+  return catalogueManifest.files['approved-species.json'].sha256
 }
 
 export function plantStatusChecksum(): string {

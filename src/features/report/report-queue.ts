@@ -205,6 +205,22 @@ async function sha256Hex(blob: Blob): Promise<string> {
 }
 
 async function sendQueuedReport(item: QueuedReport): Promise<Report> {
+  // A browser reload resets the in-memory development API, and a real server
+  // may have lost an earlier scan write during the same network interruption.
+  // Replaying the capture-scoped scan is idempotent and preserves the
+  // scan/report consistency gate before the queued report is retried.
+  await api('/api/v1/scans', {
+    method: 'POST',
+    body: JSON.stringify({
+      captureId: item.submission.captureId,
+      predictedSpeciesId: item.submission.speciesId,
+      outcome: item.submission.outcome,
+      confidence: item.submission.confidence,
+      modelVersion: item.submission.modelVersion,
+      imageSha256Hex: item.submission.imageSha256 ?? null,
+      captureSource: item.submission.captureSource,
+    }),
+  })
   if (!item.submission.photoKey) {
     item.submission.photoKey = await uploadImage(item.imageBlob, item.id)
     await saveQueuedReport(item)
