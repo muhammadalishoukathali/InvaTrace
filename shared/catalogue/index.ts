@@ -44,6 +44,7 @@ export interface PlantStatusDataset {
 }
 
 export interface PendingCatalogueAsset {
+  species_id: string
   url: string
   sha256: string
   byte_length: number
@@ -51,15 +52,19 @@ export interface PendingCatalogueAsset {
 }
 
 export interface ApprovedCatalogueAsset {
+  species_id: string
   url: string
   sha256: string
   byte_length: number
   review_status: 'approved'
   creator: string
   licence: string
+  licence_url: string
   source_title: string
   source_url_or_identifier: string
   reviewed_at: string
+  retrieved_at: string
+  attribution_text: string
 }
 
 export type CatalogueAsset = PendingCatalogueAsset | ApprovedCatalogueAsset
@@ -76,6 +81,7 @@ export interface CatalogueManifest {
     'approved-species.json': { sha256: string; byte_length: number; schema_version: string; record_count?: number }
     'plant-status.json': { sha256: string; byte_length: number; schema_version: string; record_count?: number }
     'plant-guidance.json': { sha256: string; byte_length: number; schema_version: string; record_count?: number }
+    'reference-images.json': { sha256: string; byte_length: number; schema_version: string; record_count?: number }
   }
 }
 
@@ -119,6 +125,12 @@ export function isApprovedCatalogueAsset(
 export function approvedCatalogueAsset(url: string | null | undefined): ApprovedCatalogueAsset | null {
   if (!url) return null
   const asset = catalogueManifest.assets.find((candidate) => candidate.url === url)
+  return asset && isApprovedCatalogueAsset(asset) ? asset : null
+}
+
+export function approvedCatalogueAssetForSpecies(speciesId: string): ApprovedCatalogueAsset | null {
+  const normalizedId = speciesIdKey(speciesId)
+  const asset = catalogueManifest.assets.find((candidate) => candidate.species_id === normalizedId)
   return asset && isApprovedCatalogueAsset(asset) ? asset : null
 }
 

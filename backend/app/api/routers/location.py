@@ -166,9 +166,9 @@ def protected_location_context(
 # so we sniff the raw tags we stored to bucket it into one of our three types.
 def _classify_area(name: str, metadata: dict) -> Literal["park", "forest", "wood"]:
     tags = (metadata or {}).get("tags") or {}
-    if tags.get("landuse") == "forest":
+    if tags.get("landuse") == "forest" or metadata.get("landuse") == "forest":
         return "forest"
-    if tags.get("natural") == "wood":
+    if tags.get("natural") == "wood" or metadata.get("natural") == "wood":
         return "wood"
     return "park"
 

@@ -56,10 +56,19 @@ def test_catalogue_search_and_honest_missing_copy() -> None:
     assert NO_SAFE_ACTION == "No beginner-safe active action is provided"
 
 
-def test_catalogue_images_fail_closed_until_full_provenance_is_reviewed() -> None:
+def test_catalogue_has_one_reviewed_provenance_image_per_approved_species() -> None:
     result = list_catalogue(q=None)
-    assert all(item.image is None for item in result.items)
-    assert catalogue_detail("mikania-micrantha").image is None
+    assert len(result.items) == 32
+    assert all(item.image is not None for item in result.items)
+    assert len({item.image.url for item in result.items if item.image is not None}) == 32
+    image = catalogue_detail("mikania-micrantha").image
+    assert image is not None
+    assert image.url == "/reference-images/mikania_micrantha.jpg"
+    assert image.creator
+    assert image.license
+    assert image.license_url.startswith("http")
+    assert image.source_url_or_identifier.startswith("https://commons.wikimedia.org/")
+    assert "Wikimedia Commons" in image.attribution_text
 
 
 def test_boundary_failure_is_never_treated_as_outside() -> None:
@@ -83,15 +92,18 @@ def test_removal_distance_gate_uses_metres() -> None:
 
 def test_removal_location_accepts_250_and_rejects_250_001_accuracy() -> None:
     now = datetime(2026, 9, 13, 0, 0, tzinfo=UTC)
-    assert _validate_removal_location(
-        captured_at=now - timedelta(minutes=5),
-        accuracy_m=250,
-        latitude=3.14,
-        longitude=101.69,
-        sighting_latitude=3.14,
-        sighting_longitude=101.69,
-        now=now,
-    ) == 0
+    assert (
+        _validate_removal_location(
+            captured_at=now - timedelta(minutes=5),
+            accuracy_m=250,
+            latitude=3.14,
+            longitude=101.69,
+            sighting_latitude=3.14,
+            sighting_longitude=101.69,
+            now=now,
+        )
+        == 0
+    )
     with pytest.raises(ApiProblem) as raised:
         _validate_removal_location(
             captured_at=now,
@@ -169,7 +181,9 @@ def test_removal_retry_returns_existing_event_before_revalidating_stale_gps() ->
     session.commit.assert_not_called()
 
 
-def test_removal_submission_appends_private_history_and_preserves_original_report(monkeypatch) -> None:
+def test_removal_submission_appends_private_history_and_preserves_original_report(
+    monkeypatch,
+) -> None:
     now = datetime(2026, 9, 13, 0, 0, tzinfo=UTC)
     monkeypatch.setattr(reports_router, "utcnow", lambda: now)
     profile_id = uuid.uuid4()
@@ -345,7 +359,7 @@ def test_occurrence_import_rejects_country_coordinate_mismatch(tmp_path) -> None
                 {
                     "occurrenceID": "inside",
                     "countryCode": "MY",
-                    "occurrenceStatus": "Present",
+                    "occurrenceStatus": "PRESENT",
                     "decimalLatitude": 3.0,
                     "decimalLongitude": 101.5,
                     "coordinateUncertaintyInMeters": 1000,
@@ -534,9 +548,14 @@ def test_openapi_exposes_iteration2_routes_and_safe_public_removal_shape() -> No
     ]
     assert removal_accuracy["type"] == "number"
     removal_fields = schema["components"]["schemas"]["RemovalReportResponse"]["properties"]
-    assert {"reportId", "sightingId", "status", "removalReportedAt", "accuracyM", "distanceM"} <= set(
-        removal_fields
-    )
+    assert {
+        "reportId",
+        "sightingId",
+        "status",
+        "removalReportedAt",
+        "accuracyM",
+        "distanceM",
+    } <= set(removal_fields)
     assert not {"latitude", "longitude", "actingProfileId"} & set(removal_fields)
     place_fields = schema["components"]["schemas"]["PlaceDetail"]["properties"]
     assert {"placeId", "displayName", "placeType", "geometryStatus", "source", "geometry"} <= set(

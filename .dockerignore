@@ -1,0 +1,17 @@
+.git
+.github
+.production-data
+.impeccable
+node_modules
+dist
+public
+data
+scripts
+test-results
+playwright-report
+e2e-harness
+backend/.venv
+backend/.pytest_cache
+backend/.ruff_cache
+**/__pycache__
+*.log

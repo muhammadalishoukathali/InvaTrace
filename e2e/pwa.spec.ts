@@ -79,13 +79,13 @@ test('offline catalogue uses a verified cache and keeps it when a replacement fa
   })
   await page.goto('/catalogue')
   await page.getByRole('button', { name: 'Download offline catalogue' }).click()
-  await expect(page.getByText('Installed v2.0.0')).toBeVisible()
+  await expect(page.getByText('Installed v2.1.0')).toBeVisible()
   const original = await page.evaluate(() => {
     const installed = JSON.parse(localStorage.getItem('invatrace.catalogue-pack.v1') ?? 'null')
     return { installed, cacheNames: [] as string[] }
   })
   original.cacheNames = await page.evaluate(() => caches.keys())
-  expect(original.installed.cacheName).toContain('invatrace-catalogue-2.0.0-')
+  expect(original.installed.cacheName).toContain('invatrace-catalogue-2.1.0-')
   expect(original.cacheNames).toContain(original.installed.cacheName)
 
   let corruptedAssetServed = false
@@ -115,7 +115,7 @@ test('offline catalogue uses a verified cache and keeps it when a replacement fa
   await page.context().setOffline(true)
   await page.reload()
   await expect(page.getByRole('list', { name: '32 catalogue plants' })).toBeVisible()
-  await expect(page.locator('.catalogue-list img')).toHaveCount(0)
+  await expect(page.locator('.catalogue-list img')).toHaveCount(32)
   const search = page.getByPlaceholder('Search scientific or common name')
   await search.fill('  GIANT SALVINIA  ')
   await expect(page.getByRole('list', { name: '1 catalogue plants' })).toBeVisible()
@@ -125,7 +125,9 @@ test('offline catalogue uses a verified cache and keeps it when a replacement fa
   await expect(page.getByText('No beginner-safe active action is provided')).toBeVisible()
   await expect(page.getByRole('heading', { name: 'Sources and credits' })).toBeVisible()
   await expect(page.locator('.catalogue-sources a').first()).toHaveAttribute('href', /^https:/)
-  await expect(page.getByText('Reference image unavailable pending reviewed attribution.')).toBeVisible()
+  await expect(page.getByRole('img', { name: 'Reference view of Salvinia molesta' })).toBeVisible()
+  await expect(page.getByText(/^Image:/)).toContainText('CC')
+  await expect(page.locator('a[href*="commons.wikimedia.org"]')).toHaveCount(1)
 
   await page.context().setOffline(false)
   await page.goto('/catalogue')

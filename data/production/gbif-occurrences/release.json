@@ -1,0 +1,23 @@
+{
+  "schema_version": "invatrace.data-release.v1",
+  "dataset_id": "gbif-malaysia-occurrences",
+  "jurisdiction": "Malaysia",
+  "scope": "Public GBIF records for the closed 32-species catalogue; backend validation remains authoritative",
+  "source": "GBIF Occurrence Search API",
+  "source_url": "https://techdocs.gbif.org/en/openapi/v1/occurrence",
+  "query_url": "https://api.gbif.org/v1/occurrence/search",
+  "upstream_version": "GBIF API snapshot retrieved 2026-09-13",
+  "retrieved_at": "2026-09-13",
+  "licence": "Mixed CC0/CC BY record licences; preserved per record",
+  "licence_url": "https://www.gbif.org/terms",
+  "file": "gbif-malaysia-occurrences-2026-09-13.json",
+  "sha256": "2e30b31ca83acbc8b6863b9e3f0b745f876731fd01964ba9866c37617112dafc",
+  "byte_length": 473450,
+  "record_count": 637,
+  "fetch_summary": {
+    "fetched": 2015,
+    "licence_accepted": 637,
+    "licence_excluded": 1378
+  },
+  "citation_note": "This API-built release is traceable by GBIF occurrence key and dataset key but has no GBIF download DOI."
+}

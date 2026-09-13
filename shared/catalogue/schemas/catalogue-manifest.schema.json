@@ -27,17 +27,21 @@
       "items": {
         "type": "object",
         "additionalProperties": false,
-        "required": ["url", "sha256", "byte_length", "review_status"],
+        "required": ["species_id", "url", "sha256", "byte_length", "review_status"],
         "properties": {
+          "species_id": { "type": "string", "pattern": "^[a-z0-9]+(?:-[a-z0-9]+)+$" },
           "url": { "type": "string", "pattern": "^/reference-images/" },
           "sha256": { "type": "string", "pattern": "^[0-9a-f]{64}$" },
           "byte_length": { "type": "integer", "minimum": 1 },
           "review_status": { "enum": ["approved", "provenance_pending"] },
           "creator": { "type": "string", "minLength": 1 },
           "licence": { "type": "string", "minLength": 1 },
+          "licence_url": { "type": "string", "format": "uri" },
           "source_title": { "type": "string", "minLength": 1 },
           "source_url_or_identifier": { "type": "string", "minLength": 1 },
-          "reviewed_at": { "type": "string", "format": "date" }
+          "retrieved_at": { "type": "string", "format": "date" },
+          "reviewed_at": { "type": "string", "format": "date" },
+          "attribution_text": { "type": "string", "minLength": 10 }
         },
         "allOf": [
           {
@@ -46,9 +50,12 @@
               "required": [
                 "creator",
                 "licence",
+                "licence_url",
                 "source_title",
                 "source_url_or_identifier",
-                "reviewed_at"
+                "retrieved_at",
+                "reviewed_at",
+                "attribution_text"
               ]
             }
           }
@@ -58,11 +65,12 @@
     "files": {
       "type": "object",
       "additionalProperties": false,
-      "required": ["approved-species.json", "plant-status.json", "plant-guidance.json"],
+      "required": ["approved-species.json", "plant-status.json", "plant-guidance.json", "reference-images.json"],
       "properties": {
         "approved-species.json": { "$ref": "#/$defs/fileEntry" },
         "plant-status.json": { "$ref": "#/$defs/fileEntry" },
-        "plant-guidance.json": { "$ref": "#/$defs/fileEntry" }
+        "plant-guidance.json": { "$ref": "#/$defs/fileEntry" },
+        "reference-images.json": { "$ref": "#/$defs/fileEntry" }
       }
     }
   },

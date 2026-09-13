@@ -2,7 +2,7 @@ import { useEffect, useRef, useState } from 'react'
 import { Link, useParams } from 'react-router-dom'
 import { Icon } from '@/components/Icon'
 import {
-  approvedCatalogueAsset,
+  approvedCatalogueAssetForSpecies,
   type ApprovedCatalogueAsset,
   approvedSpeciesDataset,
   rawGuidanceJson,
@@ -32,9 +32,9 @@ export function CatalogueDetailPage() {
   const [guidance, setGuidance] = useState<GuidanceRecord[]>(bundledGuidance)
   const [assetUrls, setAssetUrls] = useState<Record<string, string>>({})
   const [approvedImages, setApprovedImages] = useState<Record<string, ApprovedCatalogueAsset>>(
-    () => Object.fromEntries(bundledGuidance.flatMap((item) => {
-      const asset = approvedCatalogueAsset(item.reference_image)
-      return asset ? [[asset.url, asset]] : []
+    () => Object.fromEntries(approvedSpeciesDataset.records.flatMap((item) => {
+      const asset = approvedCatalogueAssetForSpecies(item.species_id)
+      return asset ? [[asset.species_id, asset]] : []
     })),
   )
   const releasePack = useRef<(() => void) | null>(null)
@@ -45,7 +45,9 @@ export function CatalogueDetailPage() {
       setDataset(pack.approved)
       setGuidance(pack.guidance.plants as unknown as GuidanceRecord[])
       setAssetUrls(pack.assetUrls)
-      setApprovedImages(pack.approvedImages)
+      setApprovedImages(Object.fromEntries(
+        Object.values(pack.approvedImages).map((asset) => [asset.species_id, asset]),
+      ))
       releasePack.current?.()
       releasePack.current = pack.release
     })
@@ -70,6 +72,7 @@ export function CatalogueDetailPage() {
     .map((sourceId) => sources.get(sourceId))
     .filter((source): source is CatalogueSource => Boolean(source))
   const safeSteps = plant?.actions?.protected_or_permission_unknown.steps.map((item) => item.text) ?? []
+  const image = approvedImages[record.species_id]
 
   return (
     <article className="catalogue-detail">
@@ -78,8 +81,8 @@ export function CatalogueDetailPage() {
       </Link>
       <header className="catalogue-detail__header">
         <div className="catalogue-detail__media">
-          {plant?.reference_image && approvedImages[plant.reference_image] ? (
-            <img src={assetUrls[plant.reference_image] ?? plant.reference_image} alt={`Reference view of ${record.scientific_name}`} />
+          {image ? (
+            <img src={assetUrls[image.url] ?? image.url} alt={`Reference view of ${record.scientific_name}`} />
           ) : <Icon name="Leaf" size={38} color="var(--green)" />}
         </div>
         <div>
@@ -127,8 +130,8 @@ export function CatalogueDetailPage() {
               </li>
             ))}
           </ul>
-          {plant?.reference_image && approvedImages[plant.reference_image] ? (
-            <ImageAttribution attribution={approvedImages[plant.reference_image]} />
+          {image ? (
+            <ImageAttribution attribution={image} />
           ) : <p>Reference image unavailable pending reviewed attribution.</p>}
           <p>Catalogue v{dataset.catalogue_version} · last reviewed {record.status_reviewed_at}</p>
         </section>
@@ -146,7 +149,7 @@ function ImageAttribution({ attribution }: { attribution: ApprovedCatalogueAsset
   return (
     <p>
       Image: {attribution.creator} · {attribution.licence} · {source}
-      {' '}· reviewed {attribution.reviewed_at}
+      {' '}· reviewed {attribution.reviewed_at} · resized for offline use
     </p>
   )
 }

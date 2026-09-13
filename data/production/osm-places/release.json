@@ -1,0 +1,30 @@
+{
+  "schema_version": "invatrace.data-release.v1",
+  "dataset_id": "osm-malaysia-places",
+  "jurisdiction": "Malaysia",
+  "scope": "Named Malaysian parks, forests and public trails selected from the Malaysia-Singapore-Brunei regional extract using the reviewed national boundary",
+  "source": "OpenStreetMap contributors via Geofabrik GmbH",
+  "source_url": "https://download.geofabrik.de/asia/malaysia-singapore-brunei.html",
+  "download_url": "https://download.geofabrik.de/asia/malaysia-singapore-brunei-latest.osm.pbf",
+  "upstream_version": "Geofabrik replication sequence 4907",
+  "source_timestamp": "2026-09-12T20:21:58Z",
+  "retrieved_at": "2026-09-13",
+  "licence": "Open Data Commons Open Database License 1.0",
+  "licence_url": "https://www.openstreetmap.org/copyright",
+  "file": "malaysia-singapore-brunei-2026-09-12.osm.pbf",
+  "upstream_md5": "f0ac6246e2b42583697d316a205931d9",
+  "sha256": "01e16a33157689db74c401f4a6e9204526883369b999e3c92a561ac4a5a78699",
+  "byte_length": 250727913,
+  "country_boundary_release": "../malaysia-boundary/release.json",
+  "country_boundary_sha256": "20ffa28d8b7980060d43418a6a4a250ffdbcd805c514189accec9f799a181d77",
+  "included_area_tags": [
+    "leisure=park",
+    "leisure=nature_reserve",
+    "boundary=national_park",
+    "boundary=protected_area",
+    "landuse=forest",
+    "natural=wood"
+  ],
+  "included_trail_highways": ["path", "footway", "track"],
+  "notes": "The PBF is intentionally not committed. Production imports must supply these exact bytes; the importer verifies SHA-256 and filters every retained geometry against the reviewed Malaysia boundary."
+}

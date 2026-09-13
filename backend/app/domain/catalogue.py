@@ -31,6 +31,7 @@ PLANT_STATUS_PATH = CATALOGUE_ROOT / "plant-status.json"
 PLANT_GUIDANCE_PATH = CATALOGUE_ROOT / "plant-guidance.json"
 MANIFEST_PATH = CATALOGUE_ROOT / "catalogue-manifest.json"
 APPROVED_SPECIES_PATH = CATALOGUE_ROOT / "approved-species.json"
+REFERENCE_IMAGES_PATH = CATALOGUE_ROOT / "reference-images.json"
 
 VALID_UI_STATES = frozenset({"invasive", "information_only", "status_uncertain"})
 
@@ -83,15 +84,20 @@ class CatalogueManifest:
     plant_guidance_byte_length: int
     approved_species_sha256: str
     approved_species_byte_length: int
+    reference_images_sha256: str
+    reference_images_byte_length: int
 
 
 @dataclass(frozen=True)
 class ApprovedCatalogueImage:
+    species_id: str
     url: str
     creator: str
     licence: str
+    licence_url: str
     source_title: str
     source_url_or_identifier: str
+    attribution_text: str
     reviewed_at: date
 
 
@@ -124,6 +130,8 @@ def load_manifest() -> CatalogueManifest:
             plant_guidance_byte_length=int(files["plant-guidance.json"]["byte_length"]),
             approved_species_sha256=files["approved-species.json"]["sha256"],
             approved_species_byte_length=int(files["approved-species.json"]["byte_length"]),
+            reference_images_sha256=files["reference-images.json"]["sha256"],
+            reference_images_byte_length=int(files["reference-images.json"]["byte_length"]),
         )
     except (KeyError, ValueError) as exc:
         raise CatalogueError(f"Catalogue manifest is malformed: {exc}") from exc
@@ -139,21 +147,29 @@ def approved_catalogue_images() -> dict[str, ApprovedCatalogueImage]:
             continue
         required = (
             "url",
+            "species_id",
             "creator",
             "licence",
+            "licence_url",
             "source_title",
             "source_url_or_identifier",
             "reviewed_at",
+            "attribution_text",
         )
-        if not all(isinstance(asset.get(field), str) and asset[field].strip() for field in required):
+        if not all(
+            isinstance(asset.get(field), str) and asset[field].strip() for field in required
+        ):
             raise CatalogueError("An approved catalogue image has incomplete provenance metadata.")
         try:
             image = ApprovedCatalogueImage(
+                species_id=asset["species_id"],
                 url=asset["url"],
                 creator=asset["creator"],
                 licence=asset["licence"],
+                licence_url=asset["licence_url"],
                 source_title=asset["source_title"],
                 source_url_or_identifier=asset["source_url_or_identifier"],
+                attribution_text=asset["attribution_text"],
                 reviewed_at=date.fromisoformat(asset["reviewed_at"]),
             )
         except ValueError as exc:
@@ -166,6 +182,14 @@ def approved_catalogue_image(url: str | None) -> ApprovedCatalogueImage | None:
     if not url:
         return None
     return approved_catalogue_images().get(url)
+
+
+def approved_catalogue_image_for_species(species_id: str) -> ApprovedCatalogueImage | None:
+    normalized = species_id.strip().lower().replace("_", "-")
+    return next(
+        (image for image in approved_catalogue_images().values() if image.species_id == normalized),
+        None,
+    )
 
 
 @lru_cache(maxsize=1)
@@ -316,6 +340,12 @@ def verify_disk_checksums() -> None:
         raise CatalogueError(
             "approved-species.json checksum drift: "
             f"expected {manifest.approved_species_sha256}, got {actual_approved}"
+        )
+    actual_reference_images = _sha256(REFERENCE_IMAGES_PATH)
+    if actual_reference_images != manifest.reference_images_sha256:
+        raise CatalogueError(
+            "reference-images.json checksum drift: "
+            f"expected {manifest.reference_images_sha256}, got {actual_reference_images}"
         )
 
 

@@ -95,17 +95,27 @@ def main() -> None:
     access.add_argument("--role", choices=ROLES, required=True)
     access.add_argument("--trust", choices=TRUST_LEVELS, required=True)
     osm = commands.add_parser(
-        "import-osm", help="import named parks, forests, and trails from a Malaysia-clipped PBF"
+        "import-osm", help="import Malaysian parks, forests, and trails from a regional OSM PBF"
     )
     osm.add_argument("path", type=Path)
     osm.add_argument("--source-date", type=datetime.fromisoformat, required=True)
-    # We don't clip the extract ourselves - this flag is just a manual
-    # "yes I already did that" guard so nobody accidentally imports a
-    # planet-sized file and floods the DB with places outside Malaysia.
     osm.add_argument(
-        "--confirm-malaysia-clipped",
-        action="store_true",
-        help="required guard: confirm the extract is already clipped to Malaysia",
+        "--release-manifest",
+        type=Path,
+        required=True,
+        help="auditable source, licence, timestamp and SHA-256 metadata for the PBF",
+    )
+    osm.add_argument(
+        "--country-boundary",
+        type=Path,
+        required=True,
+        help="reviewed Malaysia Polygon/MultiPolygon GeoJSON used for spatial filtering",
+    )
+    osm.add_argument(
+        "--country-boundary-manifest",
+        type=Path,
+        required=True,
+        help="auditable metadata and SHA-256 for the Malaysia boundary",
     )
     occurrences = commands.add_parser(
         "import-occurrences",
@@ -115,10 +125,22 @@ def main() -> None:
     occurrences.add_argument("--source", required=True)
     occurrences.add_argument("--processed-data-version", required=True)
     occurrences.add_argument(
+        "--release-manifest",
+        type=Path,
+        required=True,
+        help="auditable source query, retrieval date, licence policy and SHA-256 metadata",
+    )
+    occurrences.add_argument(
         "--country-boundary",
         type=Path,
         required=True,
         help="reviewed Malaysia Polygon/MultiPolygon GeoJSON used to reject coordinate mismatch",
+    )
+    occurrences.add_argument(
+        "--country-boundary-manifest",
+        type=Path,
+        required=True,
+        help="auditable release metadata and SHA-256 for the Malaysia boundary",
     )
     waterways = commands.add_parser(
         "import-waterway-evidence",
@@ -136,6 +158,18 @@ def main() -> None:
     boundaries.add_argument("--updated-at", type=datetime.fromisoformat, required=True)
     boundaries.add_argument("--coverage-note", required=True)
     boundaries.add_argument("--coverage-geojson", type=Path, required=True)
+    boundaries.add_argument(
+        "--release-manifest",
+        type=Path,
+        required=True,
+        help="auditable source, licence, version, retrieval date and SHA-256 metadata",
+    )
+    boundaries.add_argument(
+        "--coverage-release-manifest",
+        type=Path,
+        required=True,
+        help="auditable source, licence, version, retrieval date and SHA-256 for coverage",
+    )
     cleanup = commands.add_parser(
         "cleanup-uploads", help="delete expired, unsubmitted photo uploads"
     )
@@ -175,8 +209,6 @@ def main() -> None:
     elif args.command == "set-profile-access":
         set_profile_access(args.profile_id, args.role, args.trust)
     elif args.command == "import-osm":
-        if not args.confirm_malaysia_clipped:
-            raise SystemExit("Refusing import without --confirm-malaysia-clipped.")
         # Lazy import so the rest of the CLI (worker, seed, cleanup) does not
         # pull in the pyosmium native extension, which the API/worker images
         # do not need at runtime.
@@ -184,7 +216,12 @@ def main() -> None:
 
         with SessionLocal() as session:
             imported = import_malaysia_pbf(
-                session, source_path=args.path.resolve(), source_date=args.source_date
+                session,
+                source_path=args.path.resolve(),
+                source_date=args.source_date,
+                release_manifest_path=args.release_manifest.resolve(),
+                country_boundary_path=args.country_boundary.resolve(),
+                country_boundary_manifest_path=args.country_boundary_manifest.resolve(),
             )
         print(
             f"Imported {imported.area_count} named areas and {imported.trail_count} named trails."
@@ -199,6 +236,8 @@ def main() -> None:
                 source=args.source,
                 processed_data_version=args.processed_data_version,
                 country_boundary_path=args.country_boundary.resolve(),
+                country_boundary_manifest_path=args.country_boundary_manifest.resolve(),
+                release_manifest_path=args.release_manifest.resolve(),
             )
         print(
             f"Imported {result.accepted} records; excluded {result.excluded}. "
@@ -216,6 +255,8 @@ def main() -> None:
                 updated_at=args.updated_at,
                 coverage_note=args.coverage_note,
                 coverage_path=args.coverage_geojson.resolve(),
+                release_manifest_path=args.release_manifest.resolve(),
+                coverage_release_manifest_path=args.coverage_release_manifest.resolve(),
             )
         print(
             f"Protected-area release {result.source}/{result.version} is active with "

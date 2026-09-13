@@ -1,0 +1,21 @@
+{
+  "schema_version": "invatrace.data-release.v1",
+  "dataset_id": "malaysia-national-boundary",
+  "jurisdiction": "Malaysia",
+  "scope": "ADM0 national land boundary used for country-coordinate validation",
+  "source": "geoBoundaries gbOpen",
+  "source_url": "https://www.geoboundaries.org/api/current/gbOpen/MYS/ADM0/",
+  "download_url": "https://github.com/wmgeolab/geoBoundaries/raw/9469f09/releaseData/gbOpen/MYS/ADM0/geoBoundaries-MYS-ADM0.geojson",
+  "upstream_version": "geoBoundaries repository commit 9469f09; boundary ID MYS-ADM0-87038898",
+  "represented_year": "2017",
+  "source_data_updated_at": "2023-01-19",
+  "retrieved_at": "2026-09-13",
+  "licence": "Open Data Commons Open Database License 1.0",
+  "licence_url": "https://www.openstreetmap.org/copyright",
+  "file": "geoBoundaries-MYS-ADM0.geojson",
+  "sha256": "20ffa28d8b7980060d43418a6a4a250ffdbcd805c514189accec9f799a181d77",
+  "byte_length": 2996046,
+  "geometry_type": "MultiPolygon",
+  "feature_count": 1,
+  "notes": "The dataset-specific API record identifies OpenStreetMap/Wambacher as the source and ODbL 1.0 as the licence; this more specific licence is retained instead of assuming the general gbOpen default."
+}
