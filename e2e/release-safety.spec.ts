@@ -28,7 +28,9 @@ async function chooseSyntheticGalleryPhoto(page: Page) {
 // The permission guidance text carries legal/safety info, so it should only
 // appear once the user has picked an option - not shown by default, and not
 // showing the other option's text at the same time as this one's.
-test('gallery scans can be reported and reveal guidance only after a permission choice', async ({ page }) => {
+test('gallery scans require a safe location result and permission before active guidance', async ({ page, context }) => {
+  await context.grantPermissions(['geolocation'], { origin: 'http://localhost:5173' })
+  await context.setGeolocation({ latitude: 3.1497, longitude: 101.6412, accuracy: 15 })
   await startPrivateAccess(page)
   await chooseSyntheticGalleryPhoto(page)
 
@@ -44,6 +46,8 @@ test('gallery scans can be reported and reveal guidance only after a permission 
   await expect(page.getByText('Protected land or no permission')).toBeVisible()
   await expect(page.getByText('If the land manager has approved it')).toHaveCount(0)
 
+  await page.getByRole('button', { name: /Check current location/i }).click()
+  await expect(page.getByText('No mapped protected-area intersection found')).toBeVisible()
   await page.getByRole('radio', { name: /permission from the land manager/i }).check()
   await expect(page.getByText('Protected land or no permission')).toHaveCount(0)
 })

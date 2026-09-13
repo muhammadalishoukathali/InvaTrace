@@ -30,6 +30,7 @@ CATALOGUE_ROOT = Path(__file__).resolve().parents[3] / "shared" / "catalogue"
 PLANT_STATUS_PATH = CATALOGUE_ROOT / "plant-status.json"
 PLANT_GUIDANCE_PATH = CATALOGUE_ROOT / "plant-guidance.json"
 MANIFEST_PATH = CATALOGUE_ROOT / "catalogue-manifest.json"
+APPROVED_SPECIES_PATH = CATALOGUE_ROOT / "approved-species.json"
 
 VALID_UI_STATES = frozenset({"invasive", "information_only", "status_uncertain"})
 
@@ -58,6 +59,19 @@ class PlantStatusRecord:
 
 
 @dataclass(frozen=True)
+class ApprovedSpeciesRecord:
+    species_id: str
+    scientific_name: str
+    accepted_scientific_name: str | None
+    common_names: tuple[str, ...]
+    evidence_source_ids: tuple[str, ...]
+    evidence_summary: str
+    habitats: tuple[str, ...]
+    water_dispersed: bool
+    status_reviewed_at: date
+
+
+@dataclass(frozen=True)
 class CatalogueManifest:
     catalogue_version: str
     content_version: str
@@ -67,6 +81,18 @@ class CatalogueManifest:
     plant_status_byte_length: int
     plant_guidance_sha256: str
     plant_guidance_byte_length: int
+    approved_species_sha256: str
+    approved_species_byte_length: int
+
+
+@dataclass(frozen=True)
+class ApprovedCatalogueImage:
+    url: str
+    creator: str
+    licence: str
+    source_title: str
+    source_url_or_identifier: str
+    reviewed_at: date
 
 
 def _read_json(path: Path) -> Any:
@@ -96,9 +122,50 @@ def load_manifest() -> CatalogueManifest:
             plant_status_byte_length=int(files["plant-status.json"]["byte_length"]),
             plant_guidance_sha256=files["plant-guidance.json"]["sha256"],
             plant_guidance_byte_length=int(files["plant-guidance.json"]["byte_length"]),
+            approved_species_sha256=files["approved-species.json"]["sha256"],
+            approved_species_byte_length=int(files["approved-species.json"]["byte_length"]),
         )
     except (KeyError, ValueError) as exc:
         raise CatalogueError(f"Catalogue manifest is malformed: {exc}") from exc
+
+
+@lru_cache(maxsize=1)
+def approved_catalogue_images() -> dict[str, ApprovedCatalogueImage]:
+    """Return only image assets with complete, reviewed provenance metadata."""
+    manifest = _read_json(MANIFEST_PATH)
+    images: dict[str, ApprovedCatalogueImage] = {}
+    for asset in manifest.get("assets", []):
+        if asset.get("review_status") != "approved":
+            continue
+        required = (
+            "url",
+            "creator",
+            "licence",
+            "source_title",
+            "source_url_or_identifier",
+            "reviewed_at",
+        )
+        if not all(isinstance(asset.get(field), str) and asset[field].strip() for field in required):
+            raise CatalogueError("An approved catalogue image has incomplete provenance metadata.")
+        try:
+            image = ApprovedCatalogueImage(
+                url=asset["url"],
+                creator=asset["creator"],
+                licence=asset["licence"],
+                source_title=asset["source_title"],
+                source_url_or_identifier=asset["source_url_or_identifier"],
+                reviewed_at=date.fromisoformat(asset["reviewed_at"]),
+            )
+        except ValueError as exc:
+            raise CatalogueError("An approved catalogue image has an invalid review date.") from exc
+        images[image.url] = image
+    return images
+
+
+def approved_catalogue_image(url: str | None) -> ApprovedCatalogueImage | None:
+    if not url:
+        return None
+    return approved_catalogue_images().get(url)
 
 
 @lru_cache(maxsize=1)
@@ -108,9 +175,7 @@ def load_status_records() -> tuple[PlantStatusRecord, ...]:
     for raw in data.get("records", []):
         ui_state = raw.get("ui_state")
         if ui_state not in VALID_UI_STATES:
-            raise CatalogueError(
-                f"Invalid ui_state {ui_state!r} for {raw.get('species_id')!r}"
-            )
+            raise CatalogueError(f"Invalid ui_state {ui_state!r} for {raw.get('species_id')!r}")
         report_eligible = bool(raw.get("report_eligible", False))
         if ui_state != "invasive" and report_eligible:
             raise CatalogueError(
@@ -138,6 +203,76 @@ def load_status_records() -> tuple[PlantStatusRecord, ...]:
             f"({data.get('class_count')} declared, {len(records)} present)"
         )
     return tuple(records)
+
+
+@lru_cache(maxsize=1)
+def load_approved_species() -> tuple[ApprovedSpeciesRecord, ...]:
+    """Load the closed Iteration 2 business allowlist.
+
+    The shipped classifier catalogue is deliberately separate: while the new
+    32-class model is being trained, old model labels may still exist locally,
+    but reporting, occurrence association, and public catalogue APIs may only
+    use records returned here.
+    """
+    data = _read_json(APPROVED_SPECIES_PATH)
+    raw_records = data.get("records", [])
+    if data.get("record_count") != 32 or len(raw_records) != 32:
+        raise CatalogueError("approved-species.json must contain exactly 32 records")
+    source_ids = {source.get("source_id") for source in data.get("sources", [])}
+    records: list[ApprovedSpeciesRecord] = []
+    seen_ids: set[str] = set()
+    seen_names: set[str] = set()
+    for raw in raw_records:
+        species_id = raw["species_id"]
+        scientific_name = raw["scientific_name"]
+        normalized_name = scientific_name.casefold().strip()
+        if species_id in seen_ids or normalized_name in seen_names:
+            raise CatalogueError(f"Duplicate approved species: {species_id}")
+        missing_sources = set(raw["evidence_source_ids"]) - source_ids
+        if missing_sources:
+            raise CatalogueError(
+                f"Unknown evidence source(s) for {species_id}: {sorted(missing_sources)}"
+            )
+        if raw.get("malaysia_status") != "Present":
+            raise CatalogueError(f"Approved species must be Present: {species_id}")
+        seen_ids.add(species_id)
+        seen_names.add(normalized_name)
+        records.append(
+            ApprovedSpeciesRecord(
+                species_id=species_id,
+                scientific_name=scientific_name,
+                accepted_scientific_name=raw.get("accepted_scientific_name"),
+                common_names=tuple(raw["common_names"]),
+                evidence_source_ids=tuple(raw["evidence_source_ids"]),
+                evidence_summary=raw["evidence_summary"],
+                habitats=tuple(raw["habitats"]),
+                water_dispersed=bool(raw["water_dispersed"]),
+                status_reviewed_at=date.fromisoformat(raw["status_reviewed_at"]),
+            )
+        )
+    return tuple(records)
+
+
+def approved_species_record(species_id: str) -> ApprovedSpeciesRecord | None:
+    normalized = species_id.strip().lower().replace("_", "-")
+    return next(
+        (record for record in load_approved_species() if record.species_id == normalized),
+        None,
+    )
+
+
+def is_approved_species(species_id: str | None) -> bool:
+    return species_id is not None and approved_species_record(species_id) is not None
+
+
+@lru_cache(maxsize=1)
+def load_approved_dataset() -> dict[str, Any]:
+    return _read_json(APPROVED_SPECIES_PATH)
+
+
+@lru_cache(maxsize=1)
+def load_guidance_dataset() -> dict[str, Any]:
+    return _read_json(PLANT_GUIDANCE_PATH)
 
 
 def status_record_for_species(species_id: str) -> PlantStatusRecord | None:
@@ -175,6 +310,12 @@ def verify_disk_checksums() -> None:
         raise CatalogueError(
             "plant-guidance.json checksum drift: "
             f"expected {manifest.plant_guidance_sha256}, got {actual_guidance}"
+        )
+    actual_approved = _sha256(APPROVED_SPECIES_PATH)
+    if actual_approved != manifest.approved_species_sha256:
+        raise CatalogueError(
+            "approved-species.json checksum drift: "
+            f"expected {manifest.approved_species_sha256}, got {actual_approved}"
         )
 
 

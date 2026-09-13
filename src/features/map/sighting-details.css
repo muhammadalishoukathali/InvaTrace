@@ -297,6 +297,20 @@
   line-height: 1.35;
 }
 
+.pin-sheet__removal {
+  margin-top: 18px;
+  padding: 16px;
+  border: 1px solid var(--green-border);
+  border-radius: var(--r-card);
+  background: var(--green-light);
+}
+.pin-sheet__removal h3 { font-size: 15px; }
+.pin-sheet__removal p { margin-top: 7px; color: var(--body); font-size: 12.5px; line-height: 1.5; }
+.pin-sheet__removal button { min-height: 42px; margin-top: 12px; padding: 0 14px; border: 0; border-radius: var(--r-button); background: var(--green); color: white; font-weight: 650; cursor: pointer; }
+.pin-sheet__removal-fix { margin-top: 12px; display: grid; gap: 7px; color: var(--body); font-size: 12.5px; }
+.pin-sheet__removal-fix button { justify-self: start; margin-top: 2px; }
+.pin-sheet__removal-fix span[role="alert"] { color: var(--red-text); }
+
 .pin-sheet__guidance {
   margin-top: 28px;
   padding: 0;

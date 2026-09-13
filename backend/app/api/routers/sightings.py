@@ -19,7 +19,15 @@ from app.core.pagination import decode_cursor, encode_cursor
 from app.core.privacy import public_coordinates
 from app.core.rate_limit import client_address, rate_limiter
 from app.db.base import get_session
-from app.db.models import MonitoredArea, Report, ReportSightingLink, Sighting, Species, Trail
+from app.db.models import (
+    MonitoredArea,
+    Report,
+    ReportSightingLink,
+    Sighting,
+    SightingStatusEvent,
+    Species,
+    Trail,
+)
 from app.domain.action_guidance import action_summary, current_action_guide
 from app.services.storage import storage
 
@@ -46,6 +54,7 @@ def serialize_sighting(
     area_name: str | None,
     trail_name: str | None,
     confidence: float | None = None,
+    removal_reported_at: datetime | None = None,
 ) -> SightingResponse:
     lat, lng, reduced = public_coordinates(
         sighting_id=str(sighting.id),
@@ -73,6 +82,7 @@ def serialize_sighting(
         precision_reduced=reduced,
         report_count=report_count,
         last_reported_at=last_reported_at or sighting.created_at,
+        removal_reported_at=removal_reported_at,
         place=PlaceAssociation(
             display_name=sighting.place_label,
             area_name=area_name,
@@ -156,23 +166,22 @@ def list_sightings(
             MonitoredArea.name,
             Trail.name,
             confidence_expr,
+            func.max(SightingStatusEvent.created_at),
         )
         .join(Species, Species.id == Sighting.species_id)
         .outerjoin(MonitoredArea, MonitoredArea.id == Sighting.area_id)
         .outerjoin(Trail, Trail.id == Sighting.trail_id)
         .outerjoin(ReportSightingLink, ReportSightingLink.sighting_id == Sighting.id)
         .outerjoin(Report, Report.id == ReportSightingLink.report_id)
-        # AC 4.2.1 - Iteration 1 public map/list expose only `screened`
-        # sightings. `removed` stays in the DB for forward compatibility but
-        # is not surfaced through the public API until the AC is amended.
-        .where(Sighting.status == "screened")
+        .outerjoin(SightingStatusEvent, SightingStatusEvent.sighting_id == Sighting.id)
+        .where(Sighting.status.in_({"screened", "removed", "removal_reported"}))
         .group_by(Sighting.id, Species.id, MonitoredArea.name, Trail.name)
         .order_by(Sighting.updated_at.desc(), Sighting.id.desc())
     )
     if species:
         statement = statement.where(Sighting.species_id.in_(species))
     if status:
-        allowed = {"screened"}
+        allowed = {"screened", "removed", "removal_reported"}
         if not set(status).issubset(allowed):
             raise ApiProblem(400, "invalid_filter", "The status filter is invalid.")
         statement = statement.where(Sighting.status.in_(status))
@@ -196,8 +205,14 @@ def list_sightings(
     return SightingListResponse(
         items=[
             serialize_sighting(
-                row[0], row[1], int(row[2]), row[3], row[4], row[5],
+                row[0],
+                row[1],
+                int(row[2]),
+                row[3],
+                row[4],
+                row[5],
                 confidence=float(row[6]) if row[6] is not None else None,
+                removal_reported_at=row[7],
             )
             for row in rows
         ],
@@ -231,28 +246,45 @@ def sighting_detail(
             MonitoredArea.name,
             Trail.name,
             func.max(Report.confidence).filter(ReportSightingLink.active.is_(True)),
+            func.max(SightingStatusEvent.created_at),
         )
         .join(Species, Species.id == Sighting.species_id)
         .outerjoin(MonitoredArea, MonitoredArea.id == Sighting.area_id)
         .outerjoin(Trail, Trail.id == Sighting.trail_id)
         .outerjoin(ReportSightingLink, ReportSightingLink.sighting_id == Sighting.id)
         .outerjoin(Report, Report.id == ReportSightingLink.report_id)
+        .outerjoin(SightingStatusEvent, SightingStatusEvent.sighting_id == Sighting.id)
         .where(
             Sighting.id == parsed_id,
-            # AC 4.2.1 - Iteration 1 public detail also excludes `removed`.
-            Sighting.status == "screened",
+            Sighting.status.in_({"screened", "removed", "removal_reported"}),
         )
         .group_by(Sighting.id, Species.id, MonitoredArea.name, Trail.name)
     ).first()
     if not row:
         raise ApiProblem(404, "sighting_not_found", "Not found")
     summary = serialize_sighting(
-        row[0], row[1], int(row[2]), row[3], row[4], row[5],
+        row[0],
+        row[1],
+        int(row[2]),
+        row[3],
+        row[4],
+        row[5],
         confidence=float(row[6]) if row[6] is not None else None,
+        removal_reported_at=row[7],
+    )
+    removal_report_id = session.scalar(
+        select(ReportSightingLink.report_id)
+        .where(
+            ReportSightingLink.sighting_id == parsed_id,
+            ReportSightingLink.active.is_(True),
+        )
+        .order_by(ReportSightingLink.linked_at, ReportSightingLink.report_id)
+        .limit(1)
     )
     return SightingDetailResponse(
         **summary.model_dump(),
         recommended_action=action_summary(row[1]),
         action_guide=current_action_guide(row[1]),
         reporter_trust=row[0].reporter_trust,
+        removal_report_id=str(removal_report_id) if removal_report_id else None,
     )

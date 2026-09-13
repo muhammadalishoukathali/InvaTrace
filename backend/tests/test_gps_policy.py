@@ -1,8 +1,8 @@
-"""Regression tests for the single 300 m GPS accuracy policy.
+"""Regression tests for the single 250 m GPS accuracy policy.
 
 AC Iteration 1 P7 - the whole pipeline shares one threshold. This test
 asserts:
-  1. The backend setting defaults to 300 m.
+  1. The backend setting defaults to 250 m.
   2. The validation policy actually uses the setting's default when a
      caller omits the threshold field.
   3. The frontend policy file (gps-policy.ts) hard-codes the same number
@@ -44,21 +44,20 @@ def test_validation_default_threshold_is_300_metres() -> None:
         " caller that omits the field still gets the canonical policy."
     )
     assert "location_accuracy_threshold_m: int = DEFAULT_LOCATION_ACCURACY_MAX_M" in source, (
-        "ValidationInput must default the threshold to the canonical constant,"
-        " not a raw literal."
+        "ValidationInput must default the threshold to the canonical constant, not a raw literal."
     )
-    assert (
-        "input.location_accuracy_m > input.location_accuracy_threshold_m" in source
-    ), "The rescan check must compare against the input threshold, not a hard-coded value."
+    assert "input.location_accuracy_m > input.location_accuracy_threshold_m" in source, (
+        "The rescan check must compare against the input threshold, not a hard-coded value."
+    )
 
 
 def test_frontend_gps_policy_pins_the_same_threshold() -> None:
-    frontend = Path("/Users/moham/Desktop/fyp/invatrace-web/src/features/report/gps-policy.ts")
-    text = frontend.read_text()
+    frontend = REPO_ROOT.parent / "src/features/report/gps-policy.ts"
+    text = frontend.read_text(encoding="utf-8")
     assert "LOCATION_ACCURACY_MAX_M = 250" in text, (
         "Frontend gps-policy.ts must pin the threshold at 250 m to match the"
         " backend screening_location_accuracy_max_m default."
     )
-    assert (
-        "within ${LOCATION_ACCURACY_MAX_M} metres" in text
-    ), "The insufficient-accuracy message must interpolate the shared constant, not a literal."
+    assert "within ${LOCATION_ACCURACY_MAX_M} metres" in text, (
+        "The insufficient-accuracy message must interpolate the shared constant, not a literal."
+    )

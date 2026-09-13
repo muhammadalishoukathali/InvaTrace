@@ -1,0 +1,229 @@
+import approvedRaw from '@shared/catalogue/approved-species.json?raw'
+import guidanceRaw from '@shared/catalogue/plant-guidance.json?raw'
+import statusRaw from '@shared/catalogue/plant-status.json?raw'
+import {
+  catalogueManifest,
+  type ApprovedCatalogueAsset,
+  type CatalogueAsset,
+  type ApprovedSpeciesDataset,
+  isApprovedCatalogueAsset,
+} from '@shared/catalogue'
+
+const STORAGE_KEY = 'invatrace.catalogue-pack.v1'
+const CACHE_PREFIX = 'invatrace-catalogue-'
+
+export interface InstalledCataloguePack {
+  version: string
+  installedAt: string
+  reviewedAt: string
+  byteSize: number
+  cacheName?: string
+  files?: Record<string, { sha256: string; byteLength: number }>
+  assets?: Array<CatalogueAsset & { byteLength: number }>
+}
+
+export interface OfflineCatalogueData {
+  approved: ApprovedSpeciesDataset
+  guidance: { plants: Array<Record<string, unknown>> }
+  assetUrls: Record<string, string>
+  approvedImages: Record<string, ApprovedCatalogueAsset>
+  release: () => void
+}
+
+const rawFiles: Record<string, string> = {
+  'approved-species.json': approvedRaw,
+  'plant-guidance.json': guidanceRaw,
+  'plant-status.json': statusRaw,
+}
+
+export function cataloguePackSize(): number {
+  const files = Object.values(catalogueManifest.files)
+    .reduce((total, file) => total + file.byte_length, 0)
+  return files + catalogueManifest.assets.reduce((total, asset) => total + asset.byte_length, 0)
+}
+
+export function installedCataloguePack(): InstalledCataloguePack | null {
+  try {
+    const parsed = JSON.parse(localStorage.getItem(STORAGE_KEY) ?? 'null') as InstalledCataloguePack | null
+    return parsed?.version ? parsed : null
+  } catch {
+    return null
+  }
+}
+
+async function sha256(value: string): Promise<string> {
+  const digest = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(value))
+  return Array.from(new Uint8Array(digest), (byte) => byte.toString(16).padStart(2, '0')).join('')
+}
+
+async function sha256Bytes(value: ArrayBuffer): Promise<string> {
+  const digest = await crypto.subtle.digest('SHA-256', value)
+  return Array.from(new Uint8Array(digest), (byte) => byte.toString(16).padStart(2, '0')).join('')
+}
+
+export async function downloadCataloguePack(): Promise<InstalledCataloguePack> {
+  if (!('caches' in window) || !crypto.subtle) {
+    throw new Error('Offline catalogue storage is not supported by this browser.')
+  }
+  for (const [name, raw] of Object.entries(rawFiles)) {
+    const expected = catalogueManifest.files[name as keyof typeof catalogueManifest.files]
+    if (!expected || new TextEncoder().encode(raw).byteLength !== expected.byte_length) {
+      throw new Error(`Catalogue file size check failed for ${name}.`)
+    }
+    if (await sha256(raw) !== expected.sha256) {
+      throw new Error(`Catalogue checksum check failed for ${name}.`)
+    }
+  }
+  // Build the complete pack under a fresh cache name. The installed pointer is
+  // switched only after every file passes integrity validation, so a failed
+  // update or same-version re-download cannot damage the last valid pack.
+  const cacheName = `${CACHE_PREFIX}${catalogueManifest.catalogue_version}-${crypto.randomUUID()}`
+  const cache = await caches.open(cacheName)
+  try {
+    await Promise.all(Object.entries(rawFiles).map(([name, raw]) => cache.put(
+      new Request(`/offline-catalogue/${catalogueManifest.catalogue_version}/${name}`),
+      new Response(raw, { headers: { 'Content-Type': 'application/json' } }),
+    )))
+    for (const asset of catalogueManifest.assets) {
+      const response = await fetch(asset.url, { cache: 'no-store' })
+      if (!response.ok) throw new Error(`Catalogue asset download failed for ${asset.url}.`)
+      const bytes = await response.arrayBuffer()
+      if (bytes.byteLength !== asset.byte_length || await sha256Bytes(bytes) !== asset.sha256) {
+        throw new Error(`Catalogue asset integrity check failed for ${asset.url}.`)
+      }
+      await cache.put(new Request(asset.url), new Response(bytes, {
+        headers: { 'Content-Type': response.headers.get('Content-Type') ?? 'image/jpeg' },
+      }))
+    }
+  } catch (error) {
+    await caches.delete(cacheName)
+    throw error
+  }
+  const installed: InstalledCataloguePack = {
+    version: catalogueManifest.catalogue_version,
+    installedAt: new Date().toISOString(),
+    reviewedAt: catalogueManifest.last_reviewed,
+    byteSize: cataloguePackSize(),
+    cacheName,
+    files: Object.fromEntries(Object.entries(catalogueManifest.files).map(([name, file]) => [
+      name,
+      { sha256: file.sha256, byteLength: file.byte_length },
+    ])),
+    assets: catalogueManifest.assets.map((asset) => ({
+      ...asset,
+      url: asset.url,
+      sha256: asset.sha256,
+      byteLength: asset.byte_length,
+    })),
+  }
+  try {
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(installed))
+  } catch (error) {
+    await caches.delete(cacheName)
+    throw error
+  }
+  const keys = await caches.keys()
+  await Promise.all(
+    keys
+      .filter((name) => name.startsWith(CACHE_PREFIX) && name !== cacheName)
+      .map((name) => caches.delete(name)),
+  )
+  return installed
+}
+
+export async function loadInstalledCatalogueData(): Promise<OfflineCatalogueData | null> {
+  const installed = installedCataloguePack()
+  if (!installed || !('caches' in window) || !crypto.subtle) return null
+  const cacheName = installed.cacheName ?? `${CACHE_PREFIX}${installed.version}`
+  const cache = await caches.open(cacheName)
+  const loaded: Record<string, string> = {}
+  for (const name of Object.keys(rawFiles)) {
+    const response = await cache.match(`/offline-catalogue/${installed.version}/${name}`)
+    if (!response) return null
+    const raw = await response.text()
+    const bundled = catalogueManifest.files[name as keyof typeof catalogueManifest.files]
+    const stored = installed.files?.[name]
+    const expected = stored ?? (
+      installed.version === catalogueManifest.catalogue_version
+        ? { sha256: bundled.sha256, byteLength: bundled.byte_length }
+        : null
+    )
+    if (!expected) return null
+    if (new TextEncoder().encode(raw).byteLength !== expected.byteLength) return null
+    if (await sha256(raw) !== expected.sha256) return null
+    loaded[name] = raw
+  }
+  const expectedAssets = installed.assets ?? (
+    installed.version === catalogueManifest.catalogue_version
+      ? catalogueManifest.assets.map((asset) => ({
+          ...asset,
+          url: asset.url,
+          sha256: asset.sha256,
+          byteLength: asset.byte_length,
+        }))
+      : null
+  )
+  if (!expectedAssets) return null
+  const assetUrls: Record<string, string> = {}
+  const objectUrls: string[] = []
+  for (const asset of expectedAssets) {
+    const response = await cache.match(asset.url)
+    if (!response) {
+      objectUrls.forEach((url) => URL.revokeObjectURL(url))
+      return null
+    }
+    const bytes = await response.arrayBuffer()
+    if (bytes.byteLength !== asset.byteLength || await sha256Bytes(bytes) !== asset.sha256) {
+      objectUrls.forEach((url) => URL.revokeObjectURL(url))
+      return null
+    }
+    const objectUrl = URL.createObjectURL(new Blob([bytes], {
+      type: response.headers.get('Content-Type') ?? 'image/jpeg',
+    }))
+    objectUrls.push(objectUrl)
+    assetUrls[asset.url] = objectUrl
+  }
+  try {
+    const approved = JSON.parse(loaded['approved-species.json']) as ApprovedSpeciesDataset
+    const guidance = JSON.parse(loaded['plant-guidance.json']) as OfflineCatalogueData['guidance']
+    if (
+      approved.catalogue_version !== installed.version
+      || approved.record_count !== 32
+      || approved.records.length !== 32
+      || !Array.isArray(guidance.plants)
+    ) {
+      objectUrls.forEach((url) => URL.revokeObjectURL(url))
+      return null
+    }
+    return {
+      approved,
+      guidance,
+      assetUrls,
+      approvedImages: expectedAssets.reduce<Record<string, ApprovedCatalogueAsset>>(
+        (images, asset) => {
+          if (isApprovedCatalogueAsset(asset)) images[asset.url] = asset
+          return images
+        },
+        {},
+      ),
+      release: () => objectUrls.forEach((url) => URL.revokeObjectURL(url)),
+    }
+  } catch {
+    objectUrls.forEach((url) => URL.revokeObjectURL(url))
+    return null
+  }
+}
+
+export async function removeCataloguePack(): Promise<void> {
+  const installed = installedCataloguePack()
+  if (installed) {
+    await caches.delete(installed.cacheName ?? `${CACHE_PREFIX}${installed.version}`)
+  }
+  localStorage.removeItem(STORAGE_KEY)
+}
+
+export function formatPackSize(bytes: number): string {
+  return bytes < 1024 * 1024
+    ? `${Math.ceil(bytes / 1024)} KB`
+    : `${(bytes / 1024 / 1024).toFixed(1)} MB`
+}

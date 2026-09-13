@@ -42,7 +42,7 @@ export function developmentIdentifyResultForHash(imageHash: number): IdentifyRes
   }
 
   const species = classes[bucket]
-  const invasive = species.malaysia_status === 'invasive'
+  const invasive = species.catalogue_approved && species.malaysia_status === 'invasive'
   return {
     outcome: invasive ? 'target' : 'other_plant',
     speciesId: species.machine_label.replaceAll('_', '-'),

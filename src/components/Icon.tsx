@@ -1,21 +1,21 @@
 import {
-  MapPinned, Route, ShieldCheck, CalendarDays, TrendingUp,
+  MapPinned, Map, Route, ShieldCheck, ShieldAlert, CalendarDays, TrendingUp,
   Bell, Camera, Search, X, Check, AlertTriangle, WifiOff,
   User,
   ChevronLeft, ChevronRight, RotateCcw, Leaf, HelpCircle, XOctagon, Send, ScanLine,
   MapPin, Crosshair, Grid3x3, Info, CircleCheck, Clock, ImagePlus,
-  SlidersHorizontal, Filter, Navigation, ClipboardList,
+  SlidersHorizontal, Filter, Navigation, ClipboardList, BookOpen,
   Copy, Download, KeyRound, Shield, Smartphone, Trash2, RefreshCw, ExternalLink, Pencil, LogOut,
   type LucideIcon,
 } from 'lucide-react'
 
 const REGISTRY: Record<string, LucideIcon> = {
-  MapPinned, Route, ShieldCheck, CalendarDays, TrendingUp,
+  MapPinned, Map, Route, ShieldCheck, ShieldAlert, CalendarDays, TrendingUp,
   Bell, Camera, Search, X, Check, AlertTriangle, WifiOff,
   User,
   ChevronLeft, ChevronRight, RotateCcw, Leaf, HelpCircle, XOctagon, Send, ScanLine,
   MapPin, Crosshair, Grid3x3, Info, CircleCheck, Clock, ImagePlus,
-  SlidersHorizontal, Filter, Navigation, ClipboardList,
+  SlidersHorizontal, Filter, Navigation, ClipboardList, BookOpen,
   Copy, Download, KeyRound, Shield, Smartphone, Trash2, RefreshCw, ExternalLink, Pencil, LogOut,
 }
 

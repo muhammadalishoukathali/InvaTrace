@@ -17,6 +17,7 @@ from app.core.errors import ApiProblem
 from app.core.security import AuthContext, require_auth
 from app.db.base import get_session
 from app.db.models import Scan, Species
+from app.domain.catalogue import is_approved_species
 
 router = APIRouter(prefix="/api/v1/scans", tags=["scans"])
 
@@ -32,9 +33,17 @@ def create_scan(
     session: Session = Depends(get_session),
 ) -> ScanResponse:
     if body.outcome == "target" and not body.predicted_species_id:
-        raise ApiProblem(422, "scan_missing_species", "Target scans must include predictedSpeciesId.")
+        raise ApiProblem(
+            422, "scan_missing_species", "Target scans must include predictedSpeciesId."
+        )
     if body.outcome != "target" and body.predicted_species_id is not None:
-        raise ApiProblem(422, "scan_species_not_allowed", "Only target scans may include predictedSpeciesId.")
+        raise ApiProblem(
+            422, "scan_species_not_allowed", "Only target scans may include predictedSpeciesId."
+        )
+    if body.predicted_species_id and not is_approved_species(body.predicted_species_id):
+        raise ApiProblem(
+            422, "species_not_approved", "The predicted species is not in the approved catalogue."
+        )
     if body.predicted_species_id and not session.get(Species, body.predicted_species_id):
         raise ApiProblem(422, "unknown_species", "The predicted species is not supported.")
 

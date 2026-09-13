@@ -1,5 +1,7 @@
 import { useEffect, useMemo, useState } from 'react'
+import { useQuery } from '@tanstack/react-query'
 import { Icon } from '@/components/Icon'
+import { api } from '@/services/api-client'
 import {
   getGuidanceDecision,
   saveGuidanceDecision,
@@ -21,6 +23,7 @@ import {
   findPlantStatus,
   type PlantStatusRecord,
 } from '@shared/catalogue'
+import type { ProtectedLocationContext } from '@/types'
 
 interface Props {
   scientificName?: string | null
@@ -111,6 +114,39 @@ export function PlantGuidancePanel({
   const [saveFailed, setSaveFailed] = useState(false)
   const [siteManagerConfirmed, setSiteManagerConfirmed] = useState(false)
   const [stopConditionsClear, setStopConditionsClear] = useState(false)
+  const [locationFix, setLocationFix] = useState<{
+    latitude: number
+    longitude: number
+    accuracyM: number
+  } | null>(null)
+  const [locationError, setLocationError] = useState<string | null>(null)
+  const protectedContext = useQuery({
+    queryKey: ['guidance-protected-context', locationFix],
+    queryFn: () => api<ProtectedLocationContext>('/api/v1/location-context', {
+      method: 'POST',
+      body: JSON.stringify(locationFix),
+    }),
+    enabled: Boolean(locationFix),
+    retry: false,
+  })
+
+  const checkCurrentLocation = () => {
+    setLocationError(null)
+    setLocationFix(null)
+    if (!navigator.geolocation) {
+      setLocationError('Location is unavailable. Boundary unavailable or uncertain.')
+      return
+    }
+    navigator.geolocation.getCurrentPosition(
+      (position) => setLocationFix({
+        latitude: position.coords.latitude,
+        longitude: position.coords.longitude,
+        accuracyM: position.coords.accuracy,
+      }),
+      () => setLocationError('Location permission was not granted. Boundary unavailable or uncertain.'),
+      { enableHighAccuracy: true, maximumAge: 0, timeout: 15_000 },
+    )
+  }
 
   useEffect(() => {
     setPermission(decisionToPermission(initialDecision))
@@ -164,6 +200,7 @@ export function PlantGuidancePanel({
 
   const activePathAllowed =
     actionEligible !== false
+    && protectedContext.data?.actionEligible === true
     && permission === 'explicit_permission'
     && plant.guidance_mode !== 'report_only'
     && plant.guidance_mode !== 'general_information'
@@ -189,6 +226,13 @@ export function PlantGuidancePanel({
       </header>
 
       <ModeBanner help={modeInfo.help} tone={modeInfo.tone} label={modeInfo.label} />
+
+      <GuidanceLocationContext
+        context={protectedContext.data}
+        loading={protectedContext.isLoading}
+        error={Boolean(locationError || protectedContext.isError)}
+        onCheck={checkCurrentLocation}
+      />
 
       {showReferenceImage && plant.reference_image && (
         <figure style={{ margin: '12px 0 0' }}>
@@ -265,6 +309,7 @@ export function PlantGuidancePanel({
           setSiteManagerConfirmed={setSiteManagerConfirmed}
           stopConditionsClear={stopConditionsClear}
           setStopConditionsClear={setStopConditionsClear}
+          locationActionEligible={protectedContext.data?.actionEligible === true}
         />
       )}
 
@@ -506,6 +551,55 @@ function DecisionSaveNote({
   )
 }
 
+function GuidanceLocationContext({
+  context,
+  loading,
+  error,
+  onCheck,
+}: {
+  context: ProtectedLocationContext | undefined
+  loading: boolean
+  error: boolean
+  onCheck: () => void
+}) {
+  const title = context?.contextState === 'inside_protected_area'
+    ? 'Inside a mapped protected area'
+    : context?.contextState === 'no_protected_area_intersection'
+      ? 'No mapped protected-area intersection found'
+      : 'Boundary unavailable or uncertain'
+  return (
+    <section style={{ marginTop: 16, padding: 14, border: '1px solid var(--border)', borderRadius: 'var(--r-card)' }}>
+      <h4 style={{ fontSize: 13.5 }}>Location context</h4>
+      <p style={{ marginTop: 5, color: 'var(--body)', fontSize: 12.5, lineHeight: 1.5 }}>
+        {loading ? 'Checking protected-area boundary…' : context?.disclaimer
+          ?? (error
+            ? 'Boundary data could not be checked. Observe and report only.'
+            : 'Check your current location before any active guidance can be shown.')}
+      </p>
+      {(context || error) && (
+        <div role="status" style={{ marginTop: 9 }}>
+          <strong style={{ fontSize: 13 }}>{title}</strong>
+          {context?.protectedAreaName && <span style={{ display: 'block', fontSize: 12 }}>{context.protectedAreaName}</span>}
+          <dl style={{ marginTop: 7, color: 'var(--muted)', fontSize: 11.5 }}>
+            <div><dt style={{ display: 'inline' }}>Boundary source: </dt><dd style={{ display: 'inline' }}>{context?.boundarySource ?? 'Unavailable'}</dd></div>
+            <div><dt style={{ display: 'inline' }}>Dataset version: </dt><dd style={{ display: 'inline' }}>{context?.boundaryVersion ?? 'Unavailable'}</dd></div>
+            <div><dt style={{ display: 'inline' }}>Update date: </dt><dd style={{ display: 'inline' }}>{context?.boundaryUpdatedAt ? new Intl.DateTimeFormat(undefined, { dateStyle: 'medium' }).format(new Date(context.boundaryUpdatedAt)) : 'Unavailable'}</dd></div>
+            <div><dt style={{ display: 'inline' }}>GPS accuracy: </dt><dd style={{ display: 'inline' }}>{context ? `±${context.accuracyM} m` : 'Unavailable'}</dd></div>
+          </dl>
+        </div>
+      )}
+      <button
+        type="button"
+        onClick={onCheck}
+        disabled={loading}
+        style={{ minHeight: 42, marginTop: 11, padding: '0 14px', border: '1px solid var(--control-border)', borderRadius: 'var(--r-button)', background: 'var(--surface)', color: 'var(--ink)', fontWeight: 650, cursor: 'pointer' }}
+      >
+        {loading ? 'Checking…' : context ? 'Check location again' : 'Check current location'}
+      </button>
+    </section>
+  )
+}
+
 function PermissionGate({
   plant,
   permission,
@@ -514,6 +608,7 @@ function PermissionGate({
   setSiteManagerConfirmed,
   stopConditionsClear,
   setStopConditionsClear,
+  locationActionEligible,
 }: {
   plant: PlantGuidance
   permission: PermissionChoice
@@ -522,9 +617,11 @@ function PermissionGate({
   setSiteManagerConfirmed: (value: boolean) => void
   stopConditionsClear: boolean
   setStopConditionsClear: (value: boolean) => void
+  locationActionEligible: boolean
 }) {
   const canActEver = plant.guidance_mode === 'active_guidance'
     || plant.guidance_mode === 'site_manager_confirmation_required'
+  const canActHere = canActEver && locationActionEligible
   const stopConditions = plant.actions?.authorised_site.stop_conditions ?? []
 
   return (
@@ -560,11 +657,13 @@ function PermissionGate({
         <RadioRow
           checked={permission === 'explicit_permission'}
           onSelect={() => setPermission('explicit_permission')}
-          disabled={!canActEver}
+          disabled={!canActHere}
           label={
-            canActEver
+            canActHere
               ? 'I have permission from the land manager'
-              : 'Removal is not allowed for this species'
+              : canActEver
+                ? 'Check location before active guidance'
+                : 'Removal is not allowed for this species'
           }
         />
       </div>

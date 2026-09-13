@@ -33,14 +33,14 @@ describe('deriveMalaysiaStatusState', () => {
     expect(state).toBe('invasive')
   })
 
-  it('returns information_only for a catalogue-listed information species', () => {
+  it('returns status_uncertain for a legacy model species outside the approved catalogue', () => {
     const state = deriveMalaysiaStatusState(makeResult({
       speciesId: 'mimosa-pudica', scientificName: 'Mimosa pudica',
     }))
-    expect(state).toBe('information_only')
+    expect(state).toBe('status_uncertain')
   })
 
-  it('returns status_uncertain for a catalogue-listed uncertain species', () => {
+  it('returns status_uncertain for another legacy model-only species', () => {
     const state = deriveMalaysiaStatusState(makeResult({
       speciesId: 'centella-asiatica', scientificName: 'Centella asiatica',
     }))
@@ -90,11 +90,11 @@ describe('resolveResultPathway', () => {
     expect(pathway.canAction).toBe(false)
   })
 
-  it('routes an information_only species with no action/report affordances', () => {
+  it('routes an unapproved legacy species with no action/report affordances', () => {
     const pathway = resolveResultPathway(makeResult({
       speciesId: 'mimosa-pudica', scientificName: 'Mimosa pudica',
     }))
-    expect(pathway.pathway).toBe('information_only')
+    expect(pathway.pathway).toBe('status_uncertain')
     expect(pathway.canReport).toBe(false)
     expect(pathway.canAction).toBe(false)
   })

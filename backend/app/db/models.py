@@ -270,6 +270,132 @@ class Trail(Base):
     metadata_json: Mapped[dict[str, Any]] = mapped_column(JSON_TYPE, default=dict, nullable=False)
 
 
+class ProtectedAreaDataset(Base):
+    """Versioned boundary release used by the fail-closed location check."""
+
+    __tablename__ = "protected_area_datasets"
+    __table_args__ = (UniqueConstraint("source", "version", name="uq_boundary_source_version"),)
+
+    id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    source: Mapped[str] = mapped_column(String(200), nullable=False)
+    version: Mapped[str] = mapped_column(String(120), nullable=False)
+    updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
+    coverage_note: Mapped[str] = mapped_column(String(500), nullable=False)
+    coverage_geometry: Mapped[Any] = mapped_column(
+        Geography("MULTIPOLYGON", srid=4326, spatial_index=False), nullable=False
+    )
+    active: Mapped[bool] = mapped_column(Boolean, default=False, index=True, nullable=False)
+
+
+class ProtectedArea(Base):
+    """Protected-area polygons tied to an auditable dataset release."""
+
+    __tablename__ = "protected_areas"
+    __table_args__ = (
+        UniqueConstraint("dataset_id", "source_feature_id", name="uq_boundary_dataset_feature"),
+    )
+
+    id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    dataset_id: Mapped[uuid.UUID] = mapped_column(
+        ForeignKey("protected_area_datasets.id", ondelete="CASCADE"), index=True, nullable=False
+    )
+    source_feature_id: Mapped[str] = mapped_column(String(160), nullable=False)
+    name: Mapped[str] = mapped_column(String(240), nullable=False)
+    geometry: Mapped[Any] = mapped_column(
+        Geography("MULTIPOLYGON", srid=4326, spatial_index=False), nullable=False
+    )
+
+
+class OccurrenceRecord(Base):
+    """Filtered, deduplicated Malaysian evidence used by place discovery."""
+
+    __tablename__ = "occurrence_records"
+    __table_args__ = (
+        UniqueConstraint("source", "source_occurrence_id", name="uq_occurrence_source_id"),
+        CheckConstraint("country_code = 'MY'", name="malaysia_only"),
+        CheckConstraint("occurrence_status = 'Present'", name="present_only"),
+        CheckConstraint("coordinate_uncertainty_m BETWEEN 0 AND 1000", name="max_uncertainty"),
+        CheckConstraint("latitude BETWEEN 0.8 AND 7.5", name="malaysia_latitude"),
+        CheckConstraint("longitude BETWEEN 99.3 AND 119.5", name="malaysia_longitude"),
+    )
+
+    id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    source: Mapped[str] = mapped_column(String(120), nullable=False)
+    source_occurrence_id: Mapped[str] = mapped_column(String(240), nullable=False)
+    species_id: Mapped[str] = mapped_column(
+        ForeignKey("species.id", ondelete="RESTRICT"), index=True, nullable=False
+    )
+    latitude: Mapped[Decimal] = mapped_column(Numeric(8, 5), nullable=False)
+    longitude: Mapped[Decimal] = mapped_column(Numeric(8, 5), nullable=False)
+    location: Mapped[Any] = mapped_column(
+        Geography("POINT", srid=4326, spatial_index=False),
+        Computed("ST_SetSRID(ST_MakePoint(longitude, latitude), 4326)::geography", persisted=True),
+    )
+    country_code: Mapped[str] = mapped_column(String(2), default="MY", nullable=False)
+    occurrence_status: Mapped[str] = mapped_column(String(20), default="Present", nullable=False)
+    coordinate_uncertainty_m: Mapped[int] = mapped_column(Integer, nullable=False)
+    observed_year: Mapped[int | None] = mapped_column(Integer)
+    processed_data_version: Mapped[str] = mapped_column(String(120), nullable=False)
+    imported_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), server_default=func.now(), nullable=False
+    )
+
+
+class PlaceOccurrenceWaterwayEvidence(Base):
+    """Preprocessed, place-specific evidence from a directed OSM waterway graph."""
+
+    __tablename__ = "place_occurrence_waterway_evidence"
+    __table_args__ = (
+        CheckConstraint("place_type IN ('park','forest','wood','trail')", name="place_type"),
+        CheckConstraint("upstream_distance_m BETWEEN 0 AND 5000", name="distance_range"),
+        UniqueConstraint(
+            "place_type",
+            "place_id",
+            "occurrence_id",
+            "waterway_network_id",
+            name="uq_place_occurrence_waterway",
+        ),
+    )
+
+    id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    place_type: Mapped[str] = mapped_column(String(20), nullable=False)
+    place_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), index=True, nullable=False)
+    occurrence_id: Mapped[uuid.UUID] = mapped_column(
+        ForeignKey("occurrence_records.id", ondelete="CASCADE"), index=True, nullable=False
+    )
+    waterway_network_id: Mapped[str] = mapped_column(String(160), nullable=False)
+    upstream_distance_m: Mapped[float] = mapped_column(Numeric(10, 2), nullable=False)
+    direction_source: Mapped[str] = mapped_column(String(200), nullable=False)
+    data_version: Mapped[str] = mapped_column(String(120), nullable=False)
+    imported_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), server_default=func.now(), nullable=False
+    )
+
+
+class AdoptedArea(Base):
+    """Non-exclusive monitoring bookmark owned by a pseudonymous profile."""
+
+    __tablename__ = "adopted_areas"
+    __table_args__ = (
+        CheckConstraint("place_type IN ('park','forest','wood','trail')", name="place_type"),
+        UniqueConstraint("profile_id", "place_id", name="uq_profile_place_adoption"),
+    )
+
+    id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    profile_id: Mapped[uuid.UUID] = mapped_column(
+        ForeignKey("profiles.id", ondelete="CASCADE"), index=True, nullable=False
+    )
+    place_type: Mapped[str] = mapped_column(String(20), nullable=False)
+    place_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), index=True, nullable=False)
+    geometry_version: Mapped[str] = mapped_column(String(120), nullable=False)
+    geometry: Mapped[Any] = mapped_column(
+        Geography("GEOMETRY", srid=4326, spatial_index=False), nullable=False
+    )
+    adopted_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), server_default=func.now(), nullable=False
+    )
+
+
 class UploadGrant(Base):
     """Tracks a presigned-upload slot handed out for direct-to-R2/MinIO photo
     upload. expires_at bounds how long the presigned URL is valid;
@@ -309,9 +435,10 @@ class ObjectDeletionJob(Base):
     """
 
     __tablename__ = "object_deletion_jobs"
+    __table_args__ = (UniqueConstraint("object_key", name="uq_object_deletion_job_key"),)
 
     id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
-    object_key: Mapped[str] = mapped_column(String(500), unique=True, nullable=False)
+    object_key: Mapped[str] = mapped_column(String(500), nullable=False)
     attempts: Mapped[int] = mapped_column(Integer, default=0, nullable=False)
     available_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), server_default=func.now(), index=True, nullable=False
@@ -464,7 +591,8 @@ class Sighting(Base):
     __tablename__ = "sightings"
     __table_args__ = (
         CheckConstraint(
-            "status IN ('candidate','screened','rejected','removed','merged')", name="status"
+            "status IN ('candidate','screened','rejected','removed','removal_reported','merged')",
+            name="status",
         ),
         CheckConstraint("reporter_trust IN ('New','Trusted','Steward')", name="reporter_trust"),
         CheckConstraint("latitude BETWEEN 0.8 AND 7.5", name="malaysia_latitude"),
@@ -545,6 +673,39 @@ Index(
     unique=True,
     postgresql_where=ReportSightingLink.active.is_(True),
 )
+
+
+class SightingStatusEvent(Base):
+    """Append-only removal history; precise removal coordinates stay private."""
+
+    __tablename__ = "sighting_status_events"
+    __table_args__ = (
+        CheckConstraint("event_type IN ('removal_reported')", name="event_type"),
+        CheckConstraint("accuracy_m BETWEEN 0 AND 250", name="accuracy_range"),
+        CheckConstraint("distance_m BETWEEN 0 AND 250", name="distance_range"),
+        CheckConstraint("latitude BETWEEN 0.8 AND 7.5", name="malaysia_latitude"),
+        CheckConstraint("longitude BETWEEN 99.3 AND 119.5", name="malaysia_longitude"),
+        UniqueConstraint("sighting_id", "event_type", name="uq_sighting_status_event"),
+    )
+
+    id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    sighting_id: Mapped[uuid.UUID] = mapped_column(
+        ForeignKey("sightings.id", ondelete="CASCADE"), index=True, nullable=False
+    )
+    report_id: Mapped[uuid.UUID] = mapped_column(
+        ForeignKey("reports.id", ondelete="RESTRICT"), index=True, nullable=False
+    )
+    acting_profile_id: Mapped[uuid.UUID | None] = mapped_column(
+        ForeignKey("profiles.id", ondelete="SET NULL"), index=True
+    )
+    event_type: Mapped[str] = mapped_column(String(30), nullable=False)
+    latitude: Mapped[Decimal] = mapped_column(Numeric(8, 5), nullable=False)
+    longitude: Mapped[Decimal] = mapped_column(Numeric(8, 5), nullable=False)
+    accuracy_m: Mapped[float] = mapped_column(Numeric(10, 3), nullable=False)
+    distance_m: Mapped[float] = mapped_column(Numeric(8, 2), nullable=False)
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), server_default=func.now(), nullable=False
+    )
 
 
 class VerificationJob(Base):
@@ -721,7 +882,21 @@ class OsmImport(Base):
 # here rather than inline on the columns since Index() needs the mapped
 # column objects to already exist.
 Index("ix_reports_location_gist", Report.location, postgresql_using="gist")
+Index(
+    "ix_reports_profile_created_id",
+    Report.profile_id,
+    Report.created_at.desc(),
+    Report.id.desc(),
+)
 Index("ix_sightings_location_gist", Sighting.location, postgresql_using="gist")
 Index("ix_places_location_gist", MonitoredPlace.location, postgresql_using="gist")
 Index("ix_areas_geometry_gist", MonitoredArea.geometry, postgresql_using="gist")
 Index("ix_trails_geometry_gist", Trail.geometry, postgresql_using="gist")
+Index("ix_protected_areas_geometry_gist", ProtectedArea.geometry, postgresql_using="gist")
+Index(
+    "ix_protected_area_datasets_coverage_gist",
+    ProtectedAreaDataset.coverage_geometry,
+    postgresql_using="gist",
+)
+Index("ix_occurrence_records_location_gist", OccurrenceRecord.location, postgresql_using="gist")
+Index("ix_adopted_areas_geometry_gist", AdoptedArea.geometry, postgresql_using="gist")

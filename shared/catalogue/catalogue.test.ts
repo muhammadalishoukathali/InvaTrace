@@ -5,18 +5,23 @@ import { describe, expect, it } from 'vitest'
 import Ajv2020 from 'ajv/dist/2020'
 import runtimeCatalog from '../../public/models/pulih-model1-v4/species_31.json'
 import {
+  approvedSpeciesDataset,
+  approvedCatalogueAsset,
   catalogueManifest,
   catalogueSourceById,
   findPlantStatus,
   plantStatusChecksum,
   plantStatusDataset,
   type PlantUiState,
+  findApprovedSpecies,
 } from './index'
+import approvedSpeciesSchema from './approved-species.schema.json'
 import plantStatusSchema from './schemas/plant-status.schema.json'
 import manifestSchema from './schemas/catalogue-manifest.schema.json'
 
 const STATUS_PATH = fileURLToPath(new URL('./plant-status.json', import.meta.url))
 const GUIDANCE_PATH = fileURLToPath(new URL('./plant-guidance.json', import.meta.url))
+const APPROVED_PATH = fileURLToPath(new URL('./approved-species.json', import.meta.url))
 
 function ajv() {
   const validator = new Ajv2020({ allErrors: true, strict: false })
@@ -33,6 +38,31 @@ function ajv() {
   })
   return validator
 }
+
+describe('Iteration 2 approved species catalogue', () => {
+  it('contains exactly the 32 unique evidence-reviewed plants', () => {
+    const validate = ajv().compile(approvedSpeciesSchema)
+    expect(validate(approvedSpeciesDataset), JSON.stringify(validate.errors)).toBe(true)
+    expect(approvedSpeciesDataset.records).toHaveLength(32)
+    expect(new Set(approvedSpeciesDataset.records.map((record) => record.species_id)).size).toBe(32)
+    expect(new Set(approvedSpeciesDataset.records.map((record) => record.scientific_name)).size).toBe(32)
+  })
+
+  it('excludes Ageratina adenophora and legacy model-only plants', () => {
+    expect(findApprovedSpecies({ scientificName: 'Ageratina adenophora' })).toBeNull()
+    expect(findApprovedSpecies({ speciesId: 'alternanthera-philoxeroides' })).toBeNull()
+    expect(findApprovedSpecies({ speciesId: 'lantana-camara' })).toBeNull()
+  })
+
+  it('resolves IDs, recorded names, and accepted-name synonyms', () => {
+    expect(findApprovedSpecies({ speciesId: 'salvinia_molesta' })?.scientific_name)
+      .toBe('Salvinia molesta')
+    expect(findApprovedSpecies({ scientificName: 'Cenchrus polystachios' })?.species_id)
+      .toBe('pennisetum-polystachyum')
+    expect(findApprovedSpecies({ scientificName: 'Brachiaria mutica' })?.species_id)
+      .toBe('urochloa-mutica')
+  })
+})
 
 describe('shared catalogue plant-status.json', () => {
   it('conforms to plant-status.schema.json', () => {
@@ -115,9 +145,13 @@ describe('shared catalogue manifest', () => {
     expect(ok, JSON.stringify(validate.errors)).toBe(true)
   })
 
-  it('records the actual sha256 of plant-status.json / plant-guidance.json', () => {
+  it('records the actual sha256 and byte length of every offline catalogue file', () => {
     const statusBytes = readFileSync(STATUS_PATH)
     const guidanceBytes = readFileSync(GUIDANCE_PATH)
+    const approvedBytes = readFileSync(APPROVED_PATH)
+    expect(createHash('sha256').update(approvedBytes).digest('hex'))
+      .toBe(catalogueManifest.files['approved-species.json'].sha256)
+    expect(approvedBytes.length).toBe(catalogueManifest.files['approved-species.json'].byte_length)
     expect(createHash('sha256').update(statusBytes).digest('hex'))
       .toBe(catalogueManifest.files['plant-status.json'].sha256)
     expect(createHash('sha256').update(guidanceBytes).digest('hex'))
@@ -126,9 +160,24 @@ describe('shared catalogue manifest', () => {
       .toBe(catalogueManifest.files['plant-status.json'].sha256)
   })
 
-  it('agrees with plant-status.json on version + model_version', () => {
-    expect(catalogueManifest.catalogue_version).toBe(plantStatusDataset.catalogue_version)
+  it('uses approved catalogue release metadata and keeps model version separate', () => {
+    expect(catalogueManifest.catalogue_version).toBe(approvedSpeciesDataset.catalogue_version)
     expect(catalogueManifest.model_version).toBe(plantStatusDataset.model_version)
-    expect(catalogueManifest.last_reviewed).toBe(plantStatusDataset.last_reviewed)
+    expect(catalogueManifest.last_reviewed).toBe(approvedSpeciesDataset.reviewed_at)
+  })
+
+  it('never approves an image without complete provenance metadata', () => {
+    const validate = ajv().compile(manifestSchema)
+    const invalid = structuredClone(catalogueManifest) as unknown as {
+      assets: Array<Record<string, unknown>>
+    }
+    invalid.assets = [{
+      ...invalid.assets[0],
+      review_status: 'approved',
+    }]
+    expect(validate(invalid)).toBe(false)
+    expect(catalogueManifest.assets.every((asset) => asset.review_status === 'provenance_pending'))
+      .toBe(true)
+    expect(approvedCatalogueAsset('/reference-images/mikania_micrantha.jpg')).toBeNull()
   })
 })

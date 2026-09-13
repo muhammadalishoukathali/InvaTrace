@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { Navigate, useLocation, useNavigate } from 'react-router-dom'
+import { Link, Navigate, useLocation, useNavigate } from 'react-router-dom'
 import { Icon } from '@/components/Icon'
 import { useScan } from '@/features/scan/scan-store'
 import { useReportDraft } from '@/features/report/report-draft-store'
@@ -8,6 +8,7 @@ import { resolveResultPathway, type ResultPathway } from '@/features/scan/malays
 import { findPlantGuidance } from '@/data/plant-guidance'
 import { findModelSpecies, modelReferenceImageUrl } from '@/data/model-species-catalog'
 import type { IdentifyResult, SpeciesDetail } from '@/types'
+import { findApprovedSpecies } from '@shared/catalogue'
 import './scan-result.css'
 
 /**
@@ -87,6 +88,10 @@ export function ScanResultPage() {
   const guidanceActionEligible = pathway.canAction
     ? speciesDetail?.actionEligible
     : false
+  const approvedSpecies = findApprovedSpecies({
+    speciesId: result.speciesId,
+    scientificName: result.scientificName,
+  })
 
   return (
     <div className="scan-result">
@@ -171,6 +176,15 @@ export function ScanResultPage() {
           {speciesDetail.statusReviewedAt && speciesDetail.statusSourceId && ' · '}
           {speciesDetail.statusSourceId}
         </p>
+      )}
+
+      {approvedSpecies && (
+        <Link
+          to={`/catalogue/${approvedSpecies.species_id}`}
+          className="scan-result__catalogue-link"
+        >
+          View catalogue entry for {approvedSpecies.scientific_name}
+        </Link>
       )}
 
       <div className="scan-result__action-dock" role="group" aria-label="Scan result actions">

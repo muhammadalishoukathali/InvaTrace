@@ -40,7 +40,11 @@ def test_report_status_check_constraint_covers_the_six_expected_states() -> None
     assert match, "Report status CHECK constraint missing."
     values = {v.strip().strip("'") for v in match.group(1).split(",")}
     expected = {
-        "processing", "screened", "merged", "needs_rescan", "rejected",
+        "processing",
+        "screened",
+        "merged",
+        "needs_rescan",
+        "rejected",
         "validation_unavailable",
     }
     assert expected.issubset(values), (
@@ -56,7 +60,7 @@ def test_submitted_report_creates_verification_job() -> None:
         "Newly submitted reports must start in `processing` so the tracking UI"
         " and the worker use the same initial state."
     )
-    assert "VerificationJob(report_id=report.id, status=\"pending\")" in source, (
+    assert 'VerificationJob(report_id=report.id, status="pending")' in source, (
         "Report submission must enqueue a VerificationJob or the report would"
         " sit in `processing` forever with no worker eligible to pick it up."
     )

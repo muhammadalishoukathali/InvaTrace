@@ -37,12 +37,14 @@ class MalaysiaOsmHandler(osmium.SimpleHandler):
     areas/ways as it goes, rather than loading the whole extract into memory
     first. See import_malaysia_pbf() below for how this gets invoked."""
 
-    def __init__(self, session: Session) -> None:
+    def __init__(self, session: Session, *, source_date: datetime, geometry_version: str) -> None:
         super().__init__()
         self.session = session
         self.factory = osmium.geom.WKTFactory()
         self.area_count = 0
         self.trail_count = 0
+        self.source_date = source_date
+        self.geometry_version = geometry_version
 
     def area(self, area) -> None:
         tags = area.tags
@@ -76,6 +78,9 @@ class MalaysiaOsmHandler(osmium.SimpleHandler):
                     "source": "OpenStreetMap",
                     "osmType": "area",
                     "osmId": str(area.orig_id()),
+                    "source_date": self.source_date.isoformat(),
+                    "geometry_version": self.geometry_version,
+                    "geometry_status": "available",
                     # Store the OSM tag pair directly so nearest_osm_feature's
                     # allow-list check (park / forest / wood) works against
                     # imported data without re-fetching from OSM.
@@ -113,6 +118,9 @@ class MalaysiaOsmHandler(osmium.SimpleHandler):
                     "source": "OpenStreetMap",
                     "osmType": "way",
                     "osmId": str(way.id),
+                    "source_date": self.source_date.isoformat(),
+                    "geometry_version": self.geometry_version,
+                    "geometry_status": "available",
                     # AC Iteration 1 P10 - preserve the highway tag so
                     # place_association.nearest_osm_feature's allow-list
                     # (path / footway / track) can classify the row.
@@ -145,7 +153,12 @@ def import_malaysia_pbf(session: Session, *, source_path: Path, source_date: dat
     existing = session.scalar(select(OsmImport).where(OsmImport.sha256 == digest))
     if existing:
         return existing
-    handler = MalaysiaOsmHandler(session)
+    geometry_version = f"osm-{source_date.date().isoformat()}-{digest.hex()[:12]}"
+    handler = MalaysiaOsmHandler(
+        session,
+        source_date=source_date,
+        geometry_version=geometry_version,
+    )
     # locations=True + flex_mem index keeps node coordinates around in memory as
     # we stream through, which the geometry factory above needs to build ways.
     handler.apply_file(str(source_path), locations=True, idx="flex_mem")

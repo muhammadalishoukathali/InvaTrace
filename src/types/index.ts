@@ -67,7 +67,7 @@ export interface AccessOverview {
 }
 
 /** "screened" just means it passed the current deterministic rules, not that a human looked at it. */
-export type SightingStatus = 'screened' | 'removed'
+export type SightingStatus = 'screened' | 'removed' | 'removal_reported'
 export type ReportStatus =
   | 'processing'
   | 'screened'
@@ -254,6 +254,138 @@ export interface ReportListResponse {
   nextCursor?: string | null
 }
 
+export interface RemovalReportResponse {
+  reportId: string
+  sightingId: string
+  status: 'removal_reported'
+  removalReportedAt: string
+  accuracyM: number
+  distanceM: number
+}
+
+export interface AdoptionMetrics {
+  activeReports: number
+  distinctApprovedSpecies: number
+  newReportsLast30Days: number
+  removalReportsLast30Days: number
+  daysSinceMostRecentReport: number | null
+}
+
+export interface AdoptedAreaCard {
+  adoptionId: string
+  placeId: string
+  name: string
+  type: 'park' | 'forest' | 'wood' | 'trail'
+  adoptedAt: string
+  mostRecentReportAt: string | null
+  geometryVersion: string
+  metricsLabel: 'Community monitoring activity'
+  metrics: AdoptionMetrics
+}
+
+export interface AdoptedAreaListResponse {
+  items: AdoptedAreaCard[]
+  disclaimer: string
+}
+
+export interface PlaceDetail {
+  placeId: string
+  displayName: string
+  placeType: 'park' | 'forest' | 'wood' | 'trail'
+  geometryStatus: string
+  source: string
+  geometryVersion: string
+  geometry: GeoJSON.Geometry
+  viewPlantsUrl: string
+}
+
+export interface PlacePlantAssociation {
+  speciesId: string
+  scientificName: string
+  commonNames: string[]
+  malaysiaStatus: 'Present'
+  imageUrl: string | null
+  occurrenceCount: number
+  mostRecentYear: number | null
+  evidence: {
+    types: Array<'inside_boundary' | 'nearby_buffer' | 'trail_buffer' | 'upstream'>
+    insideCount: number
+    nearbyCount: number
+    trailCount: number
+    upstreamCount: number
+    nearestDistanceM: number
+    insideComponent: number
+    proximityComponent: number
+    recordCountComponent: number
+    upstreamComponent: number
+    rankScore: number
+  }
+  catalogueUrl: string
+}
+
+export interface PlacePlantAssociationsResponse {
+  placeId: string
+  placeName: string
+  placeType: PlaceDetail['placeType']
+  geometryVersion: string
+  processedDataVersions: string[]
+  waterwayDataVersions: string[]
+  occurrenceUpdatedAt: string | null
+  disclaimer: string
+  items: PlacePlantAssociation[]
+}
+
+export interface ProtectedLocationContext {
+  contextState: 'inside_protected_area' | 'no_protected_area_intersection' | 'boundary_uncertain'
+  insideProtectedArea: boolean | null
+  boundarySource: string | null
+  boundaryVersion: string | null
+  boundaryUpdatedAt: string | null
+  protectedAreaName: string | null
+  accuracyM: number
+  actionEligible: boolean
+  permissionConfirmationRequired: boolean
+  disclaimer: string
+}
+
+export interface ActivityMarker {
+  sightingId: string
+  speciesId: string
+  scientificName: string
+  communityLabel: 'Community report - not expert validated'
+  observationDate: string
+  status: 'screened' | 'removal_reported'
+  statusDate: string
+  latitude: number
+  longitude: number
+  precisionReduced: boolean
+}
+
+export interface AdoptedAreaActivity {
+  adoptionId: string
+  placeId: string
+  name: string
+  type: 'park' | 'forest' | 'wood' | 'trail'
+  geometry: GeoJSON.Geometry
+  geometryVersion: string
+  markers: ActivityMarker[]
+  filteredCount: number
+  concentrationCount: number
+  concentrations: Array<{
+    concentrationId: string
+    reportCount: number
+    latitude: number
+    longitude: number
+  }>
+  comparison: {
+    recent0To29Days: number
+    prior30To59Days: number
+    direction: 'increased' | 'decreased' | 'unchanged'
+  }
+  emptyMessage: string | null
+  disclaimer: string
+}
+
 /** What sits in the IndexedDB offline queue when a submission couldn't go through. */
 export interface QueuedReport {
   id: string           // stable idempotency key, generated before the first network attempt ever fires
@@ -283,6 +415,7 @@ export interface Sighting {
   precisionReduced: boolean
   reportCount: number
   lastReportedAt: string
+  removalReportedAt?: string | null
   place: PlaceAssociation
   thumbnailUrl: string | null
   /** For AC 4.2.2 - a stand-in confidence value for the whole aggregated
@@ -301,6 +434,7 @@ export interface SightingDetail extends Sighting {
   recommendedAction: string
   actionGuide: SeasonalActionGuide | null
   reporterTrust: TrustLevel  // newer profiles get stronger location privacy applied
+  removalReportId: string | null
 }
 
 export interface PlaceAssociation {

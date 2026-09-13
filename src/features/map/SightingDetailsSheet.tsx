@@ -1,8 +1,8 @@
-import { useRef } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { createPortal } from 'react-dom'
-import { useQuery } from '@tanstack/react-query'
+import { useMutation, useQuery } from '@tanstack/react-query'
 import { Icon } from '@/components/Icon'
-import { api } from '@/services/api-client'
+import { api, ApiError } from '@/services/api-client'
 import { useMapView } from '@/features/map/map-view-store'
 import { useDialogA11y } from '@/hooks/useDialogA11y'
 import { fetchNearestOsmFeature } from '@/services/osm-nearest'
@@ -10,7 +10,8 @@ import { PIN_TIERS, pinTier } from '@/features/map/ThreatMapPage'
 import { PlantGuidancePanel } from '@/features/scan/PlantGuidancePanel'
 import { findPlantGuidance } from '@/data/plant-guidance'
 import { findModelSpecies, modelReferenceImageUrl } from '@/data/model-species-catalog'
-import type { SightingDetail } from '@/types'
+import { usePrivateAccess } from '@/features/private-access/private-access-store'
+import type { RemovalReportResponse, SightingDetail } from '@/types'
 import './sighting-details.css'
 
 const OSM_FEATURE_LABEL: Record<string, string> = {
@@ -31,7 +32,15 @@ const OSM_FEATURE_LABEL: Record<string, string> = {
  */
 export function SightingDetailsSheet() {
   const { selectedId, select } = useMapView()
+  const profileId = usePrivateAccess((state) => state.profile?.id ?? null)
   const dialogRef = useRef<HTMLElement>(null)
+  const [removalFix, setRemovalFix] = useState<{
+    latitude: number
+    longitude: number
+    accuracyM: number
+    capturedAt: string
+  } | null>(null)
+  const [removalLocationError, setRemovalLocationError] = useState<string | null>(null)
   const close = () => select(null)
   useDialogA11y(dialogRef, close, {
     active: !!selectedId,
@@ -46,6 +55,42 @@ export function SightingDetailsSheet() {
     enabled: !!selectedId,
     staleTime: 60_000,
   })
+  const removal = useMutation({
+    mutationFn: (fix: NonNullable<typeof removalFix>) => api<RemovalReportResponse>(
+      `/api/v1/reports/${data!.removalReportId}/removal`,
+      { method: 'POST', body: JSON.stringify(fix) },
+    ),
+    onSuccess: () => void refetch(),
+  })
+
+  useEffect(() => {
+    setRemovalFix(null)
+    setRemovalLocationError(null)
+    removal.reset()
+    // The mutation object changes after every render; selectedId is the reset boundary.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [selectedId])
+
+  const captureRemovalLocation = () => {
+    setRemovalLocationError(null)
+    setRemovalFix(null)
+    if (!navigator.geolocation) {
+      setRemovalLocationError('Location is unavailable in this browser. No status was changed.')
+      return
+    }
+    navigator.geolocation.getCurrentPosition(
+      (position) => setRemovalFix({
+        latitude: position.coords.latitude,
+        longitude: position.coords.longitude,
+        accuracyM: position.coords.accuracy,
+        capturedAt: new Date(position.timestamp).toISOString(),
+      }),
+      () => setRemovalLocationError(
+        'A fresh location could not be obtained. Allow location access and try again at the plant.',
+      ),
+      { enableHighAccuracy: true, maximumAge: 0, timeout: 15_000 },
+    )
+  }
 
   // Nearby-place lookup is just enrichment, so I don't want it blocking the
   // sheet from opening - it runs as its own query, separate from the main one.
@@ -115,9 +160,11 @@ export function SightingDetailsSheet() {
                   </span>
                 </div>
                 <p className="pin-sheet__status-note">
-                  {data.status === 'removed'
-                    ? 'Marked removed · retained for follow-up'
-                    : 'Community report - not expert validated'}
+                  {data.status === 'removal_reported'
+                    ? `Removal reported ${formatTime(data.removalReportedAt ?? data.lastReportedAt)} · retained for follow-up`
+                    : data.status === 'removed'
+                      ? 'Marked removed · retained for follow-up'
+                      : 'Community report - not expert validated'}
                 </p>
               </header>
 
@@ -145,6 +192,44 @@ export function SightingDetailsSheet() {
                     sub={data.precisionReduced ? 'Approximate location for privacy' : undefined} mono />
                 </dl>
               </section>
+
+              {profileId && data.status === 'screened' && data.removalReportId && (
+                <section className="pin-sheet__removal" aria-labelledby="sighting-removal-heading">
+                  <h3 id="sighting-removal-heading">Mark as removed</h3>
+                  <p>
+                    This is a community-reported status, not expert verification. A fresh browser
+                    location must be accurate to 250 m or better and within 250 m of the marker.
+                  </p>
+                  {removal.data ? (
+                    <p role="status">Removal reported. The original report remains available.</p>
+                  ) : (
+                    <>
+                      <button type="button" onClick={captureRemovalLocation} disabled={removal.isPending}>
+                        Use my current location
+                      </button>
+                      {removalFix && (
+                        <div className="pin-sheet__removal-fix" role="status">
+                          <strong>Measured accuracy: ±{removalFix.accuracyM} m</strong>
+                          {removalFix.accuracyM <= 250 ? (
+                            <button
+                              type="button"
+                              onClick={() => removal.mutate(removalFix)}
+                              disabled={removal.isPending}
+                            >
+                              {removal.isPending ? 'Submitting…' : 'Confirm removal report'}
+                            </button>
+                          ) : (
+                            <span role="alert">Accuracy is above 250 m. Request a new fix.</span>
+                          )}
+                        </div>
+                      )}
+                      {(removalLocationError || removal.isError) && (
+                        <p role="alert">{removalLocationError ?? publicRemovalError(removal.error)}</p>
+                      )}
+                    </>
+                  )}
+                </section>
+              )}
 
               <details className="pin-sheet__guidance">
                 <summary>
@@ -297,4 +382,14 @@ function formatTime(iso: string): string {
   const hours = Math.round(mins / 60)
   if (hours < 48) return `${hours} h ago`
   return `${Math.round(hours / 24)} d ago`
+}
+
+function publicRemovalError(error: Error | null): string {
+  if (error instanceof ApiError) {
+    if (error.code === 'removal_too_far') return 'You are more than 250 metres from the marker.'
+    if (error.code === 'removal_accuracy_too_low') return 'Location accuracy must be 250 metres or better.'
+    if (error.code === 'removal_location_stale') return 'The location fix expired. Request a fresh location.'
+    if (error.code === 'removal_not_available') return 'This sighting cannot be marked as removed.'
+  }
+  return 'The removal report could not be submitted. Check the connection and try again.'
 }

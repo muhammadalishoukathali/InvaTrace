@@ -129,9 +129,7 @@ def update_profile_role(
         raise ApiProblem(404, "profile_not_found", "Not found")
     # Stops an admin from locking themselves out by demoting their own account.
     if profile.id == auth.profile.id and body.role != "Admin":
-        raise ApiProblem(
-            409, "self_demote_forbidden", "Admins cannot demote themselves."
-        )
+        raise ApiProblem(409, "self_demote_forbidden", "Admins cannot demote themselves.")
     before = profile.role
     if before == body.role:
         return OkResponse()
@@ -171,9 +169,7 @@ def remove_sighting(
     auth: AuthContext = Depends(require_admin),
     session: Session = Depends(get_session),
 ) -> OkResponse:
-    sighting = session.scalar(
-        select(Sighting).where(Sighting.id == sighting_id).with_for_update()
-    )
+    sighting = session.scalar(select(Sighting).where(Sighting.id == sighting_id).with_for_update())
     if not sighting:
         raise ApiProblem(404, "sighting_not_found", "Not found")
     if sighting.status == "removed":

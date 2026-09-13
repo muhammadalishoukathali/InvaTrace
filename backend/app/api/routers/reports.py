@@ -1,15 +1,19 @@
 from __future__ import annotations
 
 import hashlib
+import math
 import uuid
-from datetime import timedelta
+from datetime import UTC, datetime, timedelta
+from typing import Literal
 
 from fastapi import APIRouter, Depends, Header, Query, Request, Response
+from pydantic import Field
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from app.api.schemas import (
     IDEMPOTENCY_PATTERN,
+    ApiModel,
     ReportListResponse,
     ReportResponse,
     ReportSubmission,
@@ -28,11 +32,17 @@ from app.db.models import (
     Report,
     ReportSightingLink,
     Scan,
+    Sighting,
+    SightingStatusEvent,
     Species,
     UploadGrant,
     VerificationJob,
 )
-from app.domain.catalogue import CatalogueError, assert_client_catalogue_matches
+from app.domain.catalogue import (
+    CatalogueError,
+    assert_client_catalogue_matches,
+    is_approved_species,
+)
 from app.domain.reporting import coordinate, report_response
 from app.services.object_deletion import enqueue_object_deletions
 from app.services.storage import storage
@@ -46,6 +56,72 @@ reports" history, and single-report status polling/deletion.
 """
 
 router = APIRouter(prefix="/api/v1/reports", tags=["reports"])
+
+
+class RemovalReportRequest(ApiModel):
+    latitude: float = Field(ge=0.8, le=7.5)
+    longitude: float = Field(ge=99.3, le=119.5)
+    accuracy_m: float = Field(ge=0)
+    captured_at: datetime
+
+
+class RemovalReportResponse(ApiModel):
+    report_id: uuid.UUID
+    sighting_id: uuid.UUID
+    status: Literal["removal_reported"]
+    removal_reported_at: datetime
+    accuracy_m: float
+    distance_m: float
+
+
+def _distance_metres(lat1: float, lon1: float, lat2: float, lon2: float) -> float:
+    """Great-circle distance used for the 250 m server-side removal gate."""
+    radius_m = 6_371_008.8
+    lat1r, lat2r = math.radians(lat1), math.radians(lat2)
+    dlat = lat2r - lat1r
+    dlon = math.radians(lon2 - lon1)
+    value = math.sin(dlat / 2) ** 2 + math.cos(lat1r) * math.cos(lat2r) * math.sin(dlon / 2) ** 2
+    return radius_m * 2 * math.atan2(math.sqrt(value), math.sqrt(1 - value))
+
+
+def _validate_removal_location(
+    *,
+    captured_at: datetime,
+    accuracy_m: float,
+    latitude: float,
+    longitude: float,
+    sighting_latitude: float,
+    sighting_longitude: float,
+    now: datetime,
+) -> float:
+    """Validate the fresh browser fix and return server-calculated distance."""
+    if captured_at.tzinfo is None:
+        captured_at = captured_at.replace(tzinfo=UTC)
+    if captured_at < now - timedelta(minutes=5) or captured_at > now + timedelta(minutes=1):
+        raise ApiProblem(
+            422,
+            "removal_location_stale",
+            "Use a fresh browser location before marking this plant as removed.",
+        )
+    if accuracy_m > 250:
+        raise ApiProblem(
+            422,
+            "removal_accuracy_too_low",
+            "Location accuracy must be 250 metres or better.",
+        )
+    distance_m = _distance_metres(
+        sighting_latitude,
+        sighting_longitude,
+        latitude,
+        longitude,
+    )
+    if distance_m > 250:
+        raise ApiProblem(
+            422,
+            "removal_too_far",
+            "You must be within 250 metres of the reported plant.",
+        )
+    return distance_m
 
 
 # Hash of the submitted body, used to detect an Idempotency-Key being replayed
@@ -188,6 +264,10 @@ def create_report(
         if duplicate is not None:
             response.status_code = 200
             return report_response(duplicate)
+    if body.species_id and not is_approved_species(body.species_id):
+        raise ApiProblem(
+            422, "species_not_approved", "The species is not in the approved catalogue."
+        )
     species = session.get(Species, body.species_id) if body.species_id else None
     if body.species_id and not species:
         raise ApiProblem(400, "unknown_species", "The species is not supported.")
@@ -208,17 +288,33 @@ def create_report(
             "The scan for this capture must be persisted before submitting a report.",
         )
     if scan_record.outcome != body.outcome:
-        raise ApiProblem(422, "scan_outcome_mismatch", "Report outcome does not match the recorded scan.")
+        raise ApiProblem(
+            422, "scan_outcome_mismatch", "Report outcome does not match the recorded scan."
+        )
     if (scan_record.predicted_species_id or None) != (body.species_id or None):
-        raise ApiProblem(422, "scan_species_mismatch", "Report species does not match the recorded scan.")
+        raise ApiProblem(
+            422, "scan_species_mismatch", "Report species does not match the recorded scan."
+        )
     if abs(float(scan_record.confidence) - float(body.confidence)) > 1e-4:
-        raise ApiProblem(422, "scan_confidence_mismatch", "Report confidence does not match the recorded scan.")
+        raise ApiProblem(
+            422, "scan_confidence_mismatch", "Report confidence does not match the recorded scan."
+        )
     if scan_record.model_version != body.model_version:
-        raise ApiProblem(422, "scan_model_version_mismatch", "Report model version does not match the recorded scan.")
+        raise ApiProblem(
+            422,
+            "scan_model_version_mismatch",
+            "Report model version does not match the recorded scan.",
+        )
     if scan_record.capture_source is not None and scan_record.capture_source != body.capture_source:
-        raise ApiProblem(422, "scan_capture_source_mismatch", "Report capture source does not match the recorded scan.")
+        raise ApiProblem(
+            422,
+            "scan_capture_source_mismatch",
+            "Report capture source does not match the recorded scan.",
+        )
     if scan_record.image_sha256 is not None and scan_record.image_sha256 != server_hash:
-        raise ApiProblem(422, "scan_image_hash_mismatch", "Report image hash does not match the recorded scan.")
+        raise ApiProblem(
+            422, "scan_image_hash_mismatch", "Report image hash does not match the recorded scan."
+        )
     if body.outcome == "target" and species and not species.reportable:
         raise ApiProblem(
             422,
@@ -375,6 +471,97 @@ def _sighting_id(session: Session, report_id: uuid.UUID) -> uuid.UUID | None:
             ReportSightingLink.report_id == report_id,
             ReportSightingLink.active.is_(True),
         )
+    )
+
+
+@router.post("/{report_id}/removal", response_model=RemovalReportResponse)
+def report_removal(
+    report_id: uuid.UUID,
+    body: RemovalReportRequest,
+    request: Request,
+    auth: AuthContext = Depends(require_auth),
+    session: Session = Depends(get_session),
+) -> RemovalReportResponse:
+    """Record a nearby community removal report without altering original evidence."""
+    now = utcnow()
+    report = session.scalar(select(Report).where(Report.id == report_id).with_for_update())
+    if report is None:
+        raise ApiProblem(404, "report_not_found", "Not found")
+    sighting_id = _sighting_id(session, report.id)
+    if sighting_id is None:
+        raise ApiProblem(
+            409, "removal_not_available", "This report is not linked to a public sighting."
+        )
+    sighting = session.scalar(select(Sighting).where(Sighting.id == sighting_id).with_for_update())
+    if sighting is None:
+        raise ApiProblem(
+            409, "removal_not_available", "This report is not linked to a public sighting."
+        )
+    existing = session.scalar(
+        select(SightingStatusEvent).where(
+            SightingStatusEvent.sighting_id == sighting.id,
+            SightingStatusEvent.event_type == "removal_reported",
+        )
+    )
+    if existing is not None:
+        return RemovalReportResponse(
+            report_id=existing.report_id,
+            sighting_id=existing.sighting_id,
+            status="removal_reported",
+            removal_reported_at=existing.created_at,
+            accuracy_m=existing.accuracy_m,
+            distance_m=float(existing.distance_m),
+        )
+    if report.status not in {"screened", "merged"} or sighting.status != "screened":
+        raise ApiProblem(
+            409,
+            "removal_not_available",
+            "Only an active community report can be marked as removed.",
+        )
+    distance_m = _validate_removal_location(
+        captured_at=body.captured_at,
+        accuracy_m=body.accuracy_m,
+        latitude=body.latitude,
+        longitude=body.longitude,
+        sighting_latitude=float(sighting.latitude),
+        sighting_longitude=float(sighting.longitude),
+        now=now,
+    )
+    event = SightingStatusEvent(
+        sighting_id=sighting.id,
+        report_id=report.id,
+        acting_profile_id=auth.profile.id,
+        event_type="removal_reported",
+        latitude=coordinate(body.latitude),
+        longitude=coordinate(body.longitude),
+        accuracy_m=body.accuracy_m,
+        distance_m=round(distance_m, 2),
+    )
+    sighting.status = "removal_reported"
+    session.add(event)
+    session.add(
+        AuditEvent(
+            event_type="sighting.removal_reported",
+            acting_profile_id=auth.profile.id,
+            subject_type="sighting",
+            subject_id=str(sighting.id),
+            request_id=request_id_var.get(),
+            metadata_json={
+                "report_id": str(report.id),
+                "accuracy_m": body.accuracy_m,
+                "distance_m": round(distance_m, 2),
+            },
+        )
+    )
+    session.commit()
+    session.refresh(event)
+    return RemovalReportResponse(
+        report_id=report.id,
+        sighting_id=sighting.id,
+        status="removal_reported",
+        removal_reported_at=event.created_at,
+        accuracy_m=event.accuracy_m,
+        distance_m=float(event.distance_m),
     )
 
 

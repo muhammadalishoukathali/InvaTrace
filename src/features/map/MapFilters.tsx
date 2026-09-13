@@ -4,23 +4,22 @@ import { Icon } from '@/components/Icon'
 import { useIsDesktop } from '@/hooks/useIsDesktop'
 import { useMapView } from '@/features/map/map-view-store'
 import { useDialogA11y } from '@/hooks/useDialogA11y'
-import { modelSpeciesCatalog } from '@/data/model-species-catalog'
+import { approvedSpeciesDataset } from '@shared/catalogue'
 import type { SightingStatus, Risk } from '@/types'
 import './map-controls.css'
 
-/** All the invasive classes the bundled model can actually output - I filter
- *  the full species catalog down to just these so the filter chips only ever
- *  show something the model would realistically flag. */
-export const MAP_FILTER_SPECIES = modelSpeciesCatalog.classes
-  .filter((species) => species.malaysia_status === 'invasive')
+/** Public map filters use the closed business catalogue, independent of the
+ *  currently bundled classifier's older class list. */
+export const MAP_FILTER_SPECIES = approvedSpeciesDataset.records
   .map((species) => ({
-    id: species.machine_label.replaceAll('_', '-'),
-    label: species.display_name,
+    id: species.species_id,
+    label: species.common_names[0],
   }))
 
 const STATUSES: { id: SightingStatus; label: string; dot?: string }[] = [
   { id: 'screened', label: 'Rule screened' },
-  { id: 'removed', label: 'Removed', dot: '#8B978F' },
+  { id: 'removal_reported', label: 'Removal reported', dot: '#8B978F' },
+  { id: 'removed', label: 'Removed (legacy)', dot: '#65736C' },
 ]
 
 const RISKS: { id: Risk; label: string; dot: string }[] = [

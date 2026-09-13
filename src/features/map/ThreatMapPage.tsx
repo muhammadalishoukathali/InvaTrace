@@ -627,7 +627,7 @@ function AccessibleSightingList({
               {items.map((s) => {
                 const statusLabel = s.status === 'screened'
                   ? 'Community report - not expert validated'
-                  : 'Removed'
+                  : s.status === 'removal_reported' ? 'Removal reported' : 'Removed'
                 const tierLabel = PIN_TIERS[pinTier(s)].label
                 return (
                   <li key={s.id}>
@@ -662,7 +662,7 @@ export const PIN_TIERS: Record<PinTier, { fill: string; label: string }> = {
 }
 
 export function pinTier(s: Pick<Sighting, 'status' | 'reportCount'>): PinTier {
-  if (s.status === 'removed') return 'removed'
+  if (s.status === 'removed' || s.status === 'removal_reported') return 'removed'
   if (s.reportCount >= 5) return 'hotspot'
   if (s.reportCount >= 2) return 'spreading'
   return 'isolated'
@@ -679,7 +679,7 @@ function pinElement(s: Sighting): HTMLElement {
   el.type = 'button'
   const statusLabel = s.status === 'screened'
     ? 'Community report - not expert validated'
-    : 'Removed'
+    : s.status === 'removal_reported' ? 'Removal reported' : 'Removed'
   const tier = pinTier(s)
   const tierInfo = PIN_TIERS[tier]
   const ariaLabel = `${s.speciesName} - ${tierInfo.label} - ${statusLabel}`

@@ -26,6 +26,18 @@ const ReportTrackingPage = lazy(() => import('@/features/report/ReportTrackingPa
   .then((module) => ({ default: module.ReportTrackingPage })))
 const MyReportsPage = lazy(() => import('@/features/report/MyReportsPage')
   .then((module) => ({ default: module.MyReportsPage })))
+const CataloguePage = lazy(() => import('@/features/catalogue/CataloguePage')
+  .then((module) => ({ default: module.CataloguePage })))
+const CatalogueDetailPage = lazy(() => import('@/features/catalogue/CatalogueDetailPage')
+  .then((module) => ({ default: module.CatalogueDetailPage })))
+const AdoptedAreasPage = lazy(() => import('@/features/adopted-areas/AdoptedAreasPage')
+  .then((module) => ({ default: module.AdoptedAreasPage })))
+const AdoptedAreaActivityPage = lazy(() => import('@/features/adopted-areas/AdoptedAreaActivityPage')
+  .then((module) => ({ default: module.AdoptedAreaActivityPage })))
+const PlacesPage = lazy(() => import('@/features/places/PlacesPage')
+  .then((module) => ({ default: module.PlacesPage })))
+const PlaceDetailPage = lazy(() => import('@/features/places/PlaceDetailPage')
+  .then((module) => ({ default: module.PlaceDetailPage })))
 
 // small helper so I don't have to wrap every single lazy route in its own
 // Suspense manually - also means one slow chunk loading doesn't block AppShell
@@ -75,6 +87,12 @@ export const router = createBrowserRouter([
       { path: 'access', element: <Navigate to="/profile" replace /> },
       { path: 'reports', element: loadRoute(<MyReportsPage />) },
       { path: 'reports/:reportId', element: loadRoute(<ReportTrackingPage />) },
+      { path: 'catalogue', element: loadRoute(<CataloguePage />) },
+      { path: 'catalogue/:speciesId', element: loadRoute(<CatalogueDetailPage />) },
+      { path: 'adopted-areas', element: loadRoute(<AdoptedAreasPage />) },
+      { path: 'adopted-areas/:adoptionId/activity', element: loadRoute(<AdoptedAreaActivityPage />) },
+      { path: 'places', element: loadRoute(<PlacesPage />) },
+      { path: 'places/:placeId', element: loadRoute(<PlaceDetailPage />) },
       { path: '*', element: <Navigate to="/map" replace /> },
     ],
   },

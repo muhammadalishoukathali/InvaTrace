@@ -62,7 +62,7 @@ def test_report_contract_accepts_gallery_and_rejects_unknown_capture_sources() -
         ReportSubmission.model_validate(invalid)
 
 
-def test_development_species_seed_exactly_matches_model_catalog() -> None:
+def test_development_species_seed_exactly_matches_approved_catalogue() -> None:
     # this is the one I'd actually worry about breaking silently: the seed
     # data in app/seed.py has to line up 1:1 with the ONNX model's class
     # list, or predictions come back for species the API doesn't know
@@ -72,18 +72,18 @@ def test_development_species_seed_exactly_matches_model_catalog() -> None:
     # than a hand-edited backend copy. Cross-check against the shared
     # catalogue records rather than a duplicate JSON file so drift is
     # impossible in the first place.
-    from app.domain.catalogue import load_status_records
-    records = load_status_records()
+    from app.domain.catalogue import load_approved_species
+
+    records = load_approved_species()
     expected_ids = {record.species_id for record in records}
-    assert len(SPECIES) == len(records) == 31
+    assert len(SPECIES) == len(records) == 32
     assert {item["id"] for item in SPECIES} == expected_ids
     # AC Iteration 1 P1 - the three previously-invasive labels (miconia_crenata,
     # sphagneticola_trilobata, lantana_camara) are downgraded to
     # status_uncertain in the shared catalogue until reviewed evidence lands.
     # Every invasive species must expose Report.
-    invasive_expected = sum(1 for r in records if r.ui_state == "invasive")
-    assert sum(bool(item["is_invasive"]) for item in SPECIES) == invasive_expected
-    assert sum(bool(item["reportable"]) for item in SPECIES) == invasive_expected
+    assert all(bool(item["is_invasive"]) for item in SPECIES)
+    assert all(bool(item["reportable"]) for item in SPECIES)
     assert "clidemia-hirta" not in expected_ids
 
 
@@ -194,10 +194,9 @@ def test_openapi_exposes_guidance_and_scans_endpoints() -> None:
     assert "/api/v1/species/{species_id}/guidance" in schema["paths"]
     assert "/api/v1/scans" in schema["paths"]
     scan_post = schema["paths"]["/api/v1/scans"]["post"]
-    request_schema_name = (
-        scan_post["requestBody"]["content"]["application/json"]["schema"]["$ref"]
-        .rsplit("/", 1)[-1]
-    )
+    request_schema_name = scan_post["requestBody"]["content"]["application/json"]["schema"][
+        "$ref"
+    ].rsplit("/", 1)[-1]
     scan_schema = schema["components"]["schemas"][request_schema_name]
     assert "captureSource" in scan_schema["properties"]
 

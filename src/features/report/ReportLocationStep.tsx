@@ -1,10 +1,13 @@
 import { useEffect, useState } from 'react'
+import { useQuery } from '@tanstack/react-query'
 import { useLocation, useNavigate } from 'react-router-dom'
 import { Icon } from '@/components/Icon'
 import { useReportDraft } from '@/features/report/report-draft-store'
 import { useScan } from '@/features/scan/scan-store'
 import { ReportNextButton } from './components/ReportNextButton'
 import { LOCATION_ACCURACY_MAX_M } from './gps-policy'
+import { api } from '@/services/api-client'
+import type { ProtectedLocationContext } from '@/types'
 
 type Status = 'idle' | 'locating' | 'located' | 'denied' | 'unavailable'
 
@@ -66,7 +69,7 @@ export function ReportLocationStep() {
       (pos) => {
         setLocation(
           { lat: pos.coords.latitude, lng: pos.coords.longitude },
-          Math.round(pos.coords.accuracy),
+          pos.coords.accuracy,
         )
         setStatus('located')
       },
@@ -96,6 +99,19 @@ export function ReportLocationStep() {
   const withinMalaysia = inMalaysia(loc)
   const canProceed = !!loc && hasFiniteAccuracy && withinMalaysia
   const accuracyWarning = hasFiniteAccuracy && accuracy != null && accuracy > LOCATION_ACCURACY_MAX_M
+  const protectedContext = useQuery({
+    queryKey: ['protected-location-context', loc?.lat, loc?.lng, accuracy],
+    queryFn: () => api<ProtectedLocationContext>('/api/v1/location-context', {
+      method: 'POST',
+      body: JSON.stringify({
+        latitude: loc!.lat,
+        longitude: loc!.lng,
+        accuracyM: accuracy,
+      }),
+    }),
+    enabled: Boolean(loc && hasFiniteAccuracy && withinMalaysia),
+    retry: false,
+  })
 
   return (
     <div style={{ padding: 16, maxWidth: 520, margin: '0 auto', display: 'flex', flexDirection: 'column', gap: 16 }}>
@@ -152,6 +168,36 @@ export function ReportLocationStep() {
           </div>
         )}
 
+        {loc && hasFiniteAccuracy && withinMalaysia && (
+          <div style={{ marginTop: 14, paddingTop: 14, borderTop: '1px solid var(--border)' }}>
+            {protectedContext.isLoading ? (
+              <Row icon="Clock" tint="var(--muted)" title="Checking mapped protection status…" body="Reporting remains available while this check runs." />
+            ) : protectedContext.data ? (
+              <div className="location-context" aria-live="polite">
+                <Row
+                  icon={protectedContext.data.contextState === 'no_protected_area_intersection' ? 'MapPin' : 'ShieldAlert'}
+                  tint={protectedContext.data.contextState === 'no_protected_area_intersection' ? 'var(--green)' : 'var(--amber-text)'}
+                  title={contextTitle(protectedContext.data)}
+                  body={protectedContext.data.disclaimer}
+                />
+                <dl style={{ margin: '10px 0 0 52px', display: 'grid', gap: 3, color: 'var(--muted)', fontSize: 11.5 }}>
+                  <div><dt style={{ display: 'inline' }}>Boundary source: </dt><dd style={{ display: 'inline' }}>{protectedContext.data.boundarySource ?? 'Unavailable'}</dd></div>
+                  <div><dt style={{ display: 'inline' }}>Boundary version: </dt><dd style={{ display: 'inline' }}>{protectedContext.data.boundaryVersion ?? 'Unavailable'}</dd></div>
+                  <div><dt style={{ display: 'inline' }}>Boundary updated: </dt><dd style={{ display: 'inline' }}>{protectedContext.data.boundaryUpdatedAt ? formatBoundaryDate(protectedContext.data.boundaryUpdatedAt) : 'Unavailable'}</dd></div>
+                  <div><dt style={{ display: 'inline' }}>GPS accuracy: </dt><dd style={{ display: 'inline' }}>±{protectedContext.data.accuracyM} m</dd></div>
+                </dl>
+              </div>
+            ) : (
+              <Row
+                icon="ShieldAlert"
+                tint="var(--amber-text)"
+                title="Protected-area boundary uncertain"
+                body="Boundary data could not be checked. Observe and report only; do not touch, collect, cut or remove the plant."
+              />
+            )}
+          </div>
+        )}
+
         <button type="button" onClick={requestGeolocation} disabled={status === 'locating'} style={{
           marginTop: 14, width: '100%', height: 'var(--h-nav)', borderRadius: 'var(--r-button)',
           border: '1px solid var(--border)', background: 'var(--hover)',
@@ -181,6 +227,21 @@ export function ReportLocationStep() {
     </div>
   )
 }
+
+function contextTitle(context: ProtectedLocationContext): string {
+  if (context.contextState === 'inside_protected_area') {
+    return context.protectedAreaName
+      ? `Inside mapped protected area: ${context.protectedAreaName}`
+      : 'Inside a mapped protected area'
+  }
+  if (context.contextState === 'no_protected_area_intersection') {
+    return 'No mapped protected-area intersection found'
+  }
+  return 'Boundary unavailable or uncertain'
+}
+
+const formatBoundaryDate = (value: string) => new Intl.DateTimeFormat(undefined, { dateStyle: 'medium' })
+  .format(new Date(value))
 
 function Row({ icon, tint, title, body }: { icon: string; tint: string; title: string; body: string }) {
   return (

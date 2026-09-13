@@ -10,20 +10,57 @@
     "content_version",
     "model_version",
     "last_reviewed",
+    "generated_at",
+    "assets",
     "files"
   ],
   "properties": {
     "$schema": { "type": "string" },
-    "schema_version": { "type": "string", "const": "invatrace.catalogue.manifest.v1" },
+    "schema_version": { "type": "string", "const": "invatrace.catalogue.manifest.v2" },
     "catalogue_version": { "type": "string", "pattern": "^\\d+\\.\\d+\\.\\d+$" },
     "content_version": { "type": "string", "pattern": "^\\d+\\.\\d+\\.\\d+$" },
     "model_version": { "type": "string", "minLength": 1 },
     "last_reviewed": { "type": "string", "format": "date" },
+    "generated_at": { "type": "string", "format": "date-time" },
+    "assets": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["url", "sha256", "byte_length", "review_status"],
+        "properties": {
+          "url": { "type": "string", "pattern": "^/reference-images/" },
+          "sha256": { "type": "string", "pattern": "^[0-9a-f]{64}$" },
+          "byte_length": { "type": "integer", "minimum": 1 },
+          "review_status": { "enum": ["approved", "provenance_pending"] },
+          "creator": { "type": "string", "minLength": 1 },
+          "licence": { "type": "string", "minLength": 1 },
+          "source_title": { "type": "string", "minLength": 1 },
+          "source_url_or_identifier": { "type": "string", "minLength": 1 },
+          "reviewed_at": { "type": "string", "format": "date" }
+        },
+        "allOf": [
+          {
+            "if": { "properties": { "review_status": { "const": "approved" } } },
+            "then": {
+              "required": [
+                "creator",
+                "licence",
+                "source_title",
+                "source_url_or_identifier",
+                "reviewed_at"
+              ]
+            }
+          }
+        ]
+      }
+    },
     "files": {
       "type": "object",
       "additionalProperties": false,
-      "required": ["plant-status.json", "plant-guidance.json"],
+      "required": ["approved-species.json", "plant-status.json", "plant-guidance.json"],
       "properties": {
+        "approved-species.json": { "$ref": "#/$defs/fileEntry" },
         "plant-status.json": { "$ref": "#/$defs/fileEntry" },
         "plant-guidance.json": { "$ref": "#/$defs/fileEntry" }
       }

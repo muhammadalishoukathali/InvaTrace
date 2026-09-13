@@ -15,7 +15,6 @@ from typing import Any
 from app.api.schemas import GuidanceSource, SeasonalActionGuide
 from app.db.models import Species
 
-
 # older seeded guides used an "action_mode" field with different values than
 # what the API contract settled on later ("guidance_mode") - this maps the
 # old vocabulary forward so we don't have to backfill every stored guide
@@ -44,9 +43,24 @@ def _hydrate_guide(species: Species, raw: dict[str, Any]) -> SeasonalActionGuide
     metadata = species.guidance_metadata or {}
     sources_raw = raw.get("sources") or metadata.get("sources") or []
     sources = [GuidanceSource.model_validate(item) for item in sources_raw]
-    stop_conditions = raw.get("stopConditions") or raw.get("stop_conditions") or metadata.get("stop_conditions") or []
-    spread_prevention = raw.get("spreadPrevention") or raw.get("spread_prevention") or metadata.get("spread_prevention") or []
-    prohibited_actions = raw.get("prohibitedActions") or raw.get("prohibited_actions") or metadata.get("prohibited_actions") or []
+    stop_conditions = (
+        raw.get("stopConditions")
+        or raw.get("stop_conditions")
+        or metadata.get("stop_conditions")
+        or []
+    )
+    spread_prevention = (
+        raw.get("spreadPrevention")
+        or raw.get("spread_prevention")
+        or metadata.get("spread_prevention")
+        or []
+    )
+    prohibited_actions = (
+        raw.get("prohibitedActions")
+        or raw.get("prohibited_actions")
+        or metadata.get("prohibited_actions")
+        or []
+    )
     content_version = (
         raw.get("contentVersion")
         or raw.get("content_version")
