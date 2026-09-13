@@ -79,13 +79,13 @@ test('offline catalogue uses a verified cache and keeps it when a replacement fa
   })
   await page.goto('/catalogue')
   await page.getByRole('button', { name: 'Download offline catalogue' }).click()
-  await expect(page.getByText('Installed v2.1.0')).toBeVisible()
+  await expect(page.getByText('Installed v2.2.0')).toBeVisible()
   const original = await page.evaluate(() => {
     const installed = JSON.parse(localStorage.getItem('invatrace.catalogue-pack.v1') ?? 'null')
     return { installed, cacheNames: [] as string[] }
   })
   original.cacheNames = await page.evaluate(() => caches.keys())
-  expect(original.installed.cacheName).toContain('invatrace-catalogue-2.1.0-')
+  expect(original.installed.cacheName).toContain('invatrace-catalogue-2.2.0-')
   expect(original.cacheNames).toContain(original.installed.cacheName)
 
   let corruptedAssetServed = false
@@ -116,13 +116,29 @@ test('offline catalogue uses a verified cache and keeps it when a replacement fa
   await page.reload()
   await expect(page.getByRole('list', { name: '32 catalogue plants' })).toBeVisible()
   await expect(page.locator('.catalogue-list img')).toHaveCount(32)
+  const catalogueLinks = await page.locator('.catalogue-list a').evaluateAll((links) => (
+    links.map((link) => (link as HTMLAnchorElement).getAttribute('href')).filter(Boolean)
+  ))
+  expect(catalogueLinks).toHaveLength(32)
+  for (const href of catalogueLinks) {
+    await page.goto(href!)
+    await expect(page.getByRole('heading', { name: 'Identifying characteristics' })).toBeVisible()
+    await expect(page.getByRole('heading', { name: 'Typical habitat' })).toBeVisible()
+    await expect(page.getByRole('heading', { name: 'Documented impacts' })).toBeVisible()
+    await expect(page.getByRole('heading', { name: 'Safe response guidance' })).toBeVisible()
+    await expect(page.getByRole('heading', { name: 'Sources and credits' })).toBeVisible()
+    await expect(page.locator('.catalogue-detail__media img')).toBeVisible()
+    await expect(page.locator('.catalogue-sources a').first()).toHaveAttribute('href', /^https:/)
+  }
+  await page.goto('/catalogue')
+  await expect(page.getByRole('list', { name: '32 catalogue plants' })).toBeVisible()
   const search = page.getByPlaceholder('Search scientific or common name')
   await search.fill('  GIANT SALVINIA  ')
   await expect(page.getByRole('list', { name: '1 catalogue plants' })).toBeVisible()
   await page.getByRole('link', { name: /Salvinia molesta/ }).click()
   await expect(page.getByRole('heading', { name: 'Salvinia molesta' })).toBeVisible()
   await expect(page.getByRole('heading', { name: 'Safe response guidance' })).toBeVisible()
-  await expect(page.getByText('No beginner-safe active action is provided')).toBeVisible()
+  await expect(page.getByText(/Do not move or break plants/)).toBeVisible()
   await expect(page.getByRole('heading', { name: 'Sources and credits' })).toBeVisible()
   await expect(page.locator('.catalogue-sources a').first()).toHaveAttribute('href', /^https:/)
   await expect(page.getByRole('img', { name: 'Reference view of Salvinia molesta' })).toBeVisible()

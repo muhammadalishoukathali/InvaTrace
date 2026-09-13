@@ -25,6 +25,23 @@ const chunkBytes = 20 * 1024 * 1024
 // unpacks them from assets/runtime-packed/ if they're missing or stale.
 await restoreRuntimeAssets()
 
+// Catalogue images are versioned independently from the classifier. Verify
+// every reviewed local image here so production builds fail on missing,
+// corrupted, or stale catalogue assets without coupling them to model packs.
+const referenceImages = JSON.parse(
+  await readFile(join(projectRoot, 'shared', 'catalogue', 'reference-images.json'), 'utf8'),
+)
+if (referenceImages.record_count !== 32 || referenceImages.records?.length !== 32) {
+  throw new Error('The reviewed reference-image release must contain exactly 32 records.')
+}
+for (const image of referenceImages.records) {
+  const bytes = await readFile(join(projectRoot, 'public', image.local_url.replace(/^\//u, '')))
+  const actualImageSha256 = createHash('sha256').update(bytes).digest('hex')
+  if (bytes.length !== image.byte_length || actualImageSha256 !== image.sha256) {
+    throw new Error(`Catalogue image integrity mismatch: ${image.species_id}`)
+  }
+}
+
 const checksumLines = (await readFile(join(kitRoot, 'checksums.sha256'), 'utf8'))
   .split(/\r?\n/)
   .filter(Boolean)
@@ -75,3 +92,4 @@ await writeFile(
 )
 
 console.log(`Prepared ${chunks.length} verified PULIH model chunks (${model.length} bytes).`)
+console.log(`Verified ${referenceImages.records.length} reviewed catalogue images.`)

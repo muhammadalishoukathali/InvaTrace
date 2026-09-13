@@ -5,6 +5,7 @@ from __future__ import annotations
 import hashlib
 import json
 import math
+from collections import defaultdict
 from dataclasses import dataclass
 from typing import Any
 
@@ -22,6 +23,99 @@ class PolygonValidationSummary:
 class CountryPolygon:
     rings: list[list[list[float]]]
     bounds: tuple[float, float, float, float]
+
+
+class CountrySpatialIndex:
+    """Small grid index for repeated exact point-in-country checks.
+
+    The reviewed Malaysia boundary has thousands of island polygons. Walking
+    every ring for every OSM node is prohibitively expensive; this index first
+    limits each point to polygons whose bounding boxes overlap its grid cell,
+    then applies the same boundary-inclusive ring test used by point_in_country.
+    """
+
+    def __init__(self, polygons: list[CountryPolygon], *, cell_size: float = 0.25) -> None:
+        if not polygons or cell_size <= 0:
+            raise ValueError("country polygons and a positive cell size are required")
+        self.polygons = polygons
+        self.cell_size = cell_size
+        self.latitude_cell_size = 0.02
+        cells: dict[tuple[int, int], list[int]] = defaultdict(list)
+        ring_edges: dict[tuple[int, int], dict[int, list[tuple[list[float], list[float]]]]] = {}
+        for index, polygon in enumerate(polygons):
+            west, south, east, north = polygon.bounds
+            for x in range(math.floor(west / cell_size), math.floor(east / cell_size) + 1):
+                for y in range(
+                    math.floor(south / cell_size), math.floor(north / cell_size) + 1
+                ):
+                    cells[(x, y)].append(index)
+            for ring_index, ring in enumerate(polygon.rings):
+                latitude_cells: dict[int, list[tuple[list[float], list[float]]]] = defaultdict(list)
+                for position_index, left in enumerate(ring):
+                    right = ring[(position_index + 1) % len(ring)]
+                    south_edge = min(left[1], right[1])
+                    north_edge = max(left[1], right[1])
+                    for y in range(
+                        math.floor(south_edge / self.latitude_cell_size),
+                        math.floor(north_edge / self.latitude_cell_size) + 1,
+                    ):
+                        latitude_cells[y].append((left, right))
+                ring_edges[(index, ring_index)] = dict(latitude_cells)
+        self.cells = dict(cells)
+        self.ring_edges = ring_edges
+
+    def _point_in_indexed_ring(
+        self, longitude: float, latitude: float, polygon_index: int, ring_index: int
+    ) -> bool:
+        cell = math.floor(latitude / self.latitude_cell_size)
+        inside = False
+        for left, right in self.ring_edges[(polygon_index, ring_index)].get(cell, []):
+            if _point_on_segment(longitude, latitude, left, right):
+                return True
+            if (left[1] > latitude) != (right[1] > latitude):
+                intersection = (right[0] - left[0]) * (latitude - left[1]) / (
+                    right[1] - left[1]
+                ) + left[0]
+                if longitude < intersection:
+                    inside = not inside
+        return inside
+
+    def contains(self, longitude: float, latitude: float) -> bool:
+        key = (math.floor(longitude / self.cell_size), math.floor(latitude / self.cell_size))
+        for index in self.cells.get(key, []):
+            polygon = self.polygons[index]
+            west, south, east, north = polygon.bounds
+            if not (west <= longitude <= east and south <= latitude <= north):
+                continue
+            if not self._point_in_indexed_ring(longitude, latitude, index, 0):
+                continue
+            if any(
+                self._point_in_indexed_ring(longitude, latitude, index, ring_index)
+                for ring_index in range(1, len(polygon.rings))
+            ):
+                continue
+            return True
+        return False
+
+    def geometry_within(self, geometry: dict[str, Any]) -> bool:
+        coordinates = geometry.get("coordinates")
+        if not isinstance(coordinates, list):
+            return False
+
+        def positions(value: list[Any]):
+            if len(value) >= 2 and all(isinstance(item, (int, float)) for item in value[:2]):
+                yield float(value[0]), float(value[1])
+                return
+            for item in value:
+                if isinstance(item, list):
+                    yield from positions(item)
+
+        checked = 0
+        for longitude, latitude in positions(coordinates):
+            checked += 1
+            if not self.contains(longitude, latitude):
+                return False
+        return checked > 0
 
 
 def _point_on_segment(

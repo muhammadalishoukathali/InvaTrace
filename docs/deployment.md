@@ -14,6 +14,14 @@ deployment; Neon supports PostGIS in the target database.
 Back up before destructive future migrations. Deploy additive migrations before
 code that requires them, and run `alembic check` in CI to detect model drift.
 
+After migration and reference-data loading, import the fixed releases under
+`data/production/`: OSM places and GBIF occurrences first, then the protected-area
+release. Run `preprocess-osm-waterways` against the exact PBF named by the OSM
+manifest to persist the directed graph and its conservative evidence release.
+Every command must receive the matching release and Malaysia-boundary manifests;
+hash, byte-length, licence, timestamp and coverage mismatches fail closed. The
+regional PBF is intentionally not committed and must match its manifest SHA-256.
+
 ## Cloudflare R2
 
 Create a private bucket and an R2 S3 API token scoped only to that bucket. Set:

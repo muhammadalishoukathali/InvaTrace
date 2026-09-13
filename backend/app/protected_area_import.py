@@ -38,6 +38,27 @@ def _require_postgis_validity(session: Session, geometry: dict, label: str) -> N
         raise ValueError(f"{label} has invalid polygon topology: {reason or 'unknown reason'}")
 
 
+def _coverage_geometry(payload: dict) -> dict:
+    if payload.get("type") == "Feature":
+        geometry = payload.get("geometry")
+    elif payload.get("type") == "FeatureCollection":
+        features = payload.get("features")
+        if not isinstance(features, list) or len(features) != 1:
+            raise ValueError("coverage FeatureCollection must contain exactly one feature")
+        feature = features[0]
+        geometry = feature.get("geometry") if isinstance(feature, dict) else None
+    else:
+        geometry = payload
+    if not isinstance(geometry, dict) or geometry.get("type") not in {
+        "Polygon",
+        "MultiPolygon",
+    }:
+        raise ValueError("coverage GeoJSON must resolve to one Polygon or MultiPolygon")
+    if geometry["type"] == "Polygon":
+        return {"type": "MultiPolygon", "coordinates": [geometry.get("coordinates")]}
+    return geometry
+
+
 def import_protected_area_geojson(
     session: Session,
     *,
@@ -56,15 +77,25 @@ def import_protected_area_geojson(
     if not source or not version or not coverage_note:
         raise ValueError("source, version and coverage_note are required")
     release = (
-        validate_data_release(release_manifest_path, source_path)
+        validate_data_release(
+            release_manifest_path,
+            source_path,
+            expected_dataset_id="osm-malaysia-protected-areas",
+        )
         if release_manifest_path is not None
         else None
     )
     coverage_release = (
-        validate_data_release(coverage_release_manifest_path, coverage_path)
+        validate_data_release(
+            coverage_release_manifest_path,
+            coverage_path,
+            expected_dataset_id="malaysia-national-boundary",
+        )
         if coverage_release_manifest_path is not None
         else None
     )
+    if release is not None and (source != release.source or version != release.upstream_version):
+        raise ValueError("protected-area source/version does not match its release manifest")
     existing = session.scalar(
         select(ProtectedAreaDataset).where(
             ProtectedAreaDataset.source == source,
@@ -100,11 +131,23 @@ def import_protected_area_geojson(
     payload = json.loads(source_path.read_text(encoding="utf-8"))
     if not isinstance(payload, dict) or payload.get("type") != "FeatureCollection":
         raise ValueError("protected-area input must be a GeoJSON FeatureCollection")
+    payload_metadata = payload.get("metadata")
+    if release is not None:
+        if not isinstance(payload_metadata, dict):
+            raise ValueError("protected-area release requires auditable GeoJSON metadata")
+        if payload_metadata.get("source") != release.source:
+            raise ValueError("protected-area GeoJSON source does not match its release manifest")
+        if payload_metadata.get("source_timestamp") != release.metadata.get("source_timestamp"):
+            raise ValueError(
+                "protected-area GeoJSON source timestamp does not match its release manifest"
+            )
+        if payload_metadata.get("licence") != release.licence:
+            raise ValueError("protected-area GeoJSON licence does not match its release manifest")
     boundary_validation = validate_polygon_geojson(payload)
     features = payload.get("features")
     if not isinstance(features, list) or not features:
         raise ValueError("protected-area input must contain at least one feature")
-    prepared: list[tuple[str, str, dict]] = []
+    prepared: list[tuple[str, str | None, dict, dict]] = []
     seen_ids: set[str] = set()
     for index, feature in enumerate(features):
         if not isinstance(feature, dict):
@@ -121,34 +164,40 @@ def import_protected_area_geojson(
             feature.get("properties") if isinstance(feature.get("properties"), dict) else {}
         )
         source_id = str(feature.get("id") or properties.get("id") or "").strip()
-        name = str(properties.get("name") or "").strip()
-        if not source_id or not name:
-            raise ValueError(f"feature {index} requires a stable id and name")
+        name_value = properties.get("name") or properties.get("official_name")
+        name = str(name_value).strip() if name_value else None
+        if not source_id:
+            raise ValueError(f"feature {index} requires a stable id")
         if source_id in seen_ids:
             raise ValueError(f"duplicate protected-area feature id: {source_id}")
         seen_ids.add(source_id)
-        prepared.append((source_id, name, geometry))
+        metadata = {
+            key: properties.get(key)
+            for key in (
+                "osm_type",
+                "osm_id",
+                "source_url",
+                "name",
+                "official_name",
+                "protect_class",
+                "protection_title",
+                "matched_tags",
+                "tags",
+                "source",
+                "source_version",
+                "source_timestamp",
+            )
+            if properties.get(key) is not None
+        }
+        prepared.append((source_id, name, geometry, metadata))
 
     coverage_payload = json.loads(coverage_path.read_text(encoding="utf-8"))
     coverage_validation = validate_polygon_geojson(coverage_payload)
-    if coverage_payload.get("type") == "Feature":
-        coverage_geometry = coverage_payload.get("geometry")
-    else:
-        coverage_geometry = coverage_payload
-    if not isinstance(coverage_geometry, dict) or coverage_geometry.get("type") not in {
-        "Polygon",
-        "MultiPolygon",
-    }:
-        raise ValueError("coverage GeoJSON must be a Polygon, MultiPolygon, or Feature")
-    if coverage_geometry["type"] == "Polygon":
-        coverage_geometry = {
-            "type": "MultiPolygon",
-            "coordinates": [coverage_geometry.get("coordinates")],
-        }
+    coverage_geometry = _coverage_geometry(coverage_payload)
 
     _require_postgis_validity(session, coverage_geometry, "coverage geometry")
     coverage_expression = _postgis_geometry(coverage_geometry)
-    for source_id, _name, geometry in prepared:
+    for source_id, _name, geometry, _metadata in prepared:
         _require_postgis_validity(session, geometry, f"protected-area feature {source_id}")
         if (
             session.scalar(
@@ -190,12 +239,13 @@ def import_protected_area_geojson(
     )
     session.add(dataset)
     session.flush()
-    for source_id, name, geometry in prepared:
+    for source_id, name, geometry, metadata in prepared:
         session.add(
             ProtectedArea(
                 dataset_id=dataset.id,
                 source_feature_id=source_id,
                 name=name,
+                metadata_json=metadata,
                 geometry=cast(
                     _postgis_geometry(geometry),
                     Geography("MULTIPOLYGON", srid=4326),

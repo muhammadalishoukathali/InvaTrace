@@ -1,7 +1,7 @@
 {
   "$schema": "./schemas/reference-images.schema.json",
   "schema_version": "invatrace.catalogue.reference-images.v1",
-  "catalogue_version": "2.1.0",
+  "catalogue_version": "2.2.0",
   "source": "Wikimedia Commons",
   "source_terms": "https://commons.wikimedia.org/wiki/Commons:Reusing_content_outside_Wikimedia",
   "record_count": 32,

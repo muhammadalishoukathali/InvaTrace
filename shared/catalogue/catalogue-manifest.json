@@ -1,11 +1,11 @@
 {
   "$schema": "./schemas/catalogue-manifest.schema.json",
   "schema_version": "invatrace.catalogue.manifest.v2",
-  "catalogue_version": "2.1.0",
-  "content_version": "2.1.0",
+  "catalogue_version": "2.2.0",
+  "content_version": "2.2.0",
   "model_version": "oe_v4_31class_web_fp16",
   "last_reviewed": "2026-09-13",
-  "generated_at": "2026-09-13T14:03:53.036Z",
+  "generated_at": "2026-09-13T15:53:50.665Z",
   "assets": [
     {
       "species_id": "acacia-auriculiformis",
@@ -490,7 +490,7 @@
   ],
   "files": {
     "approved-species.json": {
-      "sha256": "eec72d18feee90f83e16254c6de9d59860df6c06b98dfd3bf402254d69f76e78",
+      "sha256": "2ec803f305aba327e47642b20b1be8367060c6c1ebf9a50236b0bbf766d4de32",
       "byte_length": 21708,
       "schema_version": "invatrace.approved-species.v1",
       "record_count": 32
@@ -508,9 +508,15 @@
       "record_count": 28
     },
     "reference-images.json": {
-      "sha256": "1a92fcc9042a7d6ae5b6c1d5c2cae67fce30ce540a042a2a487552ec47f43d18",
+      "sha256": "c5cc925e306cff3586f869fb86e67519812a4c60bbe618eeb3128b1bdb0b9479",
       "byte_length": 31716,
       "schema_version": "invatrace.catalogue.reference-images.v1",
+      "record_count": 32
+    },
+    "catalogue-details.json": {
+      "sha256": "27e0ed80863cdd2e65d5bd87fc5d3f97d3bb73606799b32dddf9f99727c25d1c",
+      "byte_length": 37620,
+      "schema_version": "invatrace.catalogue.details.v1",
       "record_count": 32
     }
   }

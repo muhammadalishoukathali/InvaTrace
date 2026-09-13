@@ -8,8 +8,8 @@
 // restore-runtime-assets.mjs is the inverse of this and runs automatically
 // before dev/build to put the real files back on disk.
 import { createHash } from 'node:crypto'
-import { mkdir, readFile, readdir, rm, writeFile } from 'node:fs/promises'
-import { dirname, extname, join, relative, resolve } from 'node:path'
+import { mkdir, readFile, rm, writeFile } from 'node:fs/promises'
+import { dirname, join, relative, resolve } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { gzipSync } from 'node:zlib'
 
@@ -21,18 +21,11 @@ const packedPartBytes = 20 * 1024 * 1024
 
 const digest = (value) => createHash('sha256').update(value).digest('hex')
 
-// The reference photo set grows over time, so list it from disk rather than
-// hardcoding filenames here.
-const referenceRoot = join(projectRoot, 'public', 'reference-images')
-const referenceImages = (await readdir(referenceRoot, { withFileTypes: true }))
-  .filter((entry) => entry.isFile() && ['.jpg', '.jpeg', '.png'].includes(extname(entry.name).toLowerCase()))
-  .map((entry) => `public/reference-images/${entry.name}`)
-  .sort()
-
 const sourcePaths = [
   'public/invatrace-logo-192.png',
   'public/invatrace-logo-512.png',
-  ...referenceImages,
+  // Reviewed reference photos are ordinary versioned catalogue files and
+  // are verified against shared/catalogue/reference-images.json at build time.
   'vendor/PULIH_Model1_v4_FP16_Web_Kit/model/efficientnet_v2_s_oe_v4_31class_web_fp16.onnx',
 ]
 

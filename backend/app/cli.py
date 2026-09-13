@@ -148,6 +148,25 @@ def main() -> None:
     )
     waterways.add_argument("path", type=Path)
     waterways.add_argument("--data-version", required=True)
+    waterways.add_argument("--release-manifest", type=Path, required=True)
+    waterway_preprocess = commands.add_parser(
+        "preprocess-osm-waterways",
+        help="build a directed Malaysian OSM waterway graph and derived upstream evidence",
+    )
+    waterway_preprocess.add_argument("path", type=Path)
+    waterway_preprocess.add_argument("--release-manifest", type=Path, required=True)
+    waterway_preprocess.add_argument("--country-boundary", type=Path, required=True)
+    waterway_preprocess.add_argument("--country-boundary-manifest", type=Path, required=True)
+    waterway_preprocess.add_argument("--evidence-output", type=Path, required=True)
+    protected_extract = commands.add_parser(
+        "extract-osm-protected-areas",
+        help="derive explicit Malaysia-only mapped protected areas from a fixed OSM PBF",
+    )
+    protected_extract.add_argument("path", type=Path)
+    protected_extract.add_argument("--output", type=Path, required=True)
+    protected_extract.add_argument("--release-manifest", type=Path, required=True)
+    protected_extract.add_argument("--country-boundary", type=Path, required=True)
+    protected_extract.add_argument("--country-boundary-manifest", type=Path, required=True)
     boundaries = commands.add_parser(
         "import-protected-areas",
         help="validate and activate a versioned protected-area GeoJSON release",
@@ -270,10 +289,44 @@ def main() -> None:
                 session,
                 source_path=args.path.resolve(),
                 data_version=args.data_version,
+                release_manifest_path=args.release_manifest.resolve(),
             )
         print(
             f"Imported {result.accepted} waterway evidence rows; excluded {result.excluded}. "
             f"Version: {result.data_version}. Reasons: {result.exclusion_reasons}"
+        )
+    elif args.command == "preprocess-osm-waterways":
+        from app.osm_waterway_graph import preprocess_osm_waterways
+
+        with SessionLocal() as session:
+            result = preprocess_osm_waterways(
+                session,
+                source_path=args.path.resolve(),
+                release_manifest_path=args.release_manifest.resolve(),
+                country_boundary_path=args.country_boundary.resolve(),
+                country_boundary_manifest_path=args.country_boundary_manifest.resolve(),
+                evidence_output_path=args.evidence_output.resolve(),
+            )
+        print(
+            f"Waterway dataset {result.data_version} has "
+            f"{result.graph_qa.directed_edges} directed edges; imported "
+            f"{result.evidence_accepted} upstream evidence rows and excluded "
+            f"{result.evidence_excluded}. Existing: {result.already_present}."
+        )
+    elif args.command == "extract-osm-protected-areas":
+        from app.osm_protected_area import extract_osm_protected_areas
+
+        result = extract_osm_protected_areas(
+            source_path=args.path.resolve(),
+            output_path=args.output.resolve(),
+            release_manifest_path=args.release_manifest.resolve(),
+            country_boundary_path=args.country_boundary.resolve(),
+            country_boundary_manifest_path=args.country_boundary_manifest.resolve(),
+        )
+        print(
+            f"Extracted {result.accepted} mapped protected areas "
+            f"({result.named} named, {result.unnamed} unnamed); excluded "
+            f"{result.excluded}. Reasons: {result.exclusion_reasons}"
         )
     elif args.command in {"cleanup-uploads", "cleanup-worker"}:
         if args.limit < 1 or args.limit > 10_000:

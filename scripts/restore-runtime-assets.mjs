@@ -51,6 +51,11 @@ export async function restoreRuntimeAssets({ outputRoot = projectRoot } = {}) {
 
   let restored = 0
   for (const asset of manifest.assets) {
+    // Reference photos are now ordinary, versioned catalogue files. Their
+    // current 32-entry release is verified against reference-images.json by
+    // prepare-model-assets.mjs, so legacy packed-photo entries must not
+    // overwrite a newer reviewed catalogue or require obsolete chunks.
+    if (asset.output.startsWith('public/reference-images/')) continue
     if (asset.compression !== 'gzip' || asset.encoding !== 'hex' || !Array.isArray(asset.parts)) {
       throw new Error(`Unsupported packing settings for ${asset.output}`)
     }

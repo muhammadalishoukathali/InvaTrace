@@ -1,4 +1,5 @@
 import approvedRaw from '@shared/catalogue/approved-species.json?raw'
+import catalogueDetailsRaw from '@shared/catalogue/catalogue-details.json?raw'
 import guidanceRaw from '@shared/catalogue/plant-guidance.json?raw'
 import statusRaw from '@shared/catalogue/plant-status.json?raw'
 import referenceImagesRaw from '@shared/catalogue/reference-images.json?raw'
@@ -7,6 +8,7 @@ import {
   type ApprovedCatalogueAsset,
   type CatalogueAsset,
   type ApprovedSpeciesDataset,
+  type CatalogueDetailsDataset,
   isApprovedCatalogueAsset,
 } from '@shared/catalogue'
 
@@ -25,6 +27,7 @@ export interface InstalledCataloguePack {
 
 export interface OfflineCatalogueData {
   approved: ApprovedSpeciesDataset
+  details: CatalogueDetailsDataset
   guidance: { plants: Array<Record<string, unknown>> }
   assetUrls: Record<string, string>
   approvedImages: Record<string, ApprovedCatalogueAsset>
@@ -33,6 +36,7 @@ export interface OfflineCatalogueData {
 
 const rawFiles: Record<string, string> = {
   'approved-species.json': approvedRaw,
+  'catalogue-details.json': catalogueDetailsRaw,
   'plant-guidance.json': guidanceRaw,
   'plant-status.json': statusRaw,
   'reference-images.json': referenceImagesRaw,
@@ -187,11 +191,15 @@ export async function loadInstalledCatalogueData(): Promise<OfflineCatalogueData
   }
   try {
     const approved = JSON.parse(loaded['approved-species.json']) as ApprovedSpeciesDataset
+    const details = JSON.parse(loaded['catalogue-details.json']) as CatalogueDetailsDataset
     const guidance = JSON.parse(loaded['plant-guidance.json']) as OfflineCatalogueData['guidance']
     if (
       approved.catalogue_version !== installed.version
       || approved.record_count !== 32
       || approved.records.length !== 32
+      || details.catalogue_version !== installed.version
+      || details.record_count !== 32
+      || details.records.length !== 32
       || !Array.isArray(guidance.plants)
     ) {
       objectUrls.forEach((url) => URL.revokeObjectURL(url))
@@ -199,6 +207,7 @@ export async function loadInstalledCatalogueData(): Promise<OfflineCatalogueData
     }
     return {
       approved,
+      details,
       guidance,
       assetUrls,
       approvedImages: expectedAssets.reduce<Record<string, ApprovedCatalogueAsset>>(

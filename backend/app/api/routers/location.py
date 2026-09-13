@@ -139,7 +139,7 @@ def protected_location_context(
             boundary_source=dataset.source,
             boundary_version=dataset.version,
             boundary_updated_at=dataset.updated_at.isoformat(),
-            protected_area_name=area.name,
+            protected_area_name=area.name or None,
             accuracy_m=body.accuracy_m,
             action_eligible=False,
             permission_confirmation_required=True,

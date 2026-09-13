@@ -301,7 +301,8 @@ class ProtectedArea(Base):
         ForeignKey("protected_area_datasets.id", ondelete="CASCADE"), index=True, nullable=False
     )
     source_feature_id: Mapped[str] = mapped_column(String(160), nullable=False)
-    name: Mapped[str] = mapped_column(String(240), nullable=False)
+    name: Mapped[str | None] = mapped_column(String(240))
+    metadata_json: Mapped[dict[str, Any]] = mapped_column(JSON_TYPE, default=dict, nullable=False)
     geometry: Mapped[Any] = mapped_column(
         Geography("MULTIPOLYGON", srid=4326, spatial_index=False), nullable=False
     )
@@ -367,11 +368,57 @@ class PlaceOccurrenceWaterwayEvidence(Base):
     )
     waterway_network_id: Mapped[str] = mapped_column(String(160), nullable=False)
     upstream_distance_m: Mapped[float] = mapped_column(Numeric(10, 2), nullable=False)
+    occurrence_snap_distance_m: Mapped[float] = mapped_column(Numeric(10, 2), nullable=False)
+    place_snap_distance_m: Mapped[float] = mapped_column(Numeric(10, 2), nullable=False)
+    occurrence_osm_way_id: Mapped[int] = mapped_column(BigInteger, nullable=False)
+    place_osm_way_id: Mapped[int] = mapped_column(BigInteger, nullable=False)
     direction_source: Mapped[str] = mapped_column(String(200), nullable=False)
     data_version: Mapped[str] = mapped_column(String(120), nullable=False)
     imported_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), server_default=func.now(), nullable=False
     )
+
+
+class WaterwayDataset(Base):
+    """Versioned OSM extract used to build a directed waterway graph."""
+
+    __tablename__ = "waterway_datasets"
+    __table_args__ = (UniqueConstraint("source", "version", name="uq_waterway_source_version"),)
+
+    id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    source: Mapped[str] = mapped_column(String(200), nullable=False)
+    version: Mapped[str] = mapped_column(String(160), nullable=False)
+    source_timestamp: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
+    sha256: Mapped[bytes] = mapped_column(LargeBinary(32), nullable=False)
+    metadata_json: Mapped[dict[str, Any]] = mapped_column(JSON_TYPE, default=dict, nullable=False)
+    active: Mapped[bool] = mapped_column(Boolean, default=False, index=True, nullable=False)
+
+
+class WaterwayEdge(Base):
+    """A topology-preserving directed section of one OSM waterway way."""
+
+    __tablename__ = "waterway_edges"
+    __table_args__ = (
+        UniqueConstraint("dataset_id", "osm_way_id", "sequence", name="uq_waterway_edge"),
+        CheckConstraint("length_m > 0", name="positive_length"),
+        CheckConstraint("direction = 'osm_way_order'", name="trusted_direction"),
+        Index("ix_waterway_edges_geometry_gist", "geometry", postgresql_using="gist"),
+    )
+
+    id: Mapped[int] = mapped_column(BigInteger, primary_key=True, autoincrement=True)
+    dataset_id: Mapped[uuid.UUID] = mapped_column(
+        ForeignKey("waterway_datasets.id", ondelete="CASCADE"), index=True, nullable=False
+    )
+    osm_way_id: Mapped[int] = mapped_column(BigInteger, nullable=False)
+    sequence: Mapped[int] = mapped_column(Integer, nullable=False)
+    start_osm_node_id: Mapped[int] = mapped_column(BigInteger, index=True, nullable=False)
+    end_osm_node_id: Mapped[int] = mapped_column(BigInteger, index=True, nullable=False)
+    waterway_type: Mapped[str] = mapped_column(String(20), nullable=False)
+    geometry: Mapped[Any] = mapped_column(
+        Geography("LINESTRING", srid=4326, spatial_index=False), nullable=False
+    )
+    length_m: Mapped[float] = mapped_column(Numeric(12, 2), nullable=False)
+    direction: Mapped[str] = mapped_column(String(32), nullable=False)
 
 
 class AdoptedArea(Base):

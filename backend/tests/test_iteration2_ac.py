@@ -19,7 +19,7 @@ from app.api.routers.adopted_areas import (
     _comparison_counts,
     _concentrations,
 )
-from app.api.routers.catalogue import NO_SAFE_ACTION, NO_SEVERITY, catalogue_detail, list_catalogue
+from app.api.routers.catalogue import NO_SEVERITY, catalogue_detail, list_catalogue
 from app.api.routers.location import ProtectedLocationContextRequest, _uncertain_context
 from app.api.routers.places import _place_metadata, _rank_components
 from app.api.routers.reports import (
@@ -33,6 +33,13 @@ from app.db.models import AuditEvent, SightingStatusEvent
 from app.domain.catalogue import load_approved_species
 from app.main import create_app
 from app.occurrence_import import _approved_species_id, import_occurrence_json
+from app.osm_waterway_graph import (
+    DirectedEdge,
+    WaterwayRun,
+    _network_distance,
+    build_topology,
+    direction_exclusion,
+)
 from app.waterway_import import OSM_DIRECTION_SOURCE, import_waterway_evidence_json
 
 
@@ -51,9 +58,13 @@ def test_catalogue_search_and_honest_missing_copy() -> None:
     assert [item.species_id for item in result.items] == ["salvinia-molesta"]
     detail = catalogue_detail("salvinia-molesta")
     assert detail.formal_severity_assessment == NO_SEVERITY
-    assert detail.safe_response_guidance == [NO_SAFE_ACTION]
+    assert detail.safe_response_guidance
+    assert "Do not move or break plants" in detail.safe_response_guidance[0]
+    assert "floating" in detail.identifying_characteristics
+    assert "freshwater" in detail.habitats[0]
+    assert "block light and oxygen" in detail.impacts
+    assert any(source.source_id == "salvinia-nsw" for source in detail.sources)
     assert NO_SEVERITY == "Formal severity assessment not available"
-    assert NO_SAFE_ACTION == "No beginner-safe active action is provided"
 
 
 def test_catalogue_has_one_reviewed_provenance_image_per_approved_species() -> None:
@@ -69,6 +80,21 @@ def test_catalogue_has_one_reviewed_provenance_image_per_approved_species() -> N
     assert image.license_url.startswith("http")
     assert image.source_url_or_identifier.startswith("https://commons.wikimedia.org/")
     assert "Wikimedia Commons" in image.attribution_text
+
+
+def test_catalogue_api_has_complete_reviewed_detail_for_all_32() -> None:
+    records = load_approved_species()
+    for record in records:
+        detail = catalogue_detail(record.species_id)
+        assert detail.scientific_name == record.scientific_name
+        assert detail.malaysia_status == "Present"
+        assert detail.image is not None
+        assert detail.identifying_characteristics.strip()
+        assert detail.habitats and detail.habitats[0].strip()
+        assert detail.impacts.strip()
+        assert detail.safe_response_guidance
+        assert detail.sources
+        assert detail.last_reviewed.isoformat() == "2026-09-13"
 
 
 def test_boundary_failure_is_never_treated_as_outside() -> None:
@@ -403,27 +429,49 @@ def _waterway_session(*, species_id: str) -> tuple[MagicMock, uuid.UUID, uuid.UU
     return session, occurrence_id, place_id
 
 
+def _waterway_payload(records: list[dict], *, data_version: str) -> dict:
+    return {
+        "schemaVersion": "invatrace.osm-waterway-evidence.v1",
+        "dataVersion": data_version,
+        "source": "OpenStreetMap contributors via Geofabrik GmbH",
+        "sourceUrl": "https://download.geofabrik.de/asia/malaysia-singapore-brunei.html",
+        "sourceTimestamp": "2026-09-12T20:21:58Z",
+        "sourceSha256": "0" * 64,
+        "licence": "Open Data Commons Open Database License 1.0",
+        "licenceUrl": "https://www.openstreetmap.org/copyright",
+        "records": records,
+    }
+
+
 def test_waterway_import_requires_trusted_direction_and_five_km_limit(tmp_path) -> None:
+    data_version = "osm-waterways-2026-09"
     session, occurrence_id, place_id = _waterway_session(species_id="salvinia-molesta")
     source_path = tmp_path / "waterways.json"
     source_path.write_text(
         __import__("json").dumps(
-            [
-                {
-                    "occurrenceSource": "GBIF",
-                    "sourceOccurrenceId": "gbif-1",
-                    "placeId": str(place_id),
-                    "placeType": "trail",
-                    "waterwayNetworkId": "network-1",
-                    "upstreamDistanceM": 5000,
-                    "directionSource": OSM_DIRECTION_SOURCE,
-                }
-            ]
+            _waterway_payload(
+                [
+                    {
+                        "occurrenceSource": "GBIF",
+                        "sourceOccurrenceId": "gbif-1",
+                        "placeId": str(place_id),
+                        "placeType": "trail",
+                        "waterwayNetworkId": "network-1",
+                        "upstreamDistanceM": 5000,
+                        "occurrenceSnapDistanceM": 50,
+                        "placeSnapDistanceM": 0,
+                        "occurrenceOsmWayId": 10,
+                        "placeOsmWayId": 11,
+                        "directionSource": OSM_DIRECTION_SOURCE,
+                    }
+                ],
+                data_version=data_version,
+            )
         ),
         encoding="utf-8",
     )
     result = import_waterway_evidence_json(
-        session, source_path=source_path, data_version="osm-waterways-2026-09"
+        session, source_path=source_path, data_version=data_version
     )
     assert result.accepted == 1
     imported = session.add.call_args.args[0]
@@ -434,51 +482,116 @@ def test_waterway_import_requires_trusted_direction_and_five_km_limit(tmp_path) 
     session, _, place_id = _waterway_session(species_id="salvinia-molesta")
     source_path.write_text(
         __import__("json").dumps(
-            [
-                {
-                    "occurrenceSource": "GBIF",
-                    "sourceOccurrenceId": "gbif-2",
-                    "placeId": str(place_id),
-                    "placeType": "trail",
-                    "waterwayNetworkId": "network-1",
-                    "upstreamDistanceM": 5000.001,
-                    "directionSource": "unverified direction",
-                }
-            ]
+            _waterway_payload(
+                [
+                    {
+                        "occurrenceSource": "GBIF",
+                        "sourceOccurrenceId": "gbif-2",
+                        "placeId": str(place_id),
+                        "placeType": "trail",
+                        "waterwayNetworkId": "network-1",
+                        "upstreamDistanceM": 5000.001,
+                        "directionSource": "unverified direction",
+                    }
+                ],
+                data_version=data_version,
+            )
         ),
         encoding="utf-8",
     )
     result = import_waterway_evidence_json(
-        session, source_path=source_path, data_version="osm-waterways-2026-09"
+        session, source_path=source_path, data_version=data_version
     )
     assert result.accepted == 0
     assert result.exclusion_reasons == {"untrusted_direction_source": 1}
 
 
 def test_waterway_import_rejects_non_water_dispersed_species(tmp_path) -> None:
+    data_version = "osm-waterways-2026-09"
     session, _, place_id = _waterway_session(species_id="acacia-mangium")
     source_path = tmp_path / "waterways.json"
     source_path.write_text(
         __import__("json").dumps(
-            [
-                {
-                    "occurrenceSource": "GBIF",
-                    "sourceOccurrenceId": "gbif-3",
-                    "placeId": str(place_id),
-                    "placeType": "trail",
-                    "waterwayNetworkId": "network-1",
-                    "upstreamDistanceM": 100,
-                    "directionSource": OSM_DIRECTION_SOURCE,
-                }
-            ]
+            _waterway_payload(
+                [
+                    {
+                        "occurrenceSource": "GBIF",
+                        "sourceOccurrenceId": "gbif-3",
+                        "placeId": str(place_id),
+                        "placeType": "trail",
+                        "waterwayNetworkId": "network-1",
+                        "upstreamDistanceM": 100,
+                        "directionSource": OSM_DIRECTION_SOURCE,
+                    }
+                ],
+                data_version=data_version,
+            )
         ),
         encoding="utf-8",
     )
     result = import_waterway_evidence_json(
-        session, source_path=source_path, data_version="osm-waterways-2026-09"
+        session, source_path=source_path, data_version=data_version
     )
     assert result.accepted == 0
     assert result.exclusion_reasons == {"species_not_water_dispersed": 1}
+
+
+def test_waterway_import_rejects_unversioned_or_mismatched_payload(tmp_path) -> None:
+    source_path = tmp_path / "waterways.json"
+    source_path.write_text("[]", encoding="utf-8")
+    with pytest.raises(ValueError, match="auditable v1 object envelope"):
+        import_waterway_evidence_json(
+            MagicMock(), source_path=source_path, data_version="osm-waterways-v1"
+        )
+
+    source_path.write_text(
+        __import__("json").dumps(_waterway_payload([], data_version="osm-waterways-v2")),
+        encoding="utf-8",
+    )
+    with pytest.raises(ValueError, match="does not match"):
+        import_waterway_evidence_json(
+            MagicMock(), source_path=source_path, data_version="osm-waterways-v1"
+        )
+
+
+@pytest.mark.parametrize(
+    "tags",
+    [
+        {"tidal": "yes"},
+        {"reversible": "yes"},
+        {"flow_direction": "backward"},
+        {"direction": "both"},
+    ],
+)
+def test_waterway_direction_policy_fails_closed(tags: dict[str, str]) -> None:
+    assert direction_exclusion(tags) is not None
+    assert direction_exclusion({"waterway": "river"}) is None
+
+
+def test_waterway_topology_keeps_direction_and_unique_sequences_across_split_runs() -> None:
+    edges, qa = build_topology(
+        [
+            WaterwayRun(7, "river", ((1, 101.0, 3.0), (2, 101.01, 3.0))),
+            WaterwayRun(7, "river", ((3, 101.02, 3.0), (4, 101.03, 3.0))),
+            WaterwayRun(8, "stream", ((2, 101.01, 3.0), (5, 101.01, 2.99))),
+        ]
+    )
+    assert [edge.key for edge in edges] == [(7, 0), (7, 1), (8, 0)]
+    assert [(edge.start_node_id, edge.end_node_id) for edge in edges] == [
+        (1, 2),
+        (3, 4),
+        (2, 5),
+    ]
+    assert qa.connected_components == 2
+
+
+def test_waterway_network_distance_requires_downstream_continuity_and_inclusive_limit() -> None:
+    occurrence = DirectedEdge(1, 0, 1, 2, "river", ((0, 0), (1, 0)), 1000)
+    target = DirectedEdge(2, 0, 2, 3, "river", ((1, 0), (2, 0)), 4500)
+    assert _network_distance(occurrence, 0.5, target, 1.0, {2: 500}) == 5000
+    assert _network_distance(occurrence, 0.5, target, 1.0, {2: 500.01}) is None
+    assert _network_distance(occurrence, 0.5, target, 1.0, {}) is None
+    assert _network_distance(target, 0.75, target, 0.25, {}) is None
 
 
 def test_place_ranking_is_explainable_and_inside_strictly_outranks_nearby() -> None:

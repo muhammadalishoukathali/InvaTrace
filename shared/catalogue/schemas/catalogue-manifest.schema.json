@@ -65,12 +65,13 @@
     "files": {
       "type": "object",
       "additionalProperties": false,
-      "required": ["approved-species.json", "plant-status.json", "plant-guidance.json", "reference-images.json"],
+      "required": ["approved-species.json", "plant-status.json", "plant-guidance.json", "reference-images.json", "catalogue-details.json"],
       "properties": {
         "approved-species.json": { "$ref": "#/$defs/fileEntry" },
         "plant-status.json": { "$ref": "#/$defs/fileEntry" },
         "plant-guidance.json": { "$ref": "#/$defs/fileEntry" },
-        "reference-images.json": { "$ref": "#/$defs/fileEntry" }
+        "reference-images.json": { "$ref": "#/$defs/fileEntry" },
+        "catalogue-details.json": { "$ref": "#/$defs/fileEntry" }
       }
     }
   },

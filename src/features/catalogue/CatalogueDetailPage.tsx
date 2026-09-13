@@ -5,31 +5,18 @@ import {
   approvedCatalogueAssetForSpecies,
   type ApprovedCatalogueAsset,
   approvedSpeciesDataset,
-  rawGuidanceJson,
+  catalogueDetailsDataset,
   type ApprovedSpeciesDataset,
+  type CatalogueDetailsDataset,
   type CatalogueSource,
 } from '@shared/catalogue'
 import { loadInstalledCatalogueData } from './offline-catalogue'
 import './catalogue.css'
 
-interface GuidanceItem { text: string }
-interface GuidanceRecord {
-  plant_id: string
-  general_information: string
-  identification_note: string
-  risk_flags: string[]
-  actions: { protected_or_permission_unknown: { steps: GuidanceItem[] } } | null
-  spread_prevention: GuidanceItem[]
-  reference_image?: string
-  reference_image_credit?: string
-}
-
-const bundledGuidance = (rawGuidanceJson as { plants: GuidanceRecord[] }).plants
-
 export function CatalogueDetailPage() {
   const { speciesId = '' } = useParams()
   const [dataset, setDataset] = useState<ApprovedSpeciesDataset>(approvedSpeciesDataset)
-  const [guidance, setGuidance] = useState<GuidanceRecord[]>(bundledGuidance)
+  const [details, setDetails] = useState<CatalogueDetailsDataset>(catalogueDetailsDataset)
   const [assetUrls, setAssetUrls] = useState<Record<string, string>>({})
   const [approvedImages, setApprovedImages] = useState<Record<string, ApprovedCatalogueAsset>>(
     () => Object.fromEntries(approvedSpeciesDataset.records.flatMap((item) => {
@@ -43,7 +30,7 @@ export function CatalogueDetailPage() {
     void loadInstalledCatalogueData().then((pack) => {
       if (!active || !pack) return
       setDataset(pack.approved)
-      setGuidance(pack.guidance.plants as unknown as GuidanceRecord[])
+      setDetails(pack.details)
       setAssetUrls(pack.assetUrls)
       setApprovedImages(Object.fromEntries(
         Object.values(pack.approvedImages).map((asset) => [asset.species_id, asset]),
@@ -66,12 +53,23 @@ export function CatalogueDetailPage() {
       </section>
     )
   }
-  const plant = guidance.find((item) => item.plant_id.replaceAll('_', '-') === record.species_id)
-  const sources = new Map(dataset.sources.map((source) => [source.source_id, source]))
-  const cited = record.evidence_source_ids
+  const detail = details.records.find((item) => item.species_id === record.species_id)
+  if (!detail) {
+    return (
+      <section className="catalogue-detail catalogue-empty" role="alert">
+        <strong>Reviewed catalogue detail is unavailable.</strong>
+        <Link to="/catalogue">Back to catalogue</Link>
+      </section>
+    )
+  }
+  const sources = new Map<CatalogueSource['source_id'], CatalogueSource>([
+    ...dataset.sources.map((source) => [source.source_id, source] as const),
+    ...details.sources.map((source) => [source.source_id, source] as const),
+  ])
+  const detailSourceIds = Object.values(detail.source_ids).flat()
+  const cited = [...new Set([...record.evidence_source_ids, ...detailSourceIds])]
     .map((sourceId) => sources.get(sourceId))
     .filter((source): source is CatalogueSource => Boolean(source))
-  const safeSteps = plant?.actions?.protected_or_permission_unknown.steps.map((item) => item.text) ?? []
   const image = approvedImages[record.species_id]
 
   return (
@@ -98,28 +96,22 @@ export function CatalogueDetailPage() {
       <div className="catalogue-detail__body">
         <section>
           <h3>Identifying characteristics</h3>
-          <p>{plant?.general_information ?? 'Identification characteristics have not yet been reviewed for this catalogue entry.'}</p>
-          {plant?.identification_note && <p>{plant.identification_note}</p>}
+          <p>{detail.identifying_characteristics}</p>
         </section>
         <section>
-          <h3>Habitat and recorded impact context</h3>
-          <p>Reviewed habitats: {record.habitats.join(' and ')}.</p>
-          <p>{record.evidence_summary}</p>
+          <h3>Typical habitat</h3>
+          <p>{detail.typical_habitat}</p>
+        </section>
+        <section>
+          <h3>Documented impacts</h3>
+          <p>{detail.documented_impacts}</p>
           <p>Formal severity assessment not available</p>
         </section>
         <section>
           <h3>Safe response guidance</h3>
-          {safeSteps.length ? (
-            <ul>{safeSteps.map((step) => <li key={step}>{step}</li>)}</ul>
-          ) : <p>No beginner-safe active action is provided</p>}
+          <ul>{detail.safe_response_guidance.map((step) => <li key={step}>{step}</li>)}</ul>
           <p>Outside a mapped protected area does not mean removal is permitted. Confirm permission first.</p>
         </section>
-        {plant?.spread_prevention?.length ? (
-          <section>
-            <h3>Spread prevention</h3>
-            <ul>{plant.spread_prevention.map((item) => <li key={item.text}>{item.text}</li>)}</ul>
-          </section>
-        ) : null}
         <section>
           <h3>Sources and credits</h3>
           <ul className="catalogue-sources">
@@ -127,13 +119,14 @@ export function CatalogueDetailPage() {
               <li key={source.source_id}>
                 <a href={source.url} target="_blank" rel="noreferrer">{source.title}</a>
                 <span>{source.publisher} · {source.source_id}</span>
+                {source.reuse_status && <span>{source.reuse_status}</span>}
               </li>
             ))}
           </ul>
           {image ? (
             <ImageAttribution attribution={image} />
           ) : <p>Reference image unavailable pending reviewed attribution.</p>}
-          <p>Catalogue v{dataset.catalogue_version} · last reviewed {record.status_reviewed_at}</p>
+          <p>Catalogue v{dataset.catalogue_version} · last reviewed {detail.reviewed_at}</p>
         </section>
       </div>
     </article>

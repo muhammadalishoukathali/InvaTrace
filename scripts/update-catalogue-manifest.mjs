@@ -17,21 +17,37 @@ const statusPath = resolve(catalogueDir, 'plant-status.json')
 const guidancePath = resolve(catalogueDir, 'plant-guidance.json')
 const approvedPath = resolve(catalogueDir, 'approved-species.json')
 const referenceImagesPath = resolve(catalogueDir, 'reference-images.json')
+const catalogueDetailsPath = resolve(catalogueDir, 'catalogue-details.json')
 const manifestPath = resolve(catalogueDir, 'catalogue-manifest.json')
 
 const statusRaw = readFileSync(statusPath)
 const guidanceRaw = readFileSync(guidancePath)
 const approvedRaw = readFileSync(approvedPath)
 const referenceImagesRaw = readFileSync(referenceImagesPath)
+const catalogueDetailsRaw = readFileSync(catalogueDetailsPath)
 const status = JSON.parse(statusRaw.toString('utf-8'))
 const guidance = JSON.parse(guidanceRaw.toString('utf-8'))
 const approved = JSON.parse(approvedRaw.toString('utf-8'))
 const referenceImages = JSON.parse(referenceImagesRaw.toString('utf-8'))
+const catalogueDetails = JSON.parse(catalogueDetailsRaw.toString('utf-8'))
 const approvedIds = new Set(approved.records.map((record) => record.species_id))
 
 const sha256 = (buf) => createHash('sha256').update(buf).digest('hex')
-if (referenceImages.record_count !== 32 || referenceImages.records.length !== 32) {
+if (
+  referenceImages.catalogue_version !== approved.catalogue_version
+  || referenceImages.record_count !== 32
+  || referenceImages.records.length !== 32
+) {
   throw new Error('reference-images.json must contain exactly 32 records')
+}
+if (
+  catalogueDetails.catalogue_version !== approved.catalogue_version
+  || catalogueDetails.record_count !== 32
+  || catalogueDetails.records.length !== 32
+  || new Set(catalogueDetails.records.map((record) => record.species_id)).size !== 32
+  || catalogueDetails.records.some((record) => !approvedIds.has(record.species_id))
+) {
+  throw new Error('catalogue-details.json must exactly match the approved 32-species release')
 }
 const assets = referenceImages.records
   .map((image) => {
@@ -92,6 +108,12 @@ const manifest = {
       schema_version: referenceImages.schema_version,
       record_count: referenceImages.records.length,
     },
+    'catalogue-details.json': {
+      sha256: sha256(catalogueDetailsRaw),
+      byte_length: catalogueDetailsRaw.length,
+      schema_version: catalogueDetails.schema_version,
+      record_count: catalogueDetails.records.length,
+    },
   },
 }
 
@@ -101,3 +123,4 @@ console.log(`  catalogue_version: ${manifest.catalogue_version}`)
 console.log(`  approved-species.json sha256: ${manifest.files['approved-species.json'].sha256}`)
 console.log(`  plant-status.json sha256: ${manifest.files['plant-status.json'].sha256}`)
 console.log(`  plant-guidance.json sha256: ${manifest.files['plant-guidance.json'].sha256}`)
+console.log(`  catalogue-details.json sha256: ${manifest.files['catalogue-details.json'].sha256}`)
