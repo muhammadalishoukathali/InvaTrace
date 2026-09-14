@@ -10,6 +10,10 @@ services:
       POSTGRES_PASSWORD: invatrace
     volumes:
       - invatrace-postgres:/var/lib/postgresql/data
+    ports:
+      # Loopback-only access supports the documented Windows one-off importer
+      # through an SSH reverse tunnel without exposing Postgres to the LAN.
+      - "127.0.0.1:55432:5432"
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U invatrace -d invatrace"]
       interval: 5s
@@ -62,6 +66,7 @@ services:
     build: &backend-build
       context: .
       dockerfile: backend/Dockerfile
+      target: test-runtime
     environment: &backend-environment
       APP_ENV: development
       DATABASE_URL: postgresql+psycopg://invatrace:invatrace@db:5432/invatrace
@@ -99,7 +104,15 @@ services:
 
   api:
     build: *backend-build
-    environment: *backend-environment
+    environment:
+      <<: *backend-environment
+      REPORT_CREATE_BURST_LIMIT: 10
+      REPORT_CREATE_IP_BURST_LIMIT: 30
+    volumes:
+      # The read-only repository mount makes the documented `docker compose
+      # run --rm api pytest` exercise the same source, contracts, and audited
+      # data files as the host checkout without changing the production image.
+      - .:/service:ro
     ports:
       - "127.0.0.1:8000:8000"
     depends_on:

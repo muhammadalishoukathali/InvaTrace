@@ -1,6 +1,6 @@
 # Iteration 2 acceptance verification / 第二轮验收矩阵
 
-Verification date: 2026-09-14
+Verification date: 2026-09-15
 Scope: all 48 criteria from the original Iteration 2 Word document. The plant-classification model, model weights, training data, accuracy, class count, and inference architecture are excluded. Test fixtures prove code paths only and are never counted as production evidence.
 
 Code-level status: **PASS 48 / 48**, **BLOCKED 0 / 48**, **NOT SATISFIED 0 / 48**. This is not a claim that the fixed OSM/protected-area releases have already been re-imported into the live Neon database after this revision; the operator steps listed below remain required for production-data verification.
@@ -19,10 +19,10 @@ Code-level status: **PASS 48 / 48**, **BLOCKED 0 / 48**, **NOT SATISFIED 0 / 48*
 | 4.5.5 | PASS | Append-only `sighting_status_events`; original report/sighting fields remain untouched | preservation and transaction regression test; migration preservation test | None | Stores actor, submitted fix, accuracy, distance, and server time privately. |
 | 4.5.6 | PASS | Public response includes removal status/date and excludes private event coordinates/credentials; map labels/tooltips/list expose the absolute status date | OpenAPI privacy assertions; real PostGIS integration flow; E2E marker appearance | None | Original public marker remains with distinct removed styling. |
 | 4.5.7 | PASS | Unique event constraint plus existing-event return before GPS revalidation | stale-GPS idempotent retry test | None | No duplicate history event. |
-| 5.1.1 | PASS | Stable place API and reproducible PBF importer use UUIDv5 OSM IDs, exact release hashes, real Malaysia-boundary filtering and geometry metadata; the UI provides trimmed place search and an explicit `View plants recorded nearby` action | 1,869 areas + 2,874 trails imported; 0 invalid/empty geometries; 0 duplicate source IDs; second import was a no-op; frontend E2E | Production deployment must run the documented exact-hash import | Regional OSM snapshot is intentionally outside Git; its manifest fixes sequence 4907, timestamp, size, MD5 and SHA-256. |
+| 5.1.1 | PASS | Stable place API and reproducible PBF importer use UUIDv5 OSM IDs, exact release hashes, real Malaysia-boundary filtering and geometry metadata; the UI provides trimmed place search and an explicit `View plants recorded nearby` action | 1,869 areas + 2,874 trails imported; 0 invalid/empty geometries; 0 duplicate source IDs; second import was a no-op; frontend E2E | Production deployment must run the documented exact-hash import | Regional OSM snapshot is intentionally outside Git; its manifest fixes sequence 4908, timestamp, size, MD5 and SHA-256. |
 | 5.1.2 | PASS | Closed-32, case-insensitive Present, uncertainty, duplicate, exact national-polygon filtering, record provenance and processed version | Real GBIF release: 637 licensed candidates; 214 accepted, 423 explicitly excluded; 20 species have qualifying records | None; zero records for other approved species is valid | GBIF occurrence IDs, dataset keys, dates, record licences and references are preserved. The API release has no download DOI and says so explicitly. |
 | 5.1.3 | PASS | PostGIS geography implements polygon inside/1,000 m and trail 750 m with distinct evidence types | Real data produced 249 area-record pairs across 157 areas and 353 trail-record pairs across 234 trails; live association API validated | None | Real associations are derived from stored geometry, never seed/demo coordinates. |
-| 5.1.4 | PASS | Fixed-PBF preprocessing stores OSM way/node topology and line direction, excludes ambiguous/tidal/cross-border flow, applies 50 m snaps, occurrence uncertainty and directed ≤5 km network distance, and writes a hashed release | real release: 47,291 ways, 61,118 unique directed edges, 0 invalid geometries/duplicates; topology tests cover direction, disconnection, split ways, 5,000 m inclusion and >5,000 m rejection | Production deployment must run/import the fixed release | No current occurrence/place pair met every strict condition, so upstream evidence is correctly omitted rather than inferred. |
+| 5.1.4 | PASS | Fixed-PBF preprocessing stores OSM way/node topology and line direction, excludes ambiguous/tidal/cross-border flow, applies 50 m snaps, occurrence uncertainty and directed ≤5 km network distance, and writes a hashed release | real release: 47,295 ways, 61,124 unique directed edges, 0 invalid geometries/duplicates; topology tests cover direction, disconnection, split ways, 5,000 m inclusion and >5,000 m rejection | Production deployment must run/import the fixed release | No current occurrence/place pair met every strict condition, so upstream evidence is correctly omitted rather than inferred. |
 | 5.1.5 | PASS | Explicit ranking components; inside strictly outranks nearby; distance decay; upstream is gated and omitted without trusted evidence | Ranking regression plus live real-data association response | Directed-waterway evidence is optional and omitted unless every strict gate passes | UI labels evidence, never probability. |
 | 5.1.6 | PASS | Card fields, update date, disclaimer, evidence, reviewed local image and canonical catalogue link are implemented | Iteration 2 E2E plus live real-data association response | None | Real association response returned the imported data version and approved image. |
 | 5.1.7 | PASS | Exact no-evidence copy and full-catalogue link | Iteration 2 E2E and mock tests | None | Never claims a place is invasive-free. |
@@ -63,14 +63,16 @@ Code-level status: **PASS 48 / 48**, **BLOCKED 0 / 48**, **NOT SATISFIED 0 / 48*
 3. Catalogue detail facts are stored independently from model metadata in `shared/catalogue/catalogue-details.json`; the approved business catalogue remains exactly 32 species and no model class or weight changed.
 4. `load-reference-data` is now species-only. Development places/sightings require the explicit development command, and migration `20260914_17` removes only the exact former deterministic fixture IDs/names while preserving linked/user reports.
 5. The Render CORS allowlist includes both `https://invatrace-web.onrender.com` and `https://invatrace.pages.dev`. A deployment is required before the Cloudflare-hosted frontend can benefit from that server configuration.
+6. The latest Geofabrik dry run used replication sequence 4908 (`2026-09-13T20:21:20Z`, PBF SHA-256 `9e49935eae16b48b6b5f7ddcae1e37bad25c69ab94626bff0100dd9121090c54`). Local production-shaped PostGIS readiness reported 32 catalogue species, 1,869 areas, 2,874 trails, 214 qualifying occurrences across 20 species, 197 protected polygons, 61,124 waterway edges, zero valid upstream relationships, and `sourceReleasesAligned=true`.
 
-## Verification run on 2026-09-14
+## Verification run on 2026-09-15
 
-- Frontend unit tests: 24 files, 152 passed.
-- Backend unit/contract tests: 230 passed, 1 integration module skipped in the normal run.
-- Mock-browser E2E: 15 passed, 6 intentionally skipped legacy cases.
+- Frontend unit tests: 24 files, 155 passed.
+- Backend unit/contract tests: 237 passed, 2 opt-in integration modules skipped in the normal run.
+- Mock-browser E2E: 17 passed, 6 intentionally skipped legacy cases.
 - Production-build offline PWA E2E: 2 passed.
 - Real FastAPI/PostgreSQL/PostGIS/Redis/MinIO integration: 4 passed.
-- Real-browser-to-FastAPI E2E: 2 passed.
+- Focused real PostGIS place-discovery and exact-distance integration: 3 passed.
+- Real-browser-to-FastAPI E2E, including mapped-place discovery: 3 passed.
 - Alembic: upgraded to `20260914_17`; `alembic check` reported no new upgrade operations.
-- Ruff, ESLint, TypeScript typecheck, production build, Python compileall, Git diff whitespace check and Gitleaks (226 commits): passed; Gitleaks reported 0 leaks.
+- Ruff, ESLint, TypeScript typecheck, production build, Python compileall and Git diff whitespace check: passed. `npm audit` and `pip-audit` reported 0 known vulnerabilities.

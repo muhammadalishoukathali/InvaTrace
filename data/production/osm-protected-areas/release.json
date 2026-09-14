@@ -2,16 +2,16 @@
   "schema_version": "invatrace.data-release.v1",
   "dataset_id": "osm-malaysia-protected-areas",
   "jurisdiction": "Malaysia",
-  "scope": "OSM areas wholly within the reviewed Malaysia boundary and explicitly tagged boundary=protected_area, boundary=national_park, or leisure=nature_reserve",
+  "scope": "OSM areas wholly within the reviewed Malaysia boundary and explicitly tagged as protected areas, national parks, or nature reserves",
   "source": "OpenStreetMap contributors via Geofabrik GmbH",
   "source_url": "https://download.geofabrik.de/asia/malaysia-singapore-brunei.html",
-  "upstream_version": "Geofabrik replication sequence 4907; derived protected-area release 2026-09-12",
-  "source_timestamp": "2026-09-12T20:21:58Z",
-  "retrieved_at": "2026-09-13",
+  "upstream_version": "Geofabrik replication sequence 4908; derived protected-area release 2026-09-13T20:21:20Z",
+  "source_timestamp": "2026-09-13T20:21:20Z",
+  "retrieved_at": "2026-09-14",
   "licence": "Open Data Commons Open Database License 1.0",
   "licence_url": "https://www.openstreetmap.org/copyright",
-  "file": "osm-malaysia-protected-areas-2026-09-12.geojson",
-  "sha256": "7883a93720f5ac61adf954af6cfdaa6aa51942fae7bbb86e11d78dcb6b170b51",
+  "file": "osm-malaysia-protected-areas-2026-09-13.geojson",
+  "sha256": "17ccedfd0f95c5a9567ae9b890e7b6d02dbed76650c27c7f6a9ce1a6199488fc",
   "byte_length": 1681371,
   "feature_count": 197,
   "named_feature_count": 189,
@@ -21,8 +21,8 @@
     "boundary=national_park",
     "leisure=nature_reserve"
   ],
-  "source_pbf_sha256": "01e16a33157689db74c401f4a6e9204526883369b999e3c92a561ac4a5a78699",
+  "source_pbf_sha256": "9e49935eae16b48b6b5f7ddcae1e37bad25c69ab94626bff0100dd9121090c54",
   "country_boundary_sha256": "20ffa28d8b7980060d43418a6a4a250ffdbcd805c514189accec9f799a181d77",
   "outside_or_cross_border_excluded": 57,
-  "notes": "This is mapped context, not a legally exhaustive protected-area register. Cross-border objects are excluded without clipping so retained geometry remains auditable against OSM. No mapped intersection does not establish ownership, access rights, or removal permission, and OSM coverage may be incomplete."
+  "notes": "Mapped context is not a legally exhaustive register; no intersection does not establish access or removal permission."
 }

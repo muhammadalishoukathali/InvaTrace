@@ -82,6 +82,10 @@ export function MapLegend() {
       <Row colour="#D9880F" label="Spreading (2-4 reports)" />
       <Row colour="#2E7D3F" label="Isolated (1 report)" />
       <Row colour="#8B978F" label="Removed" muted />
+      <Row colour="#6D3FB5" label="Park" />
+      <Row colour="#176B45" label="Forest" />
+      <Row colour="#9A6518" label="Wood" />
+      <Row colour="#176FA8" label="Trail" />
       <p className="map-legend-card__note">
         Colour reflects how many community reports share the same spot.
         Reports appear once they pass automated checks.

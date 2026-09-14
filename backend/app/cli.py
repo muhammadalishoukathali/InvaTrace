@@ -12,6 +12,7 @@ commands, which just loop forever until killed).
 from __future__ import annotations
 
 import argparse
+import json
 import time
 from datetime import datetime
 from pathlib import Path
@@ -86,6 +87,10 @@ def main() -> None:
     commands.add_parser(
         "load-reference-data",
         help="idempotently load the approved 32-species catalogue (prod-safe)",
+    )
+    commands.add_parser(
+        "production-data-status",
+        help="print machine-readable production geospatial data readiness",
     )
     commands.add_parser(
         "seed-demo-data",
@@ -223,6 +228,14 @@ def main() -> None:
         with SessionLocal() as session:
             load_reference_data(session)
         print("Reference data loaded.")
+    elif args.command == "production-data-status":
+        from app.production_data import production_data_snapshot
+
+        with SessionLocal() as session:
+            snapshot = production_data_snapshot(session, include_versions=True)
+        print(json.dumps(snapshot, ensure_ascii=False, sort_keys=True))
+        if snapshot["status"] != "ok":
+            raise SystemExit(1)
     elif args.command in {"seed-demo-data", "load-development-fixtures"}:
         if get_settings().app_env == "production":
             raise SystemExit(

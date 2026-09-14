@@ -3,7 +3,7 @@ import { useQuery } from '@tanstack/react-query'
 import { Link } from 'react-router-dom'
 import { useOnline } from '@/hooks/useOnline'
 import { api } from '@/services/api-client'
-import type { PlaceDetail } from '@/types'
+import type { PlaceSummary } from '@/types'
 import './places.css'
 
 export function PlacesPage() {
@@ -11,7 +11,7 @@ export function PlacesPage() {
   const [search, setSearch] = useState('')
   const query = useQuery({
     queryKey: ['places'],
-    queryFn: () => api<{ items: PlaceDetail[] }>('/api/v1/places'),
+    queryFn: () => api<{ items: PlaceSummary[] }>('/api/v1/places'),
     enabled: online,
   })
   const normalized = search.trim().toLocaleLowerCase()

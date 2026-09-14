@@ -35,6 +35,26 @@ router = APIRouter(prefix="/api/v1/places", tags=["places"])
 
 PlaceType = Literal["park", "forest", "wood", "trail"]
 EvidenceType = Literal["inside_boundary", "nearby_buffer", "trail_buffer", "upstream"]
+MALAYSIA_MIN_LON = 99.3
+MALAYSIA_MIN_LAT = 0.8
+MALAYSIA_MAX_LON = 119.5
+MALAYSIA_MAX_LAT = 7.5
+PLACE_MAP_MAX_RESULTS = 2_000
+ASSOCIATION_MAX_ROWS = 5_000
+# PostGIS geography can report ST_Distance=1000 while ST_DWithin(..., 1000)
+# is false by a sub-millimetre floating-point residue. This tolerance keeps
+# the AC's inclusive 1,000 m / 750 m boundary without widening it materially.
+SPATIAL_BOUNDARY_EPSILON_M = 0.001
+
+
+class PlaceSummary(ApiModel):
+    place_id: uuid.UUID
+    display_name: str
+    place_type: PlaceType
+    geometry_status: str
+    source: str
+    geometry_version: str
+    view_plants_url: str
 
 
 class PlaceDetail(ApiModel):
@@ -49,7 +69,30 @@ class PlaceDetail(ApiModel):
 
 
 class PlaceListResponse(ApiModel):
-    items: list[PlaceDetail]
+    items: list[PlaceSummary]
+
+
+class PlaceMapFeatureProperties(ApiModel):
+    place_id: uuid.UUID
+    display_name: str
+    place_type: PlaceType
+    geometry_status: Literal["available"]
+    source: str
+    geometry_version: str
+
+
+class PlaceMapFeature(ApiModel):
+    type: Literal["Feature"] = "Feature"
+    id: uuid.UUID
+    geometry: dict
+    properties: PlaceMapFeatureProperties
+
+
+class PlaceMapResponse(ApiModel):
+    type: Literal["FeatureCollection"] = "FeatureCollection"
+    features: list[PlaceMapFeature]
+    truncated: bool
+    max_results: int = PLACE_MAP_MAX_RESULTS
 
 
 class PlaceAtLocationResponse(ApiModel):
@@ -91,6 +134,7 @@ class PlacePlantAssociationsResponse(ApiModel):
     waterway_data_versions: list[str]
     occurrence_updated_at: datetime | None
     disclaimer: str
+    truncated: bool
     items: list[PlacePlantAssociation]
 
 
@@ -125,6 +169,30 @@ def _place_metadata(place: MonitoredArea | Trail) -> tuple[str, str, str]:
 def _reference_image_url(species_id: str) -> str | None:
     image = approved_catalogue_image_for_species(species_id)
     return image.url if image is not None else None
+
+
+def _summary(
+    place_id: uuid.UUID,
+    name: str,
+    metadata: dict,
+    place_type: PlaceType,
+) -> PlaceSummary | None:
+    geometry_status = str(metadata.get("geometry_status") or "available")
+    if geometry_status != "available":
+        return None
+    source = str(metadata.get("source") or "OpenStreetMap")
+    geometry_version = str(
+        metadata.get("geometry_version") or metadata.get("source_date") or "unversioned"
+    )
+    return PlaceSummary(
+        place_id=place_id,
+        display_name=name,
+        place_type=place_type,
+        geometry_status=geometry_status,
+        source=source,
+        geometry_version=geometry_version,
+        view_plants_url=f"/places/{place_id}",
+    )
 
 
 def _stored_geometry(place_id: uuid.UUID, place_type: PlaceType):
@@ -182,29 +250,180 @@ def _place_detail_response(
         source=source,
         geometry_version=geometry_version,
         geometry=json.loads(geojson_raw),
-        view_plants_url=f"/places/{place.id}/plant-associations",
+        view_plants_url=f"/places/{place.id}",
     )
 
 
 @router.get("", response_model=PlaceListResponse)
 def list_places(session: Session = Depends(get_session)) -> PlaceListResponse:
-    items: list[PlaceDetail] = []
-    for place in session.scalars(select(MonitoredArea).order_by(MonitoredArea.name)).all():
-        try:
-            detail = _place_detail_response(
-                session, place, _classify_area(place.name, _metadata(place))
-            )
-        except ApiProblem:
-            continue
-        items.append(detail)
-    for place in session.scalars(select(Trail).order_by(Trail.name)).all():
-        try:
-            detail = _place_detail_response(session, place, "trail")
-        except ApiProblem:
-            continue
-        items.append(detail)
+    """Return searchable place metadata without expensive full geometries."""
+    items: list[PlaceSummary] = []
+    area_rows = session.execute(
+        select(
+            MonitoredArea.id,
+            MonitoredArea.name,
+            MonitoredArea.metadata_json,
+        ).order_by(MonitoredArea.name)
+    ).all()
+    for place_id, name, metadata in area_rows:
+        item = _summary(place_id, name, metadata or {}, _classify_area(name, metadata or {}))
+        if item is not None:
+            items.append(item)
+    trail_rows = session.execute(
+        select(Trail.id, Trail.name, Trail.metadata_json).order_by(Trail.name)
+    ).all()
+    for place_id, name, metadata in trail_rows:
+        item = _summary(place_id, name, metadata or {}, "trail")
+        if item is not None:
+            items.append(item)
     items.sort(key=lambda item: item.display_name.casefold())
     return PlaceListResponse(items=items)
+
+
+def _validate_viewport(min_lon: float, min_lat: float, max_lon: float, max_lat: float) -> None:
+    if min_lon >= max_lon or min_lat >= max_lat:
+        raise ApiProblem(422, "invalid_viewport", "Viewport minimums must be below maximums.")
+    if not (
+        MALAYSIA_MIN_LON <= min_lon <= MALAYSIA_MAX_LON
+        and MALAYSIA_MIN_LON <= max_lon <= MALAYSIA_MAX_LON
+        and MALAYSIA_MIN_LAT <= min_lat <= MALAYSIA_MAX_LAT
+        and MALAYSIA_MIN_LAT <= max_lat <= MALAYSIA_MAX_LAT
+    ):
+        raise ApiProblem(422, "viewport_outside_malaysia", "Viewport must be within Malaysia bounds.")
+
+
+def _available_geometry(model):
+    # The map endpoint is deliberately stricter than legacy detail lookup:
+    # missing metadata is not proof that a geometry completed validation.
+    return model.metadata_json["geometry_status"].as_string() == "available"
+
+
+def _area_type_filter(requested_types: set[PlaceType]):
+    landuse = func.coalesce(
+        MonitoredArea.metadata_json["tags"]["landuse"].as_string(),
+        MonitoredArea.metadata_json["landuse"].as_string(),
+        "",
+    )
+    natural = func.coalesce(
+        MonitoredArea.metadata_json["tags"]["natural"].as_string(),
+        MonitoredArea.metadata_json["natural"].as_string(),
+        "",
+    )
+    predicates = []
+    if "forest" in requested_types:
+        predicates.append(landuse == "forest")
+    if "wood" in requested_types:
+        predicates.append(and_(landuse != "forest", natural == "wood"))
+    if "park" in requested_types:
+        predicates.append(and_(landuse != "forest", natural != "wood"))
+    return or_(*predicates)
+
+
+def _map_properties(summary: PlaceSummary) -> PlaceMapFeatureProperties:
+    return PlaceMapFeatureProperties(
+        place_id=summary.place_id,
+        display_name=summary.display_name,
+        place_type=summary.place_type,
+        geometry_status="available",
+        source=summary.source,
+        geometry_version=summary.geometry_version,
+    )
+
+
+@router.get("/map", response_model=PlaceMapResponse)
+def place_map(
+    min_lon: float = Query(...),
+    min_lat: float = Query(...),
+    max_lon: float = Query(...),
+    max_lat: float = Query(...),
+    place_type: list[PlaceType] | None = Query(default=None),
+    session: Session = Depends(get_session),
+) -> PlaceMapResponse:
+    """Return at most 2,000 representative points intersecting one viewport."""
+    _validate_viewport(min_lon, min_lat, max_lon, max_lat)
+    requested_types = set(place_type or ("park", "forest", "wood", "trail"))
+    envelope = func.ST_MakeEnvelope(min_lon, min_lat, max_lon, max_lat, 4326)
+    geography_envelope = cast(envelope, Geography("POLYGON", srid=4326))
+    candidates: list[PlaceMapFeature] = []
+
+    if requested_types.intersection({"park", "forest", "wood"}):
+        area_geometry = cast(MonitoredArea.geometry, Geometry("MULTIPOLYGON", srid=4326))
+        area_rows = session.execute(
+            select(
+                MonitoredArea.id,
+                MonitoredArea.name,
+                MonitoredArea.metadata_json,
+                func.ST_AsGeoJSON(
+                    func.ST_PointOnSurface(func.ST_Intersection(area_geometry, envelope))
+                ),
+            )
+            .where(
+                func.ST_Intersects(MonitoredArea.geometry, geography_envelope),
+                _available_geometry(MonitoredArea),
+                _area_type_filter(requested_types),
+            )
+            .order_by(MonitoredArea.name, MonitoredArea.id)
+            .limit(PLACE_MAP_MAX_RESULTS + 1)
+        ).all()
+        for place_id, name, metadata, point_json in area_rows:
+            resolved_type = _classify_area(name, metadata or {})
+            if resolved_type not in requested_types or not point_json:
+                continue
+            summary = _summary(place_id, name, metadata or {}, resolved_type)
+            if summary is None:
+                continue
+            candidates.append(
+                PlaceMapFeature(
+                    id=place_id,
+                    geometry=json.loads(point_json),
+                    properties=_map_properties(summary),
+                )
+            )
+
+    if "trail" in requested_types:
+        trail_geometry = cast(Trail.geometry, Geometry("MULTILINESTRING", srid=4326))
+        trail_rows = session.execute(
+            select(
+                Trail.id,
+                Trail.name,
+                Trail.metadata_json,
+                func.ST_AsGeoJSON(
+                    func.ST_PointOnSurface(func.ST_Intersection(trail_geometry, envelope))
+                ),
+            )
+            .where(
+                func.ST_Intersects(Trail.geometry, geography_envelope),
+                _available_geometry(Trail),
+            )
+            .order_by(Trail.name, Trail.id)
+            .limit(PLACE_MAP_MAX_RESULTS + 1)
+        ).all()
+        for place_id, name, metadata, point_json in trail_rows:
+            if not point_json:
+                continue
+            summary = _summary(place_id, name, metadata or {}, "trail")
+            if summary is None:
+                continue
+            candidates.append(
+                PlaceMapFeature(
+                    id=place_id,
+                    geometry=json.loads(point_json),
+                    properties=_map_properties(summary),
+                )
+            )
+
+    candidates.sort(
+        key=lambda feature: (
+            feature.properties.display_name.casefold(),
+            feature.properties.place_type,
+            str(feature.id),
+        )
+    )
+    truncated = len(candidates) > PLACE_MAP_MAX_RESULTS
+    return PlaceMapResponse(
+        features=candidates[:PLACE_MAP_MAX_RESULTS],
+        truncated=truncated,
+    )
 
 
 @router.get("/at-location", response_model=PlaceAtLocationResponse)
@@ -263,7 +482,11 @@ def plant_associations(
     radius_m = 750 if place_type == "trail" else 1000
     stored_geometry = _stored_geometry(place.id, place_type)
     distance = func.ST_Distance(stored_geometry, OccurrenceRecord.location)
-    spatial_match = func.ST_DWithin(stored_geometry, OccurrenceRecord.location, radius_m)
+    spatial_match = func.ST_DWithin(
+        stored_geometry,
+        OccurrenceRecord.location,
+        radius_m + SPATIAL_BOUNDARY_EPSILON_M,
+    )
     waterway_join = and_(
         PlaceOccurrenceWaterwayEvidence.occurrence_id == OccurrenceRecord.id,
         PlaceOccurrenceWaterwayEvidence.place_id == place.id,
@@ -302,7 +525,11 @@ def plant_associations(
             .outerjoin(PlaceOccurrenceWaterwayEvidence, waterway_join)
             .where(or_(spatial_match, upstream_match))
         )
-    rows = session.execute(statement.order_by(distance.asc()).limit(5000)).all()
+    rows = session.execute(
+        statement.order_by(distance.asc()).limit(ASSOCIATION_MAX_ROWS + 1)
+    ).all()
+    truncated = len(rows) > ASSOCIATION_MAX_ROWS
+    rows = rows[:ASSOCIATION_MAX_ROWS]
     grouped: dict[str, list[tuple]] = defaultdict(list)
     for row in rows:
         approved = approved_species_record(row[0].species_id)
@@ -416,5 +643,6 @@ def plant_associations(
             "Associations are based on historical occurrence records and mapped buffers. "
             "They are not probabilities and do not show current presence or absence."
         ),
+        truncated=truncated,
         items=items,
     )

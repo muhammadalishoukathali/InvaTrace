@@ -254,11 +254,14 @@ def test_private_access_and_automated_validation_end_to_end() -> None:
     goes: everything here happens to the same profile in order.
     """
     with httpx.Client(base_url=BASE_URL, timeout=15) as client:
-        readiness = assert_ok(client.get("/health/ready")).json()
+        readiness_response = client.get("/health/ready")
+        assert readiness_response.status_code in {200, 503}, readiness_response.text
+        readiness = readiness_response.json()
         assert readiness["database"] == "ok"
         assert readiness["redis"] == "ok"
         assert readiness["storage"] == "ok"
         assert readiness["screening"] == "ready"
+        assert readiness["geospatialData"]["status"] in {"ok", "degraded"}
 
         first_installation_token = installation_token()
         started_response = client.post(

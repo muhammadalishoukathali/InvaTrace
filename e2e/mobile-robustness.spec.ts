@@ -31,6 +31,7 @@ test('mobile scan stops the camera on interruption and stays within the viewport
     })
   })
   await startPrivateAccess(page)
+  await expect(page.getByRole('link', { name: 'Browse places' })).toBeVisible()
   await page.goto('/scan')
   await page.getByRole('button', { name: 'Open camera' }).click()
   await expect(page.getByRole('heading', { name: 'Frame one clear plant feature' })).toBeVisible()

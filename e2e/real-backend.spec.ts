@@ -44,6 +44,53 @@ test('private access starts and bootstraps against the real API', async ({ page,
   await expect(page.getByRole('heading', { name: 'Live threat map' })).toBeVisible()
 })
 
+test('real geospatial data is discoverable from the main map', async ({ page, request }) => {
+  const ready = await request.get('http://localhost:8000/health/ready')
+  expect(ready.status()).toBe(200)
+  const readiness = await ready.json() as {
+    geospatialData: {
+      status: string
+      catalogueSpecies: number
+      areas: number
+      trails: number
+      protectedAreas: number
+      waterwayEdges: number
+      sourceReleasesAligned: boolean
+    }
+  }
+  expect(readiness.geospatialData).toMatchObject({
+    status: 'ok',
+    catalogueSpecies: 32,
+    sourceReleasesAligned: true,
+  })
+  expect(readiness.geospatialData.areas).toBeGreaterThan(0)
+  expect(readiness.geospatialData.trails).toBeGreaterThan(0)
+  expect(readiness.geospatialData.protectedAreas).toBeGreaterThan(0)
+  expect(readiness.geospatialData.waterwayEdges).toBeGreaterThan(0)
+
+  await page.goto('/')
+  await page.getByRole('button', { name: 'Start privately' }).click()
+  await page.getByRole('checkbox', { name: 'I have saved my recovery kit' }).check()
+  const mapPlaces = page.waitForResponse((response) =>
+    new URL(response.url()).pathname === '/api/v1/places/map' && response.status() === 200)
+  await page.getByRole('button', { name: 'Continue to InvaTrace' }).click()
+  const payload = await (await mapPlaces).json() as { features: unknown[] }
+  expect(payload.features.length).toBeGreaterThan(0)
+
+  const places = page.getByRole('region', { name: 'Mapped places in current view' })
+  const firstPlace = places.getByRole('button').first()
+  await expect(firstPlace).toBeAttached()
+  await firstPlace.focus()
+  await page.keyboard.press('Enter')
+  const preview = page.getByRole('dialog', { name: /place preview$/ })
+  await expect(preview).toBeVisible()
+  await expect(preview).toBeFocused()
+  const detailLink = preview.getByRole('link', { name: 'View plants recorded nearby' })
+  await detailLink.click()
+  await expect(page).toHaveURL(/\/places\/[0-9a-f-]+$/)
+  await expect(page.getByRole('heading', { level: 1 })).toBeVisible()
+})
+
 // AC Phase 6 - real-backend reporting coverage. Walks scan → presign →
 // upload → report → poll for screened → verify the published sighting is
 // visible on the public feed. Skips the browser UI (camera + model) and

@@ -20,7 +20,7 @@ const filters = readFileSync(
 describe('map accessibility fallback', () => {
   it('the map canvas exposes role=application with a describing label', () => {
     expect(threatMap).toContain('role="application"')
-    expect(threatMap).toContain('aria-label="Interactive community reports map. A parallel list of the same reports is available below the map."')
+    expect(threatMap).toContain('aria-label="Interactive community reports and mapped places. Parallel accessible lists are available below the map."')
     expect(threatMap).toContain('aria-describedby="map-live-count"')
     expect(threatMap).toContain('id="map-live-count"')
   })
@@ -56,5 +56,33 @@ describe('map accessibility fallback', () => {
     expect(filters).toContain('role="group" aria-label="Species filters"')
     expect(filters).toContain('role="group" aria-label="Risk filters"')
     expect(filters).toContain('role="group" aria-label="Status filters"')
+  })
+
+  it('adds a clustered GeoJSON place source only after the map style loads', () => {
+    const styleLoad = threatMap.indexOf("m.once('style.load'")
+    const source = threatMap.indexOf('m.addSource(PLACE_SOURCE_ID')
+    expect(styleLoad).toBeGreaterThan(-1)
+    expect(source).toBeGreaterThan(styleLoad)
+    expect(threatMap).toContain('cluster: true')
+    expect(threatMap).toContain("id: 'place-clusters'")
+    expect(threatMap).toContain("id: 'place-points'")
+    expect(threatMap).toContain("'circle-color': ['match', ['get', 'placeType']")
+  })
+
+  it('debounces viewport requests and provides an independent places toggle', () => {
+    expect(threatMap).toContain("m.on('moveend', schedulePlaces)")
+    expect(threatMap).toContain('}, 300)')
+    expect(threatMap).toContain('/api/v1/places/map?')
+    expect(threatMap).toContain('aria-pressed={showPlaces}')
+    expect(threatMap).toContain("{showPlaces ? 'Hide places' : 'Show places'}")
+  })
+
+  it('provides an accessible place list and canonical preview action', () => {
+    expect(threatMap).toContain('function AccessiblePlaceList(')
+    expect(threatMap).toContain('aria-label="Mapped places in current view"')
+    expect(threatMap).toContain('role="dialog"')
+    expect(threatMap).toContain('aria-label="Close place preview"')
+    expect(threatMap).toContain('View plants recorded nearby')
+    expect(threatMap).toContain('to={`/places/${selectedPlace.placeId}`}')
   })
 })

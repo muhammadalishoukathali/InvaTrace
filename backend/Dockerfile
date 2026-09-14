@@ -53,3 +53,15 @@ HEALTHCHECK --interval=30s --timeout=5s --start-period=15s --retries=3 \
 # --proxy-headers / --forwarded-allow-ips="*" so Render's X-Forwarded-For
 # reaches client_address() in app/core/rate_limit.py.
 ENTRYPOINT ["/usr/local/bin/docker-entrypoint.sh"]
+
+# Local Compose test target. Render builds the final `production` target, so
+# test tools and source tests never enter the deployed image.
+FROM runtime AS test-runtime
+USER root
+RUN python -m pip install --no-cache-dir "pytest>=9.0.3,<10" "httpx>=0.28,<1"
+COPY backend/tests ./tests
+ENV PYTHONPATH=/service/backend \
+    PYTEST_ADDOPTS="-p no:cacheprovider"
+USER invatrace
+
+FROM runtime AS production
