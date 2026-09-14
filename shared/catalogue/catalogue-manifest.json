@@ -5,7 +5,7 @@
   "content_version": "2.2.0",
   "model_version": "oe_v4_31class_web_fp16",
   "last_reviewed": "2026-09-13",
-  "generated_at": "2026-09-13T15:53:50.665Z",
+  "generated_at": "2026-09-14T20:42:37.469Z",
   "assets": [
     {
       "species_id": "acacia-auriculiformis",
@@ -220,17 +220,17 @@
     {
       "species_id": "leucaena-leucocephala",
       "url": "/reference-images/leucaena_leucocephala.jpg",
-      "sha256": "b3f63ea9d8f69fb1b353b6cff1adbeb526c837a97cfdfc887dd72dac452712c5",
-      "byte_length": 495183,
+      "sha256": "9ed161985c18037f4838cd3a679be699cd09f6a933d9dc61ab22312808a20898",
+      "byte_length": 843397,
       "review_status": "approved",
-      "creator": "Forest & Kim Starr",
-      "licence": "CC BY 3.0",
-      "licence_url": "https://creativecommons.org/licenses/by/3.0",
-      "source_title": "File:Starr 031015-0083 Leucaena leucocephala.jpg",
-      "source_url_or_identifier": "https://commons.wikimedia.org/wiki/File:Starr_031015-0083_Leucaena_leucocephala.jpg",
-      "retrieved_at": "2026-09-13",
-      "reviewed_at": "2026-09-13",
-      "attribution_text": "Forest & Kim Starr — File:Starr 031015-0083 Leucaena leucocephala.jpg — CC BY 3.0 — via Wikimedia Commons; resized for offline use."
+      "creator": "Philmarin",
+      "licence": "CC BY-SA 3.0",
+      "licence_url": "https://creativecommons.org/licenses/by-sa/3.0",
+      "source_title": "File:L. l-vista general-1.jpg",
+      "source_url_or_identifier": "https://commons.wikimedia.org/wiki/File:L._l-vista_general-1.jpg",
+      "retrieved_at": "2026-09-15",
+      "reviewed_at": "2026-09-15",
+      "attribution_text": "Philmarin — File:L. l-vista general-1.jpg — CC BY-SA 3.0 — via Wikimedia Commons; resized for offline use."
     },
     {
       "species_id": "limnocharis-flava",
@@ -400,17 +400,17 @@
     {
       "species_id": "ruellia-blechum",
       "url": "/reference-images/ruellia_blechum.jpg",
-      "sha256": "e1a67803b88ee1e957bcb12c7b0585ce1a820216c213b34fdb1110b9de4ad9b2",
-      "byte_length": 172569,
+      "sha256": "fd7dcae22f147b351168ceb9e9727695ee85ffa91ceb94aa6e13ce48e39b7e06",
+      "byte_length": 166717,
       "review_status": "approved",
-      "creator": "Forest & Kim Starr",
-      "licence": "CC BY 3.0",
-      "licence_url": "https://creativecommons.org/licenses/by/3.0",
-      "source_title": "File:Starr 060810-8468 Blechum pyramidatum.jpg",
-      "source_url_or_identifier": "https://commons.wikimedia.org/wiki/File:Starr_060810-8468_Blechum_pyramidatum.jpg",
-      "retrieved_at": "2026-09-13",
-      "reviewed_at": "2026-09-13",
-      "attribution_text": "Forest & Kim Starr — File:Starr 060810-8468 Blechum pyramidatum.jpg — CC BY 3.0 — via Wikimedia Commons; resized for offline use."
+      "creator": "Krzysztof Ziarnek, Kenraiz",
+      "licence": "CC BY-SA 4.0",
+      "licence_url": "https://creativecommons.org/licenses/by-sa/4.0",
+      "source_title": "File:Ruellia blechum kz01.jpg",
+      "source_url_or_identifier": "https://commons.wikimedia.org/wiki/File:Ruellia_blechum_kz01.jpg",
+      "retrieved_at": "2026-09-15",
+      "reviewed_at": "2026-09-15",
+      "attribution_text": "Krzysztof Ziarnek, Kenraiz — File:Ruellia blechum kz01.jpg — CC BY-SA 4.0 — via Wikimedia Commons; resized for offline use."
     },
     {
       "species_id": "salvinia-molesta",
@@ -502,14 +502,14 @@
       "record_count": 31
     },
     "plant-guidance.json": {
-      "sha256": "e25bfc2efd0529d6a1e53e10d7ae4f70315a3dbd2d0c506174df9c6dbb803660",
-      "byte_length": 105883,
+      "sha256": "51d9a66e2e4024474eb717a6339a89924c76e6c5d2d6d230946d30c4cbb365b8",
+      "byte_length": 105887,
       "schema_version": "1.0",
       "record_count": 28
     },
     "reference-images.json": {
-      "sha256": "c5cc925e306cff3586f869fb86e67519812a4c60bbe618eeb3128b1bdb0b9479",
-      "byte_length": 31716,
+      "sha256": "33af5da859422d1ebc3cd70106e0b537d1c49260eef1264b3f0c6149a7b6aea9",
+      "byte_length": 31624,
       "schema_version": "invatrace.catalogue.reference-images.v1",
       "record_count": 32
     },

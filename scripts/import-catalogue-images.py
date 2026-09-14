@@ -2,9 +2,9 @@
 """Build the reviewed 32-species offline image release from Wikimedia Commons.
 
 Selections are deliberately locked in ``catalogue-image-selections.json``.
-The importer re-verifies the taxon association, author, licence, source page,
-downloaded MIME type, byte size and SHA-256 on every run. It never falls back
-to an unreviewed search result.
+The importer re-verifies the taxon association, the photographic subject, author,
+licence, source page, downloaded MIME type, byte size and SHA-256 on every run.
+It never falls back to an unreviewed search result.
 """
 
 from __future__ import annotations
@@ -37,6 +37,19 @@ ALLOWED_LICENCES = re.compile(
     r"^(?:CC0|Public domain|CC BY(?:-SA)? (?:2\.0|2\.5|3\.0|3\.0 us|4\.0))$",
     re.IGNORECASE,
 )
+# Neither an exact filename nor a P18 link proves that the living plant is what
+# the photograph shows. Commons states the actual subject with a qualifier, both
+# in its taxon categories ("Ruellia blechum (herbarium specimens)") and in the
+# description ("Leucaena leucocephala (habitat and bomb)"), so every selection is
+# screened for these markers regardless of its verification mode.
+NON_SUBJECT_MARKERS = re.compile(
+    r"\b(?:habitats?|herbari(?:um|a)|specimens?|distribution maps?)\b",
+    re.IGNORECASE,
+)
+# Descriptions are free prose and legitimately say things like "in native
+# habitat", so only their parenthesised qualifiers are screened. Category names
+# are short and structured enough to screen in full.
+DESCRIPTION_QUALIFIER = re.compile(r"\(([^()]*)\)")
 
 
 class _TextExtractor(HTMLParser):
@@ -100,6 +113,29 @@ def _verify_taxon(selection: dict[str, str], approved: dict[str, Any]) -> str:
     else:
         raise ValueError(f"{approved['species_id']}: unsupported verification mode")
     return next(iter(names.intersection(accepted_names)))
+
+
+def _reject_non_subject_media(species_id: str, metadata: dict[str, Any]) -> None:
+    categories = [
+        category.strip()
+        for category in _metadata_value(metadata, "Categories").split("|")
+        if category.strip()
+    ]
+    for category in categories:
+        marker = NON_SUBJECT_MARKERS.search(category)
+        if marker:
+            raise ValueError(
+                f"{species_id}: Commons category {category!r} marks this file as "
+                f"{marker.group(0)!r}, not a photograph of the living plant"
+            )
+    description = _plain_text(_metadata_value(metadata, "ImageDescription"))
+    for qualifier in DESCRIPTION_QUALIFIER.findall(description):
+        marker = NON_SUBJECT_MARKERS.search(qualifier)
+        if marker:
+            raise ValueError(
+                f"{species_id}: Commons description qualifier '({qualifier})' marks this "
+                f"file as {marker.group(0)!r}, not a photograph of the living plant"
+            )
 
 
 def _commons_pages(files: list[str]) -> dict[str, dict[str, Any]]:
@@ -193,6 +229,7 @@ def main() -> None:
         licence = _metadata_value(metadata, "LicenseShortName")
         creator = _plain_text(_metadata_value(metadata, "Artist"))
         licence_url = _metadata_value(metadata, "LicenseUrl")
+        _reject_non_subject_media(species_id, metadata)
         if image_info.get("mime") != "image/jpeg":
             raise ValueError(f"{species_id}: only browser-safe JPEG releases are accepted")
         if not ALLOWED_LICENCES.fullmatch(licence):
