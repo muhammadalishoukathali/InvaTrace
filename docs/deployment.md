@@ -6,10 +6,12 @@ This runbook matches the approved Iteration 1 deployment boundaries.
 
 Create a Neon database and use its pooled TLS URL with the `psycopg` SQLAlchemy
 scheme, for example `postgresql+psycopg://...?...sslmode=require`. Run
-`alembic upgrade head` as a Render pre-deploy command. The initial migration
-enables `postgis`, creates the normalized schema, and creates the spatial
-indexes. The database role must be permitted to create the extension on first
-deployment; Neon supports PostGIS in the target database.
+`alembic upgrade head` before a manual import. The checked-in Render deployment
+also runs migrations and the production-safe species reference loader from the
+container entrypoint because the free plan has no pre-deploy command. The
+initial migration enables `postgis`, creates the normalized schema, and creates
+the spatial indexes. The database role must be permitted to create the
+extension on first deployment; Neon supports PostGIS in the target database.
 
 Back up before destructive future migrations. Deploy additive migrations before
 code that requires them, and run `alembic check` in CI to detect model drift.
@@ -21,6 +23,47 @@ manifest to persist the directed graph and its conservative evidence release.
 Every command must receive the matching release and Malaysia-boundary manifests;
 hash, byte-length, licence, timestamp and coverage mismatches fail closed. The
 regional PBF is intentionally not committed and must match its manifest SHA-256.
+
+Use the final CLI names below from `backend/`, with `DATABASE_URL` supplied only
+through the shell environment. The OSM PBF is local and must match
+`data/production/osm-places/release.json` exactly.
+
+```bash
+python -m alembic upgrade head
+python -m app.cli load-reference-data
+python -m app.cli import-occurrences \
+  ../data/production/gbif-occurrences/gbif-malaysia-occurrences-2026-09-13.json \
+  --source "GBIF" \
+  --processed-data-version "GBIF API snapshot retrieved 2026-09-13" \
+  --release-manifest ../data/production/gbif-occurrences/release.json \
+  --country-boundary ../data/production/malaysia-boundary/geoBoundaries-MYS-ADM0.geojson \
+  --country-boundary-manifest ../data/production/malaysia-boundary/release.json
+
+python -m app.cli import-osm /absolute/local/path/to/malaysia-singapore-brunei-2026-09-12.osm.pbf \
+  --source-date 2026-09-12T20:21:58+00:00 \
+  --release-manifest ../data/production/osm-places/release.json \
+  --country-boundary ../data/production/malaysia-boundary/geoBoundaries-MYS-ADM0.geojson \
+  --country-boundary-manifest ../data/production/malaysia-boundary/release.json
+
+python -m app.cli import-protected-areas \
+  ../data/production/osm-protected-areas/osm-malaysia-protected-areas-2026-09-12.geojson \
+  --source "OpenStreetMap contributors via Geofabrik GmbH" \
+  --version "Geofabrik replication sequence 4907; derived protected-area release 2026-09-12" \
+  --updated-at 2026-09-12T20:21:58+00:00 \
+  --coverage-note "Reviewed Malaysia national boundary; mapped context is not removal permission" \
+  --coverage-geojson ../data/production/malaysia-boundary/geoBoundaries-MYS-ADM0.geojson \
+  --release-manifest ../data/production/osm-protected-areas/release.json \
+  --coverage-release-manifest ../data/production/malaysia-boundary/release.json
+
+python -m app.cli preprocess-osm-waterways \
+  /absolute/local/path/to/malaysia-singapore-brunei-2026-09-12.osm.pbf \
+  --release-manifest ../data/production/osm-places/release.json \
+  --country-boundary ../data/production/malaysia-boundary/geoBoundaries-MYS-ADM0.geojson \
+  --country-boundary-manifest ../data/production/malaysia-boundary/release.json \
+  --evidence-output /absolute/local/path/to/generated/osm-waterway-evidence-2026-09-12.json
+
+python -m alembic check
+```
 
 ## Cloudflare R2
 
@@ -56,7 +99,9 @@ Do not apply that rule to `evidence/` or `thumbnails/`.
 
 ## Render API and worker
 
-Create three Render services from `backend/Dockerfile`.
+The checked-in free-plan blueprint creates one API service and runs verification
+and upload cleanup inside that process. A paid deployment may split those into
+two private background workers using the commands below.
 
 API settings:
 
@@ -65,7 +110,8 @@ API settings:
   actual trusted proxy range rather than accepting forwarded headers from every
   address.
 - Health check path: `/health/live`.
-- Pre-deploy command: `alembic upgrade head`.
+- Startup entrypoint: migration plus the production-safe reference loader,
+  followed by the API process.
 
 Worker settings:
 

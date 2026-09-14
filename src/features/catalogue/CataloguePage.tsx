@@ -4,12 +4,15 @@ import { Icon } from '@/components/Icon'
 import { useOnline } from '@/hooks/useOnline'
 import {
   approvedCatalogueAssetForSpecies,
+  catalogueManifest,
   approvedSpeciesDataset,
+  type CatalogueManifest,
   type ApprovedSpeciesDataset,
 } from '@shared/catalogue'
 import {
   cataloguePackSize,
   downloadCataloguePack,
+  fetchLatestCatalogueManifest,
   formatPackSize,
   installedCataloguePack,
   loadInstalledCatalogueData,
@@ -34,10 +37,11 @@ export function CataloguePage() {
   const [approvedImages, setApprovedImages] = useState<Record<string, string>>(bundledApprovedImages)
   const releasePack = useRef<(() => void) | null>(null)
   const [packState, setPackState] = useState<'idle' | 'working' | 'error'>('idle')
+  const [serverManifest, setServerManifest] = useState<CatalogueManifest | null>(null)
   const normalized = query.trim().toLocaleLowerCase()
-  const updateAvailable = Boolean(
-    installed && installed.version !== approvedSpeciesDataset.catalogue_version,
-  )
+  const availableManifest = serverManifest ?? catalogueManifest
+  const latestVersion = availableManifest.catalogue_version
+  const updateAvailable = Boolean(installed && isNewerVersion(latestVersion, installed.version))
   const records = useMemo(() => dataset.records.filter((record) => (
     !normalized
     || record.scientific_name.toLocaleLowerCase().includes(normalized)
@@ -62,10 +66,25 @@ export function CataloguePage() {
     }
   }, [])
 
+  useEffect(() => {
+    if (!online) return
+    let active = true
+    setInstalled(installedCataloguePack())
+    void fetchLatestCatalogueManifest()
+      .then((manifest) => {
+        if (active) setServerManifest(manifest)
+      })
+      .catch(() => {
+        // The bundled manifest remains the safe fallback. A failed update
+        // check must never invalidate the last verified installed pack.
+      })
+    return () => { active = false }
+  }, [online])
+
   const download = async () => {
     setPackState('working')
     try {
-      const nextInstalled = await downloadCataloguePack()
+      const nextInstalled = await downloadCataloguePack(availableManifest)
       setInstalled(nextInstalled)
       const pack = await loadInstalledCatalogueData()
       if (pack) {
@@ -108,16 +127,26 @@ export function CataloguePage() {
         </div>
         <div className="catalogue-pack" aria-live="polite">
           <strong>Offline catalogue · v{dataset.catalogue_version}</strong>
-          <span>{formatPackSize(cataloguePackSize())} · reviewed {formatDate(dataset.reviewed_at)}</span>
+          <span>
+            {formatPackSize(cataloguePackSize(availableManifest))}
+            {' '}· reviewed {formatDate(availableManifest.last_reviewed)}
+          </span>
           {installed ? (
             <div>
               <span>Installed v{installed.version}</span>
-              {updateAvailable && <span>A newer catalogue version is available.</span>}
+              {updateAvailable && (
+                <span>
+                  A newer catalogue version ({latestVersion}) is available.
+                  {latestVersion !== approvedSpeciesDataset.catalogue_version
+                    ? ' Refresh the app before downloading it.'
+                    : ''}
+                </span>
+              )}
               <button type="button" onClick={() => void remove()} disabled={packState === 'working'}>
                 Remove offline catalogue
               </button>
               <button type="button" onClick={() => void download()} disabled={packState === 'working'}>
-                Download again
+                {updateAvailable ? 'Update offline catalogue' : 'Download again'}
               </button>
             </div>
           ) : (
@@ -189,3 +218,13 @@ export function CataloguePage() {
 
 const formatDate = (value: string) => new Intl.DateTimeFormat(undefined, { dateStyle: 'medium' })
   .format(new Date(`${value}T00:00:00Z`))
+
+function isNewerVersion(candidate: string, current: string): boolean {
+  const next = candidate.split('.').map(Number)
+  const installed = current.split('.').map(Number)
+  for (let index = 0; index < Math.max(next.length, installed.length); index += 1) {
+    const difference = (next[index] ?? 0) - (installed[index] ?? 0)
+    if (difference !== 0) return difference > 0
+  }
+  return false
+}

@@ -1,10 +1,9 @@
-"""Idempotent development/demo data seed.
+"""Reviewed reference-data loading and explicit development fixtures.
 
-Populates species records (merged with the PULIH classifier's 31-class
-catalog), a handful of Kuala Lumpur monitored places, and a few sample
-sightings so a fresh dev database isn't just empty. Run via `invatrace
-seed` (see app/cli.py). Safe to run repeatedly - existing rows get
-updated in place rather than duplicated, matched by id/name.
+Production uses :func:`load_reference_data`, which loads only the approved
+species catalogue. Local development may additionally call
+:func:`load_development_fixtures` (or the legacy ``seed`` command) to add a
+small set of demonstration places and sightings. Both paths are idempotent.
 """
 
 from __future__ import annotations
@@ -409,7 +408,7 @@ _apply_shared_catalogue_to_species_seed()
 
 # Real coordinates around KL parks/reserves, used as the "home base" for the
 # sample sightings below and as MonitoredPlace rows in their own right.
-PLACES = [
+DEVELOPMENT_PLACES = [
     ("Bukit Kiara · West Trail", 3.1497, 101.6412),
     ("Bukit Kiara · Look-out", 3.1523, 101.6440),
     ("Bukit Kiara · Picnic Area", 3.1489, 101.6398),
@@ -442,10 +441,7 @@ LEGACY_SEED_SPECIES_IDS = {"clidemia-hirta"}
 
 
 def load_reference_data(session: Session) -> None:
-    """Loads the reference rows (species catalogue + hand-picked KL parks)
-    that the app can't run without. Kept separate from the demo-sightings
-    seed on purpose so I can safely re-run this in prod before a deploy
-    without also dropping fake sightings into the map.
+    """Load only the reviewed species catalogue required in production.
 
     Re-running it is fine - I look up rows by id/name and update in place
     rather than inserting new ones, so nothing gets duplicated.
@@ -457,16 +453,6 @@ def load_reference_data(session: Session) -> None:
                 setattr(existing, key, value)
         else:
             session.add(Species(**values))
-    session.flush()
-    for name, latitude, longitude in PLACES:
-        if not session.scalar(select(MonitoredPlace.id).where(MonitoredPlace.name == name)):
-            session.add(
-                MonitoredPlace(
-                    name=name,
-                    latitude=Decimal(str(latitude)),
-                    longitude=Decimal(str(longitude)),
-                )
-            )
     session.flush()
     # Retire species ids that used to be in the catalogue. Only drop them if
     # no user data references them, so a production catalogue refresh never
@@ -484,13 +470,22 @@ def load_reference_data(session: Session) -> None:
     session.commit()
 
 
-def seed_demo_data(session: Session) -> None:
+def load_development_fixtures(session: Session) -> None:
     """Drops a handful of fake sightings scattered around Bukit Kiara so
     the map isn't empty on a fresh dev DB - makes screenshots and pilot
     testing way easier. The CLI refuses to run this in production so we
-    can't accidentally pollute the real data. Assumes load_reference_data
-    has already run so the species rows exist to link to.
+    can't accidentally pollute the real data.
     """
+    for name, latitude, longitude in DEVELOPMENT_PLACES:
+        if not session.scalar(select(MonitoredPlace.id).where(MonitoredPlace.name == name)):
+            session.add(
+                MonitoredPlace(
+                    name=name,
+                    latitude=Decimal(str(latitude)),
+                    longitude=Decimal(str(longitude)),
+                )
+            )
+    session.flush()
     centre_lat, centre_lng = 3.1497, 101.6412
     actions = {
         "screened": "Rule-screened report. Follow the reviewed guidance for this species.",
@@ -506,7 +501,7 @@ def seed_demo_data(session: Session) -> None:
             "longitude": Decimal(str(round(centre_lng + math.cos(angle) * radius, 5))),
             "reporter_trust": "Trusted",
             "recommended_action": actions[status],
-            "place_label": PLACES[index][0],
+            "place_label": DEVELOPMENT_PLACES[index][0],
         }
         existing = session.get(Sighting, sighting_id)
         if existing:
@@ -523,6 +518,11 @@ def seed_demo_data(session: Session) -> None:
     session.commit()
 
 
+def seed_demo_data(session: Session) -> None:
+    """Backward-compatible name for the explicit development fixture loader."""
+    load_development_fixtures(session)
+
+
 def seed_development_data(session: Session) -> None:
     """Old entry point that just runs both seeds one after the other. I
     kept it around so the existing tests and the old `invatrace seed`
@@ -530,4 +530,4 @@ def seed_development_data(session: Session) -> None:
     own - the CLI blocks this one from running in production anyway.
     """
     load_reference_data(session)
-    seed_demo_data(session)
+    load_development_fixtures(session)

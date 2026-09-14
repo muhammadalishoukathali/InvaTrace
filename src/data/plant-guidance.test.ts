@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import speciesCatalog from '../../public/models/pulih-model1-v4/species_31.json'
+import { approvedSpeciesDataset, catalogueDetailsDataset } from '@shared/catalogue'
 import { findPlantGuidance, plantGuidanceDataset, getSources } from './plant-guidance'
 
 interface CatalogEntry {
@@ -102,6 +103,21 @@ describe('plant-guidance dataset', () => {
     expect(sources.length).toBe(plant.general_information_source_ids.length)
     for (const src of sources) {
       expect(src.url).toMatch(/^https?:\/\//)
+    }
+  })
+
+  it('uses the authoritative catalogue status and description for every overlapping species', () => {
+    for (const approved of approvedSpeciesDataset.records) {
+      const guidance = findPlantGuidance({ scientificName: approved.scientific_name })
+      if (!guidance) continue
+      const detail = catalogueDetailsDataset.records.find(
+        (item) => item.species_id === approved.species_id,
+      )!
+      expect(guidance.malaysia_status.display_label).toBe('Present in Malaysia')
+      expect(guidance.malaysia_status.note).toBe(approved.evidence_summary)
+      expect(guidance.general_information).toContain(detail.identifying_characteristics)
+      expect(guidance.general_information).toContain(detail.typical_habitat)
+      expect(guidance.general_information).toContain(detail.documented_impacts)
     }
   })
 })

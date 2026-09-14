@@ -7,8 +7,9 @@ from datetime import UTC, datetime, timedelta
 from typing import Literal
 
 from fastapi import APIRouter, Depends, Header, Query, Request, Response
+from geoalchemy2 import Geography
 from pydantic import Field
-from sqlalchemy import select
+from sqlalchemy import cast, func, select
 from sqlalchemy.orm import Session
 
 from app.api.schemas import (
@@ -93,6 +94,7 @@ def _validate_removal_location(
     sighting_latitude: float,
     sighting_longitude: float,
     now: datetime,
+    calculated_distance_m: float | None = None,
 ) -> float:
     """Validate the fresh browser fix and return server-calculated distance."""
     if captured_at.tzinfo is None:
@@ -109,12 +111,14 @@ def _validate_removal_location(
             "removal_accuracy_too_low",
             "Location accuracy must be 250 metres or better.",
         )
-    distance_m = _distance_metres(
-        sighting_latitude,
-        sighting_longitude,
-        latitude,
-        longitude,
-    )
+    distance_m = calculated_distance_m
+    if distance_m is None:
+        distance_m = _distance_metres(
+            sighting_latitude,
+            sighting_longitude,
+            latitude,
+            longitude,
+        )
     if distance_m > 250:
         raise ApiProblem(
             422,
@@ -263,7 +267,10 @@ def create_report(
         )
         if duplicate is not None:
             response.status_code = 200
-            return report_response(duplicate)
+            # A completed report already has a public sighting link. Return
+            # that link on content-level replay just as the detail endpoint
+            # does, so the client does not see a successful but detached row.
+            return report_response(duplicate, sighting_id=_sighting_id(session, duplicate.id))
     if body.species_id and not is_approved_species(body.species_id):
         raise ApiProblem(
             422, "species_not_approved", "The species is not in the approved catalogue."
@@ -417,7 +424,7 @@ def create_report(
 
 # "My reports" history screen - every report this profile has ever
 # submitted, whatever its screening status, unlike the public sightings
-# feed which only shows screened/removed ones.
+# feed which only shows screened/removal-reported ones.
 @router.get("/mine", response_model=ReportListResponse)
 def my_reports(
     limit: int = Query(default=50, ge=1, le=100),
@@ -518,6 +525,15 @@ def report_removal(
             "removal_not_available",
             "Only an active community report can be marked as removed.",
         )
+    submitted_point = cast(
+        func.ST_SetSRID(func.ST_MakePoint(body.longitude, body.latitude), 4326),
+        Geography("POINT", srid=4326),
+    )
+    stored_distance_m = session.scalar(
+        select(func.ST_Distance(Sighting.location, submitted_point)).where(Sighting.id == sighting.id)
+    )
+    if stored_distance_m is None:
+        raise ApiProblem(503, "removal_location_unavailable", "Location validation is unavailable.")
     distance_m = _validate_removal_location(
         captured_at=body.captured_at,
         accuracy_m=body.accuracy_m,
@@ -526,6 +542,7 @@ def report_removal(
         sighting_latitude=float(sighting.latitude),
         sighting_longitude=float(sighting.longitude),
         now=now,
+        calculated_distance_m=float(stored_distance_m),
     )
     event = SightingStatusEvent(
         sighting_id=sighting.id,

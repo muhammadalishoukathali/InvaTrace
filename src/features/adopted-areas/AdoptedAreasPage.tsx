@@ -2,21 +2,30 @@ import { useState } from 'react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { Link } from 'react-router-dom'
 import { api } from '@/services/api-client'
+import { useOnline } from '@/hooks/useOnline'
 import type { AdoptedAreaListResponse } from '@/types'
 import './adopted-areas.css'
 
 export function AdoptedAreasPage() {
   const queryClient = useQueryClient()
-  const [sort, setSort] = useState<'recent' | 'name'>('recent')
+  const online = useOnline()
+  const [sort, setSort] = useState<'recent_activity' | 'name'>('recent_activity')
   const query = useQuery({
     queryKey: ['adopted-areas', sort],
     queryFn: () => api<AdoptedAreaListResponse>(`/api/v1/adopted-areas?sort=${sort}`),
+    enabled: online,
   })
   const remove = useMutation({
     mutationFn: (id: string) => api<void>(`/api/v1/adopted-areas/${id}`, { method: 'DELETE' }),
     onSuccess: () => queryClient.invalidateQueries({ queryKey: ['adopted-areas'] }),
   })
 
+  if (!online) return (
+    <div className="areas-state" role="status">
+      Adopted-area activity needs a connection. Your saved adoptions have not been removed.
+      {' '}<Link to="/catalogue">Open offline catalogue</Link>
+    </div>
+  )
   if (query.isLoading) return <div className="areas-state" role="status">Loading monitoring areas…</div>
   if (query.isError || !query.data) {
     return (
@@ -45,8 +54,8 @@ export function AdoptedAreasPage() {
         </div>
         <label className="areas-sort">
           Sort by
-          <select value={sort} onChange={(event) => setSort(event.target.value as 'recent' | 'name')}>
-            <option value="recent">Recent activity</option>
+          <select value={sort} onChange={(event) => setSort(event.target.value as 'recent_activity' | 'name')}>
+            <option value="recent_activity">Recent activity</option>
             <option value="name">Area name</option>
           </select>
         </label>

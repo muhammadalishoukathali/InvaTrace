@@ -3,6 +3,35 @@
 // the Vite dev server, because service workers don't register the same way in
 // dev mode. Uses playwright.pwa.config.ts (port 4173).
 import { expect, test } from '@playwright/test'
+import { createHash } from 'node:crypto'
+import { readFile } from 'node:fs/promises'
+
+const PACK_FILES = [
+  'approved-species.json',
+  'catalogue-details.json',
+  'plant-guidance.json',
+  'plant-status.json',
+  'reference-images.json',
+] as const
+
+async function updatedCataloguePack(version: string) {
+  const manifest = JSON.parse(await readFile(
+    new URL('../shared/catalogue/catalogue-manifest.json', import.meta.url),
+    'utf8',
+  ))
+  manifest.catalogue_version = version
+  manifest.content_version = version
+  manifest.generated_at = new Date().toISOString()
+  const files: Record<string, string> = {}
+  for (const name of PACK_FILES) {
+    const original = await readFile(new URL(`../shared/catalogue/${name}`, import.meta.url), 'utf8')
+    const updated = original.replaceAll('"catalogue_version": "2.2.0"', `"catalogue_version": "${version}"`)
+    files[name] = updated
+    manifest.files[name].byte_length = Buffer.byteLength(updated)
+    manifest.files[name].sha256 = createHash('sha256').update(updated).digest('hex')
+  }
+  return { manifest, files }
+}
 
 // Also checks the service worker isn't caching profile/bootstrap responses -
 // those carry session-specific data, so caching them could leak one visitor's
@@ -80,12 +109,34 @@ test('offline catalogue uses a verified cache and keeps it when a replacement fa
   await page.goto('/catalogue')
   await page.getByRole('button', { name: 'Download offline catalogue' }).click()
   await expect(page.getByText('Installed v2.2.0')).toBeVisible()
+
+  // AC 5.3.4: a newer server manifest is downloaded and atomically installed
+  // without requiring a frontend refresh. Every JSON file still has to match
+  // the new manifest before the installed-pack pointer changes.
+  const update = await updatedCataloguePack('2.2.1')
+  await page.route('**/api/v1/offline-pack/latest', (route) => route.fulfill({
+    status: 200,
+    contentType: 'application/json',
+    body: JSON.stringify(update.manifest),
+  }))
+  await page.route('**/api/v1/offline-pack/2.2.1/*', (route) => {
+    const name = new URL(route.request().url()).pathname.split('/').at(-1) ?? ''
+    const body = update.files[name]
+    return body
+      ? route.fulfill({ status: 200, contentType: 'application/json', body })
+      : route.fulfill({ status: 404 })
+  })
+  await page.reload()
+  await expect(page.getByText('A newer catalogue version (2.2.1) is available.')).toBeVisible()
+  await page.getByRole('button', { name: 'Update offline catalogue' }).click()
+  await expect(page.getByText('Installed v2.2.1')).toBeVisible()
+
   const original = await page.evaluate(() => {
     const installed = JSON.parse(localStorage.getItem('invatrace.catalogue-pack.v1') ?? 'null')
     return { installed, cacheNames: [] as string[] }
   })
   original.cacheNames = await page.evaluate(() => caches.keys())
-  expect(original.installed.cacheName).toContain('invatrace-catalogue-2.2.0-')
+  expect(original.installed.cacheName).toContain('invatrace-catalogue-2.2.1-')
   expect(original.cacheNames).toContain(original.installed.cacheName)
 
   let corruptedAssetServed = false

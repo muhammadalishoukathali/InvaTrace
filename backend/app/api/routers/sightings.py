@@ -34,7 +34,7 @@ from app.services.storage import storage
 """Public sighting feed and map - the read side of screened reports.
 
 This is what the map/feed view calls. Only ever returns sightings in
-status screened or removed (never processing/rejected/needs_rescan - those
+status screened or removal_reported (never processing/rejected/needs_rescan - those
 stay private on the reporter's own "my reports" list). Coordinates get
 run through app/core/privacy.py before going out, since untrusted reporters'
 exact locations shouldn't be publicly pinpointable.
@@ -174,14 +174,14 @@ def list_sightings(
         .outerjoin(ReportSightingLink, ReportSightingLink.sighting_id == Sighting.id)
         .outerjoin(Report, Report.id == ReportSightingLink.report_id)
         .outerjoin(SightingStatusEvent, SightingStatusEvent.sighting_id == Sighting.id)
-        .where(Sighting.status.in_({"screened", "removed", "removal_reported"}))
+        .where(Sighting.status.in_({"screened", "removal_reported"}))
         .group_by(Sighting.id, Species.id, MonitoredArea.name, Trail.name)
         .order_by(Sighting.updated_at.desc(), Sighting.id.desc())
     )
     if species:
         statement = statement.where(Sighting.species_id.in_(species))
     if status:
-        allowed = {"screened", "removed", "removal_reported"}
+        allowed = {"screened", "removal_reported"}
         if not set(status).issubset(allowed):
             raise ApiProblem(400, "invalid_filter", "The status filter is invalid.")
         statement = statement.where(Sighting.status.in_(status))
@@ -256,7 +256,7 @@ def sighting_detail(
         .outerjoin(SightingStatusEvent, SightingStatusEvent.sighting_id == Sighting.id)
         .where(
             Sighting.id == parsed_id,
-            Sighting.status.in_({"screened", "removed", "removal_reported"}),
+            Sighting.status.in_({"screened", "removal_reported"}),
         )
         .group_by(Sighting.id, Species.id, MonitoredArea.name, Trail.name)
     ).first()

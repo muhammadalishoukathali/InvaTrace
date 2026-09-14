@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from 'react'
 import { Link, useParams } from 'react-router-dom'
 import { Icon } from '@/components/Icon'
+import { useOnline } from '@/hooks/useOnline'
 import {
   approvedCatalogueAssetForSpecies,
   type ApprovedCatalogueAsset,
@@ -15,6 +16,7 @@ import './catalogue.css'
 
 export function CatalogueDetailPage() {
   const { speciesId = '' } = useParams()
+  const online = useOnline()
   const [dataset, setDataset] = useState<ApprovedSpeciesDataset>(approvedSpeciesDataset)
   const [details, setDetails] = useState<CatalogueDetailsDataset>(catalogueDetailsDataset)
   const [assetUrls, setAssetUrls] = useState<Record<string, string>>({})
@@ -74,6 +76,12 @@ export function CatalogueDetailPage() {
 
   return (
     <article className="catalogue-detail">
+      {!online && (
+        <div className="catalogue-offline-notice" role="status">
+          <strong>Offline catalogue · v{dataset.catalogue_version}</strong>
+          <span>Last reviewed {dataset.reviewed_at}. Current map and place data need a connection.</span>
+        </div>
+      )}
       <Link to="/catalogue" className="catalogue-detail__back">
         <Icon name="ChevronLeft" size={17} color="currentColor" /> Back to catalogue
       </Link>
@@ -110,6 +118,7 @@ export function CatalogueDetailPage() {
         <section>
           <h3>Safe response guidance</h3>
           <ul>{detail.safe_response_guidance.map((step) => <li key={step}>{step}</li>)}</ul>
+          <p>No beginner-safe active action is provided.</p>
           <p>Outside a mapped protected area does not mean removal is permitted. Confirm permission first.</p>
         </section>
         <section>

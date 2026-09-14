@@ -70,6 +70,12 @@ services:
       JWT_SECRET: development-only-jwt-secret-change-me
       CREDENTIAL_HASH_KEY: development-only-credential-key-change-me
       LOCATION_PRIVACY_KEY: development-only-location-key-change-me
+      # The integration suite intentionally submits several reports and is
+      # designed to be rerunnable against the persistent local stack. Keep
+      # production defaults unchanged while preventing prior local runs from
+      # exhausting the shared-IP window for later verification runs.
+      REPORT_CREATE_BURST_LIMIT: 10000
+      REPORT_CREATE_IP_BURST_LIMIT: 10000
       S3_ENDPOINT_URL: http://minio:9000
       S3_PUBLIC_ENDPOINT_URL: http://localhost:9000
       S3_REGION: us-east-1
@@ -113,6 +119,10 @@ services:
     build: *backend-build
     environment: *backend-environment
     command: ["python", "-m", "app.cli", "worker"]
+    # The image healthcheck probes the HTTP API, but this service is a CLI
+    # worker and intentionally exposes no HTTP port.
+    healthcheck:
+      disable: true
     depends_on:
       api:
         condition: service_healthy
@@ -121,6 +131,10 @@ services:
     build: *backend-build
     environment: *backend-environment
     command: ["python", "-m", "app.cli", "cleanup-worker"]
+    # The image healthcheck probes the HTTP API, but this service is a CLI
+    # worker and intentionally exposes no HTTP port.
+    healthcheck:
+      disable: true
     depends_on:
       migrate:
         condition: service_completed_successfully

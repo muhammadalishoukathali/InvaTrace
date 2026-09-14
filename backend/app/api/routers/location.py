@@ -66,7 +66,8 @@ class ProtectedLocationContextResponse(ApiModel):
 
 
 PERMISSION_DISCLAIMER = (
-    "Being outside a mapped protected area does not establish ownership, access rights, or permission. "
+    "Mapped status is not removal permission. Being outside a mapped protected area does not "
+    "establish ownership, access rights, or permission. "
     "Confirm permission from the land or waterbody manager before any active step."
 )
 
@@ -86,7 +87,8 @@ def _uncertain_context(
         action_eligible=False,
         permission_confirmation_required=True,
         disclaimer=(
-            "Protected-area status is unavailable or uncertain. Observe and report only; "
+            "Mapped status is not removal permission. Protected-area status is unavailable or "
+            "uncertain. Observe and report only; "
             "do not touch, collect, cut or remove the plant."
         ),
     )
@@ -144,7 +146,8 @@ def protected_location_context(
             action_eligible=False,
             permission_confirmation_required=True,
             disclaimer=(
-                "This location intersects a mapped protected area. Observe and report only; "
+                "Mapped status is not removal permission. This location intersects a mapped "
+                "protected area. Observe and report only; "
                 "do not touch, collect, cut or remove the plant."
             ),
         )

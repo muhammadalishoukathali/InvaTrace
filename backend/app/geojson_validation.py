@@ -103,7 +103,7 @@ class CountrySpatialIndex:
             return False
 
         def positions(value: list[Any]):
-            if len(value) >= 2 and all(isinstance(item, (int, float)) for item in value[:2]):
+            if len(value) >= 2 and all(isinstance(item, int | float) for item in value[:2]):
                 yield float(value[0]), float(value[1])
                 return
             for item in value:
@@ -187,7 +187,7 @@ def geometry_within_country(geometry: dict[str, Any], polygons: list[CountryPoly
         return False
 
     def positions(value: list[Any]):
-        if len(value) >= 2 and all(isinstance(item, (int, float)) for item in value[:2]):
+        if len(value) >= 2 and all(isinstance(item, int | float) for item in value[:2]):
             yield float(value[0]), float(value[1])
             return
         for item in value:
@@ -267,8 +267,8 @@ def validate_polygon_geojson(payload: dict[str, Any]) -> PolygonValidationSummar
                 if (
                     isinstance(longitude, bool)
                     or isinstance(latitude, bool)
-                    or not isinstance(longitude, (int, float))
-                    or not isinstance(latitude, (int, float))
+                    or not isinstance(longitude, int | float)
+                    or not isinstance(latitude, int | float)
                     or not math.isfinite(longitude)
                     or not math.isfinite(latitude)
                     or not -180 <= longitude <= 180

@@ -22,7 +22,12 @@ from sqlalchemy import select
 from app.config import get_settings
 from app.db.base import SessionLocal
 from app.db.models import AuditEvent, Profile
-from app.seed import load_reference_data, seed_demo_data, seed_development_data
+from app.seed import (
+    load_development_fixtures,
+    load_reference_data,
+    seed_demo_data,
+    seed_development_data,
+)
 from app.services.upload_cleanup import remove_expired_uploads, remove_pending_objects
 from app.workers.verification import run_worker
 
@@ -80,11 +85,15 @@ def main() -> None:
     )
     commands.add_parser(
         "load-reference-data",
-        help="idempotently load the approved 32-species catalogue and MonitoredPlace anchors (prod-safe)",
+        help="idempotently load the approved 32-species catalogue (prod-safe)",
     )
     commands.add_parser(
         "seed-demo-data",
         help="insert sample sightings for local development (never runs in production)",
+    )
+    commands.add_parser(
+        "load-development-fixtures",
+        help="insert demonstration places and sightings (never runs in production)",
     )
     worker = commands.add_parser("worker", help="run the deterministic report-screening worker")
     worker.add_argument("--once", action="store_true")
@@ -214,14 +223,17 @@ def main() -> None:
         with SessionLocal() as session:
             load_reference_data(session)
         print("Reference data loaded.")
-    elif args.command == "seed-demo-data":
+    elif args.command in {"seed-demo-data", "load-development-fixtures"}:
         if get_settings().app_env == "production":
             raise SystemExit(
                 "Refusing to seed demo data in production. "
                 "Use `invatrace load-reference-data` for prod reference rows."
             )
         with SessionLocal() as session:
-            seed_demo_data(session)
+            if args.command == "seed-demo-data":
+                seed_demo_data(session)
+            else:
+                load_development_fixtures(session)
         print("Demo data seeded.")
     elif args.command == "worker":
         run_worker(once=args.once)

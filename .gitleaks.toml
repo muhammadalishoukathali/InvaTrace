@@ -1,0 +1,28 @@
+title = "InvaTrace gitleaks configuration"
+
+[extend]
+useDefault = true
+
+[[allowlists]]
+description = "GBIF occurrence metadata UUIDs are public dataset identifiers, not credentials"
+targetRules = ["generic-api-key"]
+condition = "AND"
+regexTarget = "line"
+paths = ['''^data/production/gbif-occurrences/gbif-malaysia-occurrences-2026-09-13\.json$''']
+regexes = ['''"(?:datasetKey|publishingOrgKey)":\s*"[0-9a-fA-F-]{36}"''']
+
+[[allowlists]]
+description = "Documented S3 compatibility wording is not a credential"
+targetRules = ["generic-api-key"]
+condition = "AND"
+regexTarget = "line"
+paths = ['''^backend/README\.md$''']
+regexes = ['''S3-compatible''']
+
+[[allowlists]]
+description = "The local-storage namespace is a public application identifier"
+targetRules = ["generic-api-key"]
+condition = "AND"
+regexTarget = "line"
+paths = ['''^src/features/scan/guidance-decision-store\.ts$''']
+regexes = ['''invatrace-guidance-decisions-v1''']

@@ -69,6 +69,11 @@ def test_render_yaml_declares_the_gps_and_dedup_policy_env_vars_explicitly() -> 
     )
 
 
+def test_render_yaml_allows_both_published_frontend_origins() -> None:
+    render = _read("render.yaml")
+    assert "https://invatrace-web.onrender.com,https://invatrace.pages.dev" in render
+
+
 def test_render_yaml_declares_expected_frontend_cache_headers() -> None:
     render = _read("render.yaml")
     assert "path: /assets/*" in render

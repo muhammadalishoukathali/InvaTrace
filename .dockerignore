@@ -15,3 +15,9 @@ backend/.pytest_cache
 backend/.ruff_cache
 **/__pycache__
 *.log
+*.osm.pbf
+*.pbf
+local-data
+data-import/raw
+**/*.zip
+**/*.rar
