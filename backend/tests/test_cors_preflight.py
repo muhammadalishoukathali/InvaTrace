@@ -22,7 +22,10 @@ import importlib
 
 import pytest
 
-FRONTEND_ORIGIN = "https://invatrace-web.onrender.com"
+FRONTEND_ORIGINS = (
+    "https://invatrace-web.onrender.com",
+    "https://invatrace.pages.dev",
+)
 REQUESTED_HEADERS = (
     "authorization,content-type,idempotency-key,"
     "x-invatrace-catalogue-version,x-invatrace-catalogue-sha256"
@@ -37,7 +40,7 @@ def preflight_client(monkeypatch: pytest.MonkeyPatch):
 
     from app.config import get_settings
 
-    monkeypatch.setenv("CORS_ORIGINS", FRONTEND_ORIGIN)
+    monkeypatch.setenv("CORS_ORIGINS", ",".join(FRONTEND_ORIGINS))
     get_settings.cache_clear()
     import app.main as app_main
 
@@ -50,11 +53,12 @@ def preflight_client(monkeypatch: pytest.MonkeyPatch):
         importlib.reload(app_main)
 
 
-def test_reports_preflight_allows_catalogue_headers(preflight_client) -> None:
+@pytest.mark.parametrize("origin", FRONTEND_ORIGINS)
+def test_reports_preflight_allows_catalogue_headers(preflight_client, origin: str) -> None:
     response = preflight_client.options(
         "/api/v1/reports",
         headers={
-            "Origin": FRONTEND_ORIGIN,
+            "Origin": origin,
             "Access-Control-Request-Method": "POST",
             "Access-Control-Request-Headers": REQUESTED_HEADERS,
         },
@@ -63,7 +67,7 @@ def test_reports_preflight_allows_catalogue_headers(preflight_client) -> None:
         f"CORS preflight for POST /api/v1/reports must succeed for the deployed"
         f" frontend origin. Got {response.status_code}: {response.text!r}."
     )
-    assert response.headers.get("access-control-allow-origin") == FRONTEND_ORIGIN
+    assert response.headers.get("access-control-allow-origin") == origin
     allowed = response.headers.get("access-control-allow-headers", "").lower()
     for required in (
         "authorization",

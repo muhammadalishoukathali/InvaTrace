@@ -38,7 +38,10 @@ services:
       - key: LOCATION_PRIVACY_KEY
         generateValue: true
       - key: CORS_ORIGINS
-        sync: false
+        # Both published frontend origins serve the same production bundle.
+        # Keep this explicit so a stale dashboard value cannot leave the
+        # Cloudflare Pages site unable to start or restore private access.
+        value: https://invatrace-web.onrender.com,https://invatrace.pages.dev
       - key: S3_ENDPOINT_URL
         sync: false
       - key: S3_PUBLIC_ENDPOINT_URL

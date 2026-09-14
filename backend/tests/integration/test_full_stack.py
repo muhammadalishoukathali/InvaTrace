@@ -177,6 +177,7 @@ def create_report(
     lng: float,
     photo: bytes = JPEG,
     verify_idempotency: bool = False,
+    allow_existing: bool = False,
 ) -> dict[str, object]:
     capture_id = str(uuid.uuid4())
     confidence = 0.91
@@ -210,7 +211,8 @@ def create_report(
         "consent": {"accurate": True, "noPII": True},
     }
     first = client.post("/api/v1/reports", headers=auth(token, key), json=payload)
-    assert first.status_code == 201, first.text
+    expected_statuses = {200, 201} if allow_existing else {201}
+    assert first.status_code in expected_statuses, first.text
     if verify_idempotency:
         # same idempotency key + same payload must return the same report
         # id (not create a second report), but the same key with a
@@ -350,15 +352,14 @@ def test_private_access_and_automated_validation_end_to_end() -> None:
             key=f"integration-{uuid.uuid4()}",
             lat=RUN_LATITUDE + 0.00005,
             lng=RUN_LONGITUDE + 0.00005,
+            allow_existing=True,
         )
-        resolved_two = wait_for_resolution(client, restored_access_token, report_two["id"])
-        # AC 2.3.1 - same owner + same species + same SHA-256 must return
-        # the existing sighting with `merged`, not create a new report or
-        # public marker. (The earlier "rejected" behaviour applied only to
-        # cross-owner exact replays, which are still caught by
-        # `_is_exact_replay` and marked as spam.)
-        assert resolved_two["status"] == "merged"
-        assert resolved_two["sightingId"] == resolved_one["sightingId"]
+        # The create endpoint short-circuits an exact same-owner image replay
+        # to the earliest existing report. No second report row or marker is
+        # created, even after the profile has been restored on a new device.
+        assert report_two["id"] == report_one["id"]
+        assert report_two["status"] == "screened"
+        assert report_two["sightingId"] == resolved_one["sightingId"]
 
         report_three = create_report(
             client,
@@ -397,8 +398,9 @@ def test_private_access_and_automated_validation_end_to_end() -> None:
         ).json()["items"]
         states = {item["id"]: item["status"] for item in mine}
         assert states[report_one["id"]] == "screened"
-        # AC 2.3.1 - same-owner exact-hash replay resolves as `merged`.
-        assert states[report_two["id"]] == "merged"
+        # Exact same-owner replay returned report_one, so there is no second
+        # report row to account for here.
+        assert report_two["id"] == report_one["id"]
         assert states[report_three["id"]] == "merged"
         assert states[report_four["id"]] == "rejected"
 
@@ -505,13 +507,13 @@ def test_scan_report_publish_sighting_end_to_end() -> None:
         sighting_id = resolved["sightingId"]
         assert sighting_id, "screened report must expose its sightingId"
 
-        # AC 4.2.1 - public list must include this sighting under status
-        # screened; `removed` must never appear in Iteration 1 responses.
+        # AC 4.5.6 - public list includes active and removal-reported
+        # sightings. The obsolete legacy `removed` state is never public.
         listing = assert_ok(client.get("/api/v1/sightings")).json()
         ids = {item["id"] for item in listing["items"]}
         assert sighting_id in ids, "screened sighting missing from public feed"
         for item in listing["items"]:
-            assert item["status"] == "screened", item
+            assert item["status"] in {"screened", "removal_reported"}, item
 
         # AC 4.2.2 + 4.3.1 - detail response carries the presigned
         # thumbnail, model confidence, and the server-stored nearest OSM
@@ -533,6 +535,39 @@ def test_scan_report_publish_sighting_end_to_end() -> None:
             }
             assert detail["nearestFeatureName"]
             assert detail["nearestFeatureDistanceM"] is not None
+
+        # AC 4.5.3/4.5.6/4.5.7 - exercise the real PostGIS distance gate,
+        # public removal-reported serialization, and repeated-submission
+        # idempotency against the running stack.
+        removal_payload = {
+            "latitude": RUN_LATITUDE + 0.0004,
+            "longitude": RUN_LONGITUDE + 0.0004,
+            "accuracyM": 12.5,
+            "capturedAt": datetime.now(UTC).isoformat(),
+        }
+        removal = assert_ok(
+            client.post(
+                f"/api/v1/reports/{report['id']}/removal",
+                headers=auth(token),
+                json=removal_payload,
+            )
+        ).json()
+        assert removal["status"] == "removal_reported"
+        assert removal["distanceM"] <= 250
+
+        repeated = assert_ok(
+            client.post(
+                f"/api/v1/reports/{report['id']}/removal",
+                headers=auth(token),
+                json={**removal_payload, "capturedAt": "2000-01-01T00:00:00Z"},
+            )
+        ).json()
+        assert repeated["removalReportedAt"] == removal["removalReportedAt"]
+
+        public_after = assert_ok(client.get(f"/api/v1/sightings/{sighting_id}")).json()
+        assert public_after["status"] == "removal_reported"
+        assert public_after["removalReportedAt"] == removal["removalReportedAt"]
+        assert not {"actingProfileId", "accuracyM", "distanceM"} & public_after.keys()
 
 
 def test_report_cannot_swap_species_or_confidence_from_scan() -> None:

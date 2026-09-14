@@ -1040,10 +1040,15 @@ export const handlers = [
     const items = loadMockAdoptions()
       .filter((item) => item.profileId === session.profile.id)
       .map((adoption) => mockAdoptionCard(adoption))
-      .sort((left, right) => sort === 'name'
-        ? left.name.localeCompare(right.name)
-        : Date.parse(right.mostRecentReportAt ?? right.adoptedAt)
-          - Date.parse(left.mostRecentReportAt ?? left.adoptedAt))
+      .sort((left, right) => {
+        if (sort === 'name') return left.name.localeCompare(right.name)
+        if (!left.mostRecentReportAt && !right.mostRecentReportAt) {
+          return left.name.localeCompare(right.name)
+        }
+        if (!left.mostRecentReportAt) return 1
+        if (!right.mostRecentReportAt) return -1
+        return Date.parse(right.mostRecentReportAt) - Date.parse(left.mostRecentReportAt)
+      })
     return HttpResponse.json({ items, disclaimer: BOOKMARK_DISCLAIMER })
   }),
 
@@ -1076,13 +1081,15 @@ export const handlers = [
         longitude: item.location.lng,
         precisionReduced: item.precisionReduced,
       }))
-    const markers = allMarkers.filter((marker) => (
+    const comparisonMarkers = allMarkers.filter((marker) => (
       (!search.get('species_id') || marker.speciesId === search.get('species_id'))
       && (!search.get('status') || marker.status === search.get('status'))
-      && (!cutoffDays || (
+    ))
+    const markers = comparisonMarkers.filter((marker) => (
+      !cutoffDays || (
         Date.parse(marker.observationDate) > nowMs - cutoffDays * 86400000
         && Date.parse(marker.observationDate) <= nowMs
-      ))
+      )
     ))
     const recentActiveMarkers = markers.filter((marker) => (
       marker.status === 'screened'
@@ -1090,11 +1097,11 @@ export const handlers = [
       && Date.parse(marker.observationDate) <= nowMs
     ))
     const concentrations = mockConcentrations(recentActiveMarkers)
-    const recent = markers.filter((marker) => (
+    const recent = comparisonMarkers.filter((marker) => (
       Date.parse(marker.observationDate) > nowMs - 30 * 86400000
       && Date.parse(marker.observationDate) <= nowMs
     )).length
-    const prior = markers.filter((marker) => {
+    const prior = comparisonMarkers.filter((marker) => {
       const age = nowMs - Date.parse(marker.observationDate)
       return age >= 30 * 86400000 && age < 60 * 86400000
     }).length
@@ -1114,7 +1121,11 @@ export const handlers = [
         prior30To59Days: prior,
         direction: recent > prior ? 'increased' : recent < prior ? 'decreased' : 'unchanged',
       },
-      emptyMessage: markers.length ? null : 'No community reports recorded for this area.',
+      emptyMessage: markers.length
+        ? null
+        : allMarkers.length
+          ? 'No community reports match the current filters.'
+          : 'No community reports recorded for this area.',
       disclaimer: BOOKMARK_DISCLAIMER,
     })
   }),

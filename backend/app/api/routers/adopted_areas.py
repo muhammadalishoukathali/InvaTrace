@@ -213,7 +213,9 @@ def adopt_area(
 
 @router.get("", response_model=AdoptedAreaListResponse)
 def list_adopted_areas(
-    sort_by: Literal["recent", "name"] = Query(default="recent", alias="sort"),
+    sort_by: Literal["recent_activity", "recent", "name"] = Query(
+        default="recent_activity", alias="sort"
+    ),
     auth: AuthContext = Depends(require_auth),
     session: Session = Depends(get_session),
 ) -> AdoptedAreaListResponse:
@@ -336,7 +338,7 @@ def adopted_area_activity(
         row for row in _member_rows(session, adoption) if approved_species_record(row[0].species_id)
     ]
     now = utcnow()
-    markers: list[ActivityMarker] = []
+    area_markers: list[ActivityMarker] = []
     for sighting, species, removal_at in rows:
         lat, lon, reduced = public_coordinates(
             sighting_id=str(sighting.id),
@@ -345,7 +347,7 @@ def adopted_area_activity(
             status=sighting.status,
             reporter_trust=sighting.reporter_trust,
         )
-        markers.append(
+        area_markers.append(
             ActivityMarker(
                 sighting_id=sighting.id,
                 species_id=species.id,
@@ -358,10 +360,15 @@ def adopted_area_activity(
                 precision_reduced=reduced,
             )
         )
+    markers = area_markers
     if species_id:
         markers = [marker for marker in markers if marker.species_id == species_id]
     if status:
         markers = [marker for marker in markers if marker.status == status]
+    # Plant/status filters scope the displayed summary. The period selector
+    # does not: the comparison must retain both fixed 0-29 and 30-59 windows,
+    # otherwise selecting "Last 30 days" makes the prior count always zero.
+    comparison_markers = markers
     if period != "all":
         period_start = now - timedelta(days=int(period))
         markers = [
@@ -369,7 +376,7 @@ def adopted_area_activity(
             for marker in markers
             if period_start < marker.observation_date <= now
         ]
-    recent_count, prior_count = _comparison_counts(markers, now)
+    recent_count, prior_count = _comparison_counts(comparison_markers, now)
     concentrations = _concentrations(markers, now)
     geojson_raw = session.scalar(select(func.ST_AsGeoJSON(_activity_geometry_expression(adoption))))
     geometry = (
@@ -397,5 +404,11 @@ def adopted_area_activity(
                 else "unchanged"
             ),
         ),
-        empty_message=("No community reports recorded for this area." if not markers else None),
+        empty_message=(
+            "No community reports recorded for this area."
+            if not area_markers
+            else "No community reports match the current filters."
+            if not markers
+            else None
+        ),
     )

@@ -41,6 +41,7 @@ export function SightingDetailsSheet() {
     capturedAt: string
   } | null>(null)
   const [removalLocationError, setRemovalLocationError] = useState<string | null>(null)
+  const [removalOpen, setRemovalOpen] = useState(false)
   const close = () => select(null)
   useDialogA11y(dialogRef, close, {
     active: !!selectedId,
@@ -66,6 +67,7 @@ export function SightingDetailsSheet() {
   useEffect(() => {
     setRemovalFix(null)
     setRemovalLocationError(null)
+    setRemovalOpen(false)
     removal.reset()
     // The mutation object changes after every render; selectedId is the reset boundary.
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -195,18 +197,35 @@ export function SightingDetailsSheet() {
 
               {profileId && data.status === 'screened' && data.removalReportId && (
                 <section className="pin-sheet__removal" aria-labelledby="sighting-removal-heading">
-                  <h3 id="sighting-removal-heading">Mark as removed</h3>
-                  <p>
-                    This is a community-reported status, not expert verification. A fresh browser
-                    location must be accurate to 250 m or better and within 250 m of the marker.
-                  </p>
-                  {removal.data ? (
-                    <p role="status">Removal reported. The original report remains available.</p>
+                  {!removalOpen ? (
+                    <>
+                      <h3 id="sighting-removal-heading">Removal status</h3>
+                      <p>This is a community-reported status, not expert verification.</p>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setRemovalOpen(true)
+                          captureRemovalLocation()
+                        }}
+                      >
+                        Mark as removed
+                      </button>
+                    </>
+                  ) : removal.data ? (
+                    <>
+                      <h3 id="sighting-removal-heading">Removal status</h3>
+                      <p role="status">Removal reported. The original report remains available.</p>
+                    </>
                   ) : (
                     <>
-                      <button type="button" onClick={captureRemovalLocation} disabled={removal.isPending}>
-                        Use my current location
-                      </button>
+                      <h3 id="sighting-removal-heading">Confirm removal report</h3>
+                      <p>
+                        This is community-reported, not expert verification. The browser is requesting
+                        a fresh location. It must be accurate to 250 m or better and within 250 m of the marker.
+                      </p>
+                      {!removalFix && !removalLocationError && (
+                        <p role="status">Requesting a fresh device location…</p>
+                      )}
                       {removalFix && (
                         <div className="pin-sheet__removal-fix" role="status">
                           <strong>Measured accuracy: ±{removalFix.accuracyM} m</strong>
@@ -219,12 +238,18 @@ export function SightingDetailsSheet() {
                               {removal.isPending ? 'Submitting…' : 'Confirm removal report'}
                             </button>
                           ) : (
-                            <span role="alert">Accuracy is above 250 m. Request a new fix.</span>
+                            <>
+                              <span role="alert">Accuracy is above 250 m. Request a new fix.</span>
+                              <button type="button" onClick={captureRemovalLocation}>Request a new location</button>
+                            </>
                           )}
                         </div>
                       )}
                       {(removalLocationError || removal.isError) && (
-                        <p role="alert">{removalLocationError ?? publicRemovalError(removal.error)}</p>
+                        <>
+                          <p role="alert">{removalLocationError ?? publicRemovalError(removal.error)}</p>
+                          <button type="button" onClick={captureRemovalLocation}>Try location again</button>
+                        </>
                       )}
                     </>
                   )}
@@ -387,8 +412,10 @@ function formatTime(iso: string): string {
 function publicRemovalError(error: Error | null): string {
   if (error instanceof ApiError) {
     if (error.code === 'removal_too_far') return 'You are more than 250 metres from the marker.'
+    if (error.code === 'outside_removal_radius') return 'You are more than 250 metres from the marker.'
     if (error.code === 'removal_accuracy_too_low') return 'Location accuracy must be 250 metres or better.'
     if (error.code === 'removal_location_stale') return 'The location fix expired. Request a fresh location.'
+    if (error.code === 'fresh_location_required') return 'Request a fresh location with accuracy of 250 metres or better.'
     if (error.code === 'removal_not_available') return 'This sighting cannot be marked as removed.'
   }
   return 'The removal report could not be submitted. Check the connection and try again.'

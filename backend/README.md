@@ -89,9 +89,11 @@ docker compose exec api alembic current
 docker compose exec api alembic check
 ```
 
-The seed command is idempotent. It loads the species/details/places and sample
-public sightings used by the frontend mock so mock and real-backend views have
-the same starting content.
+`load-reference-data` is idempotent and production-safe; it loads only the
+approved species catalogue. `load-development-fixtures` adds the demonstration
+places and sightings used by local screenshots and pilot testing, and is
+refused when `APP_ENV=production`. The legacy `seed` command runs both paths in
+development only.
 
 To grant a pseudonymous profile an operational role in development, use the
 audited admin command rather than changing client storage:
@@ -122,7 +124,9 @@ docker compose exec api python -m app.cli set-profile-access \
 - Expired upload cleanup: `python -m app.cli cleanup-uploads`
 - Scheduled expired upload cleanup: `python -m app.cli cleanup-worker`
 - Migrate: `alembic upgrade head`
-- Seed: `invatrace seed`
+- Production reference data: `python -m app.cli load-reference-data`
+- Development fixtures: `python -m app.cli load-development-fixtures`
+- Legacy development wrapper: `python -m app.cli seed`
 
 The worker uses PostgreSQL row locking with `SKIP LOCKED`; multiple worker
 instances can safely poll the same durable queue. No in-process background task

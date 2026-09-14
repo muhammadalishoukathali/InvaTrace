@@ -6,6 +6,7 @@ import type { Map, Marker } from 'maplibre-gl'
 import mapLibreWorkerUrl from 'maplibre-gl/dist/maplibre-gl-worker.mjs?url'
 import 'maplibre-gl/dist/maplibre-gl.css'
 import { api } from '@/services/api-client'
+import { useOnline } from '@/hooks/useOnline'
 import type { AdoptedAreaActivity } from '@/types'
 import { approvedSpeciesDataset } from '@shared/catalogue'
 import './adopted-areas.css'
@@ -28,6 +29,7 @@ const STYLE: maplibregl.StyleSpecification = {
 
 export function AdoptedAreaActivityPage() {
   const { adoptionId } = useParams()
+  const online = useOnline()
   const [params, setParams] = useSearchParams()
   const container = useRef<HTMLDivElement>(null)
   const map = useRef<Map | null>(null)
@@ -41,7 +43,7 @@ export function AdoptedAreaActivityPage() {
     queryFn: () => api<AdoptedAreaActivity>(
       `/api/v1/adopted-areas/${adoptionId}/activity?${params.toString()}`,
     ),
-    enabled: Boolean(adoptionId),
+    enabled: Boolean(adoptionId) && online,
   })
 
   useEffect(() => {
@@ -135,6 +137,12 @@ export function AdoptedAreaActivityPage() {
   }
   const selectedMarker = query.data?.markers.find((marker) => marker.sightingId === selectedMarkerId)
 
+  if (!online) return (
+    <div className="areas-state" role="status">
+      The current activity map needs a connection. Your monitoring bookmark remains saved.
+      {' '}<Link to="/catalogue">Open offline catalogue</Link>
+    </div>
+  )
   if (query.isError) return <div className="areas-state" role="alert">Activity could not be loaded.</div>
   return (
     <section className="activity-page">

@@ -1,5 +1,6 @@
 import { useMutation, useQuery } from '@tanstack/react-query'
 import { Link, useParams } from 'react-router-dom'
+import { useOnline } from '@/hooks/useOnline'
 import { api } from '@/services/api-client'
 import type { PlaceDetail, PlacePlantAssociationsResponse } from '@/types'
 import { PlaceGeometryMap } from './PlaceGeometryMap'
@@ -7,15 +8,16 @@ import './places.css'
 
 export function PlaceDetailPage() {
   const { placeId } = useParams()
+  const online = useOnline()
   const place = useQuery({
     queryKey: ['place', placeId],
     queryFn: () => api<PlaceDetail>(`/api/v1/places/${placeId}`),
-    enabled: Boolean(placeId),
+    enabled: Boolean(placeId) && online,
   })
   const associations = useQuery({
     queryKey: ['place-associations', placeId],
     queryFn: () => api<PlacePlantAssociationsResponse>(`/api/v1/places/${placeId}/plant-associations`),
-    enabled: Boolean(placeId),
+    enabled: Boolean(placeId) && online,
   })
   const adopt = useMutation({
     mutationFn: () => api<{ adoptionId: string }>(
@@ -24,6 +26,12 @@ export function PlaceDetailPage() {
     ),
   })
 
+  if (!online) return (
+    <div className="places-state" role="status">
+      Mapped place geometry and current association evidence need a connection.
+      {' '}<Link to="/catalogue">Open offline catalogue</Link>
+    </div>
+  )
   if (place.isLoading || associations.isLoading) return <div className="places-state" role="status">Loading place evidence…</div>
   if (place.isError || associations.isError || !place.data || !associations.data) {
     return <div className="places-state" role="alert">This place or its occurrence data is unavailable.</div>

@@ -281,6 +281,31 @@ describe('Iteration 2 place and adoption mock contract', () => {
       emptyMessage: 'No community reports recorded for this area.',
     })
 
+    const filteredActivity = await (await fetch(
+      `http://localhost/api/v1/adopted-areas/${bukitAdoption.body.adoptionId}/activity?species_id=no-match`,
+      { headers: authorization },
+    )).json() as {
+      filteredCount: number
+      emptyMessage: string | null
+      comparison: { recent0To29Days: number }
+    }
+    expect(filteredActivity.filteredCount).toBe(0)
+    expect(filteredActivity.emptyMessage).toBe('No community reports match the current filters.')
+    expect(filteredActivity.comparison.recent0To29Days).toBe(0)
+
+    const periodActivity = await (await fetch(
+      `http://localhost/api/v1/adopted-areas/${bukitAdoption.body.adoptionId}/activity?period=30`,
+      { headers: authorization },
+    )).json() as { comparison: { recent0To29Days: number } }
+    expect(periodActivity.comparison.recent0To29Days).toBeGreaterThan(0)
+
+    const recentSort = await (await fetch(
+      'http://localhost/api/v1/adopted-areas?sort=recent_activity',
+      { headers: authorization },
+    )).json() as { items: Array<{ name: string; mostRecentReportAt: string | null }> }
+    expect(recentSort.items[0].mostRecentReportAt).not.toBeNull()
+    expect(recentSort.items.at(-1)?.mostRecentReportAt).toBeNull()
+
     const otherDelete = await fetch(
       `http://localhost/api/v1/adopted-areas/${bukitAdoption.body.adoptionId}`,
       { method: 'DELETE', headers: { Authorization: `Bearer ${other.payload.accessToken}` } },

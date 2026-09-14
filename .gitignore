@@ -32,3 +32,7 @@ backend/.ruff_cache
 *.py[cod]
 e2e-harness/.scratch/
 .production-data/
+*.osm.pbf
+*.pbf
+local-data/
+data-import/raw/

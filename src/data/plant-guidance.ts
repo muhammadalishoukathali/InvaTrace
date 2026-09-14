@@ -11,7 +11,12 @@
 // here, so if someone edits the JSON and breaks the schema it won't actually
 // fail until the tests run.
 import guidanceJson from '../../shared/catalogue/plant-guidance.json'
-import { findPlantStatus } from '@shared/catalogue'
+import {
+  approvedSpeciesDataset,
+  catalogueDetailsDataset,
+  findApprovedSpecies,
+  findPlantStatus,
+} from '@shared/catalogue'
 
 export type GuidanceMode =
   | 'general_information'
@@ -104,11 +109,9 @@ export interface PlantGuidanceDataset {
 
 const rawPlantGuidanceDataset = guidanceJson as unknown as PlantGuidanceDataset
 
-// For iteration 1, the Malaysian status shown to the user is derived from the
-// shared catalogue, not whatever status hints happen to be in this file.
-// shared/catalogue/plant-status.json is the only real source of truth for
-// ui_state - the labels below just exist to turn that raw ui_state value
-// into something readable as a heading.
+// Legacy model-only classes still use plant-status.json. Any species that is
+// also in the approved Iteration 2 catalogue must use the approved catalogue
+// record instead, so scan and catalogue views cannot contradict each other.
 const UI_STATE_PRESENTATION: Record<string, Pick<MalaysiaStatus, 'category' | 'display_label' | 'confidence'>> = {
   invasive: {
     category: 'invasive', display_label: 'Invasive in Malaysia', confidence: 'high',
@@ -122,14 +125,51 @@ const UI_STATE_PRESENTATION: Record<string, Pick<MalaysiaStatus, 'category' | 'd
 }
 
 /**
- * The written guidance stays as curated content, but the actual identification
- * status always comes from the shared catalogue bundled with the model. Set it
- * up this way so an outdated guidance review can't end up relabelling a model
- * class in the result UI.
+ * Approved catalogue membership and content take precedence over legacy model
+ * guidance. Model-only classes retain their conservative legacy status.
  */
 export const plantGuidanceDataset: PlantGuidanceDataset = {
   ...rawPlantGuidanceDataset,
+  sources: [
+    ...rawPlantGuidanceDataset.sources,
+    ...[...approvedSpeciesDataset.sources, ...catalogueDetailsDataset.sources]
+      .filter((source, index, sources) => (
+        !rawPlantGuidanceDataset.sources.some((existing) => existing.source_id === source.source_id)
+        && sources.findIndex((candidate) => candidate.source_id === source.source_id) === index
+      ))
+      .map((source) => ({ ...source, use: 'Reviewed Iteration 2 catalogue content' })),
+  ],
   plants: rawPlantGuidanceDataset.plants.map((plant) => {
+    const approved = findApprovedSpecies({
+      speciesId: plant.plant_id,
+      scientificName: plant.scientific_name,
+    })
+    const detail = approved
+      ? catalogueDetailsDataset.records.find((item) => item.species_id === approved.species_id)
+      : null
+    if (approved && detail) {
+      const sourceIds = [...new Set([
+        ...approved.evidence_source_ids,
+        ...Object.values(detail.source_ids).flat(),
+      ])]
+      return {
+        ...plant,
+        common_names: approved.common_names,
+        malaysia_status: {
+          category: 'invasive',
+          display_label: 'Present in Malaysia',
+          confidence: 'high',
+          note: approved.evidence_summary,
+          source_ids: approved.evidence_source_ids,
+        },
+        general_information: [
+          detail.identifying_characteristics,
+          `Typical habitat: ${detail.typical_habitat}`,
+          `Documented impacts: ${detail.documented_impacts}`,
+        ].join(' '),
+        general_information_source_ids: sourceIds,
+      }
+    }
     const record = findPlantStatus({
       speciesId: plant.plant_id,
       scientificName: plant.scientific_name,

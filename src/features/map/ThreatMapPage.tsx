@@ -628,11 +628,14 @@ function AccessibleSightingList({
                 const statusLabel = s.status === 'screened'
                   ? 'Community report - not expert validated'
                   : s.status === 'removal_reported' ? 'Removal reported' : 'Removed'
+                const statusDate = s.status === 'removal_reported'
+                  ? ` on ${formatStatusDate(s.removalReportedAt ?? s.lastReportedAt)}`
+                  : ''
                 const tierLabel = PIN_TIERS[pinTier(s)].label
                 return (
                   <li key={s.id}>
                     <button type="button" onClick={() => onSelect(s.id)}>
-                      {s.speciesName} ({s.latinName}) - {tierLabel} - {statusLabel}
+                      {s.speciesName} ({s.latinName}) - {tierLabel} - {statusLabel}{statusDate}
                       {' - '}
                       {s.place.source === 'fallback' || !s.place.displayName
                         ? 'No named trail, park or forest found nearby'
@@ -680,11 +683,14 @@ function pinElement(s: Sighting): HTMLElement {
   const statusLabel = s.status === 'screened'
     ? 'Community report - not expert validated'
     : s.status === 'removal_reported' ? 'Removal reported' : 'Removed'
+  const statusDate = s.status === 'removal_reported'
+    ? ` on ${formatStatusDate(s.removalReportedAt ?? s.lastReportedAt)}`
+    : ''
   const tier = pinTier(s)
   const tierInfo = PIN_TIERS[tier]
-  const ariaLabel = `${s.speciesName} - ${tierInfo.label} - ${statusLabel}`
+  const ariaLabel = `${s.speciesName} - ${tierInfo.label} - ${statusLabel}${statusDate}`
   el.setAttribute('aria-label', ariaLabel)
-  el.title = `${tierInfo.label}\n${statusLabel}`
+  el.title = `${tierInfo.label}\n${statusLabel}${statusDate}`
   el.dataset.sightingId = s.id
   el.dataset.tier = tier
   el.className = 'map-pin'
@@ -701,4 +707,8 @@ function pinElement(s: Sighting): HTMLElement {
     -webkit-tap-highlight-color: transparent;
   `
   return el
+}
+
+function formatStatusDate(value: string): string {
+  return new Intl.DateTimeFormat(undefined, { dateStyle: 'medium' }).format(new Date(value))
 }

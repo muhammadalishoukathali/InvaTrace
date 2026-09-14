@@ -240,7 +240,7 @@ def test_removal_submission_appends_private_history_and_preserves_original_repor
         "created_at": report.created_at,
     }
     session = MagicMock()
-    session.scalar.side_effect = [report, sighting_id, sighting, None]
+    session.scalar.side_effect = [report, sighting_id, sighting, None, 0.0]
 
     def refresh(row) -> None:
         if isinstance(row, SightingStatusEvent):
@@ -641,6 +641,8 @@ def test_openapi_exposes_iteration2_routes_and_safe_public_removal_shape() -> No
     assert "post" in paths["/api/v1/reports/{report_id}/removal"]
     assert "get" in paths["/api/v1/catalogue"]
     assert "get" in paths["/api/v1/catalogue/{species_id}"]
+    assert "get" in paths["/api/v1/offline-pack/latest"]
+    assert "get" in paths["/api/v1/offline-pack/{version}/{file_name}"]
     assert "get" in paths["/api/v1/places/{place_id}"]
     assert "get" in paths["/api/v1/places/{place_id}/plant-associations"]
     assert "get" in paths["/api/v1/places/at-location"]

@@ -7,10 +7,12 @@ import {
   catalogueManifest,
   type ApprovedCatalogueAsset,
   type CatalogueAsset,
+  type CatalogueManifest,
   type ApprovedSpeciesDataset,
   type CatalogueDetailsDataset,
   isApprovedCatalogueAsset,
 } from '@shared/catalogue'
+import { apiUrl } from '@/services/api-client'
 
 const STORAGE_KEY = 'invatrace.catalogue-pack.v1'
 const CACHE_PREFIX = 'invatrace-catalogue-'
@@ -42,10 +44,10 @@ const rawFiles: Record<string, string> = {
   'reference-images.json': referenceImagesRaw,
 }
 
-export function cataloguePackSize(): number {
-  const files = Object.values(catalogueManifest.files)
+export function cataloguePackSize(manifest: CatalogueManifest = catalogueManifest): number {
+  const files = Object.values(manifest.files)
     .reduce((total, file) => total + file.byte_length, 0)
-  return files + catalogueManifest.assets.reduce((total, asset) => total + asset.byte_length, 0)
+  return files + manifest.assets.reduce((total, asset) => total + asset.byte_length, 0)
 }
 
 export function installedCataloguePack(): InstalledCataloguePack | null {
@@ -67,30 +69,102 @@ async function sha256Bytes(value: ArrayBuffer): Promise<string> {
   return Array.from(new Uint8Array(digest), (byte) => byte.toString(16).padStart(2, '0')).join('')
 }
 
-export async function downloadCataloguePack(): Promise<InstalledCataloguePack> {
+const PACK_FILE_NAMES = Object.keys(rawFiles) as Array<keyof CatalogueManifest['files']>
+const SHA256 = /^[0-9a-f]{64}$/
+
+export function isCatalogueManifest(value: unknown): value is CatalogueManifest {
+  if (!value || typeof value !== 'object') return false
+  const manifest = value as Partial<CatalogueManifest>
+  if (
+    manifest.schema_version !== 'invatrace.catalogue.manifest.v2'
+    || typeof manifest.catalogue_version !== 'string'
+    || typeof manifest.last_reviewed !== 'string'
+    || !manifest.files
+    || !Array.isArray(manifest.assets)
+    || manifest.assets.length !== 32
+  ) return false
+  if (!PACK_FILE_NAMES.every((name) => {
+    const file = manifest.files?.[name]
+    return Boolean(
+      file
+      && Number.isInteger(file.byte_length)
+      && file.byte_length > 0
+      && SHA256.test(file.sha256),
+    )
+  })) return false
+  return manifest.assets.every((asset) => (
+    asset.review_status === 'approved'
+    && asset.url.startsWith('/reference-images/')
+    && !asset.url.includes('..')
+    && Number.isInteger(asset.byte_length)
+    && asset.byte_length > 0
+    && SHA256.test(asset.sha256)
+  ))
+}
+
+export async function fetchLatestCatalogueManifest(): Promise<CatalogueManifest> {
+  const response = await fetch(apiUrl('/api/v1/offline-pack/latest'), {
+    cache: 'no-store',
+    credentials: 'omit',
+  })
+  if (!response.ok) throw new Error('Catalogue manifest download failed.')
+  const manifest: unknown = await response.json()
+  if (!isCatalogueManifest(manifest)) throw new Error('Catalogue manifest validation failed.')
+  return manifest
+}
+
+async function verifiedPackFiles(manifest: CatalogueManifest): Promise<Record<string, string>> {
+  const bundled = manifest.catalogue_version === catalogueManifest.catalogue_version
+    && PACK_FILE_NAMES.every((name) => (
+      manifest.files[name].sha256 === catalogueManifest.files[name].sha256
+      && manifest.files[name].byte_length === catalogueManifest.files[name].byte_length
+    ))
+  const verified: Record<string, string> = {}
+  for (const name of PACK_FILE_NAMES) {
+    const expected = manifest.files[name]
+    let bytes: ArrayBuffer
+    if (bundled) {
+      bytes = new TextEncoder().encode(rawFiles[name]).buffer as ArrayBuffer
+    } else {
+      const response = await fetch(
+        apiUrl(`/api/v1/offline-pack/${encodeURIComponent(manifest.catalogue_version)}/${name}`),
+        { cache: 'no-store', credentials: 'omit' },
+      )
+      if (!response.ok) throw new Error(`Catalogue file download failed for ${name}.`)
+      bytes = await response.arrayBuffer()
+    }
+    if (bytes.byteLength !== expected.byte_length) {
+      throw new Error(`Catalogue file size check failed for ${name}.`)
+    }
+    if (await sha256Bytes(bytes) !== expected.sha256) {
+      throw new Error(`Catalogue checksum check failed for ${name}.`)
+    }
+    const raw = new TextDecoder().decode(bytes)
+    JSON.parse(raw)
+    verified[name] = raw
+  }
+  return verified
+}
+
+export async function downloadCataloguePack(
+  manifest: CatalogueManifest = catalogueManifest,
+): Promise<InstalledCataloguePack> {
   if (!('caches' in window) || !crypto.subtle) {
     throw new Error('Offline catalogue storage is not supported by this browser.')
   }
-  for (const [name, raw] of Object.entries(rawFiles)) {
-    const expected = catalogueManifest.files[name as keyof typeof catalogueManifest.files]
-    if (!expected || new TextEncoder().encode(raw).byteLength !== expected.byte_length) {
-      throw new Error(`Catalogue file size check failed for ${name}.`)
-    }
-    if (await sha256(raw) !== expected.sha256) {
-      throw new Error(`Catalogue checksum check failed for ${name}.`)
-    }
-  }
+  if (!isCatalogueManifest(manifest)) throw new Error('Catalogue manifest validation failed.')
+  const verifiedFiles = await verifiedPackFiles(manifest)
   // Build the complete pack under a fresh cache name. The installed pointer is
   // switched only after every file passes integrity validation, so a failed
   // update or same-version re-download cannot damage the last valid pack.
-  const cacheName = `${CACHE_PREFIX}${catalogueManifest.catalogue_version}-${crypto.randomUUID()}`
+  const cacheName = `${CACHE_PREFIX}${manifest.catalogue_version}-${crypto.randomUUID()}`
   const cache = await caches.open(cacheName)
   try {
-    await Promise.all(Object.entries(rawFiles).map(([name, raw]) => cache.put(
-      new Request(`/offline-catalogue/${catalogueManifest.catalogue_version}/${name}`),
+    await Promise.all(Object.entries(verifiedFiles).map(([name, raw]) => cache.put(
+      new Request(`/offline-catalogue/${manifest.catalogue_version}/${name}`),
       new Response(raw, { headers: { 'Content-Type': 'application/json' } }),
     )))
-    for (const asset of catalogueManifest.assets) {
+    for (const asset of manifest.assets) {
       const response = await fetch(asset.url, { cache: 'no-store' })
       if (!response.ok) throw new Error(`Catalogue asset download failed for ${asset.url}.`)
       const bytes = await response.arrayBuffer()
@@ -106,16 +180,16 @@ export async function downloadCataloguePack(): Promise<InstalledCataloguePack> {
     throw error
   }
   const installed: InstalledCataloguePack = {
-    version: catalogueManifest.catalogue_version,
+    version: manifest.catalogue_version,
     installedAt: new Date().toISOString(),
-    reviewedAt: catalogueManifest.last_reviewed,
-    byteSize: cataloguePackSize(),
+    reviewedAt: manifest.last_reviewed,
+    byteSize: cataloguePackSize(manifest),
     cacheName,
-    files: Object.fromEntries(Object.entries(catalogueManifest.files).map(([name, file]) => [
+    files: Object.fromEntries(Object.entries(manifest.files).map(([name, file]) => [
       name,
       { sha256: file.sha256, byteLength: file.byte_length },
     ])),
-    assets: catalogueManifest.assets.map((asset) => ({
+    assets: manifest.assets.map((asset) => ({
       ...asset,
       url: asset.url,
       sha256: asset.sha256,

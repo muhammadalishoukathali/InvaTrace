@@ -24,6 +24,21 @@ const SESSION_ENTRY_PATHS = new Set([
 
 const isIdentityPath = (path: string) => path.startsWith('/api/v1/profiles')
 
+/**
+ * Browser fetch accepts relative URLs, but Node's fetch does not. Resolve the
+ * same request path against the current origin in a browser and a stable local
+ * origin in tests so MSW can intercept requests without any developer-only
+ * environment variable.
+ */
+export function apiUrl(path: string): string {
+  const target = `${BASE}${path}`
+  if (/^https?:\/\//i.test(target)) return target
+  const origin = typeof window !== 'undefined' && window.location?.origin
+    ? window.location.origin
+    : 'http://localhost'
+  return new URL(target, origin).toString()
+}
+
 // the private-access store calls this whenever the token changes (login,
 // refresh, logout). I did it this way instead of importing the store
 // directly here because that would've created a circular import between
@@ -35,7 +50,7 @@ export const setSessionRecovery = (recover: () => Promise<boolean>) => { recover
 
 export async function api<T>(path: string, init: RequestInit = {}): Promise<T> {
   const tokenAtFirstAttempt = accessToken
-  const request = () => fetch(`${BASE}${path}`, {
+  const request = () => fetch(apiUrl(path), {
     ...init,
     credentials: 'omit',
     cache: isIdentityPath(path) ? 'no-store' : init.cache,
