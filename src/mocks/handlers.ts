@@ -996,7 +996,46 @@ export const handlers = [
       waterwayDataVersions: [],
       occurrenceUpdatedAt: items.length ? '2026-09-01T00:00:00Z' : null,
       disclaimer: 'Associations are based on historical occurrence records and mapped buffers. They are not probabilities and do not show current presence or absence.',
+      truncated: false,
       items,
+    })
+  }),
+
+  http.get(url('/api/v1/places/map'), ({ request }) => {
+    const search = new URL(request.url).searchParams
+    const minLon = Number(search.get('min_lon'))
+    const minLat = Number(search.get('min_lat'))
+    const maxLon = Number(search.get('max_lon'))
+    const maxLat = Number(search.get('max_lat'))
+    const requestedTypes = search.getAll('place_type')
+    const valid = [minLon, minLat, maxLon, maxLat].every(Number.isFinite)
+      && minLon >= 99.3 && maxLon <= 119.5 && minLat >= 0.8 && maxLat <= 7.5
+      && minLon < maxLon && minLat < maxLat
+    if (!valid) return HttpResponse.json({ detail: 'Invalid Malaysia viewport' }, { status: 422 })
+    const features = MOCK_PLACE_CENTRES.flatMap((centre) => {
+      const place = MOCK_PLACES.find((item) => item.placeId === centre.placeId)
+      if (!place || (requestedTypes.length && !requestedTypes.includes(place.type))) return []
+      if (centre.longitude < minLon || centre.longitude > maxLon
+        || centre.latitude < minLat || centre.latitude > maxLat) return []
+      return [{
+        type: 'Feature' as const,
+        id: place.placeId,
+        geometry: { type: 'Point' as const, coordinates: [centre.longitude, centre.latitude] },
+        properties: {
+          placeId: place.placeId,
+          displayName: place.name,
+          placeType: place.type,
+          geometryStatus: 'available' as const,
+          source: place.source,
+          geometryVersion: place.geometryVersion,
+        },
+      }]
+    })
+    return HttpResponse.json({
+      type: 'FeatureCollection' as const,
+      features,
+      truncated: false,
+      maxResults: 2000,
     })
   }),
 
@@ -1008,7 +1047,7 @@ export const handlers = [
   }),
 
   http.get(url('/api/v1/places'), () => HttpResponse.json({
-    items: MOCK_PLACES.map(mockPlaceResponse),
+    items: MOCK_PLACES.map(mockPlaceSummary),
   })),
 
   http.post(url('/api/v1/adopted-areas'), async ({ request }) => {
@@ -1272,7 +1311,19 @@ function mockPlaceResponse(place: typeof MOCK_PLACES[number]) {
     source: place.source,
     geometryVersion: place.geometryVersion,
     geometry: place.geometry,
-    viewPlantsUrl: `/places/${place.placeId}/plant-associations`,
+    viewPlantsUrl: `/places/${place.placeId}`,
+  }
+}
+
+function mockPlaceSummary(place: typeof MOCK_PLACES[number]) {
+  return {
+    placeId: place.placeId,
+    displayName: place.name,
+    placeType: place.type,
+    geometryStatus: place.geometryStatus,
+    source: place.source,
+    geometryVersion: place.geometryVersion,
+    viewPlantsUrl: `/places/${place.placeId}`,
   }
 }
 

@@ -14,10 +14,18 @@ import './bottom-tabs.css'
 export function BottomTabs({ role }: { role: Role }) {
   const location = useLocation()
   const items = visibleNav(role)
+  const permanentItems = items.filter((item) => item.id !== 'places')
+  const places = items.find((item) => item.id === 'places')
   return (
     <div className="bottom-tabs-shell">
+      {places && (
+        <NavLink to={places.path} className="bottom-tabs__places-shortcut">
+          <Icon name={places.icon} size={17} color="currentColor" />
+          Browse places
+        </NavLink>
+      )}
       <nav aria-label="Primary" className="bottom-tabs">
-        {items.slice(0, 2).map((item) => (
+        {permanentItems.slice(0, 2).map((item) => (
           <NavLink key={item.id} to={item.path} className={({ isActive }) => `bottom-tab${isActive ? ' bottom-tab--active' : ''}`}>
             <span className="bottom-tab__icon"><Icon name={item.icon} size={20} color="currentColor" /></span>
             <span className="bottom-tab__label">{item.label}</span>
@@ -34,7 +42,7 @@ export function BottomTabs({ role }: { role: Role }) {
           </span>
           <span>Scan</span>
         </NavLink>
-        {items.slice(2, 4).map((item) => (
+        {permanentItems.slice(2, 4).map((item) => (
           <NavLink key={item.id} to={item.path} className={({ isActive }) => `bottom-tab${isActive ? ' bottom-tab--active' : ''}`}>
             <span className="bottom-tab__icon"><Icon name={item.icon} size={20} color="currentColor" /></span>
             <span className="bottom-tab__label">{item.label}</span>

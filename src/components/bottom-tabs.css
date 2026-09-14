@@ -8,6 +8,31 @@
   pointer-events: none;
 }
 
+.bottom-tabs__places-shortcut {
+  position: absolute;
+  right: 8px;
+  bottom: 82px;
+  min-height: 44px;
+  padding: 0 13px;
+  border: 1px solid var(--green-border);
+  border-radius: var(--r-chip);
+  background: var(--surface-raised);
+  color: var(--green-dark);
+  box-shadow: var(--shadow-md);
+  text-decoration: none;
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  font-size: 12px;
+  font-weight: 700;
+  pointer-events: auto;
+}
+
+.bottom-tabs__places-shortcut:focus-visible {
+  outline: 3px solid var(--green-dark);
+  outline-offset: 2px;
+}
+
 .bottom-tabs {
   position: relative;
   isolation: isolate;

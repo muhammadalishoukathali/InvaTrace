@@ -6,15 +6,15 @@
   "source": "OpenStreetMap contributors via Geofabrik GmbH",
   "source_url": "https://download.geofabrik.de/asia/malaysia-singapore-brunei.html",
   "download_url": "https://download.geofabrik.de/asia/malaysia-singapore-brunei-latest.osm.pbf",
-  "upstream_version": "Geofabrik replication sequence 4907",
-  "source_timestamp": "2026-09-12T20:21:58Z",
-  "retrieved_at": "2026-09-13",
+  "upstream_version": "Geofabrik replication sequence 4908",
+  "source_timestamp": "2026-09-13T20:21:20Z",
+  "retrieved_at": "2026-09-14",
   "licence": "Open Data Commons Open Database License 1.0",
   "licence_url": "https://www.openstreetmap.org/copyright",
-  "file": "malaysia-singapore-brunei-2026-09-12.osm.pbf",
-  "upstream_md5": "f0ac6246e2b42583697d316a205931d9",
-  "sha256": "01e16a33157689db74c401f4a6e9204526883369b999e3c92a561ac4a5a78699",
-  "byte_length": 250727913,
+  "file": "malaysia-singapore-brunei-latest.osm.pbf",
+  "upstream_md5": null,
+  "sha256": "9e49935eae16b48b6b5f7ddcae1e37bad25c69ab94626bff0100dd9121090c54",
+  "byte_length": 250750524,
   "country_boundary_release": "../malaysia-boundary/release.json",
   "country_boundary_sha256": "20ffa28d8b7980060d43418a6a4a250ffdbcd805c514189accec9f799a181d77",
   "included_area_tags": [
@@ -25,6 +25,10 @@
     "landuse=forest",
     "natural=wood"
   ],
-  "included_trail_highways": ["path", "footway", "track"],
-  "notes": "The PBF is intentionally not committed. Production imports must supply these exact bytes; the importer verifies SHA-256 and filters every retained geometry against the reviewed Malaysia boundary."
+  "included_trail_highways": [
+    "path",
+    "footway",
+    "track"
+  ],
+  "notes": "The PBF is intentionally not committed. Importers verify these exact bytes and filter retained geometry against the reviewed Malaysia boundary."
 }

@@ -299,6 +299,27 @@ export interface PlaceDetail {
   viewPlantsUrl: string
 }
 
+export type PlaceSummary = Omit<PlaceDetail, 'geometry'>
+
+export interface PlaceMapProperties {
+  placeId: string
+  displayName: string
+  placeType: PlaceDetail['placeType']
+  geometryStatus: 'available'
+  source: string
+  geometryVersion: string
+}
+
+export interface PlaceMapFeature extends GeoJSON.Feature<GeoJSON.Point, PlaceMapProperties> {
+  id: string
+}
+
+export interface PlaceMapResponse extends GeoJSON.FeatureCollection<GeoJSON.Point, PlaceMapProperties> {
+  features: PlaceMapFeature[]
+  truncated: boolean
+  maxResults: number
+}
+
 export interface PlacePlantAssociation {
   speciesId: string
   scientificName: string
@@ -332,6 +353,7 @@ export interface PlacePlantAssociationsResponse {
   waterwayDataVersions: string[]
   occurrenceUpdatedAt: string | null
   disclaimer: string
+  truncated: boolean
   items: PlacePlantAssociation[]
 }
 

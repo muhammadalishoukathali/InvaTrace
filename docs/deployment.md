@@ -16,52 +16,61 @@ extension on first deployment; Neon supports PostGIS in the target database.
 Back up before destructive future migrations. Deploy additive migrations before
 code that requires them, and run `alembic check` in CI to detect model drift.
 
-After migration and reference-data loading, import the fixed releases under
-`data/production/`: OSM places and GBIF occurrences first, then the protected-area
-release. Run `preprocess-osm-waterways` against the exact PBF named by the OSM
-manifest to persist the directed graph and its conservative evidence release.
-Every command must receive the matching release and Malaysia-boundary manifests;
-hash, byte-length, licence, timestamp and coverage mismatches fail closed. The
-regional PBF is intentionally not committed and must match its manifest SHA-256.
+After migration and reference-data loading, import the checked-in GBIF release
+and derive the OSM place, protected-area and directed-waterway releases from one
+verified PBF. Every stage is bound to the same PBF SHA-256, replication timestamp
+and reviewed Malaysia boundary. Hash, byte-length, licence, timestamp and
+coverage mismatches fail closed. The regional PBF is intentionally ignored by
+Git and must never be committed.
 
-Use the final CLI names below from `backend/`, with `DATABASE_URL` supplied only
-through the shell environment. The OSM PBF is local and must match
-`data/production/osm-places/release.json` exactly.
+The supported Windows runbook is `scripts/import-production-geodata.ps1`. It
+downloads the current official Geofabrik Malaysia/Singapore/Brunei PBF when no
+path is supplied, verifies the upstream MD5 and embedded replication timestamp,
+runs migrations and every import, writes auditable derived manifests, and ends
+with the production-data readiness check. Supply `DATABASE_URL` only through the
+process environment:
+
+```powershell
+python -m pip install -e .\backend
+$env:DATABASE_URL = "postgresql+psycopg://<user>:<password>@<host>/<database>?sslmode=require"
+.\scripts\import-production-geodata.ps1 -Python python
+```
+
+To repeat an import from the exact PBF already named by
+`data/production/osm-places/release.json`, pass its local path. The script refuses
+to continue if its bytes or reviewed-boundary checksum differ from the manifest:
+
+```powershell
+.\scripts\import-production-geodata.ps1 `
+  -Python python `
+  -PbfPath D:\data\malaysia-singapore-brunei-latest.osm.pbf
+```
+
+The directed-waterway phase performs exact PostGIS geography snapping for
+every imported place. It normally takes several minutes but can take longer over
+a remote database connection. Its CLI prints the edge/evidence summary only
+after the transaction completes. Do not interrupt it solely because the console
+is quiet; check the database for changing, non-blocked `waterway_edges` queries
+first.
+
+For a release review without a database write, prepare and verify the latest PBF
+from the repository root:
 
 ```bash
-python -m alembic upgrade head
-python -m app.cli load-reference-data
-python -m app.cli import-occurrences \
-  ../data/production/gbif-occurrences/gbif-malaysia-occurrences-2026-09-13.json \
-  --source "GBIF" \
-  --processed-data-version "GBIF API snapshot retrieved 2026-09-13" \
-  --release-manifest ../data/production/gbif-occurrences/release.json \
-  --country-boundary ../data/production/malaysia-boundary/geoBoundaries-MYS-ADM0.geojson \
-  --country-boundary-manifest ../data/production/malaysia-boundary/release.json
+python scripts/prepare-osm-release.py \
+  --download-latest \
+  --places-manifest data/production/osm-places/release.json \
+  --boundary-manifest data/production/malaysia-boundary/release.json
+```
 
-python -m app.cli import-osm /absolute/local/path/to/malaysia-singapore-brunei-2026-09-12.osm.pbf \
-  --source-date 2026-09-12T20:21:58+00:00 \
-  --release-manifest ../data/production/osm-places/release.json \
-  --country-boundary ../data/production/malaysia-boundary/geoBoundaries-MYS-ADM0.geojson \
-  --country-boundary-manifest ../data/production/malaysia-boundary/release.json
+After any import, both commands below must succeed. `production-data-status`
+exits non-zero if the approved catalogue, place geometry, occurrence coverage,
+protected-area release, or waterway graph is missing. `/health/ready` exposes the
+same result as `geospatialData` and returns HTTP 503 while it is degraded.
 
-python -m app.cli import-protected-areas \
-  ../data/production/osm-protected-areas/osm-malaysia-protected-areas-2026-09-12.geojson \
-  --source "OpenStreetMap contributors via Geofabrik GmbH" \
-  --version "Geofabrik replication sequence 4907; derived protected-area release 2026-09-12" \
-  --updated-at 2026-09-12T20:21:58+00:00 \
-  --coverage-note "Reviewed Malaysia national boundary; mapped context is not removal permission" \
-  --coverage-geojson ../data/production/malaysia-boundary/geoBoundaries-MYS-ADM0.geojson \
-  --release-manifest ../data/production/osm-protected-areas/release.json \
-  --coverage-release-manifest ../data/production/malaysia-boundary/release.json
-
-python -m app.cli preprocess-osm-waterways \
-  /absolute/local/path/to/malaysia-singapore-brunei-2026-09-12.osm.pbf \
-  --release-manifest ../data/production/osm-places/release.json \
-  --country-boundary ../data/production/malaysia-boundary/geoBoundaries-MYS-ADM0.geojson \
-  --country-boundary-manifest ../data/production/malaysia-boundary/release.json \
-  --evidence-output /absolute/local/path/to/generated/osm-waterway-evidence-2026-09-12.json
-
+```bash
+cd backend
+python -m app.cli production-data-status
 python -m alembic check
 ```
 

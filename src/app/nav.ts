@@ -21,6 +21,7 @@ export interface NavItem {
  *  positions stable across iterations so nothing jumps around between demos. */
 export const NAV: NavItem[] = [
   { id: 'map',      path: '/map',      label: 'Map',      full: 'Threat map',   icon: 'MapPinned',    iteration: 1 },
+  { id: 'places', path: '/places', label: 'Places', full: 'Browse places', icon: 'Trees', iteration: 2 },
   { id: 'catalogue', path: '/catalogue', label: 'Plants', full: 'Plant catalogue', icon: 'BookOpen', iteration: 2 },
   { id: 'reports',  path: '/reports',  label: 'Records',  full: 'My records',   icon: 'ClipboardList', iteration: 1 },
   { id: 'areas', path: '/adopted-areas', label: 'Areas', full: 'Monitoring areas', icon: 'Map', iteration: 2 },

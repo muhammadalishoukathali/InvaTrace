@@ -4,7 +4,7 @@ import {
   User,
   ChevronLeft, ChevronRight, RotateCcw, Leaf, HelpCircle, XOctagon, Send, ScanLine,
   MapPin, Crosshair, Grid3x3, Info, CircleCheck, Clock, ImagePlus,
-  SlidersHorizontal, Filter, Navigation, ClipboardList, BookOpen,
+  SlidersHorizontal, Filter, Navigation, ClipboardList, BookOpen, Trees,
   Copy, Download, KeyRound, Shield, Smartphone, Trash2, RefreshCw, ExternalLink, Pencil, LogOut,
   type LucideIcon,
 } from 'lucide-react'
@@ -15,7 +15,7 @@ const REGISTRY: Record<string, LucideIcon> = {
   User,
   ChevronLeft, ChevronRight, RotateCcw, Leaf, HelpCircle, XOctagon, Send, ScanLine,
   MapPin, Crosshair, Grid3x3, Info, CircleCheck, Clock, ImagePlus,
-  SlidersHorizontal, Filter, Navigation, ClipboardList, BookOpen,
+  SlidersHorizontal, Filter, Navigation, ClipboardList, BookOpen, Trees,
   Copy, Download, KeyRound, Shield, Smartphone, Trash2, RefreshCw, ExternalLink, Pencil, LogOut,
 }
 

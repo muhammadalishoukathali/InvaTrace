@@ -181,6 +181,7 @@ def extract_osm_protected_areas(
     output_path.write_text(
         json.dumps(payload, ensure_ascii=False, sort_keys=True, separators=(",", ":")) + "\n",
         encoding="utf-8",
+        newline="\n",
     )
     return ProtectedAreaExtractionResult(
         accepted=len(handler.features),

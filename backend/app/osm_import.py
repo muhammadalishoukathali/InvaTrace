@@ -20,7 +20,7 @@ from sqlalchemy.orm import Session
 
 from app.data_release import DataRelease, validate_data_release
 from app.db.models import MonitoredArea, OsmImport, Trail
-from app.geojson_validation import CountryPolygon, country_polygons, geometry_within_country
+from app.geojson_validation import CountrySpatialIndex, country_polygons
 
 # Which OSM tag pairs count as an "area" worth importing, and which highway
 # types count as a walkable "trail". Anything else in the extract gets skipped.
@@ -48,7 +48,7 @@ class MalaysiaOsmHandler(osmium.SimpleHandler):
         geometry_version: str,
         source_release: DataRelease,
         boundary_release: DataRelease,
-        malaysia_boundary: list[CountryPolygon],
+        malaysia_boundary: CountrySpatialIndex,
     ) -> None:
         super().__init__()
         self.session = session
@@ -88,7 +88,7 @@ class MalaysiaOsmHandler(osmium.SimpleHandler):
             # just skip it rather than blow up the whole import.
             self.invalid_geometry_count += 1
             return
-        if not geometry_within_country(geojson, self.malaysia_boundary):
+        if not self.malaysia_boundary.geometry_within(geojson):
             self.outside_country_count += 1
             return
         object_type = "way" if area.from_way() else "relation"
@@ -146,7 +146,7 @@ class MalaysiaOsmHandler(osmium.SimpleHandler):
         if not line.startswith("LINESTRING"):
             self.invalid_geometry_count += 1
             return
-        if not geometry_within_country(geojson, self.malaysia_boundary):
+        if not self.malaysia_boundary.geometry_within(geojson):
             self.outside_country_count += 1
             return
         # Trail.geometry is a MULTILINESTRING column (so a trail can later be
@@ -231,8 +231,8 @@ def import_malaysia_pbf(
         country_boundary_path,
         expected_dataset_id="malaysia-national-boundary",
     )
-    malaysia_boundary = country_polygons(
-        json.loads(country_boundary_path.read_text(encoding="utf-8"))
+    malaysia_boundary = CountrySpatialIndex(
+        country_polygons(json.loads(country_boundary_path.read_text(encoding="utf-8")))
     )
     digest = bytes.fromhex(source_release.sha256)
     existing = session.scalar(select(OsmImport).where(OsmImport.sha256 == digest))

@@ -480,6 +480,7 @@ class HealthResponse(ApiModel):
     screening: str | None = None
     verification_backlog: int | None = None
     catalogue: dict[str, object] | None = None
+    geospatial_data: dict[str, object] | None = None
 
 
 # Shape check for the client-supplied Idempotency-Key header, used by both

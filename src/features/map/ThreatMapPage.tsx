@@ -32,7 +32,7 @@ import { api } from '@/services/api-client'
 import { useIsDesktop } from '@/hooks/useIsDesktop'
 import { useDialogA11y } from '@/hooks/useDialogA11y'
 import { useMapView as useMapStore } from '@/features/map/map-view-store'
-import type { Sighting } from '@/types'
+import type { PlaceMapFeature, PlaceMapProperties, PlaceMapResponse, Sighting } from '@/types'
 import { SightingDetailsSheet } from './SightingDetailsSheet'
 import { MapLegend } from './MapLegend'
 import { Icon } from '@/components/Icon'
@@ -80,6 +80,13 @@ const STYLE_URL: maplibregl.StyleSpecification = {
   layers: [{ id: 'basemap', type: 'raster', source: 'basemap-src' }],
 }
 
+const PLACE_SOURCE_ID = 'mapped-places'
+const PLACE_LAYER_IDS = ['place-clusters', 'place-cluster-count', 'place-points'] as const
+const EMPTY_PLACES: GeoJSON.FeatureCollection<GeoJSON.Point, PlaceMapProperties> = {
+  type: 'FeatureCollection',
+  features: [],
+}
+
 export function ThreatMapPage() {
   const container = useRef<HTMLDivElement>(null)
   const map = useRef<Map | null>(null)
@@ -91,6 +98,11 @@ export function ThreatMapPage() {
   const initialViewApplied = useRef(false)
   const targetSightingId = useRef<string | null>(null)
   const fitReportsFallback = useRef<(() => void) | null>(null)
+  const placeRequestTimer = useRef<number | null>(null)
+  const placeRequestSequence = useRef(0)
+  const loadVisiblePlaces = useRef<(target: Map) => void>(() => undefined)
+  const placeReturnFocus = useRef<HTMLElement | null>(null)
+  const placePreviewRef = useRef<HTMLElement>(null)
   const isDesktop = useIsDesktop()
   const routeLocation = useLocation()
   const [searchParams] = useSearchParams()
@@ -106,6 +118,62 @@ export function ThreatMapPage() {
     text: string
   } | null>(null)
   const [recordDetailsOpen, setRecordDetailsOpen] = useState(false)
+  const [showPlaces, setShowPlaces] = useState(true)
+  const showPlacesRef = useRef(showPlaces)
+  const [placeData, setPlaceData] = useState<PlaceMapResponse>({
+    type: 'FeatureCollection',
+    features: [],
+    truncated: false,
+    maxResults: 2_000,
+  })
+  const [placesLoading, setPlacesLoading] = useState(false)
+  const [placesError, setPlacesError] = useState(false)
+  const [selectedPlace, setSelectedPlace] = useState<PlaceMapProperties | null>(null)
+
+  showPlacesRef.current = showPlaces
+  loadVisiblePlaces.current = (target) => {
+    if (!showPlacesRef.current || !target.getSource(PLACE_SOURCE_ID)) return
+    if (placeRequestTimer.current !== null) window.clearTimeout(placeRequestTimer.current)
+    placeRequestTimer.current = window.setTimeout(() => {
+      const bounds = target.getBounds()
+      const params = new URLSearchParams({
+        min_lon: Math.max(MY_BOUNDS[0][0], bounds.getWest()).toFixed(6),
+        min_lat: Math.max(MY_BOUNDS[0][1], bounds.getSouth()).toFixed(6),
+        max_lon: Math.min(MY_BOUNDS[1][0], bounds.getEast()).toFixed(6),
+        max_lat: Math.min(MY_BOUNDS[1][1], bounds.getNorth()).toFixed(6),
+      })
+      const sequence = ++placeRequestSequence.current
+      setPlacesLoading(true)
+      setPlacesError(false)
+      void api<PlaceMapResponse>(`/api/v1/places/map?${params}`).then((response) => {
+        if (sequence === placeRequestSequence.current) setPlaceData(response)
+      }).catch(() => {
+        if (sequence === placeRequestSequence.current) setPlacesError(true)
+      }).finally(() => {
+        if (sequence === placeRequestSequence.current) setPlacesLoading(false)
+      })
+    }, 300)
+  }
+
+  useEffect(() => {
+    if (!selectedPlace) return
+    const previous = placeReturnFocus.current
+    const frame = window.requestAnimationFrame(() => placePreviewRef.current?.focus())
+    const onKey = (event: KeyboardEvent) => {
+      if (event.key === 'Escape') setSelectedPlace(null)
+    }
+    window.addEventListener('keydown', onKey)
+    return () => {
+      window.cancelAnimationFrame(frame)
+      window.removeEventListener('keydown', onKey)
+      const returnTarget = previous?.isConnected
+        ? previous
+        : document.querySelector<HTMLElement>(
+          `[data-place-id="${selectedPlace.placeId}"]`,
+        )
+      returnTarget?.focus({ preventScroll: true })
+    }
+  }, [selectedPlace])
 
   // When we successfully recenter the user, the toast is really just a
   // quick "yep, done" - no reason to leave it stuck on screen. Errors
@@ -229,8 +297,50 @@ export function ThreatMapPage() {
     // any tiles at all - you get a blank map. Forcing a resize and a jumpTo
     // once `style.load` fires nudges it to recompute what's visible.
     let locationReadyTimer: number | undefined
+    const schedulePlaces = () => loadVisiblePlaces.current(m)
     m.once('style.load', () => {
       m.resize()
+      m.addSource(PLACE_SOURCE_ID, {
+        type: 'geojson',
+        data: EMPTY_PLACES,
+        cluster: true,
+        clusterMaxZoom: 12,
+        clusterRadius: 52,
+      })
+      m.addLayer({
+        id: 'place-clusters',
+        type: 'circle',
+        source: PLACE_SOURCE_ID,
+        filter: ['has', 'point_count'],
+        paint: {
+          'circle-color': '#164E3A',
+          'circle-radius': ['step', ['get', 'point_count'], 17, 30, 22, 100, 28],
+          'circle-stroke-color': '#FFFFFF',
+          'circle-stroke-width': 2,
+        },
+      })
+      m.addLayer({
+        id: 'place-cluster-count',
+        type: 'symbol',
+        source: PLACE_SOURCE_ID,
+        filter: ['has', 'point_count'],
+        layout: { 'text-field': ['get', 'point_count_abbreviated'], 'text-size': 12 },
+        paint: { 'text-color': '#FFFFFF' },
+      })
+      m.addLayer({
+        id: 'place-points',
+        type: 'circle',
+        source: PLACE_SOURCE_ID,
+        filter: ['!', ['has', 'point_count']],
+        paint: {
+          'circle-color': ['match', ['get', 'placeType'],
+            'park', '#6D3FB5', 'forest', '#176B45', 'wood', '#9A6518', 'trail', '#176FA8', '#4F655A'],
+          'circle-radius': 8,
+          'circle-stroke-color': '#FFFFFF',
+          'circle-stroke-width': 2,
+        },
+      })
+      schedulePlaces()
       if (targetSightingId.current || requestedLocation) return
       m.jumpTo({ center: CENTRE, zoom: isDesktop ? INITIAL_ZOOM : INITIAL_ZOOM_MOBILE })
       setLocationNotice({ tone: 'pending', text: 'Finding your location…' })
@@ -250,6 +360,27 @@ export function ThreatMapPage() {
       }
       triggerWhenReady()
     })
+    m.on('moveend', schedulePlaces)
+    m.on('click', 'place-clusters', (event) => {
+      const feature = event.features?.[0]
+      const clusterId = Number(feature?.properties?.cluster_id)
+      const coordinates = feature?.geometry.type === 'Point' ? feature.geometry.coordinates : null
+      const source = m.getSource(PLACE_SOURCE_ID) as maplibregl.GeoJSONSource | undefined
+      if (!source || !coordinates || !Number.isFinite(clusterId)) return
+      void source.getClusterExpansionZoom(clusterId).then((zoom) => {
+        m.easeTo({ center: coordinates as [number, number], zoom })
+      })
+    })
+    m.on('click', 'place-points', (event) => {
+      const properties = event.features?.[0]?.properties as PlaceMapProperties | undefined
+      if (!properties?.placeId) return
+      placeReturnFocus.current = m.getCanvas()
+      setSelectedPlace(properties)
+    })
+    PLACE_LAYER_IDS.forEach((layerId) => {
+      m.on('mouseenter', layerId, () => { m.getCanvas().style.cursor = 'pointer' })
+      m.on('mouseleave', layerId, () => { m.getCanvas().style.cursor = '' })
+    })
 
     // The app shell can change size after the map mounts (e.g. sidebar
     // opens on desktop). ResizeObserver just keeps the canvas glued to
@@ -260,6 +391,8 @@ export function ThreatMapPage() {
     return () => {
       locationButton?.removeEventListener('click', onLocationRequest)
       if (locationReadyTimer !== undefined) window.clearTimeout(locationReadyTimer)
+      if (placeRequestTimer.current !== null) window.clearTimeout(placeRequestTimer.current)
+      m.off('moveend', schedulePlaces)
       ro.disconnect()
       fitReportsFallback.current = null
       m.remove()
@@ -267,6 +400,25 @@ export function ThreatMapPage() {
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
+
+  useEffect(() => {
+    const currentMap = map.current
+    const source = currentMap?.getSource(PLACE_SOURCE_ID) as maplibregl.GeoJSONSource | undefined
+    if (source) source.setData(placeData)
+  }, [placeData])
+
+  useEffect(() => {
+    showPlacesRef.current = showPlaces
+    const currentMap = map.current
+    if (!currentMap?.getSource(PLACE_SOURCE_ID)) return
+    PLACE_LAYER_IDS.forEach((layerId) => {
+      if (currentMap.getLayer(layerId)) {
+        currentMap.setLayoutProperty(layerId, 'visibility', showPlaces ? 'visible' : 'none')
+      }
+    })
+    if (showPlaces) loadVisiblePlaces.current(currentMap)
+    else setSelectedPlace(null)
+  }, [showPlaces])
 
   // When someone comes here via a "My Reports" link they might be pointing
   // at a private scan or a draft report that hasn't actually been published
@@ -387,7 +539,7 @@ export function ThreatMapPage() {
         <div
           ref={container}
           role="application"
-          aria-label="Interactive community reports map. A parallel list of the same reports is available below the map."
+          aria-label="Interactive community reports and mapped places. Parallel accessible lists are available below the map."
           aria-describedby="map-live-count"
           style={{
             position: 'absolute', inset: 0,
@@ -437,6 +589,47 @@ export function ThreatMapPage() {
             </span>
           )}
         </div>
+        <button
+          type="button"
+          className={`map-places-toggle${showPlaces ? ' map-places-toggle--active' : ''}`}
+          aria-pressed={showPlaces}
+          onClick={() => setShowPlaces((current) => !current)}
+        >
+          <Icon name="Trees" size={17} color="currentColor" />
+          {showPlaces ? 'Hide places' : 'Show places'}
+        </button>
+        {showPlaces && (placesLoading || placesError || placeData.truncated) && (
+          <div className="map-places-status" role={placesError ? 'alert' : 'status'} aria-live="polite">
+            {placesLoading
+              ? 'Loading places in this view…'
+              : placesError
+                ? 'Mapped places could not load for this view.'
+                : `Showing the first ${placeData.maxResults.toLocaleString()} places in this view. Zoom in for complete results.`}
+          </div>
+        )}
+        {selectedPlace && (
+          <aside
+            ref={placePreviewRef}
+            tabIndex={-1}
+            role="dialog"
+            aria-modal="false"
+            aria-label={`${selectedPlace.displayName} place preview`}
+            className="map-place-preview"
+          >
+            <button
+              type="button"
+              className="map-place-preview__close"
+              aria-label="Close place preview"
+              onClick={() => setSelectedPlace(null)}
+            >
+              <Icon name="X" size={17} color="currentColor" />
+            </button>
+            <span className="map-place-preview__type">{selectedPlace.placeType}</span>
+            <h2>{selectedPlace.displayName}</h2>
+            <p>{selectedPlace.source} · geometry {selectedPlace.geometryVersion}</p>
+            <Link to={`/places/${selectedPlace.placeId}`}>View plants recorded nearby</Link>
+          </aside>
+        )}
         {locationNotice && (
           <div
             className={`map-location-notice map-location-notice--${locationNotice.tone}`}
@@ -461,6 +654,16 @@ export function ThreatMapPage() {
         isLoading={isLoading}
         isError={isError}
         onRetry={() => void refetch()}
+      />
+      <AccessiblePlaceList
+        items={showPlaces ? placeData.features : []}
+        isLoading={showPlaces && placesLoading}
+        isError={showPlaces && placesError}
+        onSelect={(feature, trigger) => {
+          placeReturnFocus.current = trigger
+          setSelectedPlace(feature.properties)
+          map.current?.easeTo({ center: feature.geometry.coordinates as [number, number], zoom: 15 })
+        }}
       />
       <SightingDetailsSheet />
       <SavedRecordDetailsSheet
@@ -646,6 +849,40 @@ function AccessibleSightingList({
               })}
             </ul>
           )}
+        </>
+      )}
+    </section>
+  )
+}
+
+function AccessiblePlaceList({
+  items, isLoading, isError, onSelect,
+}: {
+  items: PlaceMapFeature[]
+  isLoading: boolean
+  isError: boolean
+  onSelect: (feature: PlaceMapFeature, trigger: HTMLButtonElement) => void
+}) {
+  return (
+    <section aria-label="Mapped places in current view" className="sr-only">
+      {isLoading && <p role="status">Loading mapped places in the current map view…</p>}
+      {isError && <p role="alert">Mapped places could not load for the current map view.</p>}
+      {!isLoading && !isError && (
+        <>
+          <p>{items.length} mapped place{items.length === 1 ? '' : 's'} in the current view.</p>
+          <ul>
+            {items.map((feature) => (
+              <li key={feature.properties.placeId}>
+                <button
+                  type="button"
+                  data-place-id={feature.properties.placeId}
+                  onClick={(event) => onSelect(feature, event.currentTarget)}
+                >
+                  {feature.properties.displayName} - {feature.properties.placeType} - View plants recorded nearby
+                </button>
+              </li>
+            ))}
+          </ul>
         </>
       )}
     </section>

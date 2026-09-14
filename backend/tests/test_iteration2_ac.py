@@ -10,7 +10,9 @@ from unittest.mock import MagicMock
 
 import pytest
 from starlette.requests import Request
+from starlette.responses import Response
 
+from app.api.routers import health as health_router
 from app.api.routers import reports as reports_router
 from app.api.routers.adopted_areas import (
     ActivityMarker,
@@ -21,7 +23,12 @@ from app.api.routers.adopted_areas import (
 )
 from app.api.routers.catalogue import NO_SEVERITY, catalogue_detail, list_catalogue
 from app.api.routers.location import ProtectedLocationContextRequest, _uncertain_context
-from app.api.routers.places import _place_metadata, _rank_components
+from app.api.routers.places import (
+    PlaceSummary,
+    _place_metadata,
+    _rank_components,
+    _validate_viewport,
+)
 from app.api.routers.reports import (
     RemovalReportRequest,
     _distance_metres,
@@ -40,6 +47,7 @@ from app.osm_waterway_graph import (
     build_topology,
     direction_exclusion,
 )
+from app.production_data import production_data_snapshot
 from app.waterway_import import OSM_DIRECTION_SOURCE, import_waterway_evidence_json
 
 
@@ -625,6 +633,120 @@ def test_unsupported_place_geometry_is_rejected_with_422() -> None:
     assert raised.value.code == "unsupported_place_geometry"
 
 
+def test_place_map_viewport_validation_is_fail_closed() -> None:
+    _validate_viewport(99.3, 0.8, 119.5, 7.5)
+    for viewport, code in (
+        ((101.0, 3.0, 100.0, 4.0), "invalid_viewport"),
+        ((101.0, 4.0, 102.0, 3.0), "invalid_viewport"),
+        ((98.9, 3.0, 102.0, 4.0), "viewport_outside_malaysia"),
+        ((101.0, 3.0, 120.0, 4.0), "viewport_outside_malaysia"),
+    ):
+        with pytest.raises(ApiProblem) as raised:
+            _validate_viewport(*viewport)
+        assert raised.value.code == code
+
+
+def test_place_summary_contract_never_contains_full_geometry() -> None:
+    summary = PlaceSummary(
+        placeId=uuid.uuid4(),
+        displayName="Example Forest",
+        placeType="forest",
+        geometryStatus="available",
+        source="OpenStreetMap",
+        geometryVersion="osm-2026-09-14",
+        viewPlantsUrl="/places/example",
+    ).model_dump(by_alias=True)
+    assert "geometry" not in summary
+
+
+@pytest.mark.parametrize(
+    ("counts", "expected_status"),
+    [
+        ((0, 0, 0, 0, 0, 0, None, 0, None, 0, None, None, None), "degraded"),
+        (
+            (
+                32,
+                4,
+                2,
+                12,
+                3,
+                5,
+                "protected-v1",
+                20,
+                "water-v1",
+                0,
+                bytes.fromhex("11" * 32),
+                "11" * 32,
+                bytes.fromhex("11" * 32),
+            ),
+            "ok",
+        ),
+        (
+            (
+                32,
+                4,
+                2,
+                12,
+                3,
+                5,
+                "protected-v1",
+                20,
+                "water-v1",
+                0,
+                bytes.fromhex("11" * 32),
+                "22" * 32,
+                bytes.fromhex("11" * 32),
+            ),
+            "degraded",
+        ),
+    ],
+)
+def test_production_data_status_requires_core_data_but_accepts_zero_upstream(
+    counts: tuple, expected_status: str
+) -> None:
+    session = MagicMock()
+    session.execute.return_value.one.return_value = SimpleNamespace(
+        catalogue=counts[0],
+        areas=counts[1],
+        trails=counts[2],
+        occurrences=counts[3],
+        occurrence_species=counts[4],
+        protected_areas=counts[5],
+        protected_version=counts[6],
+        waterway_edges=counts[7],
+        waterway_version=counts[8],
+        upstream_evidence=counts[9],
+        osm_source_sha256=counts[10],
+        protected_source_sha256=counts[11],
+        waterway_source_sha256=counts[12],
+    )
+    result = production_data_snapshot(session)
+    assert result["status"] == expected_status
+    assert result["upstreamEvidence"] == 0
+    assert result["sourceReleasesAligned"] is (expected_status == "ok")
+
+
+@pytest.mark.parametrize(("geospatial_status", "http_status"), [("degraded", 503), ("ok", 200)])
+def test_readiness_tracks_required_geospatial_data(
+    monkeypatch: pytest.MonkeyPatch, geospatial_status: str, http_status: int
+) -> None:
+    session = MagicMock()
+    session.scalar.return_value = 0
+    monkeypatch.setattr(health_router.rate_limiter, "ping", lambda: True)
+    monkeypatch.setattr(health_router.storage, "ping", lambda: True)
+    monkeypatch.setattr(health_router, "catalogue_health_snapshot", lambda: {"status": "ok"})
+    monkeypatch.setattr(
+        health_router,
+        "production_data_snapshot",
+        lambda _session: {"status": geospatial_status, "upstreamEvidence": 0},
+    )
+    response = Response()
+    result = health_router.ready(response, session)
+    assert response.status_code == http_status
+    assert result.status == ("ok" if http_status == 200 else "degraded")
+    assert result.geospatial_data == {"status": geospatial_status, "upstreamEvidence": 0}
+
+
 def test_private_adoption_lookup_is_owner_scoped() -> None:
     session = MagicMock()
     session.scalar.return_value = None
@@ -646,6 +768,7 @@ def test_openapi_exposes_iteration2_routes_and_safe_public_removal_shape() -> No
     assert "get" in paths["/api/v1/places/{place_id}"]
     assert "get" in paths["/api/v1/places/{place_id}/plant-associations"]
     assert "get" in paths["/api/v1/places/at-location"]
+    assert "get" in paths["/api/v1/places/map"]
     assert "post" in paths["/api/v1/adopted-areas"]
     assert "201" in paths["/api/v1/adopted-areas"]["post"]["responses"]
     assert "delete" in paths["/api/v1/adopted-areas/{adoption_id}"]
@@ -676,10 +799,19 @@ def test_openapi_exposes_iteration2_routes_and_safe_public_removal_shape() -> No
     assert {"placeId", "displayName", "placeType", "geometryStatus", "source", "geometry"} <= set(
         place_fields
     )
+    summary_fields = schema["components"]["schemas"]["PlaceSummary"]["properties"]
+    assert "geometry" not in summary_fields
+    map_fields = schema["components"]["schemas"]["PlaceMapResponse"]["properties"]
+    assert {"features", "truncated", "maxResults"} <= set(map_fields)
     association_fields = schema["components"]["schemas"]["PlacePlantAssociationsResponse"][
         "properties"
     ]
-    assert {"processedDataVersions", "waterwayDataVersions", "occurrenceUpdatedAt"} <= set(
+    assert {
+        "processedDataVersions",
+        "waterwayDataVersions",
+        "occurrenceUpdatedAt",
+        "truncated",
+    } <= set(
         association_fields
     )
     ranking_fields = schema["components"]["schemas"]["AssociationEvidence"]["properties"]

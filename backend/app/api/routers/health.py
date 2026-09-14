@@ -10,6 +10,7 @@ from app.core.rate_limit import rate_limiter
 from app.db.base import get_session
 from app.db.models import VerificationJob
 from app.domain.catalogue import CatalogueError, catalogue_health_snapshot
+from app.production_data import production_data_snapshot
 from app.services.storage import storage
 
 """Health/readiness probes for whatever's running this service (Docker, k8s, uptime checks).
@@ -71,20 +72,28 @@ def ready(response: Response, session: Session = Depends(get_session)) -> Health
     except CatalogueError as exc:
         catalogue = {"status": "unavailable", "detail": str(exc)}
         catalogue_status = "unavailable"
-    core_ready = (
+    try:
+        geospatial_data = production_data_snapshot(session)
+        geospatial_status = str(geospatial_data["status"])
+    except (SQLAlchemyError, CatalogueError) as exc:
+        geospatial_data = {"status": "unavailable", "detail": str(exc)}
+        geospatial_status = "unavailable"
+    service_ready = (
         database == "ok"
         and redis_status == "ok"
         and storage_status == "ok"
         and catalogue_status == "ok"
     )
-    if not core_ready:
+    ready_for_all_features = service_ready and geospatial_status == "ok"
+    if not ready_for_all_features:
         response.status_code = 503
     return HealthResponse(
-        status="ok" if core_ready else "unavailable",
+        status=("ok" if ready_for_all_features else "degraded" if service_ready else "unavailable"),
         database=database,
         redis=redis_status,
         storage=storage_status,
-        screening="ready" if core_ready else "unavailable",
+        screening="ready" if service_ready else "unavailable",
         verification_backlog=backlog,
         catalogue=catalogue,
+        geospatial_data=geospatial_data,
     )

@@ -61,6 +61,12 @@ export function PlaceDetailPage() {
         access rights, or permission to remove plants.
       </p>
       <PlaceGeometryMap geometry={place.data.geometry} name={place.data.displayName} />
+      {associations.data.truncated && (
+        <p className="place-detail__notice" role="status">
+          This result reached the 5,000-row processing limit. Counts shown below may be partial;
+          the limitation is reported explicitly instead of silently undercounting.
+        </p>
+      )}
       {associations.data.items.length === 0 ? (
         <div className="places-state">
           <strong>No qualifying historical records found</strong>
@@ -119,5 +125,5 @@ const evidenceLabel = (value: string) => ({
   inside_boundary: 'inside boundary',
   nearby_buffer: 'nearby mapped buffer',
   trail_buffer: 'along trail buffer',
-  upstream: 'upstream on mapped directed waterway',
+  upstream: 'Upstream waterway record',
 }[value] ?? value)

@@ -302,6 +302,19 @@ def _insert_edges(session: Session, dataset_id: uuid.UUID, edges: list[DirectedE
 def _nearest_edge(
     session: Session, dataset_id: uuid.UUID, geography
 ) -> tuple[WaterwayEdge, float, float] | None:
+    # Keep the spatial predicate as an explicit optimization barrier. Immediately
+    # after a new release is bulk-inserted PostgreSQL has no fresh per-dataset
+    # statistics, and otherwise it can choose a BitmapAnd with the dataset index.
+    # That plan scans every edge in the new release once for every place. The
+    # materialized candidate set is still exact ST_DWithin geography semantics,
+    # but makes the GiST search happen first and applies the release ID only to
+    # the small set of nearby edges.
+    spatial_candidates = (
+        select(WaterwayEdge.id)
+        .where(func.ST_DWithin(WaterwayEdge.geometry, geography, MAX_SNAP_DISTANCE_M))
+        .cte("spatial_waterway_candidates")
+        .prefix_with("MATERIALIZED")
+    )
     edge_geometry = cast(WaterwayEdge.geometry, Geometry("LINESTRING", srid=4326))
     target_geometry = cast(geography, Geometry(srid=4326))
     closest = func.ST_ClosestPoint(edge_geometry, target_geometry)
@@ -309,9 +322,9 @@ def _nearest_edge(
     distance = func.ST_Distance(WaterwayEdge.geometry, geography)
     row = session.execute(
         select(WaterwayEdge, distance, fraction)
+        .join(spatial_candidates, spatial_candidates.c.id == WaterwayEdge.id)
         .where(
             WaterwayEdge.dataset_id == dataset_id,
-            func.ST_DWithin(WaterwayEdge.geometry, geography, MAX_SNAP_DISTANCE_M),
         )
         .order_by(distance, WaterwayEdge.osm_way_id, WaterwayEdge.sequence)
         .limit(1)
@@ -593,6 +606,7 @@ def preprocess_osm_waterways(
         json.dumps(evidence_payload, ensure_ascii=False, sort_keys=True, separators=(",", ":"))
         + "\n",
         encoding="utf-8",
+        newline="\n",
     )
     session.execute(
         delete(PlaceOccurrenceWaterwayEvidence).where(
