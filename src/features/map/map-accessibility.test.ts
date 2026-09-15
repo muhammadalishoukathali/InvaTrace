@@ -65,10 +65,16 @@ describe('map accessibility fallback', () => {
     expect(source).toBeGreaterThan(styleLoad)
     expect(threatMap).toContain('cluster: true')
     expect(threatMap).toContain("id: 'place-clusters'")
+    expect(threatMap).toContain("id: 'place-points-fallback'")
     expect(threatMap).toContain("id: 'place-points'")
-    // The place-points layer must render locally bundled place-type icons
-    // via a MapLibre symbol layer, not raw circles - see place-icons.ts.
+    // Browser-decode the locally bundled SVGs before handing them to
+    // MapLibre; its URL loader does not guarantee SVG support.
+    expect(threatMap).toContain('loadSvgImage(spec.svg)')
+    expect(threatMap).not.toContain('.loadImage(svgDataUrl')
+    // The symbol layer provides distinct icons and the circle layer provides
+    // a visible/clickable fallback if icon decoding fails.
     expect(threatMap).toContain("type: 'symbol'")
+    expect(threatMap).toContain("type: 'circle'")
     expect(threatMap).toContain("'icon-image': ['match', ['get', 'placeType']")
     expect(threatMap).toContain('PLACE_ICONS.park.id')
     expect(threatMap).toContain('PLACE_ICONS.forest.id')

@@ -37,7 +37,7 @@ import { SightingDetailsSheet } from './SightingDetailsSheet'
 import { MapLegend } from './MapLegend'
 import { Icon } from '@/components/Icon'
 import { parseMapLocationTarget, type MapLocationTarget } from './map-location-link'
-import { PLACE_ICONS, PLACE_TYPES, formatPlaceType, svgDataUrl } from './place-icons'
+import { PLACE_ICONS, PLACE_TYPES, formatPlaceType, loadSvgImage } from './place-icons'
 
 // Point MapLibre at its worker file ourselves. If we don't, it tries to
 // guess a URL that sits next to Vite's optimized dep file in dev, and the
@@ -82,7 +82,12 @@ const STYLE_URL: maplibregl.StyleSpecification = {
 }
 
 const PLACE_SOURCE_ID = 'mapped-places'
-const PLACE_LAYER_IDS = ['place-clusters', 'place-cluster-count', 'place-points'] as const
+const PLACE_LAYER_IDS = [
+  'place-clusters',
+  'place-cluster-count',
+  'place-points-fallback',
+  'place-points',
+] as const
 const EMPTY_PLACES: GeoJSON.FeatureCollection<GeoJSON.Point, PlaceMapProperties> = {
   type: 'FeatureCollection',
   features: [],
@@ -342,20 +347,15 @@ export function ThreatMapPage() {
     const schedulePlaces = () => loadVisiblePlaces.current(m)
     m.once('style.load', () => {
       m.resize()
-      // Load the four place-type icons into MapLibre's sprite. We embed
-      // them as SVG data URLs (see place-icons.ts) so nothing hits the
-      // network and no external icon-service licence is involved. The
-      // returned promise from loadImage is awaited before we add the
-      // symbol layer, otherwise the first render would fall back to the
-      // built-in default marker.
+      // Decode the four local SVG icons in the browser before adding them
+      // to MapLibre's sprite. MapLibre's URL loader only guarantees raster
+      // image formats, so passing SVG URLs to it can leave every individual
+      // place marker invisible in production.
       const loadIcons = PLACE_TYPES.map((placeType) => {
         const spec = PLACE_ICONS[placeType]
-        return m
-          .loadImage(svgDataUrl(spec.svg))
-          .then((image) => {
-            if (!m.hasImage(spec.id)) m.addImage(spec.id, image.data, { pixelRatio: 1 })
-          })
-          .catch(() => undefined)
+        return loadSvgImage(spec.svg).then((image) => {
+          if (!m.hasImage(spec.id)) m.addImage(spec.id, image, { pixelRatio: 1 })
+        })
       })
       m.addSource(PLACE_SOURCE_ID, {
         type: 'geojson',
@@ -384,13 +384,30 @@ export function ThreatMapPage() {
         layout: { 'text-field': ['get', 'point_count_abbreviated'], 'text-size': 12 },
         paint: { 'text-color': '#FFFFFF' },
       })
-      // Add the icon layer only after every icon has loaded (or has
-      // safely failed - the fallback icon id is still park, so the
-      // layer never renders an unmapped sprite). Symbol layers reuse
-      // the MapLibre sprite atlas, so we do not spawn thousands of DOM
-      // markers even at Malaysia-wide zoom.
+      // A coloured circle remains underneath each icon. Besides increasing
+      // the practical touch target, it keeps places visible and clickable if
+      // a browser ever fails to decode one of the bundled SVGs.
+      m.addLayer({
+        id: 'place-points-fallback',
+        type: 'circle',
+        source: PLACE_SOURCE_ID,
+        filter: ['!', ['has', 'point_count']],
+        paint: {
+          'circle-color': ['match', ['get', 'placeType'],
+            'park', PLACE_ICONS.park.fill,
+            'forest', PLACE_ICONS.forest.fill,
+            'wood', PLACE_ICONS.wood.fill,
+            'trail', PLACE_ICONS.trail.fill,
+            '#164E3A'],
+          'circle-radius': 15,
+          'circle-stroke-color': '#FFFFFF',
+          'circle-stroke-width': 2,
+        },
+      })
+      // Symbol layers reuse MapLibre's sprite atlas, so we do not spawn
+      // thousands of DOM markers even at Malaysia-wide zoom.
       const addSymbolLayer = () => {
-        if (m.getLayer('place-points')) return
+        if (map.current !== m || m.getLayer('place-points')) return
         m.addLayer({
           id: 'place-points',
           type: 'symbol',
@@ -420,7 +437,14 @@ export function ThreatMapPage() {
           }
         })
       }
-      void Promise.all(loadIcons).then(addSymbolLayer)
+      void Promise.allSettled(loadIcons).then((results) => {
+        const failedCount = results.filter((result) => result.status === 'rejected').length
+        if (failedCount > 0) {
+          console.warn(`[map] ${failedCount} place icon(s) could not load; using coloured markers.`)
+          return
+        }
+        addSymbolLayer()
+      })
       schedulePlaces()
       if (targetSightingId.current || requestedLocation) return
       m.jumpTo({ center: CENTRE, zoom: isDesktop ? INITIAL_ZOOM : INITIAL_ZOOM_MOBILE })
@@ -452,7 +476,10 @@ export function ThreatMapPage() {
         m.easeTo({ center: coordinates as [number, number], zoom })
       })
     })
-    m.on('click', 'place-points', (event) => {
+    // Bind to the always-present fallback layer. It sits below the icon but
+    // remains queryable, so the same interaction works whether SVG icons load
+    // successfully or the browser falls back to coloured circles.
+    m.on('click', 'place-points-fallback', (event) => {
       const properties = event.features?.[0]?.properties as PlaceMapProperties | undefined
       if (!properties?.placeId) return
       placeReturnFocus.current = m.getCanvas()

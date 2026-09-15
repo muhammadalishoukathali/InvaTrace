@@ -6,6 +6,7 @@ import { router } from '@/app/router'
 import { installPrivateAccessConnectivity, usePrivateAccess } from '@/features/private-access/private-access-store'
 import { flushQueue } from '@/features/report/report-queue'
 import { queryClient } from '@/services/query-client'
+import { installPwaUpdates } from '@/pwa-update'
 import './styles/global.css'
 
 async function start() {
@@ -40,6 +41,8 @@ async function start() {
       </QueryClientProvider>
     </StrictMode>,
   )
+
+  installPwaUpdates()
 
   installPrivateAccessConnectivity(flushQueue)
   await usePrivateAccess.getState().initialize()
