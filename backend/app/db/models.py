@@ -926,6 +926,56 @@ class OsmImport(Base):
     )
 
 
+class PlaceSightingEvidence(Base):
+    """Iteration-2 §4 - community-report contribution to a place's evidence.
+
+    A screened community `Sighting` may associate with a mapped place
+    through one of three relation types: `inside_boundary`, `nearby_buffer`
+    or `upstream_waterway`. The historical GBIF-derived count is kept in
+    :class:`PlaceOccurrenceWaterwayEvidence`; community reports are always
+    surfaced in a separately labelled tier. `calculation_version` isolates
+    reruns and satisfies the retry-idempotency requirement.
+    """
+
+    __tablename__ = "place_sighting_evidence"
+    __table_args__ = (
+        CheckConstraint(
+            "place_type IN ('park','forest','wood','trail')",
+            name="place_sighting_evidence_place_type",
+        ),
+        CheckConstraint(
+            "relation_type IN ('inside_boundary','nearby_buffer','upstream_waterway')",
+            name="place_sighting_evidence_relation_type",
+        ),
+        UniqueConstraint(
+            "sighting_id",
+            "place_id",
+            "relation_type",
+            "calculation_version",
+            name="uq_place_sighting_evidence",
+        ),
+    )
+
+    id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    place_type: Mapped[str] = mapped_column(String(20), nullable=False)
+    place_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), nullable=False)
+    sighting_id: Mapped[uuid.UUID] = mapped_column(
+        ForeignKey("sightings.id", ondelete="CASCADE"), nullable=False
+    )
+    species_id: Mapped[str] = mapped_column(String(80), nullable=False)
+    relation_type: Mapped[str] = mapped_column(String(30), nullable=False)
+    straight_line_distance_m: Mapped[float | None] = mapped_column(Numeric(10, 2))
+    upstream_distance_m: Mapped[float | None] = mapped_column(Numeric(10, 2))
+    occurrence_snap_distance_m: Mapped[float | None] = mapped_column(Numeric(10, 2))
+    place_snap_distance_m: Mapped[float | None] = mapped_column(Numeric(10, 2))
+    waterway_dataset_id: Mapped[uuid.UUID | None] = mapped_column(UUID(as_uuid=True))
+    geometry_version: Mapped[str] = mapped_column(String(160), nullable=False)
+    calculation_version: Mapped[str] = mapped_column(String(160), nullable=False)
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), server_default=func.now(), nullable=False
+    )
+
+
 # GiST indexes for the geography/geometry columns - regular btree indexes
 # don't help with ST_DWithin/ST_Covers spatial queries, these do. Declared
 # here rather than inline on the columns since Index() needs the mapped
