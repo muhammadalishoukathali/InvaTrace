@@ -24,6 +24,9 @@ export default defineConfig({
     VitePWA({
       // Replace the cached application shell as soon as a new release is ready.
       registerType: 'autoUpdate',
+      // Registration is owned by src/pwa-update.ts so the app can check for
+      // a release on launch/resume and reload once the new worker takes over.
+      injectRegister: null,
       includeAssets: ['invatrace-logo-192.png', 'invatrace-logo-512.png'],
       manifest: {
         name: 'InvaTrace',
@@ -40,6 +43,7 @@ export default defineConfig({
         ],
       },
       workbox: {
+        cleanupOutdatedCaches: true,
         globPatterns: ['**/*.{js,css,html,svg,png,woff2}'],
         runtimeCaching: [
           {
