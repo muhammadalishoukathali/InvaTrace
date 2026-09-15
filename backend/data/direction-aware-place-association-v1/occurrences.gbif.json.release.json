@@ -1,0 +1,14 @@
+{
+  "$schema": "https://invatrace.local/schemas/data-release.schema.json",
+  "schema_version": "invatrace.data-release.v1",
+  "dataset_id": "gbif-malaysia-occurrences",
+  "source": "GBIF (research-grade Malaysia occurrences, uncertainty <= 1,000 m)",
+  "source_url": "https://api.gbif.org/v1/occurrence/search",
+  "upstream_version": "PRESENT",
+  "retrieved_at": "2026-09-10T11:22:38+00:00",
+  "licence": "See per-record licence field (mixed CC-BY / CC-BY-NC / other).",
+  "licence_url": "https://creativecommons.org/licenses/",
+  "file": "occurrences.gbif.json",
+  "sha256": "aecb4c0cbd91107d7a2e223717ffbd89fe819e0018e5c7b8505419d5357202a0",
+  "byte_length": 1727055
+}

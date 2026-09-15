@@ -203,6 +203,33 @@ def main() -> None:
         required=True,
         help="auditable source, licence, version, retrieval date and SHA-256 for coverage",
     )
+    place_pack = commands.add_parser(
+        "import-place-association-data",
+        help=(
+            "load the bundled Direction-Aware Place Association data pack "
+            "(GBIF + iNaturalist Malaysian occurrences); idempotent"
+        ),
+    )
+    place_pack.add_argument(
+        "pack",
+        type=Path,
+        nargs="?",
+        default=Path(__file__).resolve().parent.parent / "data" / "direction-aware-place-association-v1",
+        help="path to the data pack directory (defaults to backend/data/direction-aware-place-association-v1)",
+    )
+    place_pack.add_argument(
+        "--country-boundary",
+        type=Path,
+        required=True,
+        help="reviewed Malaysia Polygon/MultiPolygon GeoJSON used to reject coordinate mismatch",
+    )
+    place_pack.add_argument(
+        "--country-boundary-manifest",
+        type=Path,
+        required=True,
+        help="auditable release metadata and SHA-256 for the Malaysia boundary",
+    )
+
     cleanup = commands.add_parser(
         "cleanup-uploads", help="delete expired, unsubmitted photo uploads"
     )
@@ -319,6 +346,67 @@ def main() -> None:
         print(
             f"Imported {result.accepted} waterway evidence rows; excluded {result.excluded}. "
             f"Version: {result.data_version}. Reasons: {result.exclusion_reasons}"
+        )
+    elif args.command == "import-place-association-data":
+        # Convenience wrapper for the bundled Direction-Aware Place Association
+        # data pack. Reads build_manifest.json for the processed-data version
+        # and hands each per-source occurrence JSON to import_occurrence_json,
+        # which is already idempotent by (source, source_occurrence_id). The
+        # per-file `.release.json` sidecars carry the SHA-256 gate the
+        # importer requires so a corrupted pack is refused before it reaches
+        # the database.
+        from app.occurrence_import import import_occurrence_json
+
+        pack_root = args.pack.resolve()
+        build_manifest_path = pack_root / "build_manifest.json"
+        if not build_manifest_path.exists():
+            raise SystemExit(f"missing build_manifest.json in {pack_root}")
+        build_manifest = json.loads(build_manifest_path.read_text(encoding="utf-8"))
+        processed_version = (
+            f"direction-aware-place-association-v{build_manifest.get('schema_version', '1.0.0')}"
+            f"-{build_manifest.get('generated_at_utc', 'unknown')}"
+        )
+        sources: list[tuple[str, str, str]] = [
+            (
+                "occurrences.gbif.json",
+                "occurrences.gbif.json.release.json",
+                "GBIF",
+            ),
+            (
+                "occurrences.inaturalist.json",
+                "occurrences.inaturalist.json.release.json",
+                "iNaturalist",
+            ),
+        ]
+        totals = {"accepted": 0, "excluded": 0}
+        aggregated_reasons: dict[str, int] = {}
+        for data_name, release_name, source_label in sources:
+            data_path = pack_root / data_name
+            release_path = pack_root / release_name
+            if not data_path.exists() or not release_path.exists():
+                print(f"skipping {data_name}: file not found in pack")
+                continue
+            with SessionLocal() as session:
+                result = import_occurrence_json(
+                    session,
+                    source_path=data_path,
+                    source=source_label,
+                    processed_data_version=processed_version,
+                    country_boundary_path=args.country_boundary.resolve(),
+                    country_boundary_manifest_path=args.country_boundary_manifest.resolve(),
+                    release_manifest_path=release_path,
+                )
+            totals["accepted"] += result.accepted
+            totals["excluded"] += result.excluded
+            for key, value in result.exclusion_reasons.items():
+                aggregated_reasons[key] = aggregated_reasons.get(key, 0) + value
+            print(
+                f"{source_label}: accepted {result.accepted}, excluded {result.excluded}, "
+                f"version={result.processed_data_version}"
+            )
+        print(
+            f"Total accepted {totals['accepted']}, excluded {totals['excluded']}. "
+            f"Reasons: {aggregated_reasons}"
         )
     elif args.command == "preprocess-osm-waterways":
         from app.osm_waterway_graph import preprocess_osm_waterways

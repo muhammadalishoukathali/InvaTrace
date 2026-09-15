@@ -1,0 +1,33 @@
+species_id,display_scientific_name,gbif_taxon_key,gbif_accepted_name,inat_query_name,malaysia_evidence_scope
+acacia_auriculiformis,Acacia auriculiformis,2981001,Acacia auriculiformis,Acacia auriculiformis,MyBIS state-level and Malaysian occurrence data
+acacia_mangium,Acacia mangium,2979091,Acacia mangium,Acacia mangium,Malaysia Department of Agriculture national/subnational and occurrence data
+arachis_pintoi,Arachis pintoi,5353826,Arachis pintoi,Arachis pintoi,MyBIS state-level and Malaysian occurrence data
+asclepias_curassavica,Asclepias curassavica,3170241,Asclepias curassavica,Asclepias curassavica,GRIIS Malaysia national and occurrence data
+bidens_pilosa,Bidens pilosa,5391845,Bidens pilosa,Bidens pilosa,GRIIS Malaysia national and occurrence data
+calopogonium_mucunoides,Calopogonium mucunoides,2959433,Calopogonium mucunoides,Calopogonium mucunoides,GRIIS Malaysia national and occurrence data
+cecropia_peltata,Cecropia peltata,2984476,Cecropia peltata,Cecropia peltata,GRIIS Malaysia national; no dependable fine-scale Malaysian record found
+chromolaena_odorata,Chromolaena odorata,3087725,Chromolaena odorata,Chromolaena odorata,GRIIS Malaysia national and occurrence data
+cleome_rutidosperma,Cleome rutidosperma,9778787,Cleome rutidosperma,Cleome rutidosperma,MyBIS state-level and Malaysian occurrence data
+cynodon_dactylon,Cynodon dactylon,6109637,Cynodon dactylon,Cynodon dactylon,GRIIS Malaysia national and occurrence data
+cyperus_rotundus,Cyperus rotundus,2714818,Cyperus rotundus,Cyperus rotundus,GRIIS Malaysia national plus sparse occurrence data
+eichhornia_crassipes,Eichhornia crassipes,2765942,Pontederia crassipes,Eichhornia crassipes,GRIIS Malaysia and Sabah government evidence plus occurrence data
+eleusine_indica,Eleusine indica,2705953,Eleusine indica,Eleusine indica,MyBIS state-level and Malaysian occurrence data
+impatiens_balsamina,Impatiens balsamina,2891773,Impatiens balsamina,Impatiens balsamina,MyBIS state-level and Malaysian occurrence data
+leucaena_leucocephala,Leucaena leucocephala,2970418,Leucaena leucocephala,Leucaena leucocephala,Malaysia Department of Agriculture national/subnational and occurrence data
+limnocharis_flava,Limnocharis flava,5328736,Limnocharis flava,Limnocharis flava,GRIIS Malaysia national and occurrence data
+megathyrsus_maximus,Megathyrsus maximus,4108550,Megathyrsus maximus,Megathyrsus maximus,GRIIS Malaysia national and occurrence data
+mikania_micrantha,Mikania micrantha,5398421,Mikania micrantha,Mikania micrantha,GRIIS and Malaysia Department of Agriculture evidence plus occurrence data
+mimosa_diplotricha,Mimosa diplotricha,7808904,Mimosa diplotricha,Mimosa diplotricha,GRIIS and MyBIS evidence plus occurrence data
+mimosa_pigra,Mimosa pigra,2969431,Mimosa pigra,Mimosa pigra,GRIIS and Malaysia Department of Agriculture evidence plus occurrence data
+oxalis_corniculata,Oxalis corniculata,8427624,Oxalis corniculata,Oxalis corniculata,GRIIS Malaysia national and occurrence data
+parthenium_hysterophorus,Parthenium hysterophorus,3086784,Parthenium hysterophorus,Parthenium hysterophorus,Malaysia Department of Agriculture plus sparse occurrence data
+paspalum_vaginatum,Paspalum vaginatum,8100050,Paspalum vaginatum,Paspalum vaginatum,GRIIS Malaysia national plus sparse occurrence data
+pennisetum_polystachyum,Pennisetum polystachyum,5289679,Cenchrus polystachios,Pennisetum polystachyum,GRIIS Malaysia national and occurrence data
+psidium_guajava,Psidium guajava,5420380,Psidium guajava,Psidium guajava,GRIIS Malaysia national and occurrence data
+rottboellia_cochinchinensis,Rottboellia cochinchinensis,2704075,Rottboellia cochinchinensis,Rottboellia cochinchinensis,Malaysia Department of Agriculture plus sparse occurrence data
+ruellia_blechum,Ruellia blechum,5415469,Ruellia blechum,Ruellia blechum,MyBIS state-level; no dependable fine-scale Malaysian record found
+salvinia_molesta,Salvinia molesta,5274863,Salvinia molesta,Salvinia molesta,GRIIS and Malaysia Department of Agriculture evidence plus occurrence data
+sida_acuta,Sida acuta,3933670,Sida acuta,Sida acuta,GRIIS Malaysia national and occurrence data
+striga_asiatica,Striga asiatica,3171161,Striga asiatica,Striga asiatica,GRIIS Malaysia national plus sparse occurrence data
+synedrella_nodiflora,Synedrella nodiflora,5404991,Synedrella nodiflora,Synedrella nodiflora,MyBIS state-level and Malaysian occurrence data
+urochloa_mutica,Urochloa mutica,2705848,Urochloa mutica,Urochloa mutica,GRIIS Malaysia national plus sparse occurrence data
