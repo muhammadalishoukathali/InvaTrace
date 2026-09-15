@@ -1,230 +1,265 @@
 {
   "$schema": "./schemas/plant-status.schema.json",
   "schema_version": "invatrace.catalogue.plant-status.v1",
-  "catalogue_version": "1.0.0",
-  "model_version": "oe_v4_31class_web_fp16",
-  "last_reviewed": "2026-08-29",
-  "class_count": 31,
+  "catalogue_version": "2.0.0",
+  "model_version": "invatrace-student33-tinyvit5m-320-fp16",
+  "last_reviewed": "2026-09-13",
+  "class_count": 32,
   "records": [
     {
-      "species_id": "mimosa-pudica",
-      "model_label": "mimosa_pudica",
+      "species_id": "acacia-auriculiformis",
+      "model_label": "acacia_auriculiformis",
       "class_index": 0,
-      "scientific_name": "Mimosa pudica",
-      "common_name": "Sensitive plant",
-      "ui_state": "information_only",
-      "general_information": "Low-growing herb with pinnate leaves that fold on touch. Widespread alien plant in Malaysia; not marked as invasive on the national list.",
-      "safety_message": "Do not attempt removal. Observe only and consult local land managers if you have concerns.",
-      "status_source_ids": ["griis-malaysia-v1_3"],
-      "status_reviewed_at": "2026-08-27",
-      "report_eligible": false
+      "scientific_name": "Acacia auriculiformis",
+      "common_name": "Earleaf acacia",
+      "ui_state": "invasive",
+      "general_information": "The MyBIS invasive-plant record lists occurrence in Perak, Selangor and Terengganu.",
+      "safety_message": "Photograph the leaves, bark and pods without disturbing the plant; record the location and report it. Do not cut or remove it without site permission.",
+      "status_source_ids": [
+        "mybis-08793"
+      ],
+      "status_reviewed_at": "2026-09-08",
+      "report_eligible": true
     },
     {
-      "species_id": "carica-papaya",
-      "model_label": "carica_papaya",
+      "species_id": "acacia-mangium",
+      "model_label": "acacia_mangium",
       "class_index": 1,
-      "scientific_name": "Carica papaya",
-      "common_name": "Papaya",
-      "ui_state": "information_only",
-      "general_information": "Common cultivated fruit tree in Malaysia. National invasive status is not inferred from this identification.",
-      "safety_message": "Cultivated plant. No action required.",
-      "status_source_ids": ["malaysia-occurrence-audit"],
-      "status_reviewed_at": "2026-08-27",
-      "report_eligible": false
+      "scientific_name": "Acacia mangium",
+      "common_name": "Mangium",
+      "ui_state": "invasive",
+      "general_information": "The Department of Agriculture Malaysia factsheet records the species in Peninsular Malaysia, Sabah and Sarawak.",
+      "safety_message": "Record bark, phyllodes and pods from a safe position and report the mapped point. Tree work or seed handling requires the land manager's permission.",
+      "status_source_ids": [
+        "doa-ias-2025"
+      ],
+      "status_reviewed_at": "2026-09-08",
+      "report_eligible": true
     },
     {
-      "species_id": "clitoria-ternatea",
-      "model_label": "clitoria_ternatea",
+      "species_id": "arachis-pintoi",
+      "model_label": "arachis_pintoi",
       "class_index": 2,
-      "scientific_name": "Clitoria ternatea",
-      "common_name": "Butterfly pea",
-      "ui_state": "information_only",
-      "general_information": "Alien flowering vine widely cultivated in Malaysia; not marked as invasive on the national list.",
-      "safety_message": "Do not attempt removal.",
-      "status_source_ids": ["griis-malaysia-v1_3"],
-      "status_reviewed_at": "2026-08-27",
-      "report_eligible": false
+      "scientific_name": "Arachis pintoi",
+      "common_name": "Pinto peanut",
+      "ui_state": "invasive",
+      "general_information": "The MyBIS invasive-plant record lists occurrence in the Federal Territory of Putrajaya.",
+      "safety_message": "Photograph flowers, four-part leaves and runners, then report the location. Because it may be deliberately planted, do not remove it without explicit permission.",
+      "status_source_ids": [
+        "mybis-31095"
+      ],
+      "status_reviewed_at": "2026-09-08",
+      "report_eligible": true
     },
     {
-      "species_id": "centella-asiatica",
-      "model_label": "centella_asiatica",
+      "species_id": "asclepias-curassavica",
+      "model_label": "asclepias_curassavica",
       "class_index": 3,
-      "scientific_name": "Centella asiatica",
-      "common_name": "Pegaga",
-      "ui_state": "status_uncertain",
-      "general_information": "Low herb widely used in Malaysian cuisine and traditional remedies. Malaysian invasive status is not conclusively documented in our reviewed sources.",
-      "safety_message": "Do not act on this plant. Observation only.",
-      "status_source_ids": ["malaysia-occurrence-audit"],
-      "status_reviewed_at": "2026-08-27",
-      "report_eligible": false
-    },
-    {
-      "species_id": "dicranopteris-linearis",
-      "model_label": "dicranopteris_linearis",
-      "class_index": 4,
-      "scientific_name": "Dicranopteris linearis",
-      "common_name": "Resam fern",
-      "ui_state": "status_uncertain",
-      "general_information": "Common Malaysian scrambling fern with forked fronds. Status classification requires expert review before any action.",
-      "safety_message": "Do not act on this plant. Observation only.",
-      "status_source_ids": ["malaysia-occurrence-audit"],
-      "status_reviewed_at": "2026-08-27",
-      "report_eligible": false
-    },
-    {
-      "species_id": "ageratum-conyzoides",
-      "model_label": "ageratum_conyzoides",
-      "class_index": 5,
-      "scientific_name": "Ageratum conyzoides",
-      "common_name": "Billygoat weed",
-      "ui_state": "information_only",
-      "general_information": "Alien herb recorded in Malaysia; not marked as invasive on the national list.",
-      "safety_message": "Do not attempt removal.",
-      "status_source_ids": ["griis-malaysia-v1_3"],
-      "status_reviewed_at": "2026-08-27",
-      "report_eligible": false
-    },
-    {
-      "species_id": "leucaena-leucocephala",
-      "model_label": "leucaena_leucocephala",
-      "class_index": 6,
-      "scientific_name": "Leucaena leucocephala",
-      "common_name": "White leadtree",
-      "ui_state": "information_only",
-      "general_information": "Introduced leguminous tree in Malaysia. Recorded on MyIAS 2025 as introduced but not currently flagged for action in this catalogue.",
-      "safety_message": "Do not attempt removal without expert guidance.",
-      "status_source_ids": ["myias-2025"],
-      "status_reviewed_at": "2026-08-27",
-      "report_eligible": false
-    },
-    {
-      "species_id": "imperata-cylindrica",
-      "model_label": "imperata_cylindrica",
-      "class_index": 7,
-      "scientific_name": "Imperata cylindrica",
-      "common_name": "Lalang",
-      "ui_state": "information_only",
-      "general_information": "Widespread grass in Malaysia; recorded but not marked as invasive on the reviewed list.",
-      "safety_message": "Do not attempt removal.",
-      "status_source_ids": ["griis-malaysia-v1_3"],
-      "status_reviewed_at": "2026-08-27",
-      "report_eligible": false
-    },
-    {
-      "species_id": "pistia-stratiotes",
-      "model_label": "pistia_stratiotes",
-      "class_index": 8,
-      "scientific_name": "Pistia stratiotes",
-      "common_name": "Water lettuce",
-      "ui_state": "status_uncertain",
-      "general_information": "Free-floating aquatic plant. Cryptogenic in Malaysia; origin and pest status uncertain per GRIIS.",
-      "safety_message": "Do not enter water. Do not touch. Observation only.",
-      "status_source_ids": ["griis-malaysia-v1_3"],
-      "status_reviewed_at": "2026-08-27",
-      "report_eligible": false
-    },
-    {
-      "species_id": "macaranga-tanarius",
-      "model_label": "macaranga_tanarius",
-      "class_index": 9,
-      "scientific_name": "Macaranga tanarius",
-      "common_name": "Parasol leaf tree",
-      "ui_state": "status_uncertain",
-      "general_information": "Pioneer tree recorded in Malaysia. Status classification requires expert review before any action.",
-      "safety_message": "Do not act on this plant.",
-      "status_source_ids": ["malaysia-occurrence-audit"],
-      "status_reviewed_at": "2026-08-27",
-      "report_eligible": false
-    },
-    {
-      "species_id": "cocos-nucifera",
-      "model_label": "cocos_nucifera",
-      "class_index": 10,
-      "scientific_name": "Cocos nucifera",
-      "common_name": "Coconut palm",
-      "ui_state": "information_only",
-      "general_information": "Common cultivated palm in Malaysia. National invasive status is not inferred from this identification.",
-      "safety_message": "Cultivated plant. No action required.",
-      "status_source_ids": ["malaysia-occurrence-audit"],
-      "status_reviewed_at": "2026-08-27",
-      "report_eligible": false
-    },
-    {
-      "species_id": "colocasia-esculenta",
-      "model_label": "colocasia_esculenta",
-      "class_index": 11,
-      "scientific_name": "Colocasia esculenta",
-      "common_name": "Taro",
-      "ui_state": "information_only",
-      "general_information": "Common cultivated food crop in Malaysia. National invasive status is not inferred from this identification.",
-      "safety_message": "Cultivated plant. No action required.",
-      "status_source_ids": ["malaysia-occurrence-audit"],
-      "status_reviewed_at": "2026-08-27",
-      "report_eligible": false
-    },
-    {
-      "species_id": "pteris-vittata",
-      "model_label": "pteris_vittata",
-      "class_index": 12,
-      "scientific_name": "Pteris vittata",
-      "common_name": "Chinese brake fern",
-      "ui_state": "status_uncertain",
-      "general_information": "Fern recorded in Malaysia. Status classification requires expert review before any action.",
-      "safety_message": "Do not act on this plant.",
-      "status_source_ids": ["malaysia-occurrence-audit"],
-      "status_reviewed_at": "2026-08-27",
-      "report_eligible": false
-    },
-    {
-      "species_id": "catharanthus-roseus",
-      "model_label": "catharanthus_roseus",
-      "class_index": 13,
-      "scientific_name": "Catharanthus roseus",
-      "common_name": "Madagascar periwinkle",
-      "ui_state": "information_only",
-      "general_information": "Common cultivated ornamental in Malaysia. National invasive status is not inferred from this identification.",
-      "safety_message": "Cultivated plant. No action required.",
-      "status_source_ids": ["malaysia-occurrence-audit"],
-      "status_reviewed_at": "2026-08-27",
-      "report_eligible": false
+      "scientific_name": "Asclepias curassavica",
+      "common_name": "Tropical milkweed",
+      "ui_state": "invasive",
+      "general_information": "GRIIS Malaysia marks the species invasive, alien and present in Malaysia.",
+      "safety_message": "Avoid sap contact and do not open pods. Photograph the flowers and leaves, record the location and obtain permission before any handling.",
+      "status_source_ids": [
+        "griis-91528"
+      ],
+      "status_reviewed_at": "2026-09-08",
+      "report_eligible": true
     },
     {
       "species_id": "bidens-pilosa",
       "model_label": "bidens_pilosa",
-      "class_index": 14,
+      "class_index": 4,
       "scientific_name": "Bidens pilosa",
-      "common_name": "Beggartick",
+      "common_name": "Beggarticks",
       "ui_state": "invasive",
-      "general_information": "Bidens pilosa is listed as invasive in Malaysia by GRIIS Malaysia v1.3. Erect annual herb with black barbed seeds that stick to clothing and animals.",
-      "safety_message": "Follow reviewed guidance before any action. Observation and reporting are always safe.",
-      "status_source_ids": ["griis-malaysia-v1_3"],
-      "status_reviewed_at": "2026-08-27",
+      "general_information": "GRIIS Malaysia marks the species invasive, alien and present in Malaysia.",
+      "safety_message": "Photograph before touching it and avoid carrying barbed seed. Report the location; only remove an authorised small plant before seed forms.",
+      "status_source_ids": [
+        "griis-91537"
+      ],
+      "status_reviewed_at": "2026-09-08",
+      "report_eligible": true
+    },
+    {
+      "species_id": "calopogonium-mucunoides",
+      "model_label": "calopogonium_mucunoides",
+      "class_index": 5,
+      "scientific_name": "Calopogonium mucunoides",
+      "common_name": "Calopo",
+      "ui_state": "invasive",
+      "general_information": "GRIIS Malaysia marks the species invasive, alien and present in Malaysia.",
+      "safety_message": "Photograph leaves, flowers and pods without pulling vines through surrounding plants. Record and report the location, and wait for site authorisation.",
+      "status_source_ids": [
+        "griis-91550"
+      ],
+      "status_reviewed_at": "2026-09-08",
+      "report_eligible": true
+    },
+    {
+      "species_id": "cecropia-peltata",
+      "model_label": "cecropia_peltata",
+      "class_index": 6,
+      "scientific_name": "Cecropia peltata",
+      "common_name": "Trumpet tree",
+      "ui_state": "invasive",
+      "general_information": "GRIIS Malaysia marks the species invasive, alien and present in Malaysia.",
+      "safety_message": "Photograph leaf shape, trunk scars and fruit from safe ground. Do not fell or prune the tree; report it to the responsible land manager.",
+      "status_source_ids": [
+        "griis-91557"
+      ],
+      "status_reviewed_at": "2026-09-08",
       "report_eligible": true
     },
     {
       "species_id": "chromolaena-odorata",
       "model_label": "chromolaena_odorata",
-      "class_index": 15,
+      "class_index": 7,
       "scientific_name": "Chromolaena odorata",
       "common_name": "Siam weed",
       "ui_state": "invasive",
-      "general_information": "Chromolaena odorata is listed as invasive in Malaysia by GRIIS Malaysia v1.3. Woody shrub or scrambler that spreads by wind-borne seeds.",
-      "safety_message": "Do not disturb flowering or seed-bearing plants. Follow reviewed guidance before any action.",
-      "status_source_ids": ["griis-malaysia-v1_3"],
-      "status_reviewed_at": "2026-08-27",
+      "general_information": "GRIIS Malaysia marks the species invasive, alien and present in Malaysia.",
+      "safety_message": "Do not cut a flowering or seeding stand. Photograph it, record the point and report it; remove only under an authorised site plan.",
+      "status_source_ids": [
+        "griis-91571"
+      ],
+      "status_reviewed_at": "2026-09-08",
+      "report_eligible": true
+    },
+    {
+      "species_id": "cleome-rutidosperma",
+      "model_label": "cleome_rutidosperma",
+      "class_index": 8,
+      "scientific_name": "Cleome rutidosperma",
+      "common_name": "Fringed spiderflower",
+      "ui_state": "invasive",
+      "general_information": "The MyBIS invasive-plant record lists occurrence in the Federal Territory of Kuala Lumpur.",
+      "safety_message": "Photograph the three-part leaves, flowers and capsules and submit a location report. Do not weed it from land you do not manage.",
+      "status_source_ids": [
+        "mybis-33864"
+      ],
+      "status_reviewed_at": "2026-09-08",
+      "report_eligible": true
+    },
+    {
+      "species_id": "cynodon-dactylon",
+      "model_label": "cynodon_dactylon",
+      "class_index": 9,
+      "scientific_name": "Cynodon dactylon",
+      "common_name": "Bermuda grass",
+      "ui_state": "invasive",
+      "general_information": "GRIIS Malaysia marks the species invasive, alien and present in Malaysia.",
+      "safety_message": "Photograph runners and seed heads and report the patch. Do not spread cut runners or soil, and only control it with the land manager's approval.",
+      "status_source_ids": [
+        "griis-91612"
+      ],
+      "status_reviewed_at": "2026-09-08",
+      "report_eligible": true
+    },
+    {
+      "species_id": "cyperus-rotundus",
+      "model_label": "cyperus_rotundus",
+      "class_index": 10,
+      "scientific_name": "Cyperus rotundus",
+      "common_name": "Purple nutsedge",
+      "ui_state": "invasive",
+      "general_information": "GRIIS Malaysia marks the species invasive, alien and present in Malaysia in terrestrial and freshwater habitats.",
+      "safety_message": "Photograph stems and flower clusters and record the patch. Do not move contaminated soil or attempt removal without an approved plan for the tubers.",
+      "status_source_ids": [
+        "griis-91613"
+      ],
+      "status_reviewed_at": "2026-09-08",
       "report_eligible": true
     },
     {
       "species_id": "eichhornia-crassipes",
       "model_label": "eichhornia_crassipes",
-      "class_index": 16,
+      "class_index": 11,
       "scientific_name": "Eichhornia crassipes",
       "common_name": "Water hyacinth",
       "ui_state": "invasive",
-      "general_information": "Eichhornia crassipes is listed as invasive in Malaysia by GRIIS Malaysia v1.3. Free-floating aquatic plant that forms dense mats.",
-      "safety_message": "Do not enter water to remove. Report the sighting; removal requires trained crews.",
-      "status_source_ids": ["griis-malaysia-v1_3"],
-      "status_reviewed_at": "2026-08-27",
+      "general_information": "GRIIS Malaysia marks the species invasive, alien and present in freshwater; the Sabah strategy also records it in Sabah.",
+      "safety_message": "Stay on stable ground, photograph the mat and record the location. Never enter water or return fragments to it; report the infestation for authorised control.",
+      "status_source_ids": [
+        "griis-91626",
+        "sabah-biodiversity-strategy"
+      ],
+      "status_reviewed_at": "2026-09-08",
+      "report_eligible": true
+    },
+    {
+      "species_id": "eleusine-indica",
+      "model_label": "eleusine_indica",
+      "class_index": 12,
+      "scientific_name": "Eleusine indica",
+      "common_name": "Goosegrass",
+      "ui_state": "invasive",
+      "general_information": "The MyBIS invasive-plant record lists occurrence in Johor, Pahang, Selangor and Putrajaya.",
+      "safety_message": "Photograph the flattened base and seed spikes and report the patch. Avoid transporting seeding material or contaminated soil; obtain permission before control.",
+      "status_source_ids": [
+        "mybis-17187"
+      ],
+      "status_reviewed_at": "2026-09-08",
+      "report_eligible": true
+    },
+    {
+      "species_id": "impatiens-balsamina",
+      "model_label": "impatiens_balsamina",
+      "class_index": 13,
+      "scientific_name": "Impatiens balsamina",
+      "common_name": "Garden balsam",
+      "ui_state": "invasive",
+      "general_information": "The MyBIS invasive-plant record lists occurrence in Selangor and Putrajaya.",
+      "safety_message": "Photograph flowers, leaves and capsules and report the location. Because it may be cultivated and capsules disperse seed explosively, do not remove it without permission.",
+      "status_source_ids": [
+        "mybis-55581"
+      ],
+      "status_reviewed_at": "2026-09-08",
+      "report_eligible": true
+    },
+    {
+      "species_id": "leucaena-leucocephala",
+      "model_label": "leucaena_leucocephala",
+      "class_index": 14,
+      "scientific_name": "Leucaena leucocephala",
+      "common_name": "Leucaena",
+      "ui_state": "invasive",
+      "general_information": "The Department of Agriculture Malaysia factsheet records the species in Peninsular Malaysia, Sabah and Sarawak.",
+      "safety_message": "Photograph foliage, flowers and pods and report it. Do not cut mature plants or move pods; authorised control must account for resprouting and seed.",
+      "status_source_ids": [
+        "doa-ias-2025"
+      ],
+      "status_reviewed_at": "2026-09-08",
+      "report_eligible": true
+    },
+    {
+      "species_id": "limnocharis-flava",
+      "model_label": "limnocharis_flava",
+      "class_index": 15,
+      "scientific_name": "Limnocharis flava",
+      "common_name": "Yellow bur-head",
+      "ui_state": "invasive",
+      "general_information": "GRIIS Malaysia marks the species invasive, alien and present in freshwater in Malaysia.",
+      "safety_message": "Observe and photograph from stable ground, record the waterbody and report it. Do not enter water or move plants, mud or fragments between sites.",
+      "status_source_ids": [
+        "griis-91685"
+      ],
+      "status_reviewed_at": "2026-09-08",
+      "report_eligible": true
+    },
+    {
+      "species_id": "megathyrsus-maximus",
+      "model_label": "megathyrsus_maximus",
+      "class_index": 16,
+      "scientific_name": "Megathyrsus maximus",
+      "common_name": "Guinea grass",
+      "ui_state": "invasive",
+      "general_information": "GRIIS Malaysia marks the recorded taxon invasive, alien and present; its record gives Panicum maximum as acceptedNameUsage.",
+      "safety_message": "Photograph the clump and open seed head and report the extent. Avoid moving seed or cutting dry stands; any control requires site authorisation and fire awareness.",
+      "status_source_ids": [
+        "griis-91698"
+      ],
+      "status_reviewed_at": "2026-09-08",
       "report_eligible": true
     },
     {
@@ -234,183 +269,237 @@
       "scientific_name": "Mikania micrantha",
       "common_name": "Mile-a-minute weed",
       "ui_state": "invasive",
-      "general_information": "Mikania micrantha is listed as invasive in Malaysia by MyIAS 2025 and GRIIS Malaysia v1.3. Fast-growing climbing vine that smothers native vegetation.",
-      "safety_message": "Follow reviewed guidance before any action. Bag every fragment.",
-      "status_source_ids": ["myias-2025", "griis-malaysia-v1_3"],
-      "status_reviewed_at": "2026-08-27",
-      "report_eligible": true
-    },
-    {
-      "species_id": "oxalis-corniculata",
-      "model_label": "oxalis_corniculata",
-      "class_index": 18,
-      "scientific_name": "Oxalis corniculata",
-      "common_name": "Creeping woodsorrel",
-      "ui_state": "invasive",
-      "general_information": "Oxalis corniculata is listed as invasive in Malaysia by GRIIS Malaysia v1.3. Low creeping herb with three heart-shaped leaflets and yellow flowers.",
-      "safety_message": "Follow reviewed guidance before any action.",
-      "status_source_ids": ["griis-malaysia-v1_3"],
-      "status_reviewed_at": "2026-08-27",
-      "report_eligible": true
-    },
-    {
-      "species_id": "psidium-guajava",
-      "model_label": "psidium_guajava",
-      "class_index": 19,
-      "scientific_name": "Psidium guajava",
-      "common_name": "Guava",
-      "ui_state": "invasive",
-      "general_information": "Psidium guajava is listed as invasive in Malaysia by GRIIS Malaysia v1.3. Small tree with fragrant fruit; naturalises rapidly in disturbed sites.",
-      "safety_message": "Do not attempt removal on private, protected or unfamiliar land. Follow reviewed guidance.",
-      "status_source_ids": ["griis-malaysia-v1_3"],
-      "status_reviewed_at": "2026-08-27",
-      "report_eligible": true
-    },
-    {
-      "species_id": "asclepias-curassavica",
-      "model_label": "asclepias_curassavica",
-      "class_index": 20,
-      "scientific_name": "Asclepias curassavica",
-      "common_name": "Blood-flower milkweed",
-      "ui_state": "invasive",
-      "general_information": "Asclepias curassavica is listed as invasive in Malaysia by GRIIS Malaysia v1.3. Erect herb with orange-red flowers and milky sap.",
-      "safety_message": "Sap is toxic. Wear gloves. Follow reviewed guidance before any action.",
-      "status_source_ids": ["griis-malaysia-v1_3"],
-      "status_reviewed_at": "2026-08-27",
-      "report_eligible": true
-    },
-    {
-      "species_id": "megathyrsus-maximus",
-      "model_label": "megathyrsus_maximus",
-      "class_index": 21,
-      "scientific_name": "Megathyrsus maximus",
-      "common_name": "Guinea grass",
-      "ui_state": "invasive",
-      "general_information": "Megathyrsus maximus is listed as invasive in Malaysia by GRIIS Malaysia v1.3. Tall clumping grass that forms dense stands and fuels fire.",
-      "safety_message": "Follow reviewed guidance before any action.",
-      "status_source_ids": ["griis-malaysia-v1_3"],
-      "status_reviewed_at": "2026-08-27",
+      "general_information": "GRIIS Malaysia and the Department of Agriculture Malaysia both record the species as invasive and present.",
+      "safety_message": "Do not pull vines through vegetation or leave stem fragments on moist soil. Photograph, map and report the patch for authorised management.",
+      "status_source_ids": [
+        "griis-91702",
+        "doa-ias-2025"
+      ],
+      "status_reviewed_at": "2026-09-08",
       "report_eligible": true
     },
     {
       "species_id": "mimosa-diplotricha",
       "model_label": "mimosa_diplotricha",
-      "class_index": 22,
+      "class_index": 18,
       "scientific_name": "Mimosa diplotricha",
       "common_name": "Giant sensitive plant",
       "ui_state": "invasive",
-      "general_information": "Mimosa diplotricha is listed as invasive in Malaysia by GRIIS Malaysia v1.3. Thorny scrambling shrub that forms impenetrable thickets.",
-      "safety_message": "Sharp recurved thorns. Do not attempt beginner removal. Report the sighting.",
-      "status_source_ids": ["griis-malaysia-v1_3"],
-      "status_reviewed_at": "2026-08-27",
+      "general_information": "GRIIS Malaysia marks the species invasive and present; MyBIS lists occurrence in Pahang.",
+      "safety_message": "Keep clear of hooked prickles, photograph from the path and report the patch. Do not enter, pull or transport it without trained authorised support.",
+      "status_source_ids": [
+        "griis-91704",
+        "mybis-10611"
+      ],
+      "status_reviewed_at": "2026-09-08",
       "report_eligible": true
     },
     {
       "species_id": "mimosa-pigra",
       "model_label": "mimosa_pigra",
-      "class_index": 23,
+      "class_index": 19,
       "scientific_name": "Mimosa pigra",
       "common_name": "Giant mimosa",
       "ui_state": "invasive",
-      "general_information": "Mimosa pigra is listed as invasive in Malaysia by MyIAS 2025 and GRIIS Malaysia v1.3. Prickly shrub that invades wetlands.",
-      "safety_message": "Sharp prickles. Do not attempt beginner removal. Report the sighting.",
-      "status_source_ids": ["myias-2025", "griis-malaysia-v1_3"],
-      "status_reviewed_at": "2026-08-27",
+      "general_information": "GRIIS Malaysia and the Department of Agriculture Malaysia both record the species as invasive and present.",
+      "safety_message": "Remain on stable access, photograph from a distance and report it. Never enter a thicket or water, and do not handle pods or move contaminated mud.",
+      "status_source_ids": [
+        "griis-91705",
+        "doa-ias-2025"
+      ],
+      "status_reviewed_at": "2026-09-08",
       "report_eligible": true
     },
     {
-      "species_id": "alternanthera-philoxeroides",
-      "model_label": "alternanthera_philoxeroides",
-      "class_index": 24,
-      "scientific_name": "Alternanthera philoxeroides",
-      "common_name": "Alligator weed",
+      "species_id": "oxalis-corniculata",
+      "model_label": "oxalis_corniculata",
+      "class_index": 20,
+      "scientific_name": "Oxalis corniculata",
+      "common_name": "Creeping woodsorrel",
       "ui_state": "invasive",
-      "general_information": "Alternanthera philoxeroides is listed as invasive in Malaysia by MyIAS 2025. Aquatic and semi-aquatic herb that regrows from fragments.",
-      "safety_message": "Never disturb mechanically - fragments re-establish rapidly. Report only.",
-      "status_source_ids": ["myias-2025"],
-      "status_reviewed_at": "2026-08-27",
+      "general_information": "GRIIS Malaysia marks the species invasive, alien and present in Malaysia.",
+      "safety_message": "Photograph the three leaflets and yellow flowers and record the location. Treat this entry as information only and do not infer removal permission.",
+      "status_source_ids": [
+        "griis-91728"
+      ],
+      "status_reviewed_at": "2026-09-08",
       "report_eligible": true
     },
     {
       "species_id": "parthenium-hysterophorus",
       "model_label": "parthenium_hysterophorus",
-      "class_index": 25,
+      "class_index": 21,
       "scientific_name": "Parthenium hysterophorus",
       "common_name": "Parthenium weed",
       "ui_state": "invasive",
-      "general_information": "Parthenium hysterophorus is listed as invasive in Malaysia by MyIAS 2025. Erect annual herb causing serious human respiratory and skin harm.",
-      "safety_message": "Do not handle. Highly toxic to humans and livestock. Report only.",
-      "status_source_ids": ["myias-2025"],
-      "status_reviewed_at": "2026-08-27",
+      "general_information": "The Department of Agriculture Malaysia factsheet records the species in Peninsular Malaysia and Sabah.",
+      "safety_message": "Keep a safe distance, avoid touching or smelling the plant, photograph it and report the exact point. No beginner active removal is provided.",
+      "status_source_ids": [
+        "doa-ias-2025"
+      ],
+      "status_reviewed_at": "2026-09-08",
       "report_eligible": true
     },
     {
-      "species_id": "ageratina-adenophora",
-      "model_label": "ageratina_adenophora",
+      "species_id": "paspalum-vaginatum",
+      "model_label": "paspalum_vaginatum",
+      "class_index": 22,
+      "scientific_name": "Paspalum vaginatum",
+      "common_name": "Seashore paspalum",
+      "ui_state": "invasive",
+      "general_information": "GRIIS Malaysia marks the species invasive, alien and present in Malaysia.",
+      "safety_message": "Photograph runners, leaves and paired seed spikes and report the mapped patch. Do not move turf or fragments and obtain site permission before control.",
+      "status_source_ids": [
+        "griis-91738"
+      ],
+      "status_reviewed_at": "2026-09-08",
+      "report_eligible": true
+    },
+    {
+      "species_id": "pennisetum-polystachyum",
+      "model_label": "pennisetum_polystachyum",
+      "class_index": 23,
+      "scientific_name": "Pennisetum polystachyum",
+      "common_name": "Mission grass",
+      "ui_state": "invasive",
+      "general_information": "GRIIS Malaysia marks the recorded taxon invasive, alien and present; its record gives Cenchrus polystachios as acceptedNameUsage.",
+      "safety_message": "Photograph the whole clump and bristly seed head and report its extent. Do not cut or carry seeding plants; control needs authorisation and fire-risk planning.",
+      "status_source_ids": [
+        "griis-91744"
+      ],
+      "status_reviewed_at": "2026-09-08",
+      "report_eligible": true
+    },
+    {
+      "species_id": "psidium-guajava",
+      "model_label": "psidium_guajava",
+      "class_index": 24,
+      "scientific_name": "Psidium guajava",
+      "common_name": "Guava",
+      "ui_state": "invasive",
+      "general_information": "GRIIS Malaysia marks the species invasive, alien and present in Malaysia.",
+      "safety_message": "Photograph bark, leaves and fruit and report the location. Do not cut established trees or move ripe fruit; obtain land-manager approval.",
+      "status_source_ids": [
+        "griis-91771"
+      ],
+      "status_reviewed_at": "2026-09-08",
+      "report_eligible": true
+    },
+    {
+      "species_id": "rottboellia-cochinchinensis",
+      "model_label": "rottboellia_cochinchinensis",
+      "class_index": 25,
+      "scientific_name": "Rottboellia cochinchinensis",
+      "common_name": "Itchgrass",
+      "ui_state": "invasive",
+      "general_information": "The Department of Agriculture Malaysia factsheet records the species in Peninsular Malaysia, Sabah and Sarawak.",
+      "safety_message": "Avoid skin contact, photograph the base, leaves and seed head and report the patch. Do not move seed-bearing material or remove it without authorisation.",
+      "status_source_ids": [
+        "doa-ias-2025"
+      ],
+      "status_reviewed_at": "2026-09-08",
+      "report_eligible": true
+    },
+    {
+      "species_id": "ruellia-blechum",
+      "model_label": "ruellia_blechum",
       "class_index": 26,
-      "scientific_name": "Ageratina adenophora",
-      "common_name": "Crofton weed",
-      "ui_state": "status_uncertain",
-      "general_information": "Ageratina adenophora is on the Malaysian watchlist (MyIAS 2025) but not currently recorded in Malaysia.",
-      "safety_message": "Do not act on this plant. Observation and reporting only if positively identified.",
-      "status_source_ids": ["myias-2025"],
-      "status_reviewed_at": "2026-08-27",
-      "report_eligible": false
+      "scientific_name": "Ruellia blechum",
+      "common_name": "Green shrimp plant",
+      "ui_state": "invasive",
+      "general_information": "The MyBIS invasive-plant record lists occurrence in Johor, Pahang, Selangor and Kuala Lumpur.",
+      "safety_message": "Photograph the bracts, flowers and leaf texture and report the location. Do not remove a garden or wild plant without the responsible manager's permission.",
+      "status_source_ids": [
+        "mybis-54281"
+      ],
+      "status_reviewed_at": "2026-09-08",
+      "report_eligible": true
+    },
+    {
+      "species_id": "salvinia-molesta",
+      "model_label": "salvinia_molesta",
+      "class_index": 27,
+      "scientific_name": "Salvinia molesta",
+      "common_name": "Giant salvinia",
+      "ui_state": "invasive",
+      "general_information": "GRIIS Malaysia and the Department of Agriculture Malaysia both record the species as invasive and present in freshwater.",
+      "safety_message": "Stay out of the water, photograph the leaf hairs and mat and report the waterbody. Do not move or break plants because small fragments can spread.",
+      "status_source_ids": [
+        "griis-91786",
+        "doa-ias-2025"
+      ],
+      "status_reviewed_at": "2026-09-08",
+      "report_eligible": true
     },
     {
       "species_id": "sida-acuta",
       "model_label": "sida_acuta",
-      "class_index": 27,
+      "class_index": 28,
       "scientific_name": "Sida acuta",
       "common_name": "Common wireweed",
       "ui_state": "invasive",
-      "general_information": "Sida acuta is listed as invasive in Malaysia by GRIIS Malaysia v1.3. Woody-based herb with tough fibrous stems.",
-      "safety_message": "Follow reviewed guidance before any action.",
-      "status_source_ids": ["griis-malaysia-v1_3"],
-      "status_reviewed_at": "2026-08-27",
+      "general_information": "GRIIS Malaysia marks the species invasive, alien and present in Malaysia.",
+      "safety_message": "Photograph leaves, flowers and fruit and inspect clothing for caught segments. Report it and do not remove woody or seeding plants without authorisation.",
+      "status_source_ids": [
+        "griis-91804"
+      ],
+      "status_reviewed_at": "2026-09-08",
       "report_eligible": true
     },
     {
-      "species_id": "miconia-crenata",
-      "model_label": "miconia_crenata",
-      "class_index": 28,
-      "scientific_name": "Miconia crenata",
-      "common_name": "Koster's curse",
-      "ui_state": "status_uncertain",
-      "general_information": "Miconia crenata is a recognised member of the PULIH v4 model's invasive category, but a reviewed Malaysian status source is not yet attached to this species in the catalogue.",
-      "safety_message": "Do not act on this plant. Observation only until expert review completes.",
-      "status_source_ids": [],
-      "status_reviewed_at": "2026-08-27",
-      "report_eligible": false
-    },
-    {
-      "species_id": "sphagneticola-trilobata",
-      "model_label": "sphagneticola_trilobata",
+      "species_id": "striga-asiatica",
+      "model_label": "striga_asiatica",
       "class_index": 29,
-      "scientific_name": "Sphagneticola trilobata",
-      "common_name": "Singapore daisy",
-      "ui_state": "status_uncertain",
-      "general_information": "Sphagneticola trilobata is a recognised member of the PULIH v4 model's invasive category, but a reviewed Malaysian status source is not yet attached to this species in the catalogue.",
-      "safety_message": "Do not act on this plant. Observation only until expert review completes.",
-      "status_source_ids": [],
-      "status_reviewed_at": "2026-08-27",
-      "report_eligible": false
+      "scientific_name": "Striga asiatica",
+      "common_name": "Asiatic witchweed",
+      "ui_state": "invasive",
+      "general_information": "GRIIS Malaysia marks the species invasive, alien and present in Malaysia.",
+      "safety_message": "Photograph the flower and host crop without pulling it, mark the exact point and report it promptly. Do not move soil or seed from the site.",
+      "status_source_ids": [
+        "griis-91822"
+      ],
+      "status_reviewed_at": "2026-09-08",
+      "report_eligible": true
     },
     {
-      "species_id": "lantana-camara",
-      "model_label": "lantana_camara",
+      "species_id": "synedrella-nodiflora",
+      "model_label": "synedrella_nodiflora",
       "class_index": 30,
-      "scientific_name": "Lantana camara",
-      "common_name": "Lantana",
-      "ui_state": "status_uncertain",
-      "general_information": "Lantana camara is a recognised member of the PULIH v4 model's invasive category, but a reviewed Malaysian status source is not yet attached to this species in the catalogue.",
-      "safety_message": "Do not act on this plant. Observation only until expert review completes.",
-      "status_source_ids": [],
-      "status_reviewed_at": "2026-08-27",
-      "report_eligible": false
+      "scientific_name": "Synedrella nodiflora",
+      "common_name": "Cinderella weed",
+      "ui_state": "invasive",
+      "general_information": "The MyBIS invasive-plant record lists occurrence in Johor.",
+      "safety_message": "Photograph the opposite leaves and axillary flower heads and report the location. Avoid moving mature seed and obtain permission before weeding.",
+      "status_source_ids": [
+        "mybis-26489"
+      ],
+      "status_reviewed_at": "2026-09-08",
+      "report_eligible": true
+    },
+    {
+      "species_id": "urochloa-mutica",
+      "model_label": "urochloa_mutica",
+      "class_index": 31,
+      "scientific_name": "Urochloa mutica",
+      "common_name": "Para grass",
+      "ui_state": "invasive",
+      "general_information": "GRIIS Malaysia marks the recorded taxon invasive, alien and present; its record gives Brachiaria mutica as acceptedNameUsage.",
+      "safety_message": "Photograph rooted runners and the flower head from stable ground and report the extent. Do not enter wetlands or move fragments; control requires authorisation.",
+      "status_source_ids": [
+        "griis-91853"
+      ],
+      "status_reviewed_at": "2026-09-08",
+      "report_eligible": true
     }
   ],
   "sources": [
+    {
+      "source_id": "invatrace-approved-catalogue-v2_2",
+      "title": "InvaTrace approved species catalogue v2.2",
+      "publisher": "InvaTrace catalogue review",
+      "url": "https://invatrace.local/catalogue/approved-species",
+      "accessed": "2026-09-13"
+    },
     {
       "source_id": "griis-malaysia-v1_3",
       "title": "GRIIS Malaysia v1.3",
@@ -426,11 +515,221 @@
       "accessed": "2026-08-27"
     },
     {
-      "source_id": "malaysia-occurrence-audit",
-      "title": "Malaysia occurrence audit (internal)",
-      "publisher": "InvaTrace catalogue review",
-      "url": "https://invatrace.local/catalogue/malaysia-occurrence-audit",
-      "accessed": "2026-08-27"
+      "source_id": "doa-ias-2025",
+      "title": "doa-ias-2025",
+      "publisher": "InvaTrace approved catalogue",
+      "url": "https://invatrace.local/catalogue/approved-species",
+      "accessed": "2026-09-13"
+    },
+    {
+      "source_id": "griis-91528",
+      "title": "griis-91528",
+      "publisher": "InvaTrace approved catalogue",
+      "url": "https://invatrace.local/catalogue/approved-species",
+      "accessed": "2026-09-13"
+    },
+    {
+      "source_id": "griis-91537",
+      "title": "griis-91537",
+      "publisher": "InvaTrace approved catalogue",
+      "url": "https://invatrace.local/catalogue/approved-species",
+      "accessed": "2026-09-13"
+    },
+    {
+      "source_id": "griis-91550",
+      "title": "griis-91550",
+      "publisher": "InvaTrace approved catalogue",
+      "url": "https://invatrace.local/catalogue/approved-species",
+      "accessed": "2026-09-13"
+    },
+    {
+      "source_id": "griis-91557",
+      "title": "griis-91557",
+      "publisher": "InvaTrace approved catalogue",
+      "url": "https://invatrace.local/catalogue/approved-species",
+      "accessed": "2026-09-13"
+    },
+    {
+      "source_id": "griis-91571",
+      "title": "griis-91571",
+      "publisher": "InvaTrace approved catalogue",
+      "url": "https://invatrace.local/catalogue/approved-species",
+      "accessed": "2026-09-13"
+    },
+    {
+      "source_id": "griis-91612",
+      "title": "griis-91612",
+      "publisher": "InvaTrace approved catalogue",
+      "url": "https://invatrace.local/catalogue/approved-species",
+      "accessed": "2026-09-13"
+    },
+    {
+      "source_id": "griis-91613",
+      "title": "griis-91613",
+      "publisher": "InvaTrace approved catalogue",
+      "url": "https://invatrace.local/catalogue/approved-species",
+      "accessed": "2026-09-13"
+    },
+    {
+      "source_id": "griis-91626",
+      "title": "griis-91626",
+      "publisher": "InvaTrace approved catalogue",
+      "url": "https://invatrace.local/catalogue/approved-species",
+      "accessed": "2026-09-13"
+    },
+    {
+      "source_id": "griis-91685",
+      "title": "griis-91685",
+      "publisher": "InvaTrace approved catalogue",
+      "url": "https://invatrace.local/catalogue/approved-species",
+      "accessed": "2026-09-13"
+    },
+    {
+      "source_id": "griis-91698",
+      "title": "griis-91698",
+      "publisher": "InvaTrace approved catalogue",
+      "url": "https://invatrace.local/catalogue/approved-species",
+      "accessed": "2026-09-13"
+    },
+    {
+      "source_id": "griis-91702",
+      "title": "griis-91702",
+      "publisher": "InvaTrace approved catalogue",
+      "url": "https://invatrace.local/catalogue/approved-species",
+      "accessed": "2026-09-13"
+    },
+    {
+      "source_id": "griis-91704",
+      "title": "griis-91704",
+      "publisher": "InvaTrace approved catalogue",
+      "url": "https://invatrace.local/catalogue/approved-species",
+      "accessed": "2026-09-13"
+    },
+    {
+      "source_id": "griis-91705",
+      "title": "griis-91705",
+      "publisher": "InvaTrace approved catalogue",
+      "url": "https://invatrace.local/catalogue/approved-species",
+      "accessed": "2026-09-13"
+    },
+    {
+      "source_id": "griis-91728",
+      "title": "griis-91728",
+      "publisher": "InvaTrace approved catalogue",
+      "url": "https://invatrace.local/catalogue/approved-species",
+      "accessed": "2026-09-13"
+    },
+    {
+      "source_id": "griis-91738",
+      "title": "griis-91738",
+      "publisher": "InvaTrace approved catalogue",
+      "url": "https://invatrace.local/catalogue/approved-species",
+      "accessed": "2026-09-13"
+    },
+    {
+      "source_id": "griis-91744",
+      "title": "griis-91744",
+      "publisher": "InvaTrace approved catalogue",
+      "url": "https://invatrace.local/catalogue/approved-species",
+      "accessed": "2026-09-13"
+    },
+    {
+      "source_id": "griis-91771",
+      "title": "griis-91771",
+      "publisher": "InvaTrace approved catalogue",
+      "url": "https://invatrace.local/catalogue/approved-species",
+      "accessed": "2026-09-13"
+    },
+    {
+      "source_id": "griis-91786",
+      "title": "griis-91786",
+      "publisher": "InvaTrace approved catalogue",
+      "url": "https://invatrace.local/catalogue/approved-species",
+      "accessed": "2026-09-13"
+    },
+    {
+      "source_id": "griis-91804",
+      "title": "griis-91804",
+      "publisher": "InvaTrace approved catalogue",
+      "url": "https://invatrace.local/catalogue/approved-species",
+      "accessed": "2026-09-13"
+    },
+    {
+      "source_id": "griis-91822",
+      "title": "griis-91822",
+      "publisher": "InvaTrace approved catalogue",
+      "url": "https://invatrace.local/catalogue/approved-species",
+      "accessed": "2026-09-13"
+    },
+    {
+      "source_id": "griis-91853",
+      "title": "griis-91853",
+      "publisher": "InvaTrace approved catalogue",
+      "url": "https://invatrace.local/catalogue/approved-species",
+      "accessed": "2026-09-13"
+    },
+    {
+      "source_id": "mybis-08793",
+      "title": "mybis-08793",
+      "publisher": "InvaTrace approved catalogue",
+      "url": "https://invatrace.local/catalogue/approved-species",
+      "accessed": "2026-09-13"
+    },
+    {
+      "source_id": "mybis-10611",
+      "title": "mybis-10611",
+      "publisher": "InvaTrace approved catalogue",
+      "url": "https://invatrace.local/catalogue/approved-species",
+      "accessed": "2026-09-13"
+    },
+    {
+      "source_id": "mybis-17187",
+      "title": "mybis-17187",
+      "publisher": "InvaTrace approved catalogue",
+      "url": "https://invatrace.local/catalogue/approved-species",
+      "accessed": "2026-09-13"
+    },
+    {
+      "source_id": "mybis-26489",
+      "title": "mybis-26489",
+      "publisher": "InvaTrace approved catalogue",
+      "url": "https://invatrace.local/catalogue/approved-species",
+      "accessed": "2026-09-13"
+    },
+    {
+      "source_id": "mybis-31095",
+      "title": "mybis-31095",
+      "publisher": "InvaTrace approved catalogue",
+      "url": "https://invatrace.local/catalogue/approved-species",
+      "accessed": "2026-09-13"
+    },
+    {
+      "source_id": "mybis-33864",
+      "title": "mybis-33864",
+      "publisher": "InvaTrace approved catalogue",
+      "url": "https://invatrace.local/catalogue/approved-species",
+      "accessed": "2026-09-13"
+    },
+    {
+      "source_id": "mybis-54281",
+      "title": "mybis-54281",
+      "publisher": "InvaTrace approved catalogue",
+      "url": "https://invatrace.local/catalogue/approved-species",
+      "accessed": "2026-09-13"
+    },
+    {
+      "source_id": "mybis-55581",
+      "title": "mybis-55581",
+      "publisher": "InvaTrace approved catalogue",
+      "url": "https://invatrace.local/catalogue/approved-species",
+      "accessed": "2026-09-13"
+    },
+    {
+      "source_id": "sabah-biodiversity-strategy",
+      "title": "sabah-biodiversity-strategy",
+      "publisher": "InvaTrace approved catalogue",
+      "url": "https://invatrace.local/catalogue/approved-species",
+      "accessed": "2026-09-13"
     }
   ]
 }

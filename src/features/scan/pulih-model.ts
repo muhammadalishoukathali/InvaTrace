@@ -3,50 +3,40 @@ import type { IdentifyResult } from '@/types'
 import { findApprovedSpecies, findPlantStatus } from '@shared/catalogue'
 
 /**
- * This is the actual ONNX inference boundary for the project - it owns the
- * PULIH model session end to end: downloading and checksum-verifying the
- * model weights, starting the onnxruntime-web session (WebGPU with a WASM
- * fallback), turning a photo into the tensor shape the model expects, and
- * turning the raw logits back into an IdentifyResult, including an open-set
- * rejection step that asks "is this even one of our 31 species in the first
- * place?"
+ * ONNX inference boundary for the InvaTrace Student33 model. Owns the model
+ * session end to end: downloading the ONNX file, verifying its SHA-256 against
+ * the runtime manifest, starting the onnxruntime-web session (WebGPU with a
+ * WASM fallback), turning a photo into the tensor shape the model expects, and
+ * turning the raw logits back into an IdentifyResult. Unknown handling uses a
+ * calibrated max-core-probability threshold; class index 32 is the
+ * Unknown/Other bucket.
  *
  * plant-model-adapter.ts sits above this file and doesn't touch ONNX at all -
- * it just decides which model implementation the app should be running (this
- * real one, a fake dev one, or a disabled stub) and adapts whichever gets
- * picked to the shape the UI code expects (detect/quality/identify). Nothing
- * outside plant-model-adapter.ts should be importing this file directly.
+ * it picks which model implementation the app should run (this real one, a
+ * fake dev one, or a disabled stub) and adapts whichever gets picked to the
+ * shape the UI expects. Nothing outside plant-model-adapter.ts should import
+ * this file directly.
  */
 
-const MODEL_ROOT = import.meta.env.VITE_MODEL_BASE_URL || '/models/pulih-model1-v4'
+const MODEL_ROOT = import.meta.env.VITE_MODEL_BASE_URL || '/models/invatrace-student33-v1'
 
 interface RuntimeManifest {
-  schemaVersion: 'invatrace.pulih-model-runtime.v1'
+  schemaVersion: 'invatrace.student33-runtime.v1'
   modelVersion: string
+  modelFile: string
   sha256: string
   bytes: number
-  chunks: Array<{ name: string; bytes: number }>
-}
-
-interface InferenceConfig {
-  version: string
-  precision: string
-  input_size: number
+  inputName: string
+  inputShape: [number, number, number, number]
+  outputName: string
+  classCount: number
+  unknownIndex: number
+  inputSize: number
+  resizeShortSide: number
   mean: [number, number, number]
   std: [number, number, number]
-  classes: string[]
-}
-
-interface RejectionConfig {
-  classification_temperature: number
-  decision: {
-    feature_order: Array<'msp' | 'margin' | 'energy' | 'entropy'>
-    scaler_mean: number[]
-    scaler_scale: number[]
-    coefficient: number[]
-    intercept: number
-    unknown_probability_threshold: number
-  }
+  temperature: number
+  unknownProbabilityThreshold: number
 }
 
 interface SpeciesEntry {
@@ -60,8 +50,10 @@ interface SpeciesEntry {
 }
 
 interface SpeciesCatalog {
+  schema_version: string
   model_version: string
   class_count: number
+  unknown_index: number
   classes: SpeciesEntry[]
 }
 
@@ -101,12 +93,6 @@ function recordMeasure(name: string, startedAt: number): number {
   return duration
 }
 
-function sigmoid(value: number): number {
-  return value >= 0
-    ? 1 / (1 + Math.exp(-value))
-    : Math.exp(value) / (1 + Math.exp(value))
-}
-
 async function fetchJson<T>(name: string): Promise<T> {
   const response = await fetch(`${MODEL_ROOT}/${name}`, { cache: 'force-cache' })
   if (!response.ok) {
@@ -122,67 +108,57 @@ function hex(bytes: ArrayBuffer): string {
   return Array.from(new Uint8Array(bytes), (byte) => byte.toString(16).padStart(2, '0')).join('')
 }
 
-// Model weights get fetched in chunks (some CDNs choke on serving one huge
-// file) and hashed with SHA-256 against the manifest before they're ever
-// handed off to onnxruntime. Since this is on-device inference over a
-// network path I don't fully trust, a corrupted or tampered download needs
-// to fail loudly right here rather than silently producing garbage
-// predictions further down the line.
+// The ONNX file is fetched once, streamed for progress, and SHA-256'd against
+// the runtime manifest before it's ever handed to onnxruntime. Since this is
+// on-device inference over a network path I don't fully trust, a corrupted or
+// tampered download needs to fail loudly right here rather than silently
+// producing garbage predictions further down the line.
 async function verifiedModelBytes(manifest: RuntimeManifest, onProgress?: Progress): Promise<Uint8Array> {
   if (!Number.isSafeInteger(manifest.bytes) || manifest.bytes < 1 || manifest.bytes > 128 * 1024 * 1024) {
-    throw new PlantModelRuntimeError('integrity', 'The PULIH model manifest size is invalid.')
+    throw new PlantModelRuntimeError('integrity', 'The plant model manifest size is invalid.')
+  }
+  const response = await fetch(`${MODEL_ROOT}/${manifest.modelFile}`, { cache: 'force-cache' })
+  if (!response.ok) {
+    throw new PlantModelRuntimeError(
+      'download',
+      `Failed to load ${manifest.modelFile}: HTTP ${response.status}`,
+    )
+  }
+  const contentLength = response.headers.get('content-length')
+  const declaredLength = contentLength === null ? null : Number(contentLength)
+  if (declaredLength !== null && Number.isFinite(declaredLength) && declaredLength !== manifest.bytes) {
+    throw new PlantModelRuntimeError('integrity', 'Model download size does not match manifest.')
   }
   const combined = new Uint8Array(manifest.bytes)
   let loaded = 0
-  for (const chunk of manifest.chunks) {
-    if (!Number.isSafeInteger(chunk.bytes) || chunk.bytes < 1 || loaded + chunk.bytes > manifest.bytes) {
-      throw new PlantModelRuntimeError('integrity', `Model chunk ${chunk.name} has an invalid size.`)
-    }
-    const response = await fetch(`${MODEL_ROOT}/${chunk.name}`, { cache: 'force-cache' })
-    if (!response.ok) {
-      throw new PlantModelRuntimeError(
-        'download',
-        `Failed to load ${chunk.name}: HTTP ${response.status}`,
-      )
-    }
-    const contentLength = response.headers.get('content-length')
-    const declaredLength = contentLength === null ? null : Number(contentLength)
-    if (declaredLength !== null && Number.isFinite(declaredLength) && declaredLength !== chunk.bytes) {
-      throw new PlantModelRuntimeError('integrity', `Model chunk ${chunk.name} is incomplete.`)
-    }
-    const reader = response.body?.getReader()
-    if (reader) {
-      let chunkOffset = 0
-      while (true) {
-        const { done, value } = await reader.read()
-        if (done) break
-        if (chunkOffset + value.byteLength > chunk.bytes) {
-          await reader.cancel()
-          throw new PlantModelRuntimeError('integrity', `Model chunk ${chunk.name} is too large.`)
-        }
-        combined.set(value, loaded + chunkOffset)
-        chunkOffset += value.byteLength
-        onProgress?.(loaded + chunkOffset, manifest.bytes)
+  const reader = response.body?.getReader()
+  if (reader) {
+    while (true) {
+      const { done, value } = await reader.read()
+      if (done) break
+      if (loaded + value.byteLength > manifest.bytes) {
+        await reader.cancel()
+        throw new PlantModelRuntimeError('integrity', 'Model download is larger than manifest declared.')
       }
-      if (chunkOffset !== chunk.bytes) {
-        throw new PlantModelRuntimeError('integrity', `Model chunk ${chunk.name} is incomplete.`)
-      }
-    } else {
-      const bytes = new Uint8Array(await response.arrayBuffer())
-      if (bytes.byteLength !== chunk.bytes) {
-        throw new PlantModelRuntimeError('integrity', `Model chunk ${chunk.name} is incomplete.`)
-      }
-      combined.set(bytes, loaded)
-      onProgress?.(loaded + bytes.byteLength, manifest.bytes)
+      combined.set(value, loaded)
+      loaded += value.byteLength
+      onProgress?.(loaded, manifest.bytes)
     }
-    loaded += chunk.bytes
+  } else {
+    const bytes = new Uint8Array(await response.arrayBuffer())
+    if (bytes.byteLength !== manifest.bytes) {
+      throw new PlantModelRuntimeError('integrity', 'Model download is incomplete.')
+    }
+    combined.set(bytes, 0)
+    loaded = bytes.byteLength
+    onProgress?.(loaded, manifest.bytes)
   }
   if (loaded !== manifest.bytes) {
-    throw new PlantModelRuntimeError('integrity', 'The PULIH model download is incomplete.')
+    throw new PlantModelRuntimeError('integrity', 'Model download is incomplete.')
   }
   const digest = hex(await crypto.subtle.digest('SHA-256', combined))
   if (digest !== manifest.sha256) {
-    throw new PlantModelRuntimeError('integrity', 'The PULIH model checksum is invalid.')
+    throw new PlantModelRuntimeError('integrity', 'Plant model checksum is invalid.')
   }
   return combined
 }
@@ -195,17 +171,16 @@ function canvas(size: number): OffscreenCanvas | HTMLCanvasElement {
   return element
 }
 
-async function imageToTensor(image: Blob, config: InferenceConfig): Promise<ort.Tensor> {
+async function imageToTensor(image: Blob, manifest: RuntimeManifest): Promise<ort.Tensor> {
   const bitmap = await createImageBitmap(image, { imageOrientation: 'from-image' })
   try {
     if (bitmap.width < 1 || bitmap.height < 1) throw new Error('Image dimensions are invalid.')
-    const size = config.input_size
-    // 0.875 is the classic "resize short side then center-crop" ratio the
-    // model was trained with - same trick torchvision's ImageNet pipeline
-    // uses. Getting this wrong makes every prediction subtly off, because the
-    // model would be seeing a slightly different field of view than what it
-    // actually learned on during training.
-    const resizeShortSide = Math.ceil(size / 0.875)
+    const size = manifest.inputSize
+    // Match the validation pipeline exactly: resize so the shorter side is
+    // resizeShortSide pixels, then centre-crop to size x size. Getting this
+    // wrong makes every prediction subtly off because the model would see a
+    // slightly different field of view than it learned on.
+    const resizeShortSide = manifest.resizeShortSide
     const scale = resizeShortSide / Math.min(bitmap.width, bitmap.height)
     const cropWidth = size / scale
     const cropHeight = size / scale
@@ -224,15 +199,13 @@ async function imageToTensor(image: Blob, config: InferenceConfig): Promise<ort.
     const rgba = context.getImageData(0, 0, size, size).data
     const plane = size * size
     // ONNX wants channel-first (CHW) data, but canvas gives back interleaved
-    // RGBA (HWC). This loop de-interleaves the channels and applies the
-    // per-channel mean/std normalization the model was trained with, both in
-    // one pass instead of two - it's worth combining since this runs on-device
-    // for every single scan.
+    // RGBA (HWC). This loop de-interleaves and applies per-channel normalize
+    // in one pass since it runs on-device for every scan.
     const chw = new Float32Array(3 * plane)
     for (let index = 0; index < plane; index += 1) {
-      chw[index] = (rgba[index * 4] / 255 - config.mean[0]) / config.std[0]
-      chw[plane + index] = (rgba[index * 4 + 1] / 255 - config.mean[1]) / config.std[1]
-      chw[plane * 2 + index] = (rgba[index * 4 + 2] / 255 - config.mean[2]) / config.std[2]
+      chw[index] = (rgba[index * 4] / 255 - manifest.mean[0]) / manifest.std[0]
+      chw[plane + index] = (rgba[index * 4 + 1] / 255 - manifest.mean[1]) / manifest.std[1]
+      chw[plane * 2 + index] = (rgba[index * 4 + 2] / 255 - manifest.mean[2]) / manifest.std[2]
     }
     return new ort.Tensor('float32', chw, [1, 3, size, size])
   } finally {
@@ -246,92 +219,81 @@ function isInvasive(entry: SpeciesEntry): boolean {
 
 function interpret(
   logits: number[],
-  config: InferenceConfig,
-  rejection: RejectionConfig,
+  manifest: RuntimeManifest,
+  catalog: SpeciesCatalog,
   speciesByLabel: Map<string, SpeciesEntry>,
 ): IdentifyResult {
-  if (logits.length !== config.classes.length) {
-    throw new Error(`Expected ${config.classes.length} logits but received ${logits.length}.`)
+  if (logits.length !== catalog.class_count) {
+    throw new Error(`Expected ${catalog.class_count} logits but received ${logits.length}.`)
   }
-  // Temperature scaling - dividing the logits before softmax - is what makes
-  // the model's confidence numbers actually mean something. Raw softmax on an
-  // overconfident classifier basically always outputs near-100% for
-  // everything, which is useless when I'm trying to decide whether a result
-  // is even trustworthy.
-  const temperature = rejection.classification_temperature
+  // Temperature scaling on the logits before softmax is what makes the
+  // model's confidence numbers actually mean something for the calibrated
+  // Unknown gate.
+  const temperature = manifest.temperature
   const scaled = logits.map((value) => value / temperature)
   const maximum = Math.max(...scaled)
   const exponentials = scaled.map((value) => Math.exp(value - maximum))
   const denominator = exponentials.reduce((sum, value) => sum + value, 0)
   const probabilities = exponentials.map((value) => value / denominator)
-  const ranked = probabilities
+
+  const unknownIndex = manifest.unknownIndex
+  const coreProbabilities = probabilities.slice(0, unknownIndex)
+  const coreRanked = coreProbabilities
     .map((probability, classIndex) => ({ probability, classIndex }))
     .sort((left, right) => right.probability - left.probability)
-  // The model only ever knows about its 31 trained species, so left on its own
-  // it can never say "I don't recognise this plant at all" - it'll just always
-  // pick its best guess out of the 31, even for something completely
-  // unrelated. These four signals (top probability, gap to the runner-up,
-  // energy, entropy) feed into a separately-trained logistic regression
-  // (open_set_rejection_config_v1.json) that decides whether the photo is
-  // probably something outside those 31 classes, rather than just trusting
-  // raw softmax confidence on its own.
-  const signals = {
-    msp: ranked[0].probability,
-    margin: ranked[0].probability - ranked[1].probability,
-    energy: -temperature * (maximum + Math.log(denominator)),
-    entropy: -probabilities.reduce(
-      (sum, probability) => sum + probability * Math.log(Math.max(probability, 1e-12)),
-      0,
-    ) / Math.log(probabilities.length),
-  }
-  // Standardizes each signal with the scaler stats from training, then runs
-  // logistic regression by hand - weights and intercept baked right into the
-  // config - to get a probability that this is an "unknown" plant, i.e. one
-  // outside our catalogue.
-  let unknownLogit = rejection.decision.intercept
-  rejection.decision.feature_order.forEach((name, index) => {
-    unknownLogit += (
-      (signals[name] - rejection.decision.scaler_mean[index])
-      / rejection.decision.scaler_scale[index]
-    ) * rejection.decision.coefficient[index]
-  })
-  const unknownProbability = sigmoid(unknownLogit)
-  const accepted = unknownProbability <= rejection.decision.unknown_probability_threshold
-  const best = ranked[0]
-  const machineLabel = config.classes[best.classIndex]
-  const species = speciesByLabel.get(machineLabel)
-  const topPredictions = ranked.slice(0, 3).map((item) => {
-    const label = config.classes[item.classIndex]
-    const metadata = speciesByLabel.get(label)
+  const bestCore = coreRanked[0]
+  const maxCoreProbability = bestCore.probability
+
+  // Unknown gate: if no core-target class clears the calibrated threshold,
+  // the prediction collapses to the Unknown bucket regardless of what the
+  // raw argmax says. This matches the release contract in the model README.
+  const isUnknown = maxCoreProbability < manifest.unknownProbabilityThreshold
+
+  const topPredictions = coreRanked.slice(0, 3).map((item) => {
+    const entry = catalog.classes[item.classIndex]
+    const metadata = speciesByLabel.get(entry.machine_label)
     return {
-      speciesId: label.replaceAll('_', '-'),
-      name: metadata?.display_name ?? metadata?.scientific_name ?? label.replaceAll('_', ' '),
+      speciesId: entry.machine_label.replaceAll('_', '-'),
+      name: metadata?.display_name ?? entry.display_name ?? entry.scientific_name,
       confidence: item.probability,
       isInvasive: metadata ? isInvasive(metadata) : false,
     }
   })
 
-  if (!accepted || !species) {
+  if (isUnknown) {
     return {
       outcome: 'uncertain',
-      confidence: best.probability,
-      modelVersion: config.version,
-      unknownProbability,
+      confidence: maxCoreProbability,
+      modelVersion: manifest.modelVersion,
+      unknownProbability: probabilities[unknownIndex] ?? (1 - maxCoreProbability),
+      topPredictions,
+      reportable: false,
+    }
+  }
+
+  const entry = catalog.classes[bestCore.classIndex]
+  const species = speciesByLabel.get(entry.machine_label)
+  if (!species) {
+    return {
+      outcome: 'uncertain',
+      confidence: maxCoreProbability,
+      modelVersion: manifest.modelVersion,
+      unknownProbability: probabilities[unknownIndex] ?? (1 - maxCoreProbability),
       topPredictions,
       reportable: false,
     }
   }
   return {
     outcome: isInvasive(species) ? 'target' : 'other_plant',
-    speciesId: machineLabel.replaceAll('_', '-'),
+    speciesId: entry.machine_label.replaceAll('_', '-'),
     speciesName: species.display_name,
     scientificName: species.scientific_name,
     malaysiaStatus: species.malaysia_status,
     statusSource: species.status_source,
     isInvasive: isInvasive(species),
-    confidence: best.probability,
-    modelVersion: config.version,
-    unknownProbability,
+    confidence: maxCoreProbability,
+    modelVersion: manifest.modelVersion,
+    unknownProbability: probabilities[unknownIndex] ?? (1 - maxCoreProbability),
     topPredictions,
     reportable: false,
   }
@@ -339,8 +301,8 @@ function interpret(
 
 export class PulihModel {
   private session: ort.InferenceSession | null = null
-  private config: InferenceConfig | null = null
-  private rejection: RejectionConfig | null = null
+  private manifest: RuntimeManifest | null = null
+  private catalog: SpeciesCatalog | null = null
   private speciesByLabel = new Map<string, SpeciesEntry>()
   private loading: Promise<void> | null = null
   private progress: { loaded: number; total: number } | null = null
@@ -386,20 +348,21 @@ export class PulihModel {
       ? Math.max(1, Math.min(4, navigator.hardwareConcurrency || 1))
       : 1
     ort.env.wasm.initTimeout = 30_000
-    const [manifest, config, rejection, catalog] = await Promise.all([
+    const [manifest, catalog] = await Promise.all([
       fetchJson<RuntimeManifest>('runtime-manifest.json'),
-      fetchJson<InferenceConfig>('inference_config.json'),
-      fetchJson<RejectionConfig>('open_set_rejection_config_v1.json'),
-      fetchJson<SpeciesCatalog>('species_31.json'),
+      fetchJson<SpeciesCatalog>('student33_species.json'),
     ])
-    if (manifest.modelVersion !== config.version || catalog.model_version !== config.version) {
-      throw new PlantModelRuntimeError('integrity', 'PULIH model metadata versions do not agree.')
+    if (manifest.modelVersion !== catalog.model_version) {
+      throw new PlantModelRuntimeError('integrity', 'Plant model metadata versions do not agree.')
     }
-    if (config.classes.length !== 31 || catalog.class_count !== 31) {
+    if (catalog.class_count !== manifest.classCount || catalog.classes.length !== manifest.classCount) {
       throw new PlantModelRuntimeError(
         'integrity',
-        'The validated PULIH v4 integration requires exactly 31 classes.',
+        `The plant model integration requires exactly ${manifest.classCount} classes.`,
       )
+    }
+    if (catalog.unknown_index !== manifest.unknownIndex) {
+      throw new PlantModelRuntimeError('integrity', 'Plant model unknown index disagrees with catalogue.')
     }
     const downloadStartedAt = performance.now()
     const modelBytes = await verifiedModelBytes(manifest, onProgress)
@@ -407,10 +370,10 @@ export class PulihModel {
     let provider: ExecutionProvider | null = null
     let webGpuFallback = false
     const webGpuNavigator = navigator as Navigator & { gpu?: unknown }
-    // WebGPU is a lot faster, so it's preferred whenever the device advertises
-    // it - but not every browser exposing navigator.gpu can actually create a
-    // working session in practice, so falling through to WASM here beats
-    // failing the whole scan over a GPU quirk.
+    // WebGPU is a lot faster so it's preferred whenever the device advertises
+    // it, but not every browser exposing navigator.gpu can actually create a
+    // working session in practice; falling through to WASM here beats failing
+    // the whole scan over a GPU quirk.
     if (webGpuNavigator.gpu) {
       try {
         this.session = await ort.InferenceSession.create(modelBytes, {
@@ -434,13 +397,12 @@ export class PulihModel {
         )
       }
     }
-    this.config = config
-    this.rejection = rejection
-    // The model manifest's own malaysia_status field gets ignored here -
-    // the shared catalogue's ui_state is what's actually trusted. If a
-    // class has no catalogue record at all, it gets downgraded to
-    // status_uncertain, so an older bundled model can never quietly unlock
-    // reporting on its own.
+    this.manifest = manifest
+    this.catalog = catalog
+    // The model manifest's own malaysia_status field is ignored - the shared
+    // catalogue's approved list is the trusted source. If a class has no
+    // approved-catalogue record, it gets downgraded to status_uncertain so an
+    // older bundled model can never quietly unlock reporting on its own.
     this.speciesByLabel = new Map(
       catalog.classes.map((entry) => {
         const record = findPlantStatus({ modelLabel: entry.machine_label })
@@ -464,12 +426,12 @@ export class PulihModel {
 
   async predict(image: Blob, onProgress?: Progress): Promise<IdentifyResult> {
     await this.load(onProgress)
-    if (!this.session || !this.config || !this.rejection) {
-      throw new PlantModelRuntimeError('runtime', 'PULIH model unavailable.')
+    if (!this.session || !this.manifest || !this.catalog) {
+      throw new PlantModelRuntimeError('runtime', 'Plant model unavailable.')
     }
     let tensor: ort.Tensor
     try {
-      tensor = await imageToTensor(image, this.config)
+      tensor = await imageToTensor(image, this.manifest)
     } catch (error) {
       throw new PlantModelRuntimeError(
         'image',
@@ -491,7 +453,7 @@ export class PulihModel {
       inferenceStartedAt,
     )
     const logits = Array.from(outputs[this.session.outputNames[0]].data, Number)
-    return interpret(logits, this.config, this.rejection, this.speciesByLabel)
+    return interpret(logits, this.manifest, this.catalog, this.speciesByLabel)
   }
 
   getDiagnostics(): ModelRuntimeDiagnostics {

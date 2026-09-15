@@ -1,0 +1,171 @@
+{
+  "class_count": 33,
+  "unknown_index": 32,
+  "classes": [
+    {
+      "class_index": 0,
+      "scientific_name": "Acacia auriculiformis",
+      "class_role": "CORE_TARGET"
+    },
+    {
+      "class_index": 1,
+      "scientific_name": "Acacia mangium",
+      "class_role": "CORE_TARGET"
+    },
+    {
+      "class_index": 2,
+      "scientific_name": "Arachis pintoi",
+      "class_role": "CORE_TARGET"
+    },
+    {
+      "class_index": 3,
+      "scientific_name": "Asclepias curassavica",
+      "class_role": "CORE_TARGET"
+    },
+    {
+      "class_index": 4,
+      "scientific_name": "Bidens pilosa",
+      "class_role": "CORE_TARGET"
+    },
+    {
+      "class_index": 5,
+      "scientific_name": "Calopogonium mucunoides",
+      "class_role": "CORE_TARGET"
+    },
+    {
+      "class_index": 6,
+      "scientific_name": "Cecropia peltata",
+      "class_role": "CORE_TARGET"
+    },
+    {
+      "class_index": 7,
+      "scientific_name": "Chromolaena odorata",
+      "class_role": "CORE_TARGET"
+    },
+    {
+      "class_index": 8,
+      "scientific_name": "Cleome rutidosperma",
+      "class_role": "CORE_TARGET"
+    },
+    {
+      "class_index": 9,
+      "scientific_name": "Cynodon dactylon",
+      "class_role": "CORE_TARGET"
+    },
+    {
+      "class_index": 10,
+      "scientific_name": "Cyperus rotundus",
+      "class_role": "CORE_TARGET"
+    },
+    {
+      "class_index": 11,
+      "scientific_name": "Eichhornia crassipes",
+      "class_role": "CORE_TARGET"
+    },
+    {
+      "class_index": 12,
+      "scientific_name": "Eleusine indica",
+      "class_role": "CORE_TARGET"
+    },
+    {
+      "class_index": 13,
+      "scientific_name": "Impatiens balsamina",
+      "class_role": "CORE_TARGET"
+    },
+    {
+      "class_index": 14,
+      "scientific_name": "Leucaena leucocephala",
+      "class_role": "CORE_TARGET"
+    },
+    {
+      "class_index": 15,
+      "scientific_name": "Limnocharis flava",
+      "class_role": "CORE_TARGET"
+    },
+    {
+      "class_index": 16,
+      "scientific_name": "Megathyrsus maximus",
+      "class_role": "CORE_TARGET"
+    },
+    {
+      "class_index": 17,
+      "scientific_name": "Mikania micrantha",
+      "class_role": "CORE_TARGET"
+    },
+    {
+      "class_index": 18,
+      "scientific_name": "Mimosa diplotricha",
+      "class_role": "CORE_TARGET"
+    },
+    {
+      "class_index": 19,
+      "scientific_name": "Mimosa pigra",
+      "class_role": "CORE_TARGET"
+    },
+    {
+      "class_index": 20,
+      "scientific_name": "Oxalis corniculata",
+      "class_role": "CORE_TARGET"
+    },
+    {
+      "class_index": 21,
+      "scientific_name": "Parthenium hysterophorus",
+      "class_role": "CORE_TARGET"
+    },
+    {
+      "class_index": 22,
+      "scientific_name": "Paspalum vaginatum",
+      "class_role": "CORE_TARGET"
+    },
+    {
+      "class_index": 23,
+      "scientific_name": "Cenchrus setosus",
+      "class_role": "CORE_TARGET"
+    },
+    {
+      "class_index": 24,
+      "scientific_name": "Psidium guajava",
+      "class_role": "CORE_TARGET"
+    },
+    {
+      "class_index": 25,
+      "scientific_name": "Rottboellia cochinchinensis",
+      "class_role": "CORE_TARGET"
+    },
+    {
+      "class_index": 26,
+      "scientific_name": "Ruellia blechum",
+      "class_role": "CORE_TARGET"
+    },
+    {
+      "class_index": 27,
+      "scientific_name": "Salvinia molesta",
+      "class_role": "CORE_TARGET"
+    },
+    {
+      "class_index": 28,
+      "scientific_name": "Sida acuta",
+      "class_role": "CORE_TARGET"
+    },
+    {
+      "class_index": 29,
+      "scientific_name": "Striga asiatica",
+      "class_role": "CORE_TARGET"
+    },
+    {
+      "class_index": 30,
+      "scientific_name": "Synedrella nodiflora",
+      "class_role": "CORE_TARGET"
+    },
+    {
+      "class_index": 31,
+      "scientific_name": "Urochloa mutica",
+      "class_role": "CORE_TARGET"
+    },
+    {
+      "class_index": 32,
+      "scientific_name": "UNKNOWN / OTHER",
+      "class_role": "UNKNOWN"
+    }
+  ]
+}

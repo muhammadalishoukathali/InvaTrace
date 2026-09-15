@@ -118,11 +118,12 @@ class PulihAdapter implements ModelAdapter {
   private readonly model = sharedPulihModel
 
   async detect(image: ImageBitmap): Promise<{ box: BBox | null }> {
-    // Model 1 is a frozen centre-crop classifier, not an actual object
+    // Student33 is a frozen centre-crop classifier, not an actual object
     // detector, so there's no real bounding box to return. Returning the exact
-    // crop that preprocessing uses keeps the on-screen framing guide honest
-    // about what the model is actually going to look at.
-    const side = Math.round(Math.min(image.width, image.height) * 0.875)
+    // crop that preprocessing uses (320 out of a 366-short-side resize, so
+    // 320/366 of the shorter dimension) keeps the on-screen framing guide
+    // honest about what the model is actually going to look at.
+    const side = Math.round(Math.min(image.width, image.height) * (320 / 366))
     return {
       box: {
         x: Math.round((image.width - side) / 2),
@@ -134,7 +135,7 @@ class PulihAdapter implements ModelAdapter {
   }
 
   async quality(image: ImageBitmap): Promise<QualityResult> {
-    if (Math.min(image.width, image.height) < 384) {
+    if (Math.min(image.width, image.height) < 320) {
       return { ok: false, reason: 'Photo resolution is too low - move closer and retake.' }
     }
     return { ok: true }

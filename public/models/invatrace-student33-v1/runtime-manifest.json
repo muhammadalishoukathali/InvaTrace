@@ -1,0 +1,18 @@
+{
+  "schemaVersion": "invatrace.student33-runtime.v1",
+  "modelVersion": "invatrace-student33-tinyvit5m-320-fp16",
+  "modelFile": "tinyvit5m_student33_320_fp16.onnx",
+  "sha256": "fe04533ccfd0284c44340914fefd29061aea0b48a6bc4f39def4ea50c3faf668",
+  "bytes": 12012668,
+  "inputName": "images",
+  "inputShape": [1, 3, 320, 320],
+  "outputName": "logits",
+  "classCount": 33,
+  "unknownIndex": 32,
+  "inputSize": 320,
+  "resizeShortSide": 366,
+  "mean": [0.485, 0.456, 0.406],
+  "std": [0.229, 0.224, 0.225],
+  "temperature": 1.4795616984698878,
+  "unknownProbabilityThreshold": 0.21
+}

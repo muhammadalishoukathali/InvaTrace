@@ -462,25 +462,6 @@
           "sha256": "dd82dffc77e5b2345060942345617521e3c88fe8b168d60427c79184c9093b06"
         }
       ]
-    },
-    {
-      "output": "vendor/PULIH_Model1_v4_FP16_Web_Kit/model/efficientnet_v2_s_oe_v4_31class_web_fp16.onnx",
-      "bytes": 40488343,
-      "sha256": "7c07181c10020d8ec9a74a21684ab08f73b1ec6a6b168c091ecf715803c5fe56",
-      "compression": "gzip",
-      "encoding": "hex",
-      "parts": [
-        {
-          "path": "assets/runtime-packed/vendor/PULIH_Model1_v4_FP16_Web_Kit/model/efficientnet_v2_s_oe_v4_31class_web_fp16.onnx.gz.part-000.hex",
-          "bytes": 20971520,
-          "sha256": "0ad758619fb7a9632a5007113896f159bcffd30132d0cf1e896131ad47e1b37a"
-        },
-        {
-          "path": "assets/runtime-packed/vendor/PULIH_Model1_v4_FP16_Web_Kit/model/efficientnet_v2_s_oe_v4_31class_web_fp16.onnx.gz.part-001.hex",
-          "bytes": 16458585,
-          "sha256": "d3c874dd65c37b86a336d6fa595d9edafc4a1a7cbcc4e9e6e670558e23bba439"
-        }
-      ]
     }
   ]
 }
