@@ -160,7 +160,7 @@ def import_occurrence_json(
             continue
         uncertainty_raw = _value(raw, "coordinateUncertaintyInMeters", "coordinate_uncertainty_m")
         try:
-            uncertainty = int(uncertainty_raw)
+            uncertainty = int(round(float(uncertainty_raw)))
         except (TypeError, ValueError):
             reasons["missing_coordinate_uncertainty"] += 1
             continue

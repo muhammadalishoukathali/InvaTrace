@@ -37,3 +37,4 @@ e2e-harness/.scratch/
 *.pbf
 local-data/
 data-import/raw/
+backend/data/local-boundary/

@@ -387,6 +387,16 @@ def main() -> None:
                 print(f"skipping {data_name}: file not found in pack")
                 continue
             with SessionLocal() as session:
+                # import_occurrence_json's release_manifest gate is GBIF-only.
+                # For iNaturalist we still validate the sidecar SHA-256 manually
+                # so a corrupted pack is refused, but do not hand the manifest
+                # to the importer or it will reject the non-GBIF dataset_id.
+                if source_label.casefold() == "gbif":
+                    forwarded_release = release_path
+                else:
+                    from app.data_release import validate_data_release as _vdr
+                    _vdr(release_path, data_path)
+                    forwarded_release = None
                 result = import_occurrence_json(
                     session,
                     source_path=data_path,
@@ -394,7 +404,7 @@ def main() -> None:
                     processed_data_version=processed_version,
                     country_boundary_path=args.country_boundary.resolve(),
                     country_boundary_manifest_path=args.country_boundary_manifest.resolve(),
-                    release_manifest_path=release_path,
+                    release_manifest_path=forwarded_release,
                 )
             totals["accepted"] += result.accepted
             totals["excluded"] += result.excluded
