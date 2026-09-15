@@ -230,6 +230,15 @@ def main() -> None:
         help="auditable release metadata and SHA-256 for the Malaysia boundary",
     )
 
+    commands.add_parser(
+        "seed-featured-places",
+        help=(
+            "insert a curated set of real KL/Selangor parks, forests, "
+            "woodlands and trails so the map is not empty before OSM PBF import; "
+            "idempotent by name"
+        ),
+    )
+
     cleanup = commands.add_parser(
         "cleanup-uploads", help="delete expired, unsubmitted photo uploads"
     )
@@ -417,6 +426,14 @@ def main() -> None:
         print(
             f"Total accepted {totals['accepted']}, excluded {totals['excluded']}. "
             f"Reasons: {aggregated_reasons}"
+        )
+    elif args.command == "seed-featured-places":
+        from app.featured_places_seed import seed_featured_places
+
+        with SessionLocal() as session:
+            areas_added, trails_added = seed_featured_places(session)
+        print(
+            f"Featured places seeded: {areas_added} new area(s), {trails_added} new trail(s)."
         )
     elif args.command == "preprocess-osm-waterways":
         from app.osm_waterway_graph import preprocess_osm_waterways
