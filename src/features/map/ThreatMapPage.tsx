@@ -353,7 +353,7 @@ export function ThreatMapPage() {
         return m
           .loadImage(svgDataUrl(spec.svg))
           .then((image) => {
-            if (!m.hasImage(spec.id)) m.addImage(spec.id, image.data, { pixelRatio: 2 })
+            if (!m.hasImage(spec.id)) m.addImage(spec.id, image.data, { pixelRatio: 1 })
           })
           .catch(() => undefined)
       })
@@ -403,7 +403,10 @@ export function ThreatMapPage() {
               'wood', PLACE_ICONS.wood.id,
               'trail', PLACE_ICONS.trail.id,
               PLACE_ICONS.trail.id],
-            'icon-size': 0.55,
+            // 40x40 source at pixelRatio:1 renders at 40 CSS px; slight
+            // downscale keeps the icon compact while still giving the
+            // ~40 px practical touch target required by handover §5.
+            'icon-size': 0.85,
             'icon-allow-overlap': false,
             'icon-ignore-placement': false,
             'icon-anchor': 'center',
