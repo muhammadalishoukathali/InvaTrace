@@ -1333,12 +1333,29 @@ const MOCK_PLACES = [
       coordinates: [[[101.58, 3.16], [101.60, 3.16], [101.60, 3.18], [101.58, 3.18], [101.58, 3.16]]],
     },
   },
+  {
+    // Bundled mock coverage of the "wood" place type so a dev running with
+    // MSW mocks can see all four map-legend icons (park, forest, wood,
+    // trail) without needing the real backend up. Real OSM extracts return
+    // plenty of these tagged `natural=wood`; the mock just samples one.
+    placeId: '10000000-0000-4000-8000-000000000004',
+    name: 'Rimba Ilmu Woodland',
+    type: 'wood' as const,
+    geometryStatus: 'available',
+    source: 'OpenStreetMap development extract',
+    geometryVersion: 'mock-osm-2026-09-01',
+    geometry: {
+      type: 'Polygon' as const,
+      coordinates: [[[101.653, 3.126], [101.663, 3.126], [101.663, 3.135], [101.653, 3.135], [101.653, 3.126]]],
+    },
+  },
 ]
 
 const MOCK_PLACE_CENTRES = [
   { placeId: MOCK_PLACES[0].placeId, latitude: 3.1505, longitude: 101.6415 },
   { placeId: MOCK_PLACES[1].placeId, latitude: 3.1510, longitude: 101.6680 },
   { placeId: MOCK_PLACES[2].placeId, latitude: 3.1700, longitude: 101.5900 },
+  { placeId: MOCK_PLACES[3].placeId, latitude: 3.1305, longitude: 101.6580 },
 ]
 
 function mockPlaceResponse(place: typeof MOCK_PLACES[number]) {
