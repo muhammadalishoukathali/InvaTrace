@@ -703,6 +703,18 @@ def _publish_decision(
     sighting.thumbnail_key = f"thumbnails/{sighting.id}.jpg"
     storage.put_bytes(sighting.thumbnail_key, thumbnail_bytes, "image/jpeg")
     session.add(ReportSightingLink(report_id=report.id, sighting_id=sighting.id, active=True))
+    # Iteration-2 §4: refresh community-report contributions to place
+    # associations. Failure here must not fail the report submission, so
+    # exceptions are logged and swallowed - a retry will re-drive the
+    # idempotent upsert.
+    try:
+        from app.domain.place_sighting_evidence import (
+            refresh_place_sighting_evidence_for_sighting,
+        )
+
+        refresh_place_sighting_evidence_for_sighting(session, sighting)
+    except Exception:  # noqa: BLE001 - best-effort refresh
+        log.exception("place_sighting_evidence.refresh_failed", sighting_id=str(sighting.id))
     return sighting
 
 

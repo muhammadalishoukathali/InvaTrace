@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from 'react'
 import { Icon } from '@/components/Icon'
 import { useIsDesktop } from '@/hooks/useIsDesktop'
+import { PLACE_ICONS, PLACE_TYPES } from './place-icons'
 import './map-controls.css'
 
 /**
@@ -82,10 +83,11 @@ export function MapLegend() {
       <Row colour="#D9880F" label="Spreading (2-4 reports)" />
       <Row colour="#2E7D3F" label="Isolated (1 report)" />
       <Row colour="#8B978F" label="Removed" muted />
-      <Row colour="#6D3FB5" label="Park" />
-      <Row colour="#176B45" label="Forest" />
-      <Row colour="#9A6518" label="Wood" />
-      <Row colour="#176FA8" label="Trail" />
+      <div className="map-legend-card__divider" role="separator" aria-hidden />
+      <span className="map-legend-card__subtitle">Mapped places</span>
+      {PLACE_TYPES.map((placeType) => (
+        <PlaceRow key={placeType} placeType={placeType} />
+      ))}
       <p className="map-legend-card__note">
         Colour reflects how many community reports share the same spot.
         Reports appear once they pass automated checks.
@@ -119,6 +121,28 @@ function Row({ colour, label, muted }: { colour: string; label: string; muted?: 
     <div className="map-legend-card__row">
       <span aria-hidden className="map-legend-card__dot" style={{ background: colour, opacity: muted ? 0.65 : 1 }} />
       <span>{label}</span>
+    </div>
+  )
+}
+
+/**
+ * Legend row for a mapped-place type. Uses the same SVG icon that the
+ * map itself renders, so the legend and the map read as one system. The
+ * icon is aria-hidden because the adjacent text label already carries
+ * the name for screen readers.
+ */
+function PlaceRow({ placeType }: { placeType: keyof typeof PLACE_ICONS }) {
+  const spec = PLACE_ICONS[placeType]
+  return (
+    <div className="map-legend-card__row">
+      <span
+        aria-hidden
+        className="map-legend-card__glyph"
+        // The raw SVG carries no external references and is authored in
+        // this codebase (see place-icons.ts).
+        dangerouslySetInnerHTML={{ __html: spec.svg }}
+      />
+      <span>{spec.label}</span>
     </div>
   )
 }

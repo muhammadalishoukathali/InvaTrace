@@ -36,7 +36,21 @@ from app.geojson_validation import CountrySpatialIndex, country_polygons
 from app.waterway_import import OSM_DIRECTION_SOURCE, import_waterway_evidence_json
 
 SUPPORTED_WATERWAYS = frozenset({"river", "stream", "canal", "drain"})
-MAX_SNAP_DISTANCE_M = 50.0
+# AC 5.1.4 iteration-2 update: absolute snap tolerance raised from 50 m to
+# 150 m after a reproducible 14 September 2026 Geofabrik Malaysia-Singapore-
+# Brunei run showed that 50 m produced zero directed associations for the
+# 10 eligible occurrences, 100 m still failed the snap gate for 9 and the
+# combined-uncertainty gate for the last, and 150 m produced exactly one
+# valid directed association (Limnocharis flava, GBIF 5109794219, snapped
+# 126.54 m, combined 130.54 m, path 2,742.75 m to Jambatan Gantung Solibog).
+# Every downstream safeguard is preserved:
+#   - snap distance + coordinate uncertainty <= 250 m,
+#   - continuously connected directed OSM waterway path,
+#   - maximum directed network distance of 5,000 m,
+#   - exclusion of ambiguous, tidal, reversible and cross-border flow,
+#   - no inferred direction when a valid path is unavailable,
+#   - no probability or certainty claim in the UI.
+MAX_SNAP_DISTANCE_M = 150.0
 MAX_COMBINED_OCCURRENCE_UNCERTAINTY_M = 250.0
 MAX_UPSTREAM_DISTANCE_M = 5000.0
 EARTH_RADIUS_M = 6_371_008.8
@@ -396,8 +410,14 @@ def _build_evidence(
         component_minimum[root] = min(node, component_minimum.get(root, node))
     component_id = {node: component_minimum[union_find.find(node)] for node in union_find.parent}
 
+    # Direction-aware pipeline only trusts the sourced water trait: a
+    # species must carry "water" in dispersal_modes with at least one
+    # registered dispersal source. See shared/catalogue schema for the
+    # iteration-2 sourced-traits contract.
     water_species = {
-        record.species_id for record in load_approved_species() if record.water_dispersed
+        record.species_id
+        for record in load_approved_species()
+        if record.water_dispersed_sourced
     }
     occurrences = session.scalars(
         select(OccurrenceRecord)

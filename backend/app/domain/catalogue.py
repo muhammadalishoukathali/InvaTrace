@@ -71,6 +71,19 @@ class ApprovedSpeciesRecord:
     habitats: tuple[str, ...]
     water_dispersed: bool
     status_reviewed_at: date
+    # Iteration-2 sourced traits. The direction-aware pipeline may treat
+    # a species as water-dispersed only when "water" is in dispersal_modes
+    # and at least one dispersal source is registered. `water_dispersed`
+    # is retained for backward compatibility with the legacy occurrence
+    # importer while callers migrate to the sourced form.
+    dispersal_modes: tuple[str, ...] = ()
+    dispersal_source_ids: tuple[str, ...] = ()
+    dispersal_reviewed_at: date | None = None
+
+    @property
+    def water_dispersed_sourced(self) -> bool:
+        """True only when the water trait is backed by at least one source."""
+        return "water" in self.dispersal_modes and bool(self.dispersal_source_ids)
 
 
 @dataclass(frozen=True)
@@ -275,6 +288,36 @@ def load_approved_species() -> tuple[ApprovedSpeciesRecord, ...]:
             )
         if raw.get("malaysia_status") != "Present":
             raise CatalogueError(f"Approved species must be Present: {species_id}")
+        dispersal_modes = tuple(raw.get("dispersal_modes") or ())
+        dispersal_source_ids = tuple(raw.get("dispersal_source_ids") or ())
+        dispersal_reviewed_raw = raw.get("dispersal_reviewed_at")
+        dispersal_reviewed_at = (
+            date.fromisoformat(dispersal_reviewed_raw)
+            if isinstance(dispersal_reviewed_raw, str) and dispersal_reviewed_raw
+            else None
+        )
+        missing_dispersal_sources = set(dispersal_source_ids) - source_ids
+        if missing_dispersal_sources:
+            raise CatalogueError(
+                f"Unknown dispersal source(s) for {species_id}: "
+                f"{sorted(missing_dispersal_sources)}"
+            )
+        # Any trait declaration must ship with its evidence: the schema
+        # already enforces this in JSON Schema, but re-check here so the
+        # loader is authoritative even for datasets that skip schema
+        # validation (mocks, seed data, integration harnesses).
+        if dispersal_modes and (not dispersal_source_ids or dispersal_reviewed_at is None):
+            raise CatalogueError(
+                f"Species {species_id} declares dispersal_modes but is missing sources "
+                "or dispersal_reviewed_at"
+            )
+        water_dispersed = bool(raw["water_dispersed"])
+        if water_dispersed and "water" not in dispersal_modes:
+            raise CatalogueError(
+                f"Species {species_id} is water_dispersed=true but has no sourced "
+                "'water' entry in dispersal_modes; add a reviewed source that "
+                "explicitly states water, floodwater, downstream or water-current dispersal"
+            )
         seen_ids.add(species_id)
         seen_names.add(normalized_name)
         records.append(
@@ -286,8 +329,11 @@ def load_approved_species() -> tuple[ApprovedSpeciesRecord, ...]:
                 evidence_source_ids=tuple(raw["evidence_source_ids"]),
                 evidence_summary=raw["evidence_summary"],
                 habitats=tuple(raw["habitats"]),
-                water_dispersed=bool(raw["water_dispersed"]),
+                water_dispersed=water_dispersed,
                 status_reviewed_at=date.fromisoformat(raw["status_reviewed_at"]),
+                dispersal_modes=dispersal_modes,
+                dispersal_source_ids=dispersal_source_ids,
+                dispersal_reviewed_at=dispersal_reviewed_at,
             )
         )
     return tuple(records)

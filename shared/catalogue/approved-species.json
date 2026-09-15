@@ -91,7 +91,10 @@
       "evidence_source_ids": ["griis-91571"],
       "evidence_summary": "GRIIS Malaysia marks the species invasive, alien and present in Malaysia.",
       "habitats": ["terrestrial"],
-      "water_dispersed": false,
+      "water_dispersed": true,
+      "dispersal_modes": ["water"],
+      "dispersal_source_ids": ["vro-vic-siam-weed"],
+      "dispersal_reviewed_at": "2026-09-14",
       "status_reviewed_at": "2026-09-08"
     },
     {
@@ -124,7 +127,10 @@
       "evidence_source_ids": ["griis-91613"],
       "evidence_summary": "GRIIS Malaysia marks the species invasive, alien and present in Malaysia in terrestrial and freshwater habitats.",
       "habitats": ["terrestrial", "freshwater"],
-      "water_dispersed": false,
+      "water_dispersed": true,
+      "dispersal_modes": ["water"],
+      "dispersal_source_ids": ["au-agr-cyperus-1999", "ecan-nutgrass"],
+      "dispersal_reviewed_at": "2026-09-14",
       "status_reviewed_at": "2026-09-08"
     },
     {
@@ -136,6 +142,9 @@
       "evidence_summary": "GRIIS Malaysia marks the species invasive, alien and present in freshwater; the Sabah strategy also records it in Sabah.",
       "habitats": ["freshwater"],
       "water_dispersed": true,
+      "dispersal_modes": ["water"],
+      "dispersal_source_ids": ["cabi-eichhornia"],
+      "dispersal_reviewed_at": "2026-09-14",
       "status_reviewed_at": "2026-09-08"
     },
     {
@@ -180,6 +189,9 @@
       "evidence_summary": "GRIIS Malaysia marks the species invasive, alien and present in freshwater in Malaysia.",
       "habitats": ["freshwater"],
       "water_dispersed": true,
+      "dispersal_modes": ["water"],
+      "dispersal_source_ids": ["cabi-limnocharis"],
+      "dispersal_reviewed_at": "2026-09-14",
       "status_reviewed_at": "2026-09-08"
     },
     {
@@ -202,7 +214,10 @@
       "evidence_source_ids": ["griis-91702", "doa-ias-2025"],
       "evidence_summary": "GRIIS Malaysia and the Department of Agriculture Malaysia both record the species as invasive and present.",
       "habitats": ["terrestrial"],
-      "water_dispersed": false,
+      "water_dispersed": true,
+      "dispersal_modes": ["water"],
+      "dispersal_source_ids": ["fao-mikania", "qld-invasive-fact-sheets"],
+      "dispersal_reviewed_at": "2026-09-14",
       "status_reviewed_at": "2026-09-08"
     },
     {
@@ -224,7 +239,10 @@
       "evidence_source_ids": ["griis-91705", "doa-ias-2025"],
       "evidence_summary": "GRIIS Malaysia and the Department of Agriculture Malaysia both record the species as invasive and present.",
       "habitats": ["terrestrial"],
-      "water_dispersed": false,
+      "water_dispersed": true,
+      "dispersal_modes": ["water"],
+      "dispersal_source_ids": ["nsw-weedwise-mimosa"],
+      "dispersal_reviewed_at": "2026-09-14",
       "status_reviewed_at": "2026-09-08"
     },
     {
@@ -246,7 +264,10 @@
       "evidence_source_ids": ["doa-ias-2025"],
       "evidence_summary": "The Department of Agriculture Malaysia factsheet records the species in Peninsular Malaysia and Sabah.",
       "habitats": ["terrestrial"],
-      "water_dispersed": false,
+      "water_dispersed": true,
+      "dispersal_modes": ["water"],
+      "dispersal_source_ids": ["nsw-weedwise-parthenium"],
+      "dispersal_reviewed_at": "2026-09-14",
       "status_reviewed_at": "2026-09-08"
     },
     {
@@ -314,6 +335,9 @@
       "evidence_summary": "GRIIS Malaysia and the Department of Agriculture Malaysia both record the species as invasive and present in freshwater.",
       "habitats": ["freshwater"],
       "water_dispersed": true,
+      "dispersal_modes": ["water"],
+      "dispersal_source_ids": ["cabi-salvinia"],
+      "dispersal_reviewed_at": "2026-09-14",
       "status_reviewed_at": "2026-09-08"
     },
     {
@@ -419,6 +443,16 @@
     { "source_id": "griis-91786", "title": "GRIIS Malaysia record 91786", "publisher": "GRIIS", "url": "https://doi.org/10.15468/j9xkz3", "accessed": "2026-09-08" },
     { "source_id": "griis-91804", "title": "GRIIS Malaysia record 91804", "publisher": "GRIIS", "url": "https://doi.org/10.15468/j9xkz3", "accessed": "2026-09-08" },
     { "source_id": "griis-91822", "title": "GRIIS Malaysia record 91822", "publisher": "GRIIS", "url": "https://doi.org/10.15468/j9xkz3", "accessed": "2026-09-08" },
-    { "source_id": "griis-91853", "title": "GRIIS Malaysia record 91853", "publisher": "GRIIS", "url": "https://doi.org/10.15468/j9xkz3", "accessed": "2026-09-08" }
+    { "source_id": "griis-91853", "title": "GRIIS Malaysia record 91853", "publisher": "GRIIS", "url": "https://doi.org/10.15468/j9xkz3", "accessed": "2026-09-08" },
+    { "source_id": "nsw-weedwise-mimosa", "title": "WeedWise: Mimosa (Mimosa pigra) - seed floats in waterways during floods", "publisher": "NSW Department of Primary Industries", "url": "https://weeds.dpi.nsw.gov.au/Weed/Mimosa", "accessed": "2026-09-14" },
+    { "source_id": "nsw-weedwise-parthenium", "title": "WeedWise: Parthenium weed (Parthenium hysterophorus) - seed spreads along waterways and in floodwater", "publisher": "NSW Department of Primary Industries", "url": "https://weeds.dpi.nsw.gov.au/Weed/partheniumweed", "accessed": "2026-09-14" },
+    { "source_id": "fao-mikania", "title": "Mikania micrantha weed risk assessment - seed spread by water currents and floods", "publisher": "Food and Agriculture Organization of the United Nations", "url": "https://www.fao.org/forestry-fao/13376-05d702161c15b1e3defa6bf9c8e6c4f82.pdf", "accessed": "2026-09-14" },
+    { "source_id": "qld-invasive-fact-sheets", "title": "Invasive plant and animal fact sheets - Mikania micrantha water dispersal", "publisher": "Queensland Government (Department of Agriculture and Fisheries)", "url": "https://www.publications.qld.gov.au/dataset/invasive-plant-and-animal-fact-sheets", "accessed": "2026-09-14" },
+    { "source_id": "vro-vic-siam-weed", "title": "Invasive species assessment: Chromolaena odorata (Siam weed) - records water dispersal", "publisher": "Agriculture Victoria - Victorian Resources Online", "url": "https://vro.agriculture.vic.gov.au/dpi/vro/vrosite.nsf/pages/invasive_siam-weed", "accessed": "2026-09-14" },
+    { "source_id": "au-agr-cyperus-1999", "title": "TWGP-4 assessment - Cyperus rotundus tubers move in floodwater", "publisher": "Australian Government - Department of Agriculture, Fisheries and Forestry", "url": "https://www.agriculture.gov.au/sites/default/files/sitecollectiondocuments/ba/memos/1999/plant/TWGP_4.pdf", "accessed": "2026-09-14" },
+    { "source_id": "ecan-nutgrass", "title": "Pest search: Nutgrass (Cyperus rotundus) - water spread", "publisher": "Environment Canterbury (New Zealand)", "url": "https://www.ecan.govt.nz/pest-search/nutgrass", "accessed": "2026-09-14" },
+    { "source_id": "cabi-eichhornia", "title": "Eichhornia crassipes (water hyacinth) - floating aquatic dispersal", "publisher": "CABI Compendium", "url": "https://www.cabi.org/isc/datasheet/20544", "accessed": "2026-09-14" },
+    { "source_id": "cabi-limnocharis", "title": "Limnocharis flava - seeds and rhizomes dispersed by floodwater", "publisher": "CABI Compendium", "url": "https://www.cabi.org/isc/datasheet/30726", "accessed": "2026-09-14" },
+    { "source_id": "cabi-salvinia", "title": "Salvinia molesta - free-floating aquatic dispersal along waterways", "publisher": "CABI Compendium", "url": "https://www.cabi.org/isc/datasheet/48447", "accessed": "2026-09-14" }
   ]
 }

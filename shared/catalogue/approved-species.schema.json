@@ -57,8 +57,36 @@
         "evidence_summary": { "type": "string", "minLength": 1 },
         "habitats": { "type": "array", "minItems": 1, "items": { "enum": ["terrestrial", "freshwater"] } },
         "water_dispersed": { "type": "boolean" },
-        "status_reviewed_at": { "type": "string", "format": "date" }
-      }
+        "status_reviewed_at": { "type": "string", "format": "date" },
+        "dispersal_modes": {
+          "type": "array",
+          "minItems": 1,
+          "uniqueItems": true,
+          "items": { "enum": ["water"] }
+        },
+        "dispersal_source_ids": {
+          "type": "array",
+          "minItems": 1,
+          "uniqueItems": true,
+          "items": { "type": "string", "minLength": 1 }
+        },
+        "dispersal_reviewed_at": { "type": "string", "format": "date" }
+      },
+      "allOf": [
+        {
+          "description": "A dispersal trait must always ship with its evidence: any record that declares dispersal_modes must also carry a non-empty dispersal_source_ids array and a dispersal_reviewed_at date.",
+          "if": { "required": ["dispersal_modes"] },
+          "then": { "required": ["dispersal_source_ids", "dispersal_reviewed_at"] }
+        },
+        {
+          "description": "Every species flagged water_dispersed=true must expose the sourced trait so the direction-aware pipeline can only trust records that carry water in dispersal_modes together with at least one source.",
+          "if": { "properties": { "water_dispersed": { "const": true } }, "required": ["water_dispersed"] },
+          "then": {
+            "required": ["dispersal_modes", "dispersal_source_ids", "dispersal_reviewed_at"],
+            "properties": { "dispersal_modes": { "contains": { "const": "water" } } }
+          }
+        }
+      ]
     },
     "source": {
       "type": "object",

@@ -31,7 +31,11 @@ from app.domain.catalogue import approved_species_record
 
 OSM_DIRECTION_SOURCE = "OpenStreetMap directed waterway preprocessing"
 SUPPORTED_PLACE_TYPES = {"park", "forest", "wood", "trail"}
-MAX_SNAP_DISTANCE_M = Decimal("50")
+# Kept in lock-step with osm_waterway_graph.MAX_SNAP_DISTANCE_M. The absolute
+# snap tolerance is 150 m; the combined snap + coordinate uncertainty is still
+# gated separately at <= 250 m. See osm_waterway_graph for the reproducible
+# 14 September 2026 evidence that motivated the 50 -> 150 change.
+MAX_SNAP_DISTANCE_M = Decimal("150")
 EVIDENCE_SCHEMA_VERSION = "invatrace.osm-waterway-evidence.v1"
 
 
@@ -179,7 +183,10 @@ def import_waterway_evidence_json(
         if approved is None:
             reasons["species_not_approved"] += 1
             continue
-        if not approved.water_dispersed:
+        # Import only accepts a species when the sourced water trait is
+        # present. The legacy boolean is kept in the JSON for backward
+        # compatibility but the loader guarantees both stay in sync.
+        if not approved.water_dispersed_sourced:
             reasons["species_not_water_dispersed"] += 1
             continue
 

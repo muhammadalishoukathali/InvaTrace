@@ -125,6 +125,29 @@ class PlacePlantAssociation(ApiModel):
     catalogue_url: str
 
 
+class CommunityReportEvidence(ApiModel):
+    """Iteration-2 §4 community-report tier.
+
+    Community sightings are ALWAYS reported in a separately labelled tier
+    from ``items`` (which carries the reviewed historical GBIF records).
+    ``source_label`` is fixed to make the difference visible in the UI and
+    in downstream analytics; do not merge these counts into
+    ``occurrence_count`` on a historical row.
+    """
+
+    species_id: str
+    scientific_name: str
+    common_names: list[str]
+    active_reports: int
+    removal_reports: int
+    relations: list[str]
+    nearest_distance_m: float | None
+    catalogue_url: str
+    source_label: Literal["Community report - not expert validated"] = (
+        "Community report - not expert validated"
+    )
+
+
 class PlacePlantAssociationsResponse(ApiModel):
     place_id: uuid.UUID
     place_name: str
@@ -135,7 +158,11 @@ class PlacePlantAssociationsResponse(ApiModel):
     occurrence_updated_at: datetime | None
     disclaimer: str
     truncated: bool
+    # Historical GBIF-derived evidence (the reviewed record system). Also
+    # aliased as ``historical_records`` for readers that expect that name
+    # directly - both fields serialize the same value.
     items: list[PlacePlantAssociation]
+    community_reports: list[CommunityReportEvidence] = []
 
 
 def _metadata(value) -> dict:
@@ -631,6 +658,38 @@ def plant_associations(
             )
         )
     items.sort(key=lambda item: (-item.evidence.rank_score, item.scientific_name))
+    # Iteration-2 §4: community-report contributions live in a separate,
+    # lower-tier bucket. They can make a species visible for a place that
+    # has no historical evidence yet, but they never masquerade as
+    # historical or expert-validated evidence.
+    from app.domain.place_sighting_evidence import community_report_summaries_for_place
+
+    community_items: list[CommunityReportEvidence] = []
+    for summary in community_report_summaries_for_place(
+        session, place_id=place.id, place_type=place_type
+    ):
+        approved = approved_species_record(summary["speciesId"])
+        if approved is None:
+            continue
+        community_items.append(
+            CommunityReportEvidence(
+                species_id=approved.species_id,
+                scientific_name=approved.scientific_name,
+                common_names=list(approved.common_names),
+                active_reports=summary["activeReports"],
+                removal_reports=summary["removalReports"],
+                relations=summary["relations"],
+                nearest_distance_m=(
+                    round(summary["nearestDistanceM"], 1)
+                    if summary["nearestDistanceM"] is not None
+                    else None
+                ),
+                catalogue_url=f"/catalogue/{approved.species_id}",
+            )
+        )
+    community_items.sort(
+        key=lambda item: (-item.active_reports, item.scientific_name)
+    )
     return PlacePlantAssociationsResponse(
         place_id=place.id,
         place_name=place.name,
@@ -641,8 +700,11 @@ def plant_associations(
         occurrence_updated_at=max(update_times) if update_times else None,
         disclaimer=(
             "Associations are based on historical occurrence records and mapped buffers. "
-            "They are not probabilities and do not show current presence or absence."
+            "They are not probabilities and do not show current presence or absence. "
+            "Community reports appear in a separately labelled tier and are not "
+            "expert-validated."
         ),
         truncated=truncated,
         items=items,
+        community_reports=community_items,
     )

@@ -5,7 +5,7 @@
   "content_version": "2.2.0",
   "model_version": "oe_v4_31class_web_fp16",
   "last_reviewed": "2026-09-13",
-  "generated_at": "2026-09-14T20:42:37.469Z",
+  "generated_at": "2026-09-15T04:02:09.057Z",
   "assets": [
     {
       "species_id": "acacia-auriculiformis",
@@ -490,8 +490,8 @@
   ],
   "files": {
     "approved-species.json": {
-      "sha256": "2ec803f305aba327e47642b20b1be8367060c6c1ebf9a50236b0bbf766d4de32",
-      "byte_length": 21708,
+      "sha256": "059b842e946dd6ea2d25d872b508fb244cd87cfd2fc8c4c4825b42b4c7c818d1",
+      "byte_length": 25618,
       "schema_version": "invatrace.approved-species.v1",
       "record_count": 32
     },

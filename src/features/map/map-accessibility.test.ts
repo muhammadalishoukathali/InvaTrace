@@ -66,7 +66,14 @@ describe('map accessibility fallback', () => {
     expect(threatMap).toContain('cluster: true')
     expect(threatMap).toContain("id: 'place-clusters'")
     expect(threatMap).toContain("id: 'place-points'")
-    expect(threatMap).toContain("'circle-color': ['match', ['get', 'placeType']")
+    // The place-points layer must render locally bundled place-type icons
+    // via a MapLibre symbol layer, not raw circles - see place-icons.ts.
+    expect(threatMap).toContain("type: 'symbol'")
+    expect(threatMap).toContain("'icon-image': ['match', ['get', 'placeType']")
+    expect(threatMap).toContain('PLACE_ICONS.park.id')
+    expect(threatMap).toContain('PLACE_ICONS.forest.id')
+    expect(threatMap).toContain('PLACE_ICONS.wood.id')
+    expect(threatMap).toContain('PLACE_ICONS.trail.id')
   })
 
   it('debounces viewport requests and provides an independent places toggle', () => {

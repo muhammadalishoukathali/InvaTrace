@@ -37,6 +37,7 @@ import { SightingDetailsSheet } from './SightingDetailsSheet'
 import { MapLegend } from './MapLegend'
 import { Icon } from '@/components/Icon'
 import { parseMapLocationTarget, type MapLocationTarget } from './map-location-link'
+import { PLACE_ICONS, PLACE_TYPES, formatPlaceType, svgDataUrl } from './place-icons'
 
 // Point MapLibre at its worker file ourselves. If we don't, it tries to
 // guess a URL that sits next to Vite's optimized dep file in dev, and the
@@ -102,6 +103,7 @@ export function ThreatMapPage() {
   const placeRequestSequence = useRef(0)
   const loadVisiblePlaces = useRef<(target: Map) => void>(() => undefined)
   const placeReturnFocus = useRef<HTMLElement | null>(null)
+  const placeSuppressFocusRestore = useRef(false)
   const placePreviewRef = useRef<HTMLElement>(null)
   const isDesktop = useIsDesktop()
   const routeLocation = useLocation()
@@ -158,6 +160,7 @@ export function ThreatMapPage() {
   useEffect(() => {
     if (!selectedPlace) return
     const previous = placeReturnFocus.current
+    const closingPlaceId = selectedPlace.placeId
     const frame = window.requestAnimationFrame(() => placePreviewRef.current?.focus())
     const onKey = (event: KeyboardEvent) => {
       if (event.key === 'Escape') setSelectedPlace(null)
@@ -166,12 +169,51 @@ export function ThreatMapPage() {
     return () => {
       window.cancelAnimationFrame(frame)
       window.removeEventListener('keydown', onKey)
-      const returnTarget = previous?.isConnected
-        ? previous
-        : document.querySelector<HTMLElement>(
-          `[data-place-id="${selectedPlace.placeId}"]`,
+      // The user may have clicked "View plants recorded nearby", which
+      // starts a route change. In that case we must not steal focus
+      // back to the map - React Router will focus the new route's
+      // landmark. `placeSuppressFocusRestore` is set true only in that
+      // branch.
+      if (placeSuppressFocusRestore.current) {
+        placeSuppressFocusRestore.current = false
+        placeReturnFocus.current = null
+        return
+      }
+      // Wait one animation frame so React has committed the closed
+      // state and the accessible place list has re-rendered with the
+      // fresh `[data-place-id]` button. Then, in order:
+      //   1. focus the currently connected button for the same place
+      //      (this survives an async /places/map refresh that swaps
+      //      the DOM node behind the original trigger reference);
+      //   2. otherwise focus the original trigger if it is still
+      //      connected;
+      //   3. otherwise focus the map canvas or the show/hide toggle,
+      //      whichever is still on screen.
+      const restore = () => {
+        const currentForPlace = document.querySelector<HTMLElement>(
+          `[data-place-id="${closingPlaceId}"]`,
         )
-      returnTarget?.focus({ preventScroll: true })
+        if (currentForPlace) {
+          currentForPlace.focus({ preventScroll: true })
+          placeReturnFocus.current = null
+          return
+        }
+        if (previous?.isConnected) {
+          previous.focus({ preventScroll: true })
+          placeReturnFocus.current = null
+          return
+        }
+        const canvas = map.current?.getCanvas()
+        if (canvas?.isConnected) {
+          canvas.focus({ preventScroll: true })
+          placeReturnFocus.current = null
+          return
+        }
+        const toggle = document.querySelector<HTMLElement>('.map-places-toggle')
+        toggle?.focus({ preventScroll: true })
+        placeReturnFocus.current = null
+      }
+      window.requestAnimationFrame(restore)
     }
   }, [selectedPlace])
 
@@ -300,6 +342,21 @@ export function ThreatMapPage() {
     const schedulePlaces = () => loadVisiblePlaces.current(m)
     m.once('style.load', () => {
       m.resize()
+      // Load the four place-type icons into MapLibre's sprite. We embed
+      // them as SVG data URLs (see place-icons.ts) so nothing hits the
+      // network and no external icon-service licence is involved. The
+      // returned promise from loadImage is awaited before we add the
+      // symbol layer, otherwise the first render would fall back to the
+      // built-in default marker.
+      const loadIcons = PLACE_TYPES.map((placeType) => {
+        const spec = PLACE_ICONS[placeType]
+        return m
+          .loadImage(svgDataUrl(spec.svg))
+          .then((image) => {
+            if (!m.hasImage(spec.id)) m.addImage(spec.id, image.data, { pixelRatio: 2 })
+          })
+          .catch(() => undefined)
+      })
       m.addSource(PLACE_SOURCE_ID, {
         type: 'geojson',
         data: EMPTY_PLACES,
@@ -327,19 +384,40 @@ export function ThreatMapPage() {
         layout: { 'text-field': ['get', 'point_count_abbreviated'], 'text-size': 12 },
         paint: { 'text-color': '#FFFFFF' },
       })
-      m.addLayer({
-        id: 'place-points',
-        type: 'circle',
-        source: PLACE_SOURCE_ID,
-        filter: ['!', ['has', 'point_count']],
-        paint: {
-          'circle-color': ['match', ['get', 'placeType'],
-            'park', '#6D3FB5', 'forest', '#176B45', 'wood', '#9A6518', 'trail', '#176FA8', '#4F655A'],
-          'circle-radius': 8,
-          'circle-stroke-color': '#FFFFFF',
-          'circle-stroke-width': 2,
-        },
-      })
+      // Add the icon layer only after every icon has loaded (or has
+      // safely failed - the fallback icon id is still park, so the
+      // layer never renders an unmapped sprite). Symbol layers reuse
+      // the MapLibre sprite atlas, so we do not spawn thousands of DOM
+      // markers even at Malaysia-wide zoom.
+      const addSymbolLayer = () => {
+        if (m.getLayer('place-points')) return
+        m.addLayer({
+          id: 'place-points',
+          type: 'symbol',
+          source: PLACE_SOURCE_ID,
+          filter: ['!', ['has', 'point_count']],
+          layout: {
+            'icon-image': ['match', ['get', 'placeType'],
+              'park', PLACE_ICONS.park.id,
+              'forest', PLACE_ICONS.forest.id,
+              'wood', PLACE_ICONS.wood.id,
+              'trail', PLACE_ICONS.trail.id,
+              PLACE_ICONS.trail.id],
+            'icon-size': 0.55,
+            'icon-allow-overlap': false,
+            'icon-ignore-placement': false,
+            'icon-anchor': 'center',
+            'symbol-sort-key': ['match', ['get', 'placeType'],
+              'park', 1, 'forest', 2, 'wood', 3, 'trail', 4, 5],
+          },
+        })
+        PLACE_LAYER_IDS.forEach((layerId) => {
+          if (m.getLayer(layerId)) {
+            m.setLayoutProperty(layerId, 'visibility', showPlacesRef.current ? 'visible' : 'none')
+          }
+        })
+      }
+      void Promise.all(loadIcons).then(addSymbolLayer)
       schedulePlaces()
       if (targetSightingId.current || requestedLocation) return
       m.jumpTo({ center: CENTRE, zoom: isDesktop ? INITIAL_ZOOM : INITIAL_ZOOM_MOBILE })
@@ -624,10 +702,15 @@ export function ThreatMapPage() {
             >
               <Icon name="X" size={17} color="currentColor" />
             </button>
-            <span className="map-place-preview__type">{selectedPlace.placeType}</span>
+            <span className="map-place-preview__type">{formatPlaceType(selectedPlace.placeType)}</span>
             <h2>{selectedPlace.displayName}</h2>
             <p>{selectedPlace.source} · geometry {selectedPlace.geometryVersion}</p>
-            <Link to={`/places/${selectedPlace.placeId}`}>View plants recorded nearby</Link>
+            <Link
+              to={`/places/${selectedPlace.placeId}`}
+              onClick={() => { placeSuppressFocusRestore.current = true }}
+            >
+              View plants recorded nearby
+            </Link>
           </aside>
         )}
         {locationNotice && (
@@ -878,7 +961,7 @@ function AccessiblePlaceList({
                   data-place-id={feature.properties.placeId}
                   onClick={(event) => onSelect(feature, event.currentTarget)}
                 >
-                  {feature.properties.displayName} - {feature.properties.placeType} - View plants recorded nearby
+                  {feature.properties.displayName} - {formatPlaceType(feature.properties.placeType)} - View plants recorded nearby
                 </button>
               </li>
             ))}
