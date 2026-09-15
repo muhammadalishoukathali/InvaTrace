@@ -111,21 +111,33 @@ async def verify_image(
             reason="PlantNet API key is not configured",
         )
     if not await _counter.try_consume(settings.plantnet_daily_limit):
+        # A distinct status so callers can render a "we're rate-limited" hint
+        # instead of the generic "PlantNet unreachable" message that dropped
+        # calls get.
         return PlantNetVerification(
-            status="error",
+            status="not_sure",
             species=None,
             reason="daily PlantNet quota reached",
         )
     project = settings.plantnet_project or "all"
-    url = f"{settings.plantnet_endpoint}/{project}"
-    params = {"api-key": settings.plantnet_api_key, "no-reject": "false"}
+    endpoint_url = f"{settings.plantnet_endpoint}/{project}"
+    # Key goes in a header, not the query string. Query params bleed into
+    # request logs and any httpx.HTTPError.str() we log below, so keeping
+    # the secret out of the URL entirely is the safe default.
+    request_headers = {"Api-Key": settings.plantnet_api_key}
+    # `no-reject=false` matches PlantNet's default; kept explicit so a
+    # future dashboard tweak cannot silently flip identifier behaviour.
+    request_params = {"no-reject": "false"}
+    if not organs:
+        organs = ("auto",)
     files = [("images", (filename, image_bytes, content_type))]
-    data = [("organs", organ) for organ in organs] if organs else None
+    data = [("organs", organ) for organ in organs]
 
     async def _call(client: httpx.AsyncClient) -> httpx.Response:
         return await client.post(
-            url,
-            params=params,
+            endpoint_url,
+            params=request_params,
+            headers=request_headers,
             files=files,
             data=data,
             timeout=settings.plantnet_timeout_seconds,
@@ -138,24 +150,32 @@ async def verify_image(
         else:
             response = await _call(http_client)
     except httpx.TimeoutException:
-        log.warning("plantnet timeout", url=url)
+        # Never log the endpoint URL alongside the key context; the URL is
+        # safe on its own (no key in it) but we keep the log minimal.
+        log.warning("plantnet timeout")
         return PlantNetVerification(status="not_sure", species=None, reason="PlantNet timed out")
     except httpx.HTTPError as error:
-        log.warning("plantnet transport error", error=str(error))
-        return PlantNetVerification(status="error", species=None, reason=str(error))
+        log.warning("plantnet transport error", error_type=type(error).__name__)
+        return PlantNetVerification(status="error", species=None, reason="transport error")
 
     if response.status_code == 404:
         # PlantNet uses 404 for "no species matched" on the /identify endpoint.
         return PlantNetVerification(status="not_sure", species=None, reason="no match")
     if response.status_code >= 400:
-        log.warning("plantnet error status", status=response.status_code, body=response.text[:200])
+        log.warning("plantnet error status", status=response.status_code)
         return PlantNetVerification(
             status="error",
             species=None,
             reason=f"HTTP {response.status_code}",
         )
 
-    payload = response.json()
+    try:
+        payload = response.json()
+    except ValueError:
+        # PlantNet returns 200 with a maintenance HTML page occasionally; the
+        # UI must still get a usable answer instead of a 500 from the proxy.
+        log.warning("plantnet non-json response")
+        return PlantNetVerification(status="not_sure", species=None, reason="invalid response")
     results = payload.get("results") or []
     if not results:
         return PlantNetVerification(status="not_sure", species=None, reason="no results")

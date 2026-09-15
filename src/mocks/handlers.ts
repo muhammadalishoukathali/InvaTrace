@@ -677,6 +677,45 @@ export const handlers = [
   // just accept the upload PUT locally instead of actually hitting real storage
   http.put('https://mock-s3.local/*', () => HttpResponse.text('', { status: 200 })),
 
+  http.post(url('/api/v1/identify/plantnet-verify'), async ({ request }) => {
+    if (!hasActiveSession(request)) return sessionUnavailable()
+    // Mocked PlantNet mirror. A real backend hits my-api.plantnet.org; the
+    // dev mock just deterministically flips between the three product-level
+    // states so the ScanResultPage UI can be exercised without the network.
+    let form: FormData
+    try { form = await request.formData() } catch {
+      return HttpResponse.json({ code: 'verification_empty_image', detail: 'Verification image is empty.' }, { status: 422 })
+    }
+    const image = form.get('image')
+    if (!(image instanceof Blob) || image.size === 0) {
+      return HttpResponse.json({ code: 'verification_empty_image', detail: 'Verification image is empty.' }, { status: 422 })
+    }
+    // 3-way rotation based on image size so tests can predict the outcome
+    // without wiring an actual classifier into MSW.
+    const bucket = image.size % 3
+    if (bucket === 0) {
+      return HttpResponse.json({
+        label: 'native', status: 'native', provider: 'plantnet', reason: null,
+        species: {
+          scientificName: 'Ixora coccinea',
+          commonNames: ['Jungle geranium'],
+          family: 'Rubiaceae',
+          score: 0.62,
+        },
+      })
+    }
+    if (bucket === 1) {
+      return HttpResponse.json({
+        label: 'not_sure', status: 'not_sure', provider: 'plantnet',
+        species: null, reason: 'no match',
+      })
+    }
+    return HttpResponse.json({
+      label: 'not_sure', status: 'disabled', provider: 'plantnet',
+      species: null, reason: 'PlantNet API key is not configured',
+    })
+  }),
+
   http.post(url('/api/v1/scans'), async ({ request }) => {
     if (!hasActiveSession(request)) return sessionUnavailable()
     const session = sessionForRequest(request)!

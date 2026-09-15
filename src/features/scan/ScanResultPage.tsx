@@ -436,18 +436,31 @@ function UncertainResult({ result }: { result: IdentifyResult }) {
     navigate('/scan', { replace: true, state: location.state })
   }
   const verification = result.verification
-  const identifiedAsNative = verification?.label === 'native' && verification.species
+  // Guard against PlantNet identifying the plant as one of the 32 InvaTrace
+  // invasives that Student33 was uncertain about: labelling that "Native
+  // Species" would understate the risk. If PlantNet's top match sits in the
+  // approved catalogue we fall back to Not Sure with a note that the user
+  // should retake the photo so Student33 can classify it confidently, rather
+  // than pretending it's non-invasive.
+  const plantnetMatchesInvasive = verification?.species
+    ? findApprovedSpecies({ scientificName: verification.species.scientificName }) !== null
+    : false
+  const identifiedAsNative = (
+    verification?.label === 'native'
+    && verification.species
+    && !plantnetMatchesInvasive
+  )
   const headline = identifiedAsNative
     ? 'Native Species'
     : 'Not Sure - Unable to verify'
   const speciesLine = identifiedAsNative
-    ? verification.species!.scientificName
+    ? verification!.species!.scientificName
     : null
   const commonName = identifiedAsNative
-    ? (verification.species!.commonNames ?? [])[0] ?? null
+    ? (verification!.species!.commonNames ?? [])[0] ?? null
     : null
   const plantnetScore = identifiedAsNative
-    ? Math.round((verification.species!.score ?? 0) * 100)
+    ? Math.round((verification!.species!.score ?? 0) * 100)
     : null
   return (
     <div style={{ marginTop: 16, padding: '16px 18px', borderRadius: 'var(--r-card)', background: 'var(--surface)', border: '1px solid var(--border)' }}>
@@ -467,13 +480,15 @@ function UncertainResult({ result }: { result: IdentifyResult }) {
       ) : (
         <>
           <p style={{ fontSize: 13.5, color: 'var(--body)', marginTop: 8, lineHeight: 1.6 }}>
-            {verification?.status === 'disabled'
-              ? 'The on-device model was not confident, and the PlantNet verifier is not enabled on this build. Try another photo.'
-              : verification?.status === 'error'
-                ? 'The on-device model was not confident, and PlantNet could not be reached for a second opinion.'
-                : 'We could not confidently identify the plant. Try again with:'}
+            {plantnetMatchesInvasive
+              ? `PlantNet suggested ${verification!.species!.scientificName}, which is on the InvaTrace invasive list, but the on-device model was not confident. Please retake the photo (closer, sharper, one leaf or flower) so the model can classify it.`
+              : verification?.status === 'disabled'
+                ? 'The on-device model was not confident, and the PlantNet verifier is not enabled on this build. Try another photo.'
+                : verification?.status === 'error'
+                  ? 'The on-device model was not confident, and PlantNet could not be reached for a second opinion.'
+                  : 'We could not confidently identify the plant. Try again with:'}
           </p>
-          {verification?.status !== 'disabled' && (
+          {verification?.status !== 'disabled' && !plantnetMatchesInvasive && (
             <ul style={{ marginTop: 8, paddingLeft: 18, fontSize: 13, color: 'var(--body)', lineHeight: 1.7 }}>
               <li>Even lighting without harsh shadows</li>
               <li>A closer photo with the plant in focus</li>

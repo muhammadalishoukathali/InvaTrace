@@ -44,7 +44,7 @@ class VerificationSpeciesResponse(BaseModel):
 
 
 class VerificationResponse(BaseModel):
-    label: str = Field(description="native | not_sure | disabled")
+    label: str = Field(description="Product-level label: native | not_sure")
     status: str = Field(description="Raw PlantNet-side status: native, not_sure, disabled, error")
     species: VerificationSpeciesResponse | None = None
     reason: str | None = None
@@ -53,6 +53,22 @@ class VerificationResponse(BaseModel):
 
 _ALLOWED_TYPES = {"image/jpeg", "image/png", "image/webp"}
 _MAX_BYTES = 6 * 1024 * 1024
+# Bytes the file actually starts with (magic numbers), so the server does not
+# trust the client-supplied Content-Type header for a file it forwards to a
+# third party. WebP is `RIFF????WEBP` where ???? is the size, so we match on
+# the RIFF+WEBP framing rather than the size bytes in between.
+_MAGIC_JPEG = b"\xff\xd8\xff"
+_MAGIC_PNG = b"\x89PNG\r\n\x1a\n"
+
+
+def _looks_like_supported_image(payload: bytes) -> bool:
+    if payload.startswith(_MAGIC_JPEG):
+        return True
+    if payload.startswith(_MAGIC_PNG):
+        return True
+    if len(payload) >= 12 and payload[:4] == b"RIFF" and payload[8:12] == b"WEBP":
+        return True
+    return False
 
 
 def _shape(verification: PlantNetVerification) -> VerificationResponse:
@@ -93,14 +109,33 @@ async def plantnet_verify(
             "verification_unsupported_type",
             "PlantNet verification accepts JPEG, PNG or WebP images.",
         )
-    payload = await image.read()
+    # Read in bounded chunks so a malicious huge upload is rejected before
+    # the whole body reaches memory. `_MAX_BYTES + 1` triggers the size
+    # branch as soon as one more byte lands past the limit.
+    chunks: list[bytes] = []
+    total = 0
+    while True:
+        chunk = await image.read(64 * 1024)
+        if not chunk:
+            break
+        total += len(chunk)
+        if total > _MAX_BYTES:
+            raise ApiProblem(
+                413,
+                "verification_image_too_large",
+                "Verification image exceeds the 6 MB limit.",
+            )
+        chunks.append(chunk)
+    payload = b"".join(chunks)
     if not payload:
         raise ApiProblem(422, "verification_empty_image", "Verification image is empty.")
-    if len(payload) > _MAX_BYTES:
+    # Magic-byte sniff: the header can be spoofed, so a JPEG-labelled payload
+    # that does not start with the JPEG marker never reaches PlantNet.
+    if not _looks_like_supported_image(payload):
         raise ApiProblem(
-            413,
-            "verification_image_too_large",
-            "Verification image exceeds the 6 MB limit.",
+            415,
+            "verification_unsupported_type",
+            "PlantNet verification accepts JPEG, PNG or WebP images.",
         )
     verification = await verify_image(
         image_bytes=payload,
