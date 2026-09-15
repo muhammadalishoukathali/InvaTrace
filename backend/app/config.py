@@ -61,7 +61,23 @@ class Settings(BaseSettings):
     # client reports something outside this list the screening worker treats
     # the outcome as unsupported rather than blindly accepting it - see
     # client_model_supported in app/workers/verification.py.
-    e1_model_versions: Annotated[list[str], NoDecode] = ["oe_v4_31class_web_fp16"]
+    e1_model_versions: Annotated[list[str], NoDecode] = [
+        "invatrace-student33-tinyvit5m-320-fp16",
+        # Kept while any client PWA still ships the retired PULIH bundle; can be
+        # removed once release monitoring shows no more submissions from it.
+        "oe_v4_31class_web_fp16",
+    ]
+
+    # PlantNet cross-check. Runs only when the on-device model returns
+    # `uncertain` (max core probability below the Student33 threshold): the
+    # server proxies the image to PlantNet using this key so it never ships
+    # in the client bundle. The feature stays disabled until an API key is
+    # configured, so a missing key never causes an error.
+    plantnet_api_key: str | None = None
+    plantnet_project: str = "all"
+    plantnet_endpoint: str = "https://my-api.plantnet.org/v2/identify"
+    plantnet_timeout_seconds: float = Field(default=8.0, ge=1.0, le=30.0)
+    plantnet_daily_limit: int = Field(default=400, ge=1, le=100_000)
     screening_minimum_image_dimension: int = Field(default=320, ge=128, le=2048)
     screening_perceptual_hamming_threshold: int = Field(default=6, ge=0, le=16)
     screening_duplicate_radius_max_m: int = Field(default=25, ge=10, le=100)

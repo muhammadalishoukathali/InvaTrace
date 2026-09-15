@@ -112,6 +112,31 @@ export interface IdentifyResult {
     confidence: number
     isInvasive: boolean
   }>
+  /**
+   * PlantNet second-opinion result, set only when the on-device model returns
+   * `uncertain` and the backend was able to ask PlantNet. See
+   * plantnet-verify.ts for the call path.
+   */
+  verification?: VerificationResult
+}
+
+/** Product-level label the UI shows on top of the raw model outcome. */
+export type IdentificationLabel = 'invasive' | 'native' | 'not_sure'
+
+/** PlantNet cross-check result, normalised by the backend. */
+export interface VerificationResult {
+  /** Product-facing label: `native` when PlantNet identified the plant, `not_sure` otherwise. */
+  label: IdentificationLabel
+  /** Raw upstream status: native | not_sure | disabled | error. */
+  status: 'native' | 'not_sure' | 'disabled' | 'error'
+  provider: 'plantnet'
+  species?: {
+    scientificName: string
+    commonNames: string[]
+    family?: string | null
+    score: number
+  }
+  reason?: string | null
 }
 
 export interface Trait { label: string; value: string }

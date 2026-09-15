@@ -435,17 +435,53 @@ function UncertainResult({ result }: { result: IdentifyResult }) {
     useScan.getState().reset()
     navigate('/scan', { replace: true, state: location.state })
   }
+  const verification = result.verification
+  const identifiedAsNative = verification?.label === 'native' && verification.species
+  const headline = identifiedAsNative
+    ? 'Native Species'
+    : 'Not Sure - Unable to verify'
+  const speciesLine = identifiedAsNative
+    ? verification.species!.scientificName
+    : null
+  const commonName = identifiedAsNative
+    ? (verification.species!.commonNames ?? [])[0] ?? null
+    : null
+  const plantnetScore = identifiedAsNative
+    ? Math.round((verification.species!.score ?? 0) * 100)
+    : null
   return (
     <div style={{ marginTop: 16, padding: '16px 18px', borderRadius: 'var(--r-card)', background: 'var(--surface)', border: '1px solid var(--border)' }}>
-      <h2 style={{ fontSize: 16, fontWeight: 600 }}>Could not determine species</h2>
-      <p style={{ fontSize: 13.5, color: 'var(--body)', marginTop: 8, lineHeight: 1.6 }}>
-        We could not identify the plant from this photo. Try again with:
-      </p>
-      <ul style={{ marginTop: 8, paddingLeft: 18, fontSize: 13, color: 'var(--body)', lineHeight: 1.7 }}>
-        <li>Even lighting without harsh shadows</li>
-        <li>A closer photo with the plant in focus</li>
-        <li>One leaf or flower clearly visible</li>
-      </ul>
+      <h2 style={{ fontSize: 16, fontWeight: 600 }}>{headline}</h2>
+      {identifiedAsNative ? (
+        <>
+          <p style={{ marginTop: 6, color: 'var(--body)', fontSize: 13.5, lineHeight: 1.6 }}>
+            <em>{speciesLine}</em>
+            {commonName ? <> · {commonName}</> : null}
+          </p>
+          <p style={{ marginTop: 6, color: 'var(--muted)', fontSize: 12, lineHeight: 1.5 }}>
+            Not in the InvaTrace invasive catalogue. PlantNet identified this
+            plant with {plantnetScore ?? 0}% match confidence. Treat this as a
+            cross-check, not a formal ecological determination.
+          </p>
+        </>
+      ) : (
+        <>
+          <p style={{ fontSize: 13.5, color: 'var(--body)', marginTop: 8, lineHeight: 1.6 }}>
+            {verification?.status === 'disabled'
+              ? 'The on-device model was not confident, and the PlantNet verifier is not enabled on this build. Try another photo.'
+              : verification?.status === 'error'
+                ? 'The on-device model was not confident, and PlantNet could not be reached for a second opinion.'
+                : 'We could not confidently identify the plant. Try again with:'}
+          </p>
+          {verification?.status !== 'disabled' && (
+            <ul style={{ marginTop: 8, paddingLeft: 18, fontSize: 13, color: 'var(--body)', lineHeight: 1.7 }}>
+              <li>Even lighting without harsh shadows</li>
+              <li>A closer photo with the plant in focus</li>
+              <li>One leaf or flower clearly visible</li>
+            </ul>
+          )}
+        </>
+      )}
       <ConfidenceBand confidence={result.confidence} />
       <button type="button" onClick={retake} style={{
         marginTop: 14, width: '100%', height: 'var(--h-primary)',

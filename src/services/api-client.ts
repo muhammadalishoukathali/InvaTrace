@@ -44,6 +44,7 @@ export function apiUrl(path: string): string {
 // directly here because that would've created a circular import between
 // the two modules.
 export const setAccessToken = (t: string | null) => { accessToken = t }
+export const getAccessToken = () => accessToken
 // same idea - the store hands us a callback for re-bootstrapping a session
 // so this file doesn't need to know anything about how that store works
 export const setSessionRecovery = (recover: () => Promise<boolean>) => { recoverSession = recover }

@@ -94,6 +94,18 @@ services:
       # flag through a rebased branch.
       - key: SCREENING_DISABLE_DUPLICATE_CHECK
         value: "false"
+      # PlantNet cross-check for the on-device model's Unknown results.
+      # sync: false so the key is set in the Render dashboard, never
+      # committed. Feature stays inert until this is provided; the frontend
+      # just shows the plain "Not Sure" result in that case.
+      - key: PLANTNET_API_KEY
+        sync: false
+      - key: PLANTNET_PROJECT
+        value: "all"
+      # Accept the retired PULIH bundle alongside the current Student33
+      # release while any client PWA still ships the older model.
+      - key: E1_MODEL_VERSIONS
+        value: invatrace-student33-tinyvit5m-320-fp16,oe_v4_31class_web_fp16
 
   # Verification + cleanup workers run in-process inside invatrace-api on the
   # free plan (see RUN_WORKERS_IN_API above). On paid plans, add background

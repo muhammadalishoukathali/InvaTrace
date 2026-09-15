@@ -2,6 +2,7 @@ import type { BBox, QualityResult, IdentifyResult } from '@/types'
 import { modelSpeciesCatalog } from '@/data/model-species-catalog'
 import { hashBitmap } from './image-processing'
 import { PulihModel } from './pulih-model'
+import { verifyWithPlantNet } from './plantnet-verify'
 
 /**
  * This is the seam between the scan UI and whatever model is actually
@@ -141,8 +142,16 @@ class PulihAdapter implements ModelAdapter {
     return { ok: true }
   }
 
-  identify(image: Blob, onProgress?: (loaded: number, total: number) => void) {
-    return this.model.predict(image, onProgress)
+  async identify(image: Blob, onProgress?: (loaded: number, total: number) => void) {
+    const result = await this.model.predict(image, onProgress)
+    // Two-stage identification: the on-device Student33 model runs first and
+    // owns the "Invasive" verdict for anything in the 32-species catalogue.
+    // When it comes back uncertain, we cross-check the same photo with
+    // PlantNet via the backend proxy so the UI can still show a useful
+    // "Native Species" or "Not Sure" answer instead of a bare "uncertain".
+    if (result.outcome !== 'uncertain') return result
+    const verification = await verifyWithPlantNet(image)
+    return { ...result, verification }
   }
 }
 
