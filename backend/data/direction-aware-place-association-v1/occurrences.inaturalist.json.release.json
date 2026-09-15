@@ -1,0 +1,14 @@
+{
+  "$schema": "https://invatrace.local/schemas/data-release.schema.json",
+  "schema_version": "invatrace.data-release.v1",
+  "dataset_id": "inaturalist-malaysia-occurrences",
+  "source": "iNaturalist (research-grade Malaysia observations, uncertainty <= 1,000 m)",
+  "source_url": "https://api.inaturalist.org/v1/observations",
+  "upstream_version": "PRESENT",
+  "retrieved_at": "2026-09-10T11:22:38+00:00",
+  "licence": "See per-record licence field (mixed CC-BY / CC-BY-NC / other).",
+  "licence_url": "https://creativecommons.org/licenses/",
+  "file": "occurrences.inaturalist.json",
+  "sha256": "3c3bab8c9955a314b5ecd35cc83b6b5318ef7585f9c9eb74e5af61bf2d0ddace",
+  "byte_length": 17149
+}

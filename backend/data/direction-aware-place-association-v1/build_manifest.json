@@ -1,0 +1,45 @@
+{
+  "schema_version": "1.0.0",
+  "generated_at_utc": "2026-09-10T11:22:38+00:00",
+  "approved_species_count": 32,
+  "clean_occurrence_count": 2089,
+  "rejected_record_count": 204,
+  "sources": {
+    "GBIF": "https://api.gbif.org/v1/occurrence/search",
+    "iNaturalist": "https://api.inaturalist.org/v1/observations",
+    "iNaturalist_Malaysia_place_id": 7155
+  },
+  "filters": {
+    "country_code": "MY",
+    "occurrence_status": "PRESENT",
+    "maximum_coordinate_uncertainty_m": 1000.0,
+    "excluded_gbif_issues": [
+      "COORDINATE_INVALID",
+      "COUNTRY_COORDINATE_MISMATCH",
+      "ZERO_COORDINATE"
+    ],
+    "iNaturalist_sparse_threshold": 10,
+    "iNaturalist_quality_grade": "research",
+    "iNaturalist_requires_open_unobscured_coordinates": true
+  },
+  "limitations": [
+    "Occurrence records are presence-only and do not prove absence.",
+    "iNaturalist records may also be represented in GBIF; the build deduplicates matching observation IDs.",
+    "Unknown coordinate uncertainty is retained for direct/nearby evidence but excluded from directional waterway evidence.",
+    "State- and country-level official evidence is never converted into a synthetic point."
+  ],
+  "files": {
+    "occurrences_clean.csv": {
+      "sha256": "84f8f8310c2c4f524a797bfb79cff0226bc0982a7110a5f68f1742d3d7c69ccc",
+      "bytes": 960493
+    },
+    "occurrences_rejected.csv": {
+      "sha256": "d1c33c9989f7d154be2221a25dfc64006c7150a35e950220e0a98fcdc1e3cf42",
+      "bytes": 18879
+    },
+    "occurrence_summary_by_species.csv": {
+      "sha256": "1f22e10eecfad9d648f7d51db1363359362d20a53e550ac9d5c952e1965b94cd",
+      "bytes": 1911
+    }
+  }
+}

@@ -1,0 +1,35 @@
+{
+  "schema_version": "1.0.0",
+  "approved_species_count": 32,
+  "occurrence_filters": {
+    "country_code": "MY",
+    "occurrence_status": "PRESENT",
+    "maximum_coordinate_uncertainty_m": 1000,
+    "exclude_gbif_issue_codes": [
+      "COUNTRY_COORDINATE_MISMATCH",
+      "ZERO_COORDINATE",
+      "COORDINATE_INVALID"
+    ],
+    "deduplicate_by": [
+      "normalized_external_observation_id",
+      "source_name_and_source_record_id"
+    ]
+  },
+  "place_association": {
+    "park_or_forest_boundary_buffer_m": 1000,
+    "trail_buffer_m": 750,
+    "inside_rank": 3,
+    "nearby_rank": 2,
+    "upstream_waterway_boost": 1,
+    "nearby_decay": "linear_to_zero_at_buffer_limit"
+  },
+  "waterway_association": {
+    "source": "OpenStreetMap Malaysia extract",
+    "accepted_waterway_tags": ["river", "stream", "canal", "drain"],
+    "maximum_snap_distance_m": 100,
+    "maximum_upstream_network_distance_m": 5000,
+    "requires_connected_directed_path": true,
+    "omit_when_direction_or_connectivity_unknown": true,
+    "interpretation": "supporting evidence only; not a probability or forecast"
+  }
+}
