@@ -9,7 +9,10 @@ import { findPlantGuidance } from '@/data/plant-guidance'
 // depend on the network. These tests confirm the underlying catalogue lookup
 // the fallback uses actually produces the fields it renders.
 
-const MISSING_GUIDANCE_SPECIES = ['lantana-camara', 'miconia-crenata', 'sphagneticola-trilobata']
+// Species in the new model release whose reviewed guidance card has not been
+// authored yet - the fallback must render the shared catalogue's own
+// safety_message for these instead of a bland placeholder.
+const MISSING_GUIDANCE_SPECIES = ['acacia-auriculiformis', 'salvinia-molesta', 'urochloa-mutica']
 
 describe('offline guidance fallback', () => {
   it('every species in plant-status has a resolvable catalogue record', () => {

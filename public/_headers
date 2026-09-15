@@ -5,7 +5,7 @@
   Referrer-Policy: no-referrer
   Permissions-Policy: camera=(self), geolocation=(self), microphone=()
 
-/models/pulih-model1-v4/*
+/models/invatrace-student33-v1/*
   Cache-Control: public, max-age=31536000, immutable
   Access-Control-Allow-Origin: *
   X-Content-Type-Options: nosniff

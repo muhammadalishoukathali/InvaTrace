@@ -3,9 +3,9 @@
   "schema_version": "invatrace.catalogue.manifest.v2",
   "catalogue_version": "2.2.0",
   "content_version": "2.2.0",
-  "model_version": "oe_v4_31class_web_fp16",
+  "model_version": "invatrace-student33-tinyvit5m-320-fp16",
   "last_reviewed": "2026-09-13",
-  "generated_at": "2026-09-15T04:02:09.057Z",
+  "generated_at": "2026-09-15T05:36:09.687Z",
   "assets": [
     {
       "species_id": "acacia-auriculiformis",
@@ -496,10 +496,10 @@
       "record_count": 32
     },
     "plant-status.json": {
-      "sha256": "f43680a0eec3ee6a9f9d8cfbea272c7ca33e906db75e93c052adf5807f3215f6",
-      "byte_length": 19939,
+      "sha256": "8882e156e5338fad5ecad48c64dda46f2476e2748db74a4d4243c175474e9c10",
+      "byte_length": 29718,
       "schema_version": "invatrace.catalogue.plant-status.v1",
-      "record_count": 31
+      "record_count": 32
     },
     "plant-guidance.json": {
       "sha256": "51d9a66e2e4024474eb717a6339a89924c76e6c5d2d6d230946d30c4cbb365b8",

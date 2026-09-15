@@ -3,7 +3,11 @@ import { readFileSync } from 'node:fs'
 import { fileURLToPath } from 'node:url'
 import { describe, expect, it } from 'vitest'
 import Ajv2020 from 'ajv/dist/2020'
-import runtimeCatalog from '../../public/models/pulih-model1-v4/species_31.json'
+import runtimeCatalog from '../../public/models/invatrace-student33-v1/student33_species.json'
+
+interface RuntimeClass { class_index: number; machine_label: string; scientific_name: string }
+const runtimeCoreClasses = (runtimeCatalog.classes as RuntimeClass[])
+  .filter((entry) => entry.class_index !== runtimeCatalog.unknown_index)
 import {
   approvedSpeciesDataset,
   approvedCatalogueAsset,
@@ -14,7 +18,6 @@ import {
   findPlantStatus,
   plantStatusChecksum,
   plantStatusDataset,
-  type PlantUiState,
   findApprovedSpecies,
 } from './index'
 import approvedSpeciesSchema from './approved-species.schema.json'
@@ -105,9 +108,9 @@ describe('shared catalogue plant-status.json', () => {
     expect(ok).toBe(true)
   })
 
-  it('has exactly one record per released model class', () => {
-    expect(plantStatusDataset.records).toHaveLength(runtimeCatalog.class_count)
-    const modelLabels = new Set(runtimeCatalog.classes.map((entry) => entry.machine_label))
+  it('has exactly one record per released core-target model class', () => {
+    expect(plantStatusDataset.records).toHaveLength(runtimeCoreClasses.length)
+    const modelLabels = new Set(runtimeCoreClasses.map((entry) => entry.machine_label))
     for (const record of plantStatusDataset.records) {
       expect(modelLabels.has(record.model_label)).toBe(true)
     }
@@ -119,8 +122,8 @@ describe('shared catalogue plant-status.json', () => {
     expect(findPlantStatus({})).toBeNull()
   })
 
-  it('resolves every model label case-insensitively', () => {
-    for (const entry of runtimeCatalog.classes) {
+  it('resolves every core-target model label case-insensitively', () => {
+    for (const entry of runtimeCoreClasses) {
       const record = findPlantStatus({ modelLabel: entry.machine_label })
       expect(record).not.toBeNull()
       expect(record?.model_label).toBe(entry.machine_label)
@@ -144,18 +147,6 @@ describe('shared catalogue plant-status.json', () => {
       } else {
         expect(record.report_eligible).toBe(false)
       }
-    }
-  })
-
-  it('routes the three previously conflicting classes to status_uncertain', () => {
-    const deferred: Array<[string, PlantUiState]> = [
-      ['miconia_crenata', 'status_uncertain'],
-      ['sphagneticola_trilobata', 'status_uncertain'],
-      ['lantana_camara', 'status_uncertain'],
-    ]
-    for (const [label, expected] of deferred) {
-      const record = findPlantStatus({ modelLabel: label })
-      expect(record?.ui_state).toBe(expected)
     }
   })
 

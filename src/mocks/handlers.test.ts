@@ -2,10 +2,9 @@ import { afterAll, beforeAll, beforeEach, describe, expect, it } from 'vitest'
 import { setupServer } from 'msw/node'
 import { handlers, resolveSightingSpecies } from './handlers'
 import { modelSpeciesCatalog } from '@/data/model-species-catalog'
-import { plantGuidanceDataset } from '@/data/plant-guidance'
 import { developmentIdentifyResultForHash } from '@/features/scan/plant-model-adapter'
 import { MAP_FILTER_SPECIES } from '@/features/map/MapFilters'
-import { approvedSpeciesDataset, findApprovedSpecies } from '@shared/catalogue'
+import { approvedSpeciesDataset } from '@shared/catalogue'
 
 class MemoryStorage implements Storage {
   private values = new Map<string, string>()
@@ -54,25 +53,22 @@ describe('reported sighting species labels', () => {
     ))
   })
 
-  it('keeps the 31-class development model operational while gating reportability', () => {
+  it('keeps the 32-class development model operational and treats every class as approved', () => {
     const results = modelSpeciesCatalog.classes.map((_, index) => developmentIdentifyResultForHash(index))
     expect(results.map((result) => result.speciesId)).toEqual(
       modelSpeciesCatalog.classes.map((item) => item.machine_label.replaceAll('_', '-')),
     )
-    expect(results.filter((result) => result.outcome === 'target')).toHaveLength(13)
-    expect(results.filter((result) => result.outcome === 'other_plant')).toHaveLength(18)
-    expect(developmentIdentifyResultForHash(31).outcome).toBe('uncertain')
+    expect(results.filter((result) => result.outcome === 'target')).toHaveLength(32)
+    expect(results.filter((result) => result.outcome === 'other_plant')).toHaveLength(0)
+    expect(developmentIdentifyResultForHash(modelSpeciesCatalog.classes.length).outcome).toBe('uncertain')
   })
 
-  it('derives public map filters from the approved catalogue, not model-only classes', () => {
+  it('derives public map filters from the approved catalogue', () => {
     expect(MAP_FILTER_SPECIES).toHaveLength(32)
     expect(MAP_FILTER_SPECIES.map((item) => item.id)).toEqual(
       approvedSpeciesDataset.records.map((item) => item.species_id),
     )
     expect(MAP_FILTER_SPECIES.some((item) => item.id === 'lantana-camara')).toBe(false)
-    expect(plantGuidanceDataset.plants.some((plant) => (
-      findApprovedSpecies({ speciesId: plant.plant_id }) == null
-    ))).toBe(true)
   })
 
   it('keeps the model identification for Mimosa diplotricha on the map', () => {

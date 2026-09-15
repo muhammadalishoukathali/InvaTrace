@@ -1,12 +1,11 @@
-// Species catalog for the on-device PULIH model that ships with the app
-// (see vendor/PULIH_Model1_v4_FP16_Web_Kit).
+// Species catalog for the on-device Student33 model that ships with the app.
 //
 // I only trust the model manifest for the ordered list of classes - anything
 // the UI actually branches on for Malaysian status comes from shared/catalogue
 // instead. Set it up this way so swapping the model can't silently relabel a
 // class in the UI; the shared catalogue has to be updated (and its sha256
 // rechecked against the backend) as a separate, deliberate step.
-import modelManifest from '../../vendor/PULIH_Model1_v4_FP16_Web_Kit/model/species_31.json'
+import modelManifest from '../../public/models/invatrace-student33-v1/student33_species.json'
 import {
   findPlantStatus,
   findApprovedSpecies,
@@ -44,16 +43,20 @@ interface RawModelManifest {
   schema_version: string
   model_version: string
   class_count: number
+  unknown_index?: number
   classes: RawModelManifestClass[]
 }
 
 const rawManifest = modelManifest as RawModelManifest
+const coreClasses = rawManifest.unknown_index === undefined
+  ? rawManifest.classes
+  : rawManifest.classes.filter((entry) => entry.class_index !== rawManifest.unknown_index)
 
 export const modelSpeciesCatalog: ModelSpeciesCatalog = {
   schema_version: rawManifest.schema_version,
   model_version: rawManifest.model_version,
-  class_count: rawManifest.class_count,
-  classes: rawManifest.classes.map((entry) => {
+  class_count: coreClasses.length,
+  classes: coreClasses.map((entry) => {
     const record = findPlantStatus({ modelLabel: entry.machine_label })
     const approved = findApprovedSpecies({ scientificName: entry.scientific_name })
     return {
