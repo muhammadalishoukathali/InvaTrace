@@ -12,6 +12,7 @@ dependencies = [
   "boto3>=1.35,<2",
   "fastapi>=0.115,<1",
   "geoalchemy2>=0.16,<1",
+  "httpx>=0.28,<1",
   "osmium>=4,<5",
   "pillow>=11,<13",
   "psycopg[binary]>=3.2,<4",
@@ -26,7 +27,6 @@ dependencies = [
 
 [project.optional-dependencies]
 dev = [
-  "httpx>=0.28,<1",
   "httpx2>=2.12,<3",
   "pip-audit>=2.10,<3",
   "pytest>=9.0.3,<10",
