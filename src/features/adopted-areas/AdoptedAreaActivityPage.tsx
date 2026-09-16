@@ -1,3 +1,11 @@
+// Activity feed for one adopted area: what has been reported inside it lately,
+// with a small map showing where.
+//
+// The map here is a cut-down version of the one in ThreatMapPage - same raster
+// basemap and the same manual worker-URL setup, but only the sightings for this
+// one area, and no filter panel. I kept it separate rather than trying to reuse
+// ThreatMapPage because that page's state is tied to the global map store and
+// this screen needs its own camera.
 import { useEffect, useRef, useState } from 'react'
 import { useQuery } from '@tanstack/react-query'
 import { Link, useParams, useSearchParams } from 'react-router-dom'

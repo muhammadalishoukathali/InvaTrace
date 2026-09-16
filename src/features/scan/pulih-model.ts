@@ -253,15 +253,11 @@ function interpret(
   const bestCore = coreRanked[0]
   const maxCoreProbability = bestCore.probability
 
-  // Three-tier confidence band, tuned by the runtime manifest so we can
-  // shift the boundaries without an app release. The bands are:
-  //   * >= confidentThreshold           - trust the local classification
-  //   * [handoverThreshold, confident)  - uncertain, hand over to PlantNet
-  //   * [retakeThreshold, handover)     - too weak for PlantNet, retake first
-  //   *  < retakeThreshold              - extreme low certainty, retake with a
-  //                                       stronger nudge
-  // confidentThreshold falls back to the historical unknownProbabilityThreshold
-  // so a manifest without the new fields keeps the old two-tier behaviour.
+  // Four outcomes depending on how confident the model is: trust it, ask
+  // PlantNet for a second opinion, or ask for a retake (with a gentler or a
+  // firmer nudge). The boundaries come from the runtime manifest so they can be
+  // retuned without shipping a new build, and they fall back to the old single
+  // unknownProbabilityThreshold if an older manifest turns up.
   const confidentThreshold = manifest.confidentThreshold ?? manifest.unknownProbabilityThreshold
   const handoverThreshold = manifest.handoverThreshold ?? manifest.unknownProbabilityThreshold
   const retakeThreshold = manifest.retakeThreshold ?? 0

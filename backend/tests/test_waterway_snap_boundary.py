@@ -25,10 +25,14 @@ import pytest
 
 from app.osm_waterway_graph import (
     MAX_COMBINED_OCCURRENCE_UNCERTAINTY_M,
+)
+from app.osm_waterway_graph import (
     MAX_SNAP_DISTANCE_M as GRAPH_MAX_SNAP_DISTANCE_M,
 )
 from app.waterway_import import (
     MAX_SNAP_DISTANCE_M as IMPORT_MAX_SNAP_DISTANCE_M,
+)
+from app.waterway_import import (
     OSM_DIRECTION_SOURCE,
     import_waterway_evidence_json,
 )

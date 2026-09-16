@@ -27,8 +27,8 @@ from dataclasses import dataclass
 from datetime import UTC, datetime, timedelta
 
 import structlog
-from PIL import Image, ImageOps, UnidentifiedImageError
 from geoalchemy2 import Geography
+from PIL import Image, ImageOps, UnidentifiedImageError
 from sqlalchemy import cast, func, or_, select
 
 from app.config import get_settings

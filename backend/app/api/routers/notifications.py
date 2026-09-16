@@ -1,3 +1,15 @@
+"""The in-app notification list and its read/unread state.
+
+Notification rows are written by other parts of the backend (the verification
+worker when a report finishes screening, the reports router when a sighting the
+user follows changes status). This module only reads them back for the signed-in
+profile and flips read_at, so a notification can never be created through the
+API from outside.
+
+Listing pages through app/core/pagination.py, which hands the client an opaque
+cursor instead of a raw offset so the paging scheme can change later without
+breaking the app.
+"""
 from __future__ import annotations
 
 import uuid

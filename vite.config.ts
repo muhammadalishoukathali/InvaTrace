@@ -47,13 +47,13 @@ export default defineConfig({
         globPatterns: ['**/*.{js,css,html,svg,png,woff2}'],
         runtimeCaching: [
           {
-            // The validated PULIH ONNX artifact is split into sub-25 MiB chunks
-            // for Cloudflare Pages, then reassembled and checksum-verified by
-            // the browser adapter. Cache each complete response for offline use.
-            urlPattern: ({ url }) => url.pathname.startsWith('/models/pulih-model1-v4/'),
+            // The ONNX model and its manifest are checksum-verified by the
+            // browser adapter on first load, so once a response is good it is
+            // safe to keep. Cache it so scanning still works offline.
+            urlPattern: ({ url }) => url.pathname.startsWith('/models/invatrace-student33-v1/'),
             handler: 'CacheFirst',
             options: {
-              cacheName: 'invatrace-pulih-model-v4',
+              cacheName: 'invatrace-student33-model-v1',
               expiration: { maxEntries: 12, maxAgeSeconds: 365 * 24 * 60 * 60 },
               cacheableResponse: { statuses: [200] },
             },

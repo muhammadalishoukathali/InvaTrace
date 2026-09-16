@@ -1,3 +1,14 @@
+// The plant catalogue list at /catalogue. This is the one screen that has to
+// keep working with no signal at all, because the whole point of it is that a
+// volunteer out on a trail can still look up what a plant is. The species data
+// and one reference photo each are bundled into the app, and on top of that the
+// user can download an "offline pack" with the full-size images - that part
+// lives in offline-catalogue.ts.
+//
+// So there are two sources for the same species here: the bundled dataset from
+// @shared/catalogue, and whatever the installed pack has. The page prefers the
+// pack when one is installed and falls back to the bundle otherwise, which is
+// why the image URLs are kept in state rather than computed inline.
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { Icon } from '@/components/Icon'

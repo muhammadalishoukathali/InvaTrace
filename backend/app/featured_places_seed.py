@@ -146,7 +146,7 @@ def _trail_metadata(trail: FeaturedTrail) -> dict:
 
 def seed_featured_places(session: Session) -> tuple[int, int]:
     """Insert the featured area + trail set. Returns (areas_added, trails_added)."""
-    from sqlalchemy import select, func
+    from sqlalchemy import func, select
 
     areas_added = 0
     existing_area_names = set(

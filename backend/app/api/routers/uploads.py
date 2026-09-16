@@ -1,3 +1,14 @@
+"""Issues short-lived presigned S3 URLs so photos never pass through this API.
+
+The phone asks for a grant, uploads the JPEG straight to private object storage,
+then sends only the resulting key and its SHA-256 with the report. That keeps
+image bytes out of the API process entirely and means a report submission stays
+small enough to retry on a bad connection.
+
+Each grant is single-use, expires in minutes, and is recorded as an UploadGrant
+row so the reports router can check that the key it was handed was actually
+issued to that profile and matches the hash claimed.
+"""
 from __future__ import annotations
 
 import uuid

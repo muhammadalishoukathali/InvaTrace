@@ -1,40 +1,57 @@
 node_modules
 dist
-public/models/pulih-model1-v4
-/public/invatrace-logo-192.png
-/public/invatrace-logo-512.png
-/public/reference-images/*.jpg
-/public/reference-images/*.jpeg
-/public/reference-images/*.png
-/public/reference-images/.catalogue-image-staging/
-/vendor/PULIH_Model1_v4_FP16_Web_Kit/model/*.onnx
-.env
-.env.local
+tsconfig.tsbuildinfo
+
+# Environment files. The .example ones are meant to be committed; a real
+# .env never is, so ignore everything and add the safe ones back.
+.env*
+!.env.example
+!.env.production.example
+!.env.model-test
 .cloudflare-pages.env
+
+# Secrets and archives that should never end up in a public repo.
+*.pem
+*.key
+*.p12
+*.pfx
+*.docx
+*.pdf
+*.zip
+*.rar
+
+# Editor and OS noise
 .DS_Store
 Thumbs.db
-.impeccable
-playwright-report
-.playwright-cli
-*.log
 .idea
 .vscode
-tsconfig.tsbuildinfo
+
+# Test and build output
 test-results
+coverage/
 playwright-report
 .playwright-cli
+e2e-harness/.scratch/
+.pytest_cache
 backend/.venv
 backend/.pytest_cache
 backend/.ruff_cache
-.pytest_cache
-.impeccable/review
 **/__pycache__
 *.py[cod]
-e2e-harness/.scratch/
-.production-data/
-.local-data/
+*.log
+
+# Runtime assets restored by scripts/prepare-model-assets.mjs from
+# assets/runtime-packed/, so the unpacked copies stay out of git.
+/public/invatrace-logo-192.png
+/public/invatrace-logo-512.png
+/public/reference-images/.catalogue-image-staging/
+/vendor/PULIH_Model1_v4_FP16_Web_Kit/model/*.onnx
+
+# Large local-only geodata: raw OSM extracts and working imports.
 *.osm.pbf
 *.pbf
 local-data/
+.local-data/
+.production-data/
 data-import/raw/
 backend/data/local-boundary/

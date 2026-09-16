@@ -1,3 +1,12 @@
+"""Admin-only endpoints: repair a stuck report, change a role, remove a sighting.
+
+Nothing in here is reachable from the phone app. Every route sits behind
+require_admin (app/core/security.py), and each one writes an AuditEvent row
+before it returns, because these are the three operations that can change data
+a normal user cannot undo. The repair route exists because early on a crashed
+screening worker could leave a report stuck in "screening" forever with no way
+out short of a SQL console.
+"""
 from __future__ import annotations
 
 import uuid

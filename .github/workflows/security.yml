@@ -35,13 +35,16 @@ jobs:
       - name: Install pip-audit
         run: pip install pip-audit
       - name: Audit backend lock
-        run: pip-audit -r backend/requirements.lock --strict --ignore-vuln GHSA-0000-0000-0000 || true
-      - name: Audit backend lock (fail on high)
         run: pip-audit -r backend/requirements.lock --strict
 
   gitleaks:
     name: gitleaks (secrets)
     runs-on: ubuntu-latest
+    # gitleaks-action lists the PR's commits through the API, which the
+    # workflow-wide contents:read token cannot do on a pull_request event.
+    permissions:
+      contents: read
+      pull-requests: read
     steps:
       - uses: actions/checkout@v4
         with:

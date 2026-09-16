@@ -1,3 +1,15 @@
+// Downloads and manages the offline catalogue pack - the thing that makes the
+// catalogue usable with no connection.
+//
+// A pack is a versioned set of JSON files plus reference images, listed in a
+// manifest with a SHA-256 per file. Downloading verifies every hash before the
+// pack counts as installed, so a half-finished download on a flaky connection
+// can't leave the catalogue showing a mix of two versions.
+//
+// The files go into the Cache API rather than IndexedDB because they are plain
+// HTTP responses and the service worker can serve them back directly. Only the
+// small bookkeeping record (version, size, install date) goes in localStorage,
+// under STORAGE_KEY.
 import approvedRaw from '@shared/catalogue/approved-species.json?raw'
 import catalogueDetailsRaw from '@shared/catalogue/catalogue-details.json?raw'
 import guidanceRaw from '@shared/catalogue/plant-guidance.json?raw'

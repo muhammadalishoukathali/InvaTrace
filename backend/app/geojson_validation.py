@@ -121,6 +121,13 @@ class CountrySpatialIndex:
 def _point_on_segment(
     longitude: float, latitude: float, left: list[float], right: list[float]
 ) -> bool:
+    """True if the point sits exactly on the left-right edge.
+
+    Checked separately because the ray-casting test below is undefined on the
+    boundary itself, and a node right on the coastline should count as inside.
+    The 1e-12 tolerance is for float error, not for snapping nearby points.
+    """
+    # Zero cross product means the three points are collinear.
     cross = (longitude - left[0]) * (right[1] - left[1]) - (latitude - left[1]) * (
         right[0] - left[0]
     )
@@ -133,11 +140,18 @@ def _point_on_segment(
 
 
 def _point_in_ring(longitude: float, latitude: float, ring: list[list[float]]) -> bool:
+    """Standard ray-casting test: count how many ring edges a ray cast east from
+    the point crosses. Odd means inside, even means outside. Points exactly on an
+    edge are treated as inside.
+    """
     inside = False
     for index, left in enumerate(ring):
         right = ring[(index + 1) % len(ring)]
         if _point_on_segment(longitude, latitude, left, right):
             return True
+        # Only edges that straddle the ray's latitude can cross it. The strict
+        # > on one side and not the other is what stops a vertex sitting exactly
+        # on the ray from being counted twice.
         if (left[1] > latitude) != (right[1] > latitude):
             intersection = (right[0] - left[0]) * (latitude - left[1]) / (
                 right[1] - left[1]

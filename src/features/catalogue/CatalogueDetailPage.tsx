@@ -1,3 +1,10 @@
+// One species page, reached from CataloguePage. Shows the full description,
+// the status in Malaysia, and the safety/removal guidance.
+//
+// Same bundled-vs-offline-pack split as the list page: it starts with the data
+// compiled into the app so something renders immediately, then swaps in the
+// installed pack's copy if there is one. The pack's images come out of the Cache
+// API as blob URLs, so releasePack() has to run on unmount or those URLs leak.
 import { useEffect, useRef, useState } from 'react'
 import { Link, useParams } from 'react-router-dom'
 import { Icon } from '@/components/Icon'

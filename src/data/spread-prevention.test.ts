@@ -1,13 +1,13 @@
 import { describe, expect, it } from 'vitest'
 import { plantGuidanceDataset, findPlantGuidance } from './plant-guidance'
-import { modelSpeciesCatalog } from './model-species-catalog'
+import { modelSpeciesCatalogue } from './model-species-catalogue'
 
 // AC 3.2.1 - every reportable species must expose its own ordered
 // spread-prevention entries with source ids attached. Missing entries
 // fall through to the observe-and-report guidance panel; the parameterised
 // case below flags any regression that lets a reportable species render
 // without its dedicated advice.
-const reportableSpecies = modelSpeciesCatalog.classes.filter(
+const reportableSpecies = modelSpeciesCatalogue.classes.filter(
   (species) => species.malaysia_status === 'invasive',
 )
 

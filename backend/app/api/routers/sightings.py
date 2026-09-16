@@ -1,3 +1,15 @@
+"""Public map data: the sighting list behind the map and one sighting's detail.
+
+A sighting is the deduplicated, public version of one or more reports - reports
+are private to their author, sightings are what everyone sees. The list route
+carries the map filters (species, status, risk, bounding box, search) and is
+cursor-paginated, and it is the single busiest endpoint in the app because the
+map refetches on every filter change.
+
+Coordinates served from here are the blurred ones. The exact location a reporter
+submitted stays in the reports table and is never serialized by this module -
+see app/core/privacy.py for where the blurring happens.
+"""
 from __future__ import annotations
 
 from datetime import datetime
