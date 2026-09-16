@@ -1,15 +1,14 @@
-// Exercises the PULIH on-device model loader directly (bypassing the scan UI):
-// a chunked download that fails partway through, falling back to WASM when
-// WebGPU isn't available, and making sure concurrent load() calls share one
-// session instead of loading the model several times over. Needs the model
-// files to actually be served under /models for the fetch mocking here to
-// mean anything.
+// Exercises the on-device model loader directly (bypassing the scan UI): a
+// download that fails the first time, falling back to WASM when WebGPU isn't
+// available, and making sure concurrent load() calls share one session instead
+// of loading the model several times over. Needs the model files to actually be
+// served under /models for the fetch mocking here to mean anything.
 import { expect, test } from '@playwright/test'
 
 // Bundled into one test because all three checks share the same expensive
-// model download: retrying a failed chunk, falling back off WebGPU, and
+// model download: retrying a failed download, falling back off WebGPU, and
 // deduping concurrent load() calls into a single in-flight session.
-test('PULIH runtime retries a failed download, falls back to WASM, and reuses one session', async ({ page }) => {
+test('model runtime retries a failed download, falls back to WASM, and reuses one session', async ({ page }) => {
   test.setTimeout(45_000)
   await page.addInitScript(() => {
     Object.defineProperty(Navigator.prototype, 'gpu', {
@@ -17,11 +16,11 @@ test('PULIH runtime retries a failed download, falls back to WASM, and reuses on
       get: () => undefined,
     })
     const realFetch = globalThis.fetch.bind(globalThis)
-    let failFirstChunk = true
+    let failFirstDownload = true
     globalThis.fetch = (input, init) => {
       const url = typeof input === 'string' ? input : input instanceof URL ? input.href : input.url
-      if (failFirstChunk && url.endsWith('.part-000')) {
-        failFirstChunk = false
+      if (failFirstDownload && url.endsWith('.onnx')) {
+        failFirstDownload = false
         return Promise.resolve(new Response('temporary test failure', { status: 503 }))
       }
       return realFetch(input, init)
@@ -31,7 +30,7 @@ test('PULIH runtime retries a failed download, falls back to WASM, and reuses on
   const modelRequests = new Map<string, number>()
   page.on('request', (request) => {
     const pathname = new URL(request.url()).pathname
-    if (!pathname.startsWith('/models/pulih-model1-v4/')) return
+    if (!pathname.startsWith('/models/invatrace-student33-v1/')) return
     modelRequests.set(pathname, (modelRequests.get(pathname) ?? 0) + 1)
   })
   await page.goto('/private-access')
@@ -74,7 +73,10 @@ test('PULIH runtime retries a failed download, falls back to WASM, and reuses on
   })
 
   expect(result.firstErrorCode).toBe('download')
-  expect(result.versions).toEqual(['oe_v4_31class_web_fp16', 'oe_v4_31class_web_fp16'])
+  expect(result.versions).toEqual([
+    'invatrace-student33-tinyvit5m-320-fp16',
+    'invatrace-student33-tinyvit5m-320-fp16',
+  ])
   expect(result.diagnostics.provider).toBe('wasm')
   expect(result.diagnostics.loadMs).toBeGreaterThan(0)
   expect(result.diagnostics.downloadMs).toBeGreaterThan(0)
@@ -84,6 +86,12 @@ test('PULIH runtime retries a failed download, falls back to WASM, and reuses on
     'invatrace:model-load',
     'invatrace:model-inference',
   ]))
-  expect([...modelRequests.keys()].filter((path) => path.endsWith('.part-001'))).toHaveLength(1)
-  expect([...modelRequests.values()].reduce((sum, count) => sum + count, 0)).toBeLessThanOrEqual(13)
+  // The model is a single file now, so the thing worth asserting is that the
+  // four load() calls above shared one download. The first attempt is faked by
+  // the init script and never reaches the network, so exactly one real request
+  // for the .onnx is what a working session cache looks like.
+  const onnxRequests = [...modelRequests.entries()]
+    .filter(([path]) => path.endsWith('.onnx'))
+    .reduce((sum, [, count]) => sum + count, 0)
+  expect(onnxRequests).toBe(1)
 })
