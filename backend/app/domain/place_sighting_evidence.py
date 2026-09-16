@@ -13,8 +13,8 @@ verification-worker retry never rebuilds the whole graph.
 from __future__ import annotations
 
 import uuid
+from collections.abc import Iterable
 from decimal import Decimal
-from typing import Iterable
 
 from geoalchemy2 import Geography
 from sqlalchemy import cast, delete, func, select

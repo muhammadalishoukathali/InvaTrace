@@ -24,7 +24,7 @@ from __future__ import annotations
 
 import asyncio
 from dataclasses import dataclass
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from typing import Literal
 
 import httpx
@@ -67,7 +67,7 @@ class _DailyCounter:
         self._lock = asyncio.Lock()
 
     async def try_consume(self, limit: int) -> bool:
-        today = datetime.now(timezone.utc).strftime("%Y-%m-%d")
+        today = datetime.now(UTC).strftime("%Y-%m-%d")
         async with self._lock:
             if self._day != today:
                 self._day = today

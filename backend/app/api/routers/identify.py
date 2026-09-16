@@ -66,9 +66,7 @@ def _looks_like_supported_image(payload: bytes) -> bool:
         return True
     if payload.startswith(_MAGIC_PNG):
         return True
-    if len(payload) >= 12 and payload[:4] == b"RIFF" and payload[8:12] == b"WEBP":
-        return True
-    return False
+    return len(payload) >= 12 and payload[:4] == b"RIFF" and payload[8:12] == b"WEBP"
 
 
 def _shape(verification: PlantNetVerification) -> VerificationResponse:
