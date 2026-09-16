@@ -8,6 +8,10 @@ profiles without email/password registration.
 
 ## Run
 
+You need Node 20, Python 3.12 (backend only), and Docker if you want the full
+stack. Those are the versions the CI workflows use, so anything older may not
+behave the same.
+
 ```bash
 npm install
 cp .env.example .env
