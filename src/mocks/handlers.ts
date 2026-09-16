@@ -5,7 +5,7 @@ import type {
 } from '@/types'
 import {
   findModelSpecies, modelReferenceImageUrl,
-} from '@/data/model-species-catalog'
+} from '@/data/model-species-catalogue'
 import { approvedSpeciesDataset, findApprovedSpecies } from '@shared/catalogue'
 
 const url = (p: string) => `*${p}`

@@ -25,7 +25,7 @@ export interface ModelSpeciesClass {
   catalogue_approved: boolean
 }
 
-export interface ModelSpeciesCatalog {
+export interface ModelSpeciesCatalogue {
   schema_version: string
   model_version: string
   class_count: number
@@ -52,7 +52,7 @@ const coreClasses = rawManifest.unknown_index === undefined
   ? rawManifest.classes
   : rawManifest.classes.filter((entry) => entry.class_index !== rawManifest.unknown_index)
 
-export const modelSpeciesCatalog: ModelSpeciesCatalog = {
+export const modelSpeciesCatalogue: ModelSpeciesCatalogue = {
   schema_version: rawManifest.schema_version,
   model_version: rawManifest.model_version,
   class_count: coreClasses.length,
@@ -72,10 +72,10 @@ export const modelSpeciesCatalog: ModelSpeciesCatalog = {
 }
 
 const bySpeciesId = new Map(
-  modelSpeciesCatalog.classes.map((item) => [item.machine_label.replaceAll('_', '-'), item]),
+  modelSpeciesCatalogue.classes.map((item) => [item.machine_label.replaceAll('_', '-'), item]),
 )
 const byScientificName = new Map(
-  modelSpeciesCatalog.classes.map((item) => [item.scientific_name.toLowerCase(), item]),
+  modelSpeciesCatalogue.classes.map((item) => [item.scientific_name.toLowerCase(), item]),
 )
 
 export function findModelSpecies(query: {
