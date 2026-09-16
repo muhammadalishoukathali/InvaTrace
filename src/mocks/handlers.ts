@@ -51,6 +51,70 @@ const MOCK_SERVER_KEY = 'invatrace-mock-server-v2'
 const MOCK_ADOPTIONS_KEY = 'invatrace-mock-adoptions-v1'
 const MOCK_HASH_PEPPER = 'development-only-invatrace-mock-pepper'
 
+// AC 2.2.1 - deterministic screening policy mirrored from the real FastAPI
+// backend (see backend/app/domain/validation.py). The MSW mock applies the
+// same rules so dev/UI paths for rejected + needs_rescan reports are
+// exercised without a live backend.
+export const MSW_POLICY_VERSION = 'deterministic-rules-v1.0'
+export const MSW_LOCATION_ACCURACY_MAX_M = 250
+// Same default set as backend/app/config.py::e1_model_versions. The mocked
+// /api/v1/model-config endpoint below returns the primary; the backend also
+// accepts submissions tagged with the retained secondary while any client
+// still ships it.
+export const MSW_SUPPORTED_MODEL_VERSIONS = [
+  'invatrace-student33-tinyvit5m-320-fp16',
+  'oe_v4_31class_web_fp16',
+] as const
+
+type MockValidationStatus = 'screened' | 'merged' | 'needs_rescan' | 'rejected'
+
+interface MockValidationDecision {
+  status: MockValidationStatus
+  reasonCodes: string[]
+  retryable: boolean
+}
+
+/** Deterministic mock of backend/app/domain/validation.py::evaluate.
+ *  Exported for AC 2.2.1 unit tests; not part of the runtime API surface. */
+export function evaluateMockReport(input: {
+  exactReplay: boolean
+  perceptualReplay: boolean
+  locationAccuracyM: number | null | undefined
+  clientOutcome: 'target' | 'other_plant' | 'uncertain'
+  clientSpeciesId: string | null | undefined
+  clientModelSupported: boolean
+  mergeTargetId: string | null
+}): MockValidationDecision {
+  if (input.exactReplay) {
+    return { status: 'rejected', reasonCodes: ['exact_photo_replay'], retryable: false }
+  }
+  if (input.perceptualReplay) {
+    return { status: 'rejected', reasonCodes: ['perceptual_photo_replay'], retryable: false }
+  }
+  const rescanReasons: string[] = []
+  if (
+    input.locationAccuracyM == null
+    || input.locationAccuracyM > MSW_LOCATION_ACCURACY_MAX_M
+  ) {
+    rescanReasons.push('location_accuracy_insufficient')
+  }
+  if (input.clientOutcome !== 'target' || !input.clientSpeciesId) {
+    rescanReasons.push('plant_identification_not_reportable')
+  }
+  if (!input.clientModelSupported) {
+    rescanReasons.push('unsupported_client_model_version')
+  }
+  if (rescanReasons.length > 0) {
+    // dedupe while preserving order, same as the backend
+    const deduped = Array.from(new Set(rescanReasons))
+    return { status: 'needs_rescan', reasonCodes: deduped, retryable: true }
+  }
+  if (input.mergeTargetId) {
+    return { status: 'merged', reasonCodes: ['same_species_nearby_recent'], retryable: false }
+  }
+  return { status: 'screened', reasonCodes: ['automated_rule_screened'], retryable: false }
+}
+
 // a sliding-window counter is fine for the browser mock - production uses
 // proper shared server-side storage for this, obviously
 const REPORT_RATE_PER_TOKEN = 10
@@ -484,11 +548,11 @@ export const handlers = [
   // the real backend defaults to.
   http.get(url('/api/v1/model-config'), () =>
     HttpResponse.json({
-      modelVersion: 'oe_v4_31class_web_fp16',
-      supportedVersions: ['oe_v4_31class_web_fp16'],
+      modelVersion: MSW_SUPPORTED_MODEL_VERSIONS[0],
+      supportedVersions: [...MSW_SUPPORTED_MODEL_VERSIONS],
       acceptanceThreshold: 0.5,
-      thresholdVersion: 'oe_v4_31class_web_fp16@0.5000',
-      configVersion: 'oe_v4_31class_web_fp16@0.5000',
+      thresholdVersion: `${MSW_SUPPORTED_MODEL_VERSIONS[0]}@0.5000`,
+      configVersion: `${MSW_SUPPORTED_MODEL_VERSIONS[0]}@0.5000`,
     }),
   ),
 
@@ -902,15 +966,47 @@ export const handlers = [
     }
     mockReports.unshift(report)
     mockReportIdempotency.set(idempotencyScope, { request: serialized, response: report })
+
+    // AC 2.2.1 - deterministic screening. Cross-profile exact replay is
+    // detected here (same imageSha256 already submitted by a DIFFERENT
+    // profile, or the same capture id from a different profile - both count
+    // as replay per the backend worker's _is_exact_replay). Same-profile
+    // exact-image + species dedup already short-circuited above as a merge.
+    const exactReplay = mockReports.some((r) => {
+      if (r.id === report.id) return false
+      if (r.ownerProfileId === session.profile.id) return false
+      const sameHash = Boolean(
+        submission.imageSha256 && r.submission.imageSha256 === submission.imageSha256,
+      )
+      const sameCapture = submission.captureId
+        && r.submission.captureId === submission.captureId
+      return sameHash || Boolean(sameCapture)
+    })
+    const clientModelSupported = MSW_SUPPORTED_MODEL_VERSIONS.some(
+      (v) => v === submission.modelVersion,
+    )
+    const decision = evaluateMockReport({
+      exactReplay,
+      // MSW does not run perceptual hashing; leave false so the mock
+      // exercises every rescan/reject path except that server-only check.
+      perceptualReplay: false,
+      locationAccuracyM: submission.locationAccuracyM,
+      clientOutcome: submission.outcome,
+      clientSpeciesId: submission.speciesId,
+      clientModelSupported,
+      mergeTargetId: null,
+    })
     setTimeout(() => {
-      report.status = 'screened'
+      report.status = decision.status
       report.validation = {
-        reasonCodes: ['automated_rule_screened'],
-        retryable: false,
-        policyVersion: 'deterministic-rules-v1.0',
+        reasonCodes: decision.reasonCodes,
+        retryable: decision.retryable,
+        policyVersion: MSW_POLICY_VERSION,
         screeningMethod: 'deterministic_rules',
       }
-      report.sightingId = publishReportSighting(report)
+      if (decision.status === 'screened') {
+        report.sightingId = publishReportSighting(report)
+      }
     }, 750)
     return HttpResponse.json(report, { status: 201 })
   }),
