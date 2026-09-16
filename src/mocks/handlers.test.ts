@@ -1,7 +1,7 @@
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from 'vitest'
 import { setupServer } from 'msw/node'
 import { handlers, resolveSightingSpecies } from './handlers'
-import { modelSpeciesCatalog } from '@/data/model-species-catalog'
+import { modelSpeciesCatalogue } from '@/data/model-species-catalogue'
 import { developmentIdentifyResultForHash } from '@/features/scan/plant-model-adapter'
 import { MAP_FILTER_SPECIES } from '@/features/map/MapFilters'
 import { approvedSpeciesDataset } from '@shared/catalogue'
@@ -54,13 +54,13 @@ describe('reported sighting species labels', () => {
   })
 
   it('keeps the 32-class development model operational and treats every class as approved', () => {
-    const results = modelSpeciesCatalog.classes.map((_, index) => developmentIdentifyResultForHash(index))
+    const results = modelSpeciesCatalogue.classes.map((_, index) => developmentIdentifyResultForHash(index))
     expect(results.map((result) => result.speciesId)).toEqual(
-      modelSpeciesCatalog.classes.map((item) => item.machine_label.replaceAll('_', '-')),
+      modelSpeciesCatalogue.classes.map((item) => item.machine_label.replaceAll('_', '-')),
     )
     expect(results.filter((result) => result.outcome === 'target')).toHaveLength(32)
     expect(results.filter((result) => result.outcome === 'other_plant')).toHaveLength(0)
-    expect(developmentIdentifyResultForHash(modelSpeciesCatalog.classes.length).outcome).toBe('uncertain')
+    expect(developmentIdentifyResultForHash(modelSpeciesCatalogue.classes.length).outcome).toBe('uncertain')
   })
 
   it('derives public map filters from the approved catalogue', () => {
