@@ -540,8 +540,11 @@ test('a first-ever offline launch explains the network requirement without creat
 // form, and submit. Also forces the session to expire right before submission
 // to check the app quietly recovers a new session and retries instead of just
 // losing the report.
-test('private detector can scan, analyse, and submit', async ({ page, context }) => {
-  await context.grantPermissions(['geolocation'], { origin: 'http://localhost:5173' })
+test('private detector can scan, analyse, and submit', async ({ page, context, baseURL }) => {
+  // The origin has to match whatever port the dev server came up on, so take it
+  // from the baseURL fixture rather than hardcoding 5173 - a hardcoded origin
+  // silently grants nothing and the location check then fails for no clear reason.
+  await context.grantPermissions(['geolocation'], { origin: new URL(baseURL!).origin })
   await context.setGeolocation({ latitude: 3.1497, longitude: 101.6412, accuracy: 15 })
   const reportAuthorizationHeaders: string[] = []
   const accountEndpointCalls: string[] = []
