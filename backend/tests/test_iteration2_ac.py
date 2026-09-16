@@ -365,6 +365,11 @@ def test_activity_map_uses_the_same_750m_trail_extent() -> None:
     expression = _activity_geometry_expression(adoption)
     compiled = str(expression)
     assert "ST_Buffer" in compiled
+    # ST_Buffer must run on a geography-typed value: without the cast, the
+    # ORM-loaded WKBElement binds as raw SRID=0 WKB and PostGIS treats 750 as
+    # degrees, producing a projected polygon (lat > 90) that crashes maplibre
+    # on the client with "lnglat latitude value must be between -90 and 90".
+    assert "geography" in compiled.lower()
     assert list(expression.clauses)[1].value == 750
 
 

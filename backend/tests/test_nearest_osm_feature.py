@@ -113,3 +113,57 @@ def test_nearest_lookup_iterates_multiple_candidates_per_table() -> None:
     trail_iter = source.split("trail_rows = session.execute(", 1)[1].split("area_rows", 1)[0]
     assert "for row in trail_rows:" in trail_iter
     assert "break" in trail_iter
+
+
+def test_location_context_endpoint_delegates_to_shared_nearest_helper() -> None:
+    """AC 4.3.1 - the public GET /api/v1/location-context endpoint must
+    reuse the same allow-list-aware `nearest_osm_feature` helper the
+    screening worker uses, so it can never re-classify a
+    `leisure=nature_reserve` row as `park` via a permissive fallback.
+
+    Guards a previously-shipped bug where `location.py` had its own
+    `_classify_area` that fell through to `"park"` for any row whose tags
+    weren't `landuse=forest` or `natural=wood`, meaning non-allow-listed
+    OSM areas leaked into the response.
+    """
+    source = (REPO_ROOT / "app/api/routers/location.py").read_text()
+    assert "from app.domain.place_association import nearest_osm_feature" in source, (
+        "location_context must import the shared nearest-feature helper"
+    )
+    assert "nearest_osm_feature(session" in source, (
+        "location_context must call the shared helper for AC 4.3.1"
+    )
+    # AC 4.3.1 endpoint body must NOT reference the permissive
+    # `_classify_area` fallback. That helper still exists in the module for
+    # the wider places / waterway / evidence pipelines that intentionally
+    # group `leisure=nature_reserve` with `park` for UI categorisation,
+    # but must never re-enter the strict AC 4.3.1 endpoint response path.
+    endpoint_body = source.split("def location_context(", 1)[1].split("\ndef ", 1)[0]
+    assert "_classify_area" not in endpoint_body, (
+        "The AC 4.3.1 endpoint body must not call the permissive"
+        " `_classify_area` helper - that would fold non-allow-listed"
+        " OSM tag rows (e.g. leisure=nature_reserve) into `park`."
+    )
+
+
+def test_location_context_response_feature_type_set_matches_ac_4_3_1() -> None:
+    """The AC 4.3.1 response contract only permits trail / park / forest /
+    wood plus the seed fallback + `none`. Regression against widening the
+    Literal (e.g. adding `nature_reserve`) which would silently accept
+    non-allow-listed OSM rows.
+    """
+    source = (REPO_ROOT / "app/api/routers/location.py").read_text()
+    literal_line = next(
+        line for line in source.splitlines() if line.startswith("FeatureType = Literal")
+    )
+    assert literal_line == (
+        'FeatureType = Literal["trail", "park", "forest", "wood", "seed", "none"]'
+    ), literal_line
+    # trail-tag mapping must cover exactly the three highway values AC 4.3.1
+    # names, and no more.
+    trail_tag_line = next(
+        line for line in source.splitlines() if line.startswith("_TRAIL_TAG_VALUES")
+    )
+    assert '"path"' in trail_tag_line
+    assert '"footway"' in trail_tag_line
+    assert '"track"' in trail_tag_line

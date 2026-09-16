@@ -28,7 +28,8 @@ from datetime import UTC, datetime, timedelta
 
 import structlog
 from PIL import Image, ImageOps, UnidentifiedImageError
-from sqlalchemy import func, or_, select
+from geoalchemy2 import Geography
+from sqlalchemy import cast, func, or_, select
 
 from app.config import get_settings
 from app.db.base import SessionLocal
@@ -594,7 +595,13 @@ def _find_merge_target(
     observation_time = report.observed_at or datetime.now(UTC)
     window_start = observation_time - timedelta(minutes=window_minutes)
 
-    distance_expr = func.ST_Distance(Sighting.location, report.location)
+    # report.location on the ORM instance is a WKBElement that binds via
+    # ST_GeomFromWKB(..., 4326) as geometry, not geography. It still resolves
+    # correctly here because Sighting.location is geography and PostgreSQL
+    # implicit-casts the SRID=4326 geometry side, but pin the geography type
+    # explicitly so a future refactor cannot regress to degree-unit distances.
+    report_location = cast(report.location, Geography("POINT", srid=4326))
+    distance_expr = func.ST_Distance(Sighting.location, report_location)
     # Non-negative observation-time delta in seconds - prior_observed_at is
     # guaranteed ≤ observation_time by the WHERE clause below.
     time_diff_expr = func.abs(func.extract("epoch", observation_time - Report.observed_at))
@@ -620,7 +627,7 @@ def _find_merge_target(
             Sighting.status == "screened",
             Report.observed_at >= window_start,
             Report.observed_at <= observation_time,
-            func.ST_DWithin(Sighting.location, report.location, radius_m),
+            func.ST_DWithin(Sighting.location, report_location, radius_m),
         )
         .order_by(
             distance_expr.asc(),

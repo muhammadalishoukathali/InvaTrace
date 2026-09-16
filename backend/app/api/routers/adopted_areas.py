@@ -9,7 +9,7 @@ from datetime import UTC, datetime, timedelta
 from typing import Literal
 
 from fastapi import APIRouter, Depends, Query, Response
-from geoalchemy2 import Geometry
+from geoalchemy2 import Geography, Geometry
 from sqlalchemy import cast, func, select
 from sqlalchemy.orm import Session
 
@@ -126,7 +126,11 @@ def _adoption(session: Session, adoption_id: uuid.UUID, profile_id: uuid.UUID) -
 def _member_rows(session: Session, adoption: AdoptedArea) -> list[tuple]:
     distance_limit = 750
     if adoption.place_type == "trail":
-        condition = func.ST_DWithin(adoption.geometry, Sighting.location, distance_limit)
+        condition = func.ST_DWithin(
+            cast(adoption.geometry, Geography(srid=4326)),
+            Sighting.location,
+            distance_limit,
+        )
     else:
         condition = func.ST_Covers(
             cast(adoption.geometry, Geometry("MULTIPOLYGON", srid=4326)),
@@ -317,9 +321,19 @@ def _comparison_counts(markers: list[ActivityMarker], now: datetime) -> tuple[in
 
 
 def _activity_geometry_expression(adoption: AdoptedArea):
-    """Return the exact map extent used by the stored membership rule."""
+    """Return the exact map extent used by the stored membership rule.
+
+    The geometry attribute on an ORM instance comes back as a WKBElement that
+    binds as raw WKB with SRID=0. Passing it straight into ST_Buffer makes
+    PostGIS treat the coordinates as planar with distances in degrees, so the
+    returned polygon is projected/unit-nonsense (coords like -361, 592) that
+    later throws "lnglat latitude value must be between -90 and 90" on the
+    client. Cast the parameter back to Geography(4326) so ST_Buffer runs the
+    geography wrapper (project to best SRID, buffer in metres, transform back
+    to WGS84) that matches the ST_DWithin membership rule.
+    """
     if adoption.place_type == "trail":
-        return func.ST_Buffer(adoption.geometry, 750)
+        return func.ST_Buffer(cast(adoption.geometry, Geography(srid=4326)), 750)
     return cast(adoption.geometry, Geometry(srid=4326))
 
 
