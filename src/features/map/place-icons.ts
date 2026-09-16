@@ -96,15 +96,27 @@ export function formatPlaceType(placeType: string | null | undefined): string {
   return placeType.charAt(0).toUpperCase() + placeType.slice(1)
 }
 
-/**
- * Convert one SVG string into a data URL that MapLibre's `loadImage` can
- * consume. Kept separate from `PLACE_ICONS` so tests can inspect the raw
- * markup without touching the browser.
- */
+/** Convert one bundled SVG string into a browser-safe data URL. */
 export function svgDataUrl(svg: string): string {
   const trimmed = svg.trim().replace(/\s+/g, ' ')
   const encoded = encodeURIComponent(trimmed)
     .replace(/'/g, '%27')
     .replace(/"/g, '%22')
   return `data:image/svg+xml;charset=utf-8,${encoded}`
+}
+
+/**
+ * Decode a bundled SVG with the browser before handing it to MapLibre.
+ * MapLibre's URL loader only guarantees raster formats, while addImage
+ * accepts an already-decoded HTMLImageElement. This keeps the vector icons
+ * local without relying on unsupported SVG URL loading.
+ */
+export function loadSvgImage(svg: string): Promise<HTMLImageElement> {
+  return new Promise((resolve, reject) => {
+    const image = new Image(40, 40)
+    image.decoding = 'async'
+    image.onload = () => resolve(image)
+    image.onerror = () => reject(new Error('The bundled place icon could not be decoded.'))
+    image.src = svgDataUrl(svg)
+  })
 }

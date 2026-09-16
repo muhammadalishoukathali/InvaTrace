@@ -17,6 +17,23 @@ test('map place discovery opens an accessible preview and canonical place route'
     name: /Bukit Kiara.*View plants recorded nearby/,
   })
   await expect(bukitKiara).toBeAttached({ timeout: 10_000 })
+  await expect.poll(() => page.evaluate(() => {
+    const map = (window as typeof window & {
+      __map?: {
+        getLayer: (id: string) => unknown
+        hasImage: (id: string) => boolean
+        queryRenderedFeatures: (options: { layers: string[] }) => unknown[]
+      }
+    }).__map
+    if (!map?.getLayer('place-points-fallback') || !map.getLayer('place-points')) return false
+    const iconsReady = [
+      'place-icon-park',
+      'place-icon-forest',
+      'place-icon-woodland',
+      'place-icon-trail',
+    ].every((id) => map.hasImage(id))
+    return iconsReady && map.queryRenderedFeatures({ layers: ['place-points-fallback'] }).length > 0
+  }), { message: 'place icons and visible marker fallback should be rendered' }).toBe(true)
   await bukitKiara.focus()
   await page.keyboard.press('Enter')
 
