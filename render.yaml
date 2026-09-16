@@ -125,16 +125,22 @@ services:
       - type: rewrite
         source: /*
         destination: /index.html
-    # AC Iteration 1 P11 - long-lived caching for hashed Vite assets, and
-    # a no-store for the service-worker entry point so an updated release
-    # replaces the shell instead of a stale copy sitting in a browser cache.
+    # AC Iteration 1 P11 - immutable caching is safe for hashed Vite assets.
+    # The HTML shell and service-worker entry point must always revalidate so
+    # an updated release can replace an older installed PWA.
     headers:
       - path: /assets/*
         name: Cache-Control
         value: public, max-age=31536000, immutable
+      - path: /
+        name: Cache-Control
+        value: no-cache, no-store, must-revalidate
+      - path: /index.html
+        name: Cache-Control
+        value: no-cache, no-store, must-revalidate
       - path: /sw.js
         name: Cache-Control
-        value: no-store
+        value: no-cache, no-store, must-revalidate
       - path: /*
         name: X-Content-Type-Options
         value: nosniff

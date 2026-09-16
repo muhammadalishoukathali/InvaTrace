@@ -20,8 +20,8 @@ deployment:
      level so a config drift is visible in code review, not surfaced by
      a rescan whose threshold does not match anything in the UI.
   6. Static frontend headers: long-lived `Cache-Control` on hashed
-     assets, `no-store` on the service-worker entry point so an update
-     replaces the shell instead of a stale copy being served forever.
+     assets, while the HTML shell and service-worker entry point revalidate
+     so an update replaces a stale installed release.
   7. Production startup never runs demo-data seeding.
 """
 
@@ -79,7 +79,8 @@ def test_render_yaml_declares_expected_frontend_cache_headers() -> None:
     assert "path: /assets/*" in render
     assert "public, max-age=31536000, immutable" in render
     assert "path: /sw.js" in render
-    assert "value: no-store" in render
+    assert "path: /index.html" in render
+    assert render.count("value: no-cache, no-store, must-revalidate") >= 3
 
 
 def test_render_yaml_health_check_hits_the_liveness_endpoint() -> None:
