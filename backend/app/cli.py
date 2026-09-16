@@ -23,6 +23,7 @@ from sqlalchemy import select
 from app.config import get_settings
 from app.db.base import SessionLocal
 from app.db.models import AuditEvent, Profile
+from app.acceptance_demo_seed import load_acceptance_demo_fixtures
 from app.seed import (
     load_development_fixtures,
     load_reference_data,
@@ -99,6 +100,23 @@ def main() -> None:
     commands.add_parser(
         "load-development-fixtures",
         help="insert demonstration places and sightings (never runs in production)",
+    )
+    ac_demo = commands.add_parser(
+        "seed-acceptance-demo",
+        help=(
+            "insert an acceptance-criteria demo dataset (profiles, reports across "
+            "every status, sightings, notifications, adopted areas, recovery codes, "
+            "place-sighting evidence). Refuses to run in production unless the "
+            "operator explicitly passes --allow-production."
+        ),
+    )
+    ac_demo.add_argument(
+        "--allow-production",
+        action="store_true",
+        help=(
+            "bypass the production guard. Only use on a demo/staging deploy "
+            "where showcasing every AC in the live UI is required."
+        ),
     )
     worker = commands.add_parser("worker", help="run the deterministic report-screening worker")
     worker.add_argument("--once", action="store_true")
@@ -284,6 +302,16 @@ def main() -> None:
             else:
                 load_development_fixtures(session)
         print("Demo data seeded.")
+    elif args.command == "seed-acceptance-demo":
+        if get_settings().app_env == "production" and not args.allow_production:
+            raise SystemExit(
+                "Refusing to seed acceptance-demo data in production. "
+                "Pass --allow-production on a demo/staging deploy to override, "
+                "or use `invatrace load-reference-data` for prod reference rows."
+            )
+        with SessionLocal() as session:
+            load_acceptance_demo_fixtures(session)
+        print("Acceptance-criteria demo data seeded.")
     elif args.command == "worker":
         run_worker(once=args.once)
     elif args.command == "set-profile-access":
