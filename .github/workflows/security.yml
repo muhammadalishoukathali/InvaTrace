@@ -40,6 +40,11 @@ jobs:
   gitleaks:
     name: gitleaks (secrets)
     runs-on: ubuntu-latest
+    # gitleaks-action lists the PR's commits through the API, which the
+    # workflow-wide contents:read token cannot do on a pull_request event.
+    permissions:
+      contents: read
+      pull-requests: read
     steps:
       - uses: actions/checkout@v4
         with:
