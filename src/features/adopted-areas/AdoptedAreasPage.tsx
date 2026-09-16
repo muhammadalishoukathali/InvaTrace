@@ -1,3 +1,10 @@
+// The list of areas this user has adopted, at /adopted-areas. Adopting an area
+// means you want to be told when something is reported inside it, so the list
+// is sorted by recent activity by default rather than alphabetically.
+//
+// Online-only: adoptions live on the server and there is nothing useful to show
+// from cache, so the offline state says the adoptions are still safe rather
+// than rendering an empty list that looks like they were lost.
 import { useState } from 'react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { Link } from 'react-router-dom'

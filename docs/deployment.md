@@ -156,7 +156,7 @@ Set only public build configuration:
 - `VITE_ENABLE_MOCKS=false`
 - `VITE_ENABLE_FAKE_MODEL=false`
 - `VITE_ENABLE_REAL_MODEL=true`
-- `VITE_MODEL_BASE_URL=/models/pulih-model1-v4`
+- `VITE_MODEL_BASE_URL=/models/invatrace-student33-v1`
 - `VITE_MAP_TILE_URL` to the production raster-tile template
 - `VITE_MAP_TILE_ATTRIBUTION` to the provider's required attribution
 - `VITE_RELEASE_ID` to the deployment revision

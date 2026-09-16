@@ -20,10 +20,10 @@ from pathlib import Path
 import structlog
 from sqlalchemy import select
 
+from app.acceptance_demo_seed import load_acceptance_demo_fixtures
 from app.config import get_settings
 from app.db.base import SessionLocal
 from app.db.models import AuditEvent, Profile
-from app.acceptance_demo_seed import load_acceptance_demo_fixtures
 from app.seed import (
     load_development_fixtures,
     load_reference_data,

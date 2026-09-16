@@ -1,3 +1,10 @@
+// One place page: what it is, its boundary on a small map, which invasive
+// plants have been recorded there, and the button to adopt it for monitoring.
+//
+// The place and its plant associations are two separate queries because the
+// associations are the slower of the two (they join through sightings) and I
+// would rather the header and map render straight away than have the whole page
+// wait on them.
 import { useMutation, useQuery } from '@tanstack/react-query'
 import { Link, useParams } from 'react-router-dom'
 import { useOnline } from '@/hooks/useOnline'

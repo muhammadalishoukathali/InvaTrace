@@ -1,5 +1,5 @@
 import type { BBox, QualityResult, IdentifyResult } from '@/types'
-import { modelSpeciesCatalog } from '@/data/model-species-catalog'
+import { modelSpeciesCatalogue } from '@/data/model-species-catalogue'
 import { hashBitmap } from './image-processing'
 import { PulihModel } from './pulih-model'
 import { verifyWithPlantNet } from './plantnet-verify'
@@ -20,7 +20,7 @@ interface ModelAdapter {
   identify(image: Blob, onProgress?: (loaded: number, total: number) => void): Promise<IdentifyResult>
 }
 
-const DEVELOPMENT_MODEL_VERSION = `development-${modelSpeciesCatalog.model_version}`
+const DEVELOPMENT_MODEL_VERSION = `development-${modelSpeciesCatalogue.model_version}`
 const DEVELOPMENT_UNKNOWN_BUCKETS = 5
 
 /**
@@ -31,7 +31,7 @@ const DEVELOPMENT_UNKNOWN_BUCKETS = 5
  * sync with the real one.
  */
 export function developmentIdentifyResultForHash(imageHash: number): IdentifyResult {
-  const classes = modelSpeciesCatalog.classes
+  const classes = modelSpeciesCatalogue.classes
   const bucket = Math.abs(imageHash) % (classes.length + DEVELOPMENT_UNKNOWN_BUCKETS)
   if (bucket >= classes.length) {
     return {

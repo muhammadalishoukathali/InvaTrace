@@ -1,3 +1,21 @@
+"""Submitting and tracking reports - the write path of the whole app.
+
+A report is one user saying "I saw this plant here". It starts private with
+status "processing" and only becomes a public Sighting once the deterministic
+screening worker approves it. POST "" does the work: it checks the photo against
+the upload grant, verifies the client is on the same catalogue version the
+server is (otherwise a stale app could report a species that no longer exists),
+writes the Report row, and queues a VerificationJob for the worker to pick up.
+The rest of the module is the user's own view of their reports plus the removal
+and delete flows.
+
+Two things here are less obvious than they look. Submission is idempotent
+through an Idempotency-Key header, because a phone on bad signal will retry a
+POST it never saw the response to, and without this the map would fill with
+duplicates. And location columns are cast to Geography before any ST_* distance
+call - PostGIS would otherwise measure in degrees and silently give nonsense
+distances near the equator.
+"""
 from __future__ import annotations
 
 import hashlib
@@ -47,14 +65,6 @@ from app.domain.catalogue import (
 from app.domain.reporting import coordinate, report_response
 from app.services.object_deletion import enqueue_object_deletions
 from app.services.storage import storage
-
-"""Report submission, listing, and status - the core "I found a plant" flow.
-
-A report starts private (status="processing") and only becomes a public
-Sighting once the deterministic screening worker approves it. This module
-is the backend for the report-submission screen (create_report), "my
-reports" history, and single-report status polling/deletion.
-"""
 
 router = APIRouter(prefix="/api/v1/reports", tags=["reports"])
 

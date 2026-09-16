@@ -4,7 +4,7 @@ import { looksLikeContactDetail, safeDisplayName } from './display-name'
 describe('looksLikeContactDetail', () => {
   it.each([
     'test@example.com',
-    'muhammadalishoukathali@gmail.com',
+    'student.name@student.monash.edu',
     'first.last+tag@sub.domain.co',
   ])('flags email-shaped input: %s', (input) => {
     expect(looksLikeContactDetail(input)).toBe(true)

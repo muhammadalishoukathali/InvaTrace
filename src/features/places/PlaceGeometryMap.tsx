@@ -1,3 +1,9 @@
+// Small read-only map that draws one place's boundary polygon. Split out from
+// PlaceDetailPage because the boundary is a static shape with no interaction,
+// so it needs almost none of what ThreatMapPage does - no markers, no filters,
+// no click handling, just fit the camera to the geometry and stop.
+//
+// Uses the same raster basemap as the main map so the two screens look alike.
 import { useEffect, useRef } from 'react'
 import * as maplibregl from 'maplibre-gl'
 import type { Map } from 'maplibre-gl'

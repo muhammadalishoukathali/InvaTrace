@@ -1,7 +1,6 @@
 .git
 .github
 .production-data
-.impeccable
 node_modules
 dist
 public

@@ -1,5 +1,5 @@
 // One-off screenshot capture tool, not a real test suite - every test here
-// exists to produce a labelled PNG in Downloads for showing progress to a
+// exists to produce a labelled PNG under e2e-harness/.scratch/ for showing progress to a
 // supervisor or dropping into the FYP writeup, not to assert correctness.
 // Covers the main screens across desktop and mobile widths plus the report
 // wizard, so keep the numbering in the filenames roughly in flow order.
@@ -7,7 +7,7 @@ import { test, expect, Page } from '@playwright/test'
 import fs from 'node:fs'
 import path from 'node:path'
 
-const OUT = '/Users/moham/Downloads/InvaTrace QA Screenshots'
+const OUT = process.env.QA_OUTPUT_DIR ?? path.resolve('e2e-harness/.scratch/qa-screenshots')
 fs.mkdirSync(OUT, { recursive: true })
 
 async function bootstrap(page: Page) {
