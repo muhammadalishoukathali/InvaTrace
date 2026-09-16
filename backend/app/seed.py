@@ -437,7 +437,42 @@ SIGHTING_SEED = [
     ("mikania-micrantha", "removed", "high", 0.0016, 4.2),
 ]
 
-LEGACY_SEED_SPECIES_IDS = {"clidemia-hirta"}
+# Species ids that used to ship in the seed / earlier catalogues and must be
+# retired from any environment that still carries them. Includes:
+#   1. `clidemia-hirta` — dropped from the shared catalogue during Iteration 1.
+#   2. Legacy pre-Iteration-2 reference labels that were part of the older
+#      model class map but are absent from the reviewed 32-species
+#      catalogue (`shared/catalogue/plant-status.json`). They are not
+#      reachable from any user-facing surface — the map filter reads
+#      `approvedSpeciesDataset` (32), `/api/v1/catalogue` returns 32, and
+#      the on-device classifier ships 32 CORE_TARGET classes + 1 UNKNOWN.
+#      Keeping them in the Species table only pollutes `/api/v1/species`.
+#   3. `alternanthera-philoxeroides` — flagged invasive in the older seed
+#      but never added to the reviewed 32; explicitly asserted absent from
+#      the shared catalogue in `shared/catalogue/catalogue.test.ts`.
+# `load_reference_data` retires each id below only when no sighting or
+# report references it, so a production refresh never deletes real data.
+LEGACY_SEED_SPECIES_IDS = {
+    "clidemia-hirta",
+    "ageratina-adenophora",
+    "ageratum-conyzoides",
+    "alternanthera-philoxeroides",
+    "carica-papaya",
+    "catharanthus-roseus",
+    "centella-asiatica",
+    "clitoria-ternatea",
+    "cocos-nucifera",
+    "colocasia-esculenta",
+    "dicranopteris-linearis",
+    "imperata-cylindrica",
+    "lantana-camara",
+    "macaranga-tanarius",
+    "miconia-crenata",
+    "mimosa-pudica",
+    "pistia-stratiotes",
+    "pteris-vittata",
+    "sphagneticola-trilobata",
+}
 
 
 def load_reference_data(session: Session) -> None:
