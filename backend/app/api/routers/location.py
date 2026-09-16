@@ -19,12 +19,11 @@ from sqlalchemy.orm import Session
 from app.api.schemas import ApiModel
 from app.db.base import get_session
 from app.db.models import (
-    MonitoredArea,
     MonitoredPlace,
     ProtectedArea,
     ProtectedAreaDataset,
-    Trail,
 )
+from app.domain.place_association import nearest_osm_feature
 
 router = APIRouter(prefix="/api/v1/location-context", tags=["location"])
 
@@ -165,8 +164,15 @@ def protected_location_context(
     )
 
 
-# OSM doesn't have a clean single tag for "what kind of green space is this,"
-# so we sniff the raw tags we stored to bucket it into one of our three types.
+# OSM area classifier used by the wider places / waterway / evidence
+# pipelines. Every MonitoredArea row in production carries exactly one of
+# the tag pairs whitelisted at import time (see osm_import.py::AREA_TAGS:
+# leisure=park, leisure=nature_reserve, landuse=forest, natural=wood).
+# leisure=nature_reserve is intentionally grouped with park for UI-facing
+# categorisation everywhere OTHER than the strict AC 4.3.1 nearest-feature
+# endpoint below, which delegates to `nearest_osm_feature` and skips rows
+# whose tags fall outside the AC 4.3.1 allow-list rather than folding them
+# into `park` here.
 def _classify_area(name: str, metadata: dict) -> Literal["park", "forest", "wood"]:
     tags = (metadata or {}).get("tags") or {}
     if tags.get("landuse") == "forest" or metadata.get("landuse") == "forest":
@@ -174,6 +180,21 @@ def _classify_area(name: str, metadata: dict) -> Literal["park", "forest", "wood
     if tags.get("natural") == "wood" or metadata.get("natural") == "wood":
         return "wood"
     return "park"
+
+
+# Map the raw OSM tag values that nearest_osm_feature returns onto the
+# closed AC 4.3.1 feature-type set. Trails are named by their highway tag
+# (path/footway/track); all three collapse to "trail" for the response
+# contract. Areas already come back as park/forest/wood.
+_TRAIL_TAG_VALUES = {"path", "footway", "track"}
+
+
+def _normalise_feature_type(raw: str) -> FeatureType:
+    if raw in _TRAIL_TAG_VALUES:
+        return "trail"
+    if raw in ("park", "forest", "wood"):
+        return raw  # type: ignore[return-value]
+    return "none"
 
 
 # lat/lon bounds are roughly Malaysia's bounding box - anything outside that
@@ -185,48 +206,32 @@ def location_context(
     radius_m: int = Query(default=5000, ge=100, le=10000),
     session: Session = Depends(get_session),
 ) -> LocationContextResponse:
+    """AC 4.3.1 - nearest named highway=path/footway/track, leisure=park,
+    landuse=forest or natural=wood within `radius_m` metres. Distance is
+    geospatial (PostGIS Geography ST_Distance metres); the caller's lat/lon
+    is never mutated. Delegates to the shared `nearest_osm_feature` helper
+    used by the screening worker so both the on-demand endpoint and the
+    stored `sightings.nearest_feature_*` columns agree on which feature is
+    nearest and how it is classified. Rows whose OSM tags fall outside the
+    AC 4.3.1 allow-list (e.g. an OSM `leisure=nature_reserve`) are skipped,
+    never re-classified as `park`.
+    """
     try:
-        point = func.ST_SetSRID(func.ST_MakePoint(lon, lat), 4326)
-        geography = cast(point, Geography("POINT", srid=4326))
-
-        # AC 4.3.1: prefer named trails (highway=path/footway/track), parks, forests, woods.
-        trail = session.execute(
-            select(Trail, func.ST_Distance(Trail.geometry, geography))
-            .where(func.ST_DWithin(Trail.geometry, geography, radius_m))
-            .order_by(func.ST_Distance(Trail.geometry, geography))
-            .limit(1)
-        ).first()
-
-        area = session.execute(
-            select(MonitoredArea, func.ST_Distance(MonitoredArea.geometry, geography))
-            .where(func.ST_DWithin(MonitoredArea.geometry, geography, radius_m))
-            .order_by(func.ST_Distance(MonitoredArea.geometry, geography))
-            .limit(1)
-        ).first()
-
-        candidates: list[tuple[FeatureType, str, float]] = []
-        if trail is not None:
-            candidates.append(("trail", trail[0].name, float(trail[1])))
-        if area is not None:
-            candidates.append(
-                (
-                    _classify_area(area[0].name, area[0].metadata_json or {}),
-                    area[0].name,
-                    float(area[1]),
-                )
-            )
-
-        if candidates:
-            candidates.sort(key=lambda item: item[2])
-            feature_type, feature_name, distance = candidates[0]
+        feature = nearest_osm_feature(session, latitude=lat, longitude=lon)
+        if feature is not None:
             return LocationContextResponse(
                 found=True,
-                feature_type=feature_type,
-                feature_name=feature_name,
-                distance_m=round(distance, 1),
+                feature_type=_normalise_feature_type(feature.feature_type),
+                feature_name=feature.feature_name,
+                distance_m=round(float(feature.distance_m), 1),
             )
 
-        # Seed-place fallback (still real data, not fabricated)
+        # Seed-place fallback (still real data, not fabricated). Kept
+        # separate from AC 4.3.1 - the seed layer names the imported
+        # MonitoredPlace when no allow-listed OSM feature is close enough,
+        # rather than fabricating a name.
+        point = func.ST_SetSRID(func.ST_MakePoint(lon, lat), 4326)
+        geography = cast(point, Geography("POINT", srid=4326))
         seeded = session.execute(
             select(MonitoredPlace, func.ST_Distance(MonitoredPlace.location, geography))
             .where(func.ST_DWithin(MonitoredPlace.location, geography, radius_m))

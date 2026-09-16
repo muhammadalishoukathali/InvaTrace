@@ -1,9 +1,11 @@
 """AC Iteration 1 P1 - shared/catalogue coverage tests.
 
-Every one of the 31 released classifier labels must resolve to exactly one
-plant-status record with a supported ui_state, and the three previously
-conflicting classes must show the catalogue's status_uncertain rather than
-the model manifest's ``invasive``.
+Every one of the released classifier labels must resolve to exactly one
+plant-status record with a supported ui_state. Iteration 2 replaced the
+earlier 31-class catalogue (which required three ``status_uncertain``
+placeholders) with the closed 32-species Iteration 2 allowlist; the
+previously deferred classes (``miconia_crenata``, ``sphagneticola_trilobata``,
+``lantana_camara``) are now intentionally absent from the shared catalogue.
 """
 
 from __future__ import annotations
@@ -25,7 +27,7 @@ _RECORDS = load_status_records()
 
 def test_catalogue_has_expected_class_count() -> None:
     manifest = load_manifest()
-    assert len(_RECORDS) == 31, "shared catalogue must contain 31 plant-status records"
+    assert len(_RECORDS) == 32, "shared catalogue must contain 32 plant-status records"
     assert manifest.plant_status_sha256, "manifest must record a sha256 for plant-status.json"
 
 
@@ -59,15 +61,15 @@ def test_report_eligible_flag_matches_ui_state(record) -> None:
         assert record.report_eligible is False
 
 
-def test_deferred_classes_resolve_to_status_uncertain() -> None:
-    # AC Iteration 1 P1 required tests - the three classes with only the
-    # model's own recognition category as evidence must display the
-    # catalogue's status_uncertain rather than the model manifest's invasive.
+def test_deferred_classes_are_absent_from_iteration_2_catalogue() -> None:
+    # The three Iteration 1 model labels that only had the model's own
+    # recognition category as evidence were excluded from the closed
+    # Iteration 2 32-species allowlist rather than kept as
+    # ``status_uncertain`` placeholders. Confirm they no longer resolve.
     for label in ("miconia_crenata", "sphagneticola_trilobata", "lantana_camara"):
-        record = status_record_for_model_label(label)
-        assert record is not None, f"{label!r} missing from shared catalogue"
-        assert record.ui_state == "status_uncertain"
-        assert record.report_eligible is False
+        assert status_record_for_model_label(label) is None, (
+            f"{label!r} must not appear in the Iteration 2 shared catalogue"
+        )
 
 
 def test_safety_message_covers_every_ui_status() -> None:

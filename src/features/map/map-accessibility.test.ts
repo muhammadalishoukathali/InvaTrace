@@ -99,3 +99,74 @@ describe('map accessibility fallback', () => {
     expect(threatMap).toContain('to={`/places/${selectedPlace.placeId}`}')
   })
 })
+
+// AC 4.2.3 - species filter and accessible fallback. When one or more
+// supported species are selected, both markers AND the accompanying report
+// list must show only matching reports, and the active filter + result
+// count must be exposed. Every marker must have a keyboard-accessible list
+// item.
+describe('AC 4.2.3 species filter and accessible fallback', () => {
+  it('drives markers and the accessible list from the same filtered array', () => {
+    // Both call sites must consume `filtered` (or an equivalent expression
+    // derived from it), so a change to filter state affects markers and
+    // list in lock-step rather than filtering one but not the other.
+    expect(threatMap).toMatch(/items=\{filtered\}/)
+    // The marker-rebuild effect iterates the same array the accessible
+    // list receives - regression against filtering one but not the other.
+    const markerEffect = threatMap.split('markers.current')[1] ?? ''
+    expect(markerEffect.length).toBeGreaterThan(0)
+    expect(threatMap).toMatch(/filtered\.forEach|for \(const [a-zA-Z_]+ of filtered\)/)
+  })
+
+  it('exposes the active filter and result count via a live region', () => {
+    // The visible chip must be a live region so screen readers hear the
+    // new count when a filter toggles, not just when the page loads.
+    expect(threatMap).toContain('id="map-live-count"')
+    // The live region attributes sit next to each other in the JSX; the
+    // aria-describedby on the map canvas points to this same id.
+    const liveBlock = threatMap.split('id="map-live-count"')[1]?.split('</div>')[0] ?? ''
+    expect(liveBlock).toContain('role="status"')
+    expect(liveBlock).toContain('aria-live="polite"')
+    // The result count and the active-filter count must both appear,
+    // so a mentor running the acceptance test sees "Showing N reports · M
+    // filters active" rather than one number without context.
+    expect(threatMap).toMatch(/Showing \$\{filtered\.length\}/)
+    // The "N filters active" suffix must render whenever any filter is
+    // engaged; text-only check tolerates future whitespace tweaks.
+    expect(threatMap).toContain('{filtersActive}')
+    expect(threatMap).toContain("filter{filtersActive === 1 ? '' : 's'} active")
+    expect(threatMap).toContain('filtersActive > 0')
+  })
+
+  it('the sr-only list restates the current filtered count for AT users', () => {
+    const body = threatMap.split('function AccessibleSightingList(')[1]
+      ?.split('\n}\n')[0] ?? ''
+    // Same wording the mentor's acceptance script looks for; either the
+    // "N reports match" plural or the singular / empty state.
+    expect(body).toMatch(/\$\{items\.length\} community report/)
+    expect(body).toContain('No community reports match the current filters')
+  })
+
+  it('offers a keyboard-visible Clear affordance the moment any filter is active', () => {
+    // Regression against removing the clear button in a redesign - without
+    // it, a keyboard-only user who applied a species filter cannot reset
+    // it in one step and the acceptance script fails.
+    expect(filters).toMatch(/\{active > 0 && \(/)
+    expect(filters).toContain('onClick={clearFilters}')
+    expect(filters).toMatch(/Clear \(\{active\}\)/)
+  })
+
+  it('MapFilters state contract carries the multi-select species array', () => {
+    // The store field must be an array so the URL/query builder can emit
+    // `?species=a&species=b` (AC 4.2.3 API contract), not a single value.
+    const store = readFileSync(
+      fileURLToPath(new URL('./map-view-store.ts', import.meta.url)),
+      'utf8',
+    )
+    expect(store).toMatch(/species: string\[\]/)
+    expect(store).toContain('toggleSpecies')
+    expect(filters).toContain('toggleSpecies')
+    // The filter clusters accept the array without collapsing to a scalar.
+    expect(filters).toContain('species.includes(s.id)')
+  })
+})

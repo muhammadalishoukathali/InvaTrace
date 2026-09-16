@@ -32,7 +32,10 @@ def test_production_accepts_explicit_origins_and_deterministic_screening() -> No
     # the rejection tests below.
     settings = production_settings()
     assert settings.app_env == "production"
-    assert settings.e1_model_versions == ["oe_v4_31class_web_fp16"]
+    assert settings.e1_model_versions == [
+        "invatrace-student33-tinyvit5m-320-fp16",
+        "oe_v4_31class_web_fp16",
+    ]
 
 
 @pytest.mark.parametrize(
