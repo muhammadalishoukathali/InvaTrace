@@ -35,8 +35,6 @@ jobs:
       - name: Install pip-audit
         run: pip install pip-audit
       - name: Audit backend lock
-        run: pip-audit -r backend/requirements.lock --strict --ignore-vuln GHSA-0000-0000-0000 || true
-      - name: Audit backend lock (fail on high)
         run: pip-audit -r backend/requirements.lock --strict
 
   gitleaks:
