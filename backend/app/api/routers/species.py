@@ -1,3 +1,13 @@
+"""Read-only species catalogue: the list, one species, and seasonal guidance.
+
+The data comes from the species table, which app/seed.py fills from the shared
+JSON files in shared/catalogue/ so the phone and the server agree on what a
+species is. Nothing here requires auth - the catalogue is public reference
+material and the app needs it before a profile even exists.
+
+/model-config is also here rather than in its own module because the thresholds
+it serves are meaningless without the class list it sits next to.
+"""
 from datetime import UTC, datetime
 
 from fastapi import APIRouter, Depends, Query
