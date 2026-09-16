@@ -1,3 +1,14 @@
+"""Every request and response body the API accepts or returns, as Pydantic models.
+
+Kept in one file on purpose: the frontend types in src/types/index.ts mirror
+these, and having a single place to diff against made keeping the two in step
+much easier than chasing models across a dozen router files.
+
+Validation that protects the database lives here rather than in the routers -
+coordinate ranges, the Idempotency-Key pattern, string length caps, and the
+enum literals for status and capture source. If a value is rejected here it
+never reaches a query.
+"""
 from __future__ import annotations
 
 import re

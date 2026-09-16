@@ -1,3 +1,17 @@
+"""Private-access profile lifecycle: start, bootstrap, restore, and manage.
+
+This is the only way an account comes into existence in InvaTrace - there is no
+signup form, no email, no password. /start creates a pseudonymous profile and
+hands back an installation token plus ten one-time recovery codes; /restore
+takes one of those codes and re-links the profile on a new device. The hashing
+and token issuing all live in app/core/security.py, this module is the HTTP
+shape around it plus the audit trail.
+
+Every route here responds with Cache-Control: no-store, and raw recovery codes
+are returned exactly once at generation time and never stored in the clear, so
+losing every installation and every unused code really does mean the profile is
+gone. That is a deliberate trade for not holding personal data.
+"""
 from __future__ import annotations
 
 import hmac

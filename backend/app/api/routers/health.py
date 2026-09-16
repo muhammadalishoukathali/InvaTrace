@@ -1,3 +1,12 @@
+"""Liveness and readiness probes for Render and docker compose.
+
+Three levels on purpose. /health/live answers as long as the process is up and
+never touches the database, so a slow query cannot get the container killed.
+/health checks the database and the catalogue files. /health/ready adds Redis
+and the verification-job backlog, and is the one the deploy waits on before
+sending traffic. Anything that fails returns 503 with the failing component
+named, so a failed deploy says which piece is broken.
+"""
 from __future__ import annotations
 
 from fastapi import APIRouter, Depends, Response
