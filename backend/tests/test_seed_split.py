@@ -33,6 +33,54 @@ def test_species_catalogue_is_the_closed_32_species_allowlist() -> None:
     assert "lantana-camara" not in ids
 
 
+def test_legacy_retire_set_covers_every_known_orphan_species_id() -> None:
+    """Pins the retire-on-refresh set so a future seed refactor cannot drop
+    an id whose only exit path is this loop.
+
+    Live audit on 2026-09-17 found 18 rows in the deployed Species table
+    that were not in the reviewed 32-species catalogue - leftovers from the
+    older classifier's reference labels plus an alligator-weed row that
+    was flagged invasive in the pre-Iteration-2 seed but explicitly
+    asserted absent from the shared catalogue in
+    `shared/catalogue/catalogue.test.ts`. Every one of them must stay in
+    `LEGACY_SEED_SPECIES_IDS` so the reference-loader's retire branch keeps
+    cleaning them up idempotently on every deploy.
+
+    `load_reference_data` still refuses to delete any of these ids while a
+    real sighting or report references them - see the `has_sighting` /
+    `has_report` guards - so this is safe housekeeping, not a destructive
+    change.
+    """
+    expected = {
+        "clidemia-hirta",
+        "ageratina-adenophora",
+        "ageratum-conyzoides",
+        "alternanthera-philoxeroides",
+        "carica-papaya",
+        "catharanthus-roseus",
+        "centella-asiatica",
+        "clitoria-ternatea",
+        "cocos-nucifera",
+        "colocasia-esculenta",
+        "dicranopteris-linearis",
+        "imperata-cylindrica",
+        "lantana-camara",
+        "macaranga-tanarius",
+        "miconia-crenata",
+        "mimosa-pudica",
+        "pistia-stratiotes",
+        "pteris-vittata",
+        "sphagneticola-trilobata",
+    }
+    missing = expected - seed.LEGACY_SEED_SPECIES_IDS
+    assert not missing, f"orphans not covered by retire set: {sorted(missing)}"
+    # None of the retire ids may collide with the reviewed 32-species
+    # allowlist - retiring one of those would violate AC 5.2.1.
+    approved = {entry["id"] for entry in seed.SPECIES}
+    overlap = seed.LEGACY_SEED_SPECIES_IDS & approved
+    assert not overlap, f"retire set collides with approved catalogue: {sorted(overlap)}"
+
+
 def test_reference_loader_inserts_no_development_places_or_sightings(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
