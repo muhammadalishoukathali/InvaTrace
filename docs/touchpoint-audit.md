@@ -1,6 +1,6 @@
 # InvaTrace touchpoint audit
 
-Scope: every interactive control found under `/Users/moham/Desktop/fyp/invatrace-web/src`.
+Scope: every interactive control found under `src/`.
 Ranking: **BROKEN** = fires the wrong thing / traps the user, **DEAD** = intentionally inert (coming-soon / stub) or missing but low impact, **WORKS** = wired to real logic.
 
 Legend: ✅ = fixed in the same pass as [image-pipeline-report.md](./image-pipeline-report.md).
