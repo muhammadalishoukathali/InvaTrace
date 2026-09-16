@@ -1,3 +1,12 @@
+// The user's own report history at /reports. Unlike the map, this shows the
+// private view: reports that are still being screened, ones that were rejected,
+// and ones that got merged into an existing sighting.
+//
+// The tricky part building this was that a user's records are really two lists -
+// reports that reached the server, and scans that never became a report (saved
+// locally by scan-history-store.ts). Showing them in one timeline means merging
+// a paginated server query with a local IndexedDB list, which is why the page
+// uses useInfiniteQuery for one half and a plain read for the other.
 import { useInfiniteQuery } from '@tanstack/react-query'
 import { Link } from 'react-router-dom'
 import { Icon } from '@/components/Icon'

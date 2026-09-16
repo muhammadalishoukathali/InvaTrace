@@ -1,3 +1,10 @@
+// Browse list of places (parks, reserves, trails) at /places. Deliberately thin:
+// it fetches the list once and filters client-side, because the list is small
+// and typing in a search box that round-trips to the server felt sluggish on
+// mobile data.
+//
+// Online-only on purpose - place data is not part of the offline pack, so
+// rather than show an empty list the page says so and points at the catalogue.
 import { useMemo, useState } from 'react'
 import { useQuery } from '@tanstack/react-query'
 import { Link } from 'react-router-dom'

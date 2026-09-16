@@ -1,3 +1,15 @@
+// The MSW request handlers that stand in for the whole backend during
+// development and in the Playwright/Vitest runs. Enabled by VITE_ENABLE_MOCKS,
+// wired up in main.tsx.
+//
+// This is deliberately more than a set of canned responses: it keeps profiles,
+// reports and sightings in module-level state so a test can submit a report and
+// then see it come back in the list, which is what most of the e2e specs rely
+// on. It also mirrors the real API's error shapes, because a lot of the UI work
+// was about what happens when a request fails.
+//
+// Kept in one file because the state is shared across endpoints and splitting it
+// meant passing the same maps around everywhere.
 import { http, HttpResponse, passthrough, type JsonBodyType } from 'msw'
 import type {
   AppNotification, Report, ReportSubmission, Sighting,
