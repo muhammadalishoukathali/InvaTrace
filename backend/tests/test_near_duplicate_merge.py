@@ -67,11 +67,19 @@ def test_merge_target_uses_exact_radius_no_accuracy_expansion() -> None:
 
 def test_merge_target_uses_st_dwithin_and_orders_by_distance() -> None:
     body = _merge_target_body()
-    assert "func.ST_DWithin(Sighting.location, report.location, radius_m)" in body, (
+    # report.location on the ORM instance is a WKBElement; the helper pins it
+    # to Geography("POINT", srid=4326) via `report_location` before handing it
+    # to ST_DWithin/ST_Distance, so PostGIS resolves the geography overload
+    # (metres) and cannot regress to the geometry overload (degrees).
+    assert 'cast(report.location, Geography("POINT", srid=4326))' in body, (
+        "report.location must be cast to Geography before ST_DWithin/ST_Distance"
+        " so radius/distance are geodesic metres, not degree-unit planar."
+    )
+    assert "func.ST_DWithin(Sighting.location, report_location, radius_m)" in body, (
         "Filter must use ST_DWithin on stored geography columns so PostGIS"
         " computes geodesic (meters) distance, not planar."
     )
-    assert "func.ST_Distance(Sighting.location, report.location)" in body, (
+    assert "func.ST_Distance(Sighting.location, report_location)" in body, (
         "Order-by must use ST_Distance so the closest qualifying candidate"
         " wins when several sit inside the 25 m radius."
     )
