@@ -7,7 +7,7 @@ import { test, expect, Page } from '@playwright/test'
 import fs from 'node:fs'
 import path from 'node:path'
 
-const OUT = '/Users/moham/Downloads/InvaTrace QA Screenshots'
+const OUT = process.env.QA_OUTPUT_DIR ?? path.resolve('e2e-harness/.scratch/qa-screenshots')
 fs.mkdirSync(OUT, { recursive: true })
 
 async function bootstrapAndScan(page: Page) {

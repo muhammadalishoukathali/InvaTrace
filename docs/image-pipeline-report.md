@@ -1,6 +1,6 @@
 # InvaTrace image pipeline verification report
 
-_Date: 2026-08-30 · Runner: automated Playwright harness · Server: `dev:model-test` (real PULIH ONNX model, MSW mocked backend)_
+_Run on 2026-08-30 against the `dev:model-test` server (real PULIH ONNX model, MSW mocked backend), driven by the Playwright harness in `e2e-harness/`._
 
 ## 1. What was tested
 
@@ -11,7 +11,7 @@ Seven user-supplied WhatsApp field photos were run through the live capture → 
 | **A. with_exif** | Fake iPhone 15 Pro EXIF injected via `exiftool` (Make, Model, DateTimeOriginal, GPS 3.1497 N / 101.6412 E, Software, LensModel, Orientation) | Simulate a genuine on-device capture from a real camera |
 | **B. stripped** | As delivered by WhatsApp - every EXIF tag removed | Simulate a re-shared or downloaded image with no provenance |
 
-Harness: [e2e-harness/image-harness.spec.ts](../e2e-harness/image-harness.spec.ts) driving [e2e-harness/playwright.harness.config.ts](../e2e-harness/playwright.harness.config.ts). Raw machine-readable output: `../scratchpad/reports/results.json`.
+Harness: [e2e-harness/image-harness.spec.ts](../e2e-harness/image-harness.spec.ts) driving [e2e-harness/playwright.harness.config.ts](../e2e-harness/playwright.harness.config.ts). Raw machine-readable output: `e2e-harness/.scratch/reports/results.json`.
 
 ## 2. Headline finding on the "verify real image" pipeline
 
@@ -179,7 +179,7 @@ Not a defect in the app; a limitation of the fixture. When PULIH classifies any 
 
 To answer the question "why did so many WhatsApp images come back Uncertain?", the harness was re-run against seven **high-resolution, single-subject** images sourced from Wikimedia Commons, one per known-invasive class in the 31-class catalogue.
 
-Harness: [e2e-harness/known-species-harness.spec.ts](../e2e-harness/known-species-harness.spec.ts) + [playwright.known.config.ts](../e2e-harness/playwright.known.config.ts). Raw output: `../scratchpad/reports/known-results.json`. Screenshots: [`image-pipeline/known/`](./image-pipeline/known/).
+Harness: [e2e-harness/known-species-harness.spec.ts](../e2e-harness/known-species-harness.spec.ts) + [playwright.known.config.ts](../e2e-harness/playwright.known.config.ts). Raw output: `e2e-harness/.scratch/reports/known-results.json`. Screenshots: [`image-pipeline/known/`](./image-pipeline/known/).
 
 | # | Ground truth | Image size | Quality | Model prediction | Confidence | Malaysia badge | Report button |
 |---|---|---|---|---|---|---|---|
@@ -215,7 +215,7 @@ The report button was only visible for Mikania (1 of the 5 invasive hits). All t
 
 Round 2 used tightly framed single-subject Wikimedia images. To answer "does it still work when the target isn't isolated?", Round 3 uses **in-situ Wikimedia photos** for the same catalogue species - parks with mixed vegetation, wild wetland carpets, forest floors, and agricultural intercrops with other plants clearly visible.
 
-Harness: [e2e-harness/cluttered-species-harness.spec.ts](../e2e-harness/cluttered-species-harness.spec.ts) + [playwright.cluttered.config.ts](../e2e-harness/playwright.cluttered.config.ts). Raw output: `../scratchpad/reports/cluttered-results.json`. Screenshots: [`image-pipeline/cluttered/`](./image-pipeline/cluttered/).
+Harness: [e2e-harness/cluttered-species-harness.spec.ts](../e2e-harness/cluttered-species-harness.spec.ts) + [playwright.cluttered.config.ts](../e2e-harness/playwright.cluttered.config.ts). Raw output: `e2e-harness/.scratch/reports/cluttered-results.json`. Screenshots: [`image-pipeline/cluttered/`](./image-pipeline/cluttered/).
 
 | # | Ground truth | Scene | Model prediction | Confidence | Badge | Correct? |
 |---|---|---|---|---|---|---|
@@ -249,15 +249,15 @@ npm run dev:model-test        # http://localhost:5174
 
 # 2a. Round 1 - user WhatsApp images with/without EXIF split.
 npx playwright test --config e2e-harness/playwright.harness.config.ts --reporter=list
-cat <scratchpad>/reports/results.json
+cat e2e-harness/.scratch/reports/results.json
 
 # 2b. Round 2 - clean known-catalogue species from Wikimedia.
 npx playwright test --config e2e-harness/playwright.known.config.ts --reporter=list
-cat <scratchpad>/reports/known-results.json
+cat e2e-harness/.scratch/reports/known-results.json
 
 # 2c. Round 3 - same species but in-situ with backgrounds/competing plants.
 npx playwright test --config e2e-harness/playwright.cluttered.config.ts --reporter=list
-cat <scratchpad>/reports/cluttered-results.json
+cat e2e-harness/.scratch/reports/cluttered-results.json
 
 # Regenerate the EXIF-tagged image set (requires exiftool):
 exiftool -overwrite_original \

@@ -2,13 +2,13 @@
 // in the Playwright sense, it just walks every major screen at three
 // viewport widths and flags any element that pokes past the visible edge.
 // Useful after CSS changes to catch horizontal scroll bugs on mobile before
-// a supervisor demo. Writes findings + screenshots straight to Downloads so
-// they're easy to skim outside the terminal.
+// a supervisor demo. Findings and screenshots go to e2e-harness/.scratch/,
+// which is gitignored - set QA_OUTPUT_DIR to send them somewhere else.
 import { test, Page } from '@playwright/test'
 import fs from 'node:fs'
 import path from 'node:path'
 
-const OUT = '/Users/moham/Downloads/InvaTrace Overflow Audit'
+const OUT = process.env.QA_OUTPUT_DIR ?? path.resolve('e2e-harness/.scratch/overflow-audit')
 fs.mkdirSync(OUT, { recursive: true })
 
 const VIEWPORTS = [

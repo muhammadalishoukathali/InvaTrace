@@ -2,7 +2,7 @@ import { test, expect } from '@playwright/test'
 import path from 'node:path'
 import fs from 'node:fs'
 
-const OUT = '/Users/moham/Downloads/InvaTrace QA Screenshots'
+const OUT = process.env.QA_OUTPUT_DIR ?? path.resolve('e2e-harness/.scratch/qa-screenshots')
 fs.mkdirSync(OUT, { recursive: true })
 
 // Reproduces the user's exact original screenshot scenario: Asclepias
@@ -24,7 +24,7 @@ test('Asclepias curassavica - unsupported target shows real plant info, no PULIH
   await page.goto('http://localhost:5174/scan')
   const camInput = page.locator('input[type=file][aria-label="Take photo"]')
   await camInput.waitFor({ state: 'attached', timeout: 20_000 })
-  await camInput.setInputFiles('/Users/moham/Desktop/fyp/invatrace-web/public/reference-images/asclepias_curassavica.jpg')
+  await camInput.setInputFiles(path.resolve('public/reference-images/asclepias_curassavica.jpg'))
   await expect(page.getByText('Photo quality check passed')).toBeVisible({ timeout: 15_000 })
   await page.getByRole('button', { name: /Analyse plant/i }).click()
   await expect(page).toHaveURL(/\/scan\/result/, { timeout: 30_000 })
