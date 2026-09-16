@@ -18,6 +18,7 @@ import type {
 import {
   findModelSpecies, modelReferenceImageUrl,
 } from '@/data/model-species-catalogue'
+import { DEVELOPMENT_MODEL_VERSION } from '@/features/scan/plant-model-adapter'
 import { approvedSpeciesDataset, findApprovedSpecies } from '@shared/catalogue'
 
 const url = (p: string) => `*${p}`
@@ -76,6 +77,12 @@ export const MSW_LOCATION_ACCURACY_MAX_M = 250
 export const MSW_SUPPORTED_MODEL_VERSIONS = [
   'invatrace-student33-tinyvit5m-320-fp16',
   'oe_v4_31class_web_fp16',
+  // The development adapter tags its results `development-<model version>`, and
+  // without that string here the server-acceptance cross-check rejects every
+  // mocked scan: the result screen then shows "Not Sure - Unable to verify" and
+  // keeps Report disabled, no matter what the model actually returned. Derived
+  // rather than written out so it cannot drift from the adapter.
+  DEVELOPMENT_MODEL_VERSION,
 ] as const
 
 type MockValidationStatus = 'screened' | 'merged' | 'needs_rescan' | 'rejected'
