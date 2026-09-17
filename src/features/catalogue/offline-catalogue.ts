@@ -158,6 +158,63 @@ async function verifiedPackFiles(manifest: CatalogueManifest): Promise<Record<st
   return verified
 }
 
+// Fetch one reference image, trying the routes that survive a CDN in order and
+// stopping at the first whose bytes match the manifest.
+//
+//  1. <name>.jpg.bin - a byte-identical copy published by
+//     scripts/publish-pack-assets.mjs as application/octet-stream. Cloudflare
+//     Polish only rewrites what it recognises as an image, so this is the one
+//     route it leaves alone. It is also the only route that stays correct once
+//     the object is cached at the edge: Polish re-encodes images *after* they
+//     land there, `no-transform` and all.
+//  2. The image itself, for dev servers and hosts with no postbuild step.
+//  3. The image under a one-off nonce. An edge that already holds a
+//     transformed copy serves it to every request for that URL; a URL it has
+//     never seen forces a fetch from origin. This is what rescues a browser
+//     running an older bundle, or a host where route 1 is missing.
+//
+// A route that answers but fails its hash is not fatal here - the caller
+// re-checks and reports - so a stale service worker or an SPA rewrite handing
+// back index.html just moves us to the next route instead of failing the whole
+// download.
+async function downloadAssetBytes(
+  asset: CatalogueAsset & { byte_length: number },
+  catalogueVersion: string,
+): Promise<{ bytes: ArrayBuffer; response: Response }> {
+  const separator = asset.url.includes('?') ? '&' : '?'
+  const version = `${separator}v=${encodeURIComponent(catalogueVersion)}`
+  const routes = [
+    { url: `${asset.url}.bin${version}`, init: { cache: 'no-store' as RequestCache } },
+    {
+      url: `${asset.url}${version}`,
+      init: { cache: 'no-store' as RequestCache, headers: { Accept: 'image/jpeg' } },
+    },
+    {
+      url: `${asset.url}${version}&n=${crypto.randomUUID()}`,
+      init: { cache: 'no-store' as RequestCache, headers: { Accept: 'image/jpeg' } },
+    },
+  ]
+  let last: { bytes: ArrayBuffer; response: Response } | null = null
+  for (const route of routes) {
+    let response: Response
+    try {
+      response = await fetch(route.url, route.init)
+    } catch {
+      continue
+    }
+    if (!response.ok) continue
+    const bytes = await response.arrayBuffer()
+    last = { bytes, response }
+    if (bytes.byteLength === asset.byte_length && await sha256Bytes(bytes) === asset.sha256) {
+      return last
+    }
+  }
+  if (!last) throw new Error(`Catalogue asset download failed for ${asset.url}.`)
+  // Every route answered with the wrong bytes. Hand back the last attempt so
+  // the caller's error can name what the network is actually serving.
+  return last
+}
+
 export async function downloadCataloguePack(
   manifest: CatalogueManifest = catalogueManifest,
 ): Promise<InstalledCataloguePack> {
@@ -190,22 +247,7 @@ export async function downloadCataloguePack(
       // WebP can outlive its TTL indefinitely. Requesting a URL the edge has
       // never seen sidesteps every one of those entries, and re-busts by
       // itself whenever the catalogue version moves.
-      const separator = asset.url.includes('?') ? '&' : '?'
-      const version = `${separator}v=${encodeURIComponent(manifest.catalogue_version)}`
-      // scripts/publish-pack-assets.mjs puts a byte-identical copy of every
-      // image at <name>.jpg.bin. It is served as application/octet-stream,
-      // which Cloudflare Polish ignores - and Polish is the whole problem
-      // here: it re-encodes the JPEG *after* the object lands in the edge
-      // cache, no-transform and all, so the bytes behind a plain image URL
-      // change under us within seconds of being cached and the hash below can
-      // never pass. Dev servers and any host without the postbuild step have
-      // no .bin, hence the fallback to the image itself.
-      let response = await fetch(`${asset.url}.bin${version}`, { cache: 'no-store' })
-      if (!response.ok) {
-        response = await fetch(`${asset.url}${version}`, { cache: 'no-store', headers: { Accept: 'image/jpeg' } })
-      }
-      if (!response.ok) throw new Error(`Catalogue asset download failed for ${asset.url}.`)
-      const bytes = await response.arrayBuffer()
+      const { bytes, response } = await downloadAssetBytes(asset, manifest.catalogue_version)
       if (bytes.byteLength !== asset.byte_length || await sha256Bytes(bytes) !== asset.sha256) {
         // Name what actually arrived. A plain "integrity check failed" sent us
         // hunting for a corrupted upload when the real answer was a CDN

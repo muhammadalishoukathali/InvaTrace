@@ -25,12 +25,23 @@ describe('offline catalogue pack assets', () => {
     expect(script).toContain('`${source}.bin`')
   })
 
-  it('downloads the .bin copy and falls back to the image when it is absent', () => {
+  it('tries the opaque copy first, then the image, then a nonce that defeats a cached transform', () => {
     const source = read('src/features/catalogue/offline-catalogue.ts')
-    expect(source).toContain('`${asset.url}.bin${version}`')
-    // The fallback keeps dev servers and any host without the postbuild step
-    // working, so losing it would only show up in production.
-    expect(source).toContain('if (!response.ok) {')
+    const routes = source.slice(source.indexOf('const routes = ['), source.indexOf('let last:'))
+    // Order matters: the .bin is the only route a CDN leaves alone, the plain
+    // image keeps dev servers working, and the nonce is what rescues a browser
+    // still running an older bundle against an already-transformed edge copy.
+    expect(routes.indexOf('.bin${version}')).toBeGreaterThan(-1)
+    expect(routes.indexOf('.bin${version}')).toBeLessThan(routes.indexOf('&n=${crypto.randomUUID()}'))
+    expect(routes).toContain('cache: \'no-store\'')
+  })
+
+  it('keeps trying later routes when one answers with the wrong bytes', () => {
+    const source = read('src/features/catalogue/offline-catalogue.ts')
+    // A stale service worker or an SPA rewrite handing back index.html answers
+    // with a healthy 200, so stopping at the first response would strand the
+    // download on bytes that can never match.
+    expect(source).toContain('if (bytes.byteLength === asset.byte_length && await sha256Bytes(bytes) === asset.sha256)')
   })
 
   it('stores pack images as image/jpeg regardless of how they were served', () => {
