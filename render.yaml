@@ -98,11 +98,17 @@ services:
       # documented in the app UI.
       - key: SCREENING_LOCATION_ACCURACY_MAX_M
         value: "250"
-      # AC Iteration 1 P4 - duplicate detection must stay on in prod.
+      # AC Iteration 1 P4 - duplicate detection normally stays on in prod.
       # Explicit so an operator toggling it in a dev env cannot leak the
       # flag through a rebased branch.
+      #
+      # TEMPORARY (usability testing round, 2026-09-17): turned OFF so
+      # testers can reuse the one supplied reference photo across scans and
+      # reports without hitting exact/perceptual replay rejection. REVERT TO
+      # "false" once usability testing finishes - AC Iteration 1 P4 is not
+      # satisfied in prod while this is "true".
       - key: SCREENING_DISABLE_DUPLICATE_CHECK
-        value: "false"
+        value: "true"
       # PlantNet cross-check for the on-device model's Unknown results.
       # sync: false so the key is set in the Render dashboard, never
       # committed. Feature stays inert until this is provided; the frontend
