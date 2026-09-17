@@ -220,18 +220,28 @@ export function ThreatMapPage() {
       // <body>, so a keyboard user silently loses their place in the list.
       // Keep re-applying across a short window instead.
       //
-      // Only ever re-focus out of <body>. If focus is sitting on some other
-      // element the user put it there themselves - tabbing onward during this
-      // window is perfectly normal - and yanking it back would be worse than
-      // the bug being fixed here.
+      // Re-focus only when focus is somewhere we put it, or nowhere at all.
+      // `ours` remembers what this loop last focused, which matters because
+      // the first frame usually lands on a fallback: the place button has not
+      // been re-rendered yet, so restoreTarget() returns the map canvas. Once
+      // the button appears we still need to move focus onto it, and an
+      // earlier version of this that only re-focused out of <body> refused to
+      // - focus sat on the canvas and the restore never completed.
+      //
+      // Anything else in activeElement means the user moved focus themselves
+      // (tabbing onward during this window is normal), and we leave it alone.
       const run = ++placeFocusRestoreRun.current
       const deadline = performance.now() + PLACE_FOCUS_RESTORE_WINDOW_MS
+      let ours: HTMLElement | null = null
       const settle = () => {
         if (placeFocusRestoreRun.current !== run) return
         const target = restoreTarget()
-        const lost = document.activeElement === null
-          || document.activeElement === document.body
-        if (target && lost) target.focus({ preventScroll: true })
+        const active = document.activeElement
+        const mayMove = active === null || active === document.body || active === ours
+        if (target && mayMove && active !== target) {
+          target.focus({ preventScroll: true })
+          ours = target
+        }
         if (performance.now() < deadline) {
           window.requestAnimationFrame(settle)
           return
