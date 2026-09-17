@@ -176,3 +176,30 @@ def test_docker_entrypoint_is_executable() -> None:
     raw = path.read_bytes()
     assert b"\r\n" not in raw, "docker-entrypoint.sh must use LF line endings."
     assert raw.startswith(b"#!/bin/sh"), "Entrypoint must begin with a POSIX shebang."
+
+
+def test_reference_images_are_served_with_no_transform_on_both_static_hosts() -> None:
+    """Both static hosts must forbid CDN re-encoding of the catalogue images.
+
+    Render fronts the static site with Cloudflare, which had Polish
+    re-encoding these JPEGs and serving WebP to any browser advertising it.
+    The offline pack verifies every asset's SHA-256 against the manifest, so a
+    transformed image can never match and the download failed for every user
+    on that host. `no-transform` is the only thing keeping the published bytes
+    intact end to end, on Render and on Cloudflare Pages alike.
+    """
+
+    render = _read("render.yaml")
+    assert (
+        "path: /reference-images/*\n        name: Cache-Control\n"
+        "        value: public, max-age=31536000, immutable, no-transform"
+    ) in render, "Render must serve /reference-images/* with no-transform."
+
+    headers = _read("public/_headers")
+    assert "/reference-images/*" in headers, (
+        "Cloudflare Pages needs its own /reference-images/* rule in public/_headers."
+    )
+    reference_rule = headers.split("/reference-images/*", 1)[1]
+    assert "no-transform" in reference_rule.split("\n\n", 1)[0], (
+        "The Pages /reference-images/* rule must carry no-transform."
+    )

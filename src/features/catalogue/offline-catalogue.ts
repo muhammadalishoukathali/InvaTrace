@@ -177,11 +177,24 @@ export async function downloadCataloguePack(
       new Response(raw, { headers: { 'Content-Type': 'application/json' } }),
     )))
     for (const asset of manifest.assets) {
-      const response = await fetch(asset.url, { cache: 'no-store' })
+      // Ask for the published bytes rather than whatever the CDN would rather
+      // send. A cache/proxy layer that re-encodes images (Cloudflare Polish
+      // converting JPEG to WebP, say) fails the hash below every single time,
+      // so the narrow Accept header is the client half of the no-transform
+      // cache headers the static hosts set on /reference-images/*.
+      const response = await fetch(asset.url, { cache: 'no-store', headers: { Accept: 'image/jpeg' } })
       if (!response.ok) throw new Error(`Catalogue asset download failed for ${asset.url}.`)
       const bytes = await response.arrayBuffer()
       if (bytes.byteLength !== asset.byte_length || await sha256Bytes(bytes) !== asset.sha256) {
-        throw new Error(`Catalogue asset integrity check failed for ${asset.url}.`)
+        // Name what actually arrived. A plain "integrity check failed" sent us
+        // hunting for a corrupted upload when the real answer was a CDN
+        // handing back a re-encoded image of a different type and size.
+        const contentType = response.headers.get('Content-Type') ?? 'unknown type'
+        throw new Error(
+          `Catalogue asset integrity check failed for ${asset.url}:`
+          + ` the server returned ${bytes.byteLength} bytes of ${contentType},`
+          + ` but the manifest lists ${asset.byte_length} bytes.`,
+        )
       }
       await cache.put(new Request(asset.url), new Response(bytes, {
         headers: { 'Content-Type': response.headers.get('Content-Type') ?? 'image/jpeg' },
