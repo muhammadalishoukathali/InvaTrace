@@ -66,6 +66,12 @@ interface SpeciesCatalog {
   classes: SpeciesEntry[]
 }
 
+interface ModelAssets {
+  manifest: RuntimeManifest
+  catalog: SpeciesCatalog
+  modelBytes: Uint8Array
+}
+
 type Progress = (loaded: number, total: number) => void
 type ExecutionProvider = 'webgpu' | 'wasm'
 
@@ -102,8 +108,35 @@ function recordMeasure(name: string, startedAt: number): number {
   return duration
 }
 
-async function fetchJson<T>(name: string): Promise<T> {
-  const response = await fetch(`${MODEL_ROOT}/${name}`, { cache: 'force-cache' })
+// Evict every cached copy of the model bundle - the service worker's
+// CacheFirst entry (see vite.config.ts) plus anything the HTTP cache is
+// holding. Without this, one corrupted 200 (a truncated download, a proxy or
+// antivirus rewriting the .onnx) gets stored for a year and replayed on every
+// later load, so the integrity check fails identically forever and no amount
+// of reloading fixes it. Best effort: a browser without the Cache API, or one
+// that refuses the delete, still gets the network retry below.
+async function purgeCachedModelAssets(): Promise<void> {
+  if (typeof caches === 'undefined') return
+  const prefix = new URL(MODEL_ROOT, globalThis.location?.href ?? 'http://localhost/').pathname
+  try {
+    const cacheNames = await caches.keys()
+    await Promise.all(cacheNames.map(async (cacheName) => {
+      const cache = await caches.open(cacheName)
+      const requests = await cache.keys()
+      await Promise.all(
+        requests
+          .filter((request) => new URL(request.url).pathname.startsWith(prefix))
+          .map((request) => cache.delete(request)),
+      )
+    }))
+  } catch {
+    // Cache eviction is a repair step, not a precondition - if it fails we
+    // still want the forced network re-download to get its chance.
+  }
+}
+
+async function fetchJson<T>(name: string, cacheMode: RequestCache): Promise<T> {
+  const response = await fetch(`${MODEL_ROOT}/${name}`, { cache: cacheMode })
   if (!response.ok) {
     throw new PlantModelRuntimeError(
       'download',
@@ -122,11 +155,15 @@ function hex(bytes: ArrayBuffer): string {
 // on-device inference over a network path I don't fully trust, a corrupted or
 // tampered download needs to fail loudly right here rather than silently
 // producing garbage predictions further down the line.
-async function verifiedModelBytes(manifest: RuntimeManifest, onProgress?: Progress): Promise<Uint8Array> {
+async function verifiedModelBytes(
+  manifest: RuntimeManifest,
+  cacheMode: RequestCache,
+  onProgress?: Progress,
+): Promise<Uint8Array> {
   if (!Number.isSafeInteger(manifest.bytes) || manifest.bytes < 1 || manifest.bytes > 128 * 1024 * 1024) {
     throw new PlantModelRuntimeError('integrity', 'The plant model manifest size is invalid.')
   }
-  const response = await fetch(`${MODEL_ROOT}/${manifest.modelFile}`, { cache: 'force-cache' })
+  const response = await fetch(`${MODEL_ROOT}/${manifest.modelFile}`, { cache: cacheMode })
   if (!response.ok) {
     throw new PlantModelRuntimeError(
       'download',
@@ -369,15 +406,18 @@ export class PulihModel {
     }
   }
 
-  private async loadOnce(onProgress?: Progress): Promise<void> {
-    const loadStartedAt = performance.now()
-    ort.env.wasm.numThreads = globalThis.crossOriginIsolated
-      ? Math.max(1, Math.min(4, navigator.hardwareConcurrency || 1))
-      : 1
-    ort.env.wasm.initTimeout = 30_000
+  // One download attempt for the whole bundle under a single cache mode, with
+  // every cross-file consistency check applied before the bytes are trusted.
+  // Everything in here throws 'integrity' when the files disagree, which is
+  // what makes loadOnce's retry able to tell "cached rubbish" apart from a
+  // network or runtime failure that a retry would not fix.
+  private async fetchModelAssets(
+    cacheMode: RequestCache,
+    onProgress?: Progress,
+  ): Promise<ModelAssets> {
     const [manifest, catalog] = await Promise.all([
-      fetchJson<RuntimeManifest>('runtime-manifest.json'),
-      fetchJson<SpeciesCatalog>('student33_species.json'),
+      fetchJson<RuntimeManifest>('runtime-manifest.json', cacheMode),
+      fetchJson<SpeciesCatalog>('student33_species.json', cacheMode),
     ])
     if (manifest.modelVersion !== catalog.model_version) {
       throw new PlantModelRuntimeError('integrity', 'Plant model metadata versions do not agree.')
@@ -391,8 +431,45 @@ export class PulihModel {
     if (catalog.unknown_index !== manifest.unknownIndex) {
       throw new PlantModelRuntimeError('integrity', 'Plant model unknown index disagrees with catalogue.')
     }
+    const modelBytes = await verifiedModelBytes(manifest, cacheMode, onProgress)
+    return { manifest, catalog, modelBytes }
+  }
+
+  private async loadOnce(onProgress?: Progress): Promise<void> {
+    const loadStartedAt = performance.now()
+    ort.env.wasm.numThreads = globalThis.crossOriginIsolated
+      ? Math.max(1, Math.min(4, navigator.hardwareConcurrency || 1))
+      : 1
+    ort.env.wasm.initTimeout = 30_000
     const downloadStartedAt = performance.now()
-    const modelBytes = await verifiedModelBytes(manifest, onProgress)
+    // An integrity failure is usually a poisoned cache rather than a genuinely
+    // bad file on the server, so the first failure buys one clean retry: drop
+    // every cached copy of the bundle, then refetch manifest, catalogue and
+    // model straight from the network. The manifest and catalogue are refetched
+    // too, not just the .onnx, because a stale cached manifest paired with a
+    // fresh model fails exactly the same checksum check.
+    let assets: ModelAssets
+    try {
+      assets = await this.fetchModelAssets('force-cache', onProgress)
+    } catch (error) {
+      if (!(error instanceof PlantModelRuntimeError) || error.code !== 'integrity') throw error
+      await purgeCachedModelAssets()
+      try {
+        assets = await this.fetchModelAssets('reload', onProgress)
+      } catch (retryError) {
+        // Failing twice, the second time against a forced network fetch, means
+        // the bad bytes are not ours to evict - say so, because "clear your
+        // cache" is useless advice for a proxy or antivirus rewriting the file.
+        if (retryError instanceof PlantModelRuntimeError && retryError.code === 'integrity') {
+          throw new PlantModelRuntimeError(
+            'integrity',
+            `${retryError.message} This persisted after a forced re-download, so the copy being served over this connection does not match the manifest.`,
+          )
+        }
+        throw retryError
+      }
+    }
+    const { manifest, catalog, modelBytes } = assets
     const downloadMs = recordMeasure('invatrace:model-download', downloadStartedAt)
     let provider: ExecutionProvider | null = null
     let webGpuFallback = false
