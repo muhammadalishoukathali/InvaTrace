@@ -209,3 +209,57 @@ def test_radius_is_applied_to_the_osm_lookup_not_just_the_fallback() -> None:
     assert "radius_m=radius_m" in router, (
         "GET /api/v1/location-context must pass its radius_m through to the lookup."
     )
+
+
+def test_location_context_only_reads_fields_nearest_osm_feature_actually_has() -> None:
+    """The endpoint read `feature.feature_name`; the dataclass field is `name`.
+
+    Every lookup that found a feature raised AttributeError, which the bare
+    `except Exception` turned into a calm `temporarily_unavailable`. The
+    screening worker stored nearest_feature_* correctly through the same
+    helper, so the stored data looked healthy and only the live endpoint was
+    broken - for AC 4.3.1 that is the endpoint the AC actually names.
+
+    Pin the attribute names against the dataclass so a rename on either side
+    fails here rather than silently in production.
+    """
+    domain = (REPO_ROOT / "app/domain/place_association.py").read_text()
+    domain_tree = ast.parse(domain)
+    dataclass_node = next(
+        node
+        for node in domain_tree.body
+        if isinstance(node, ast.ClassDef) and node.name == "NearestOsmFeature"
+    )
+    fields = {
+        node.target.id
+        for node in dataclass_node.body
+        if isinstance(node, ast.AnnAssign) and isinstance(node.target, ast.Name)
+    }
+    assert fields == {"feature_type", "name", "distance_m"}, fields
+
+    router = (REPO_ROOT / "app/api/routers/location.py").read_text()
+    router_tree = ast.parse(router)
+    endpoint = next(
+        node
+        for node in router_tree.body
+        if isinstance(node, ast.FunctionDef) and node.name == "location_context"
+    )
+    read = {
+        node.attr
+        for node in ast.walk(endpoint)
+        if isinstance(node, ast.Attribute)
+        and isinstance(node.value, ast.Name)
+        and node.value.id == "feature"
+    }
+    assert read, "Expected the endpoint to read attributes off the feature."
+    assert read <= fields, f"location_context reads fields NearestOsmFeature lacks: {read - fields}"
+
+
+def test_location_context_failure_is_logged_not_swallowed_silently() -> None:
+    """Fail-soft is required by AC 4.3.2; fail-silent is what hid the bug above."""
+    router = (REPO_ROOT / "app/api/routers/location.py").read_text()
+    body = router.split("def location_context(", 1)[1]
+    assert "log.exception(" in body, (
+        "The location-context except block must log, or the next bug in it is"
+        " invisible in production the same way the last one was."
+    )
