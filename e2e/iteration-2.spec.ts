@@ -44,7 +44,26 @@ test('map place discovery opens an accessible preview and canonical place route'
 
   await page.keyboard.press('Escape')
   await expect(preview).toBeHidden()
-  await expect(bukitKiara).toBeFocused()
+  // Report where focus actually went. `toBeFocused` only says "inactive",
+  // which is not enough to tell a lost-to-<body> restore apart from one that
+  // stopped on a fallback such as the map canvas - and that distinction is
+  // the whole fix when this flakes in CI.
+  await expect
+    .poll(
+      () => page.evaluate(() => {
+        const active = document.activeElement as HTMLElement | null
+        if (!active) return 'null'
+        const placeId = active.getAttribute?.('data-place-id')
+        if (placeId) return `place-button:${placeId}`
+        return [
+          active.tagName.toLowerCase(),
+          active.getAttribute?.('role') ?? '',
+          active.getAttribute?.('aria-label') ?? active.className ?? '',
+        ].filter(Boolean).join(' ')
+      }),
+      { message: 'focus should return to the Bukit Kiara trigger after Escape', timeout: 5000 },
+    )
+    .toBe('place-button:10000000-0000-4000-8000-000000000001')
 
   await page.getByRole('button', { name: 'Hide places' }).click()
   await expect(page.getByRole('button', { name: 'Show places' })).toBeVisible()
