@@ -167,3 +167,45 @@ def test_location_context_response_feature_type_set_matches_ac_4_3_1() -> None:
     assert '"path"' in trail_tag_line
     assert '"footway"' in trail_tag_line
     assert '"track"' in trail_tag_line
+
+
+def test_radius_is_applied_to_the_osm_lookup_not_just_the_fallback() -> None:
+    """AC 4.3.1 documents radius_m on GET /api/v1/location-context.
+
+    It used to be accepted and then dropped: nearest_osm_feature took no
+    radius and bounded both ST_DWithin calls with the module constant, so a
+    caller asking for 200 m still got a feature up to 5 km away. Only the
+    seed fallback honoured the parameter. Pin the signature and both call
+    sites so the documented contract cannot quietly stop being true again.
+    """
+    source = (REPO_ROOT / "app/domain/place_association.py").read_text()
+    tree = ast.parse(source)
+    func = next(
+        node
+        for node in tree.body
+        if isinstance(node, ast.FunctionDef) and node.name == "nearest_osm_feature"
+    )
+    kwonly = [arg.arg for arg in func.args.kwonlyargs]
+    assert "radius_m" in kwonly, (
+        "nearest_osm_feature must take radius_m so the endpoint can narrow the search."
+    )
+    default = func.args.kw_defaults[kwonly.index("radius_m")]
+    assert isinstance(default, ast.Name) and default.id == "_NEAREST_RADIUS_M", (
+        "radius_m must default to _NEAREST_RADIUS_M (5 km), the figure AC 4.3.1 names."
+    )
+
+    body = ast.get_source_segment(source, func) or ""
+    assert body.count("ST_DWithin") == 2, (
+        "Expected one ST_DWithin per table (trails and areas)."
+    )
+    assert "ST_DWithin(Trail.geometry, geography, radius_m)" in body, (
+        "The trail lookup must be bounded by the caller's radius, not the constant."
+    )
+    assert "ST_DWithin(MonitoredArea.geometry, geography, radius_m)" in body, (
+        "The area lookup must be bounded by the caller's radius, not the constant."
+    )
+
+    router = (REPO_ROOT / "app/api/routers/location.py").read_text()
+    assert "radius_m=radius_m" in router, (
+        "GET /api/v1/location-context must pass its radius_m through to the lookup."
+    )
