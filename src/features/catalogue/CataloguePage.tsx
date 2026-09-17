@@ -48,6 +48,10 @@ export function CataloguePage() {
   const [approvedImages, setApprovedImages] = useState<Record<string, string>>(bundledApprovedImages)
   const releasePack = useRef<(() => void) | null>(null)
   const [packState, setPackState] = useState<'idle' | 'working' | 'error'>('idle')
+  // Kept alongside packState so a failed download can say *why* it failed. The
+  // generic message sent us chasing a corrupted upload when the real cause was
+  // a CDN re-encoding the reference images, which the detail line names.
+  const [packError, setPackError] = useState<string | null>(null)
   const [serverManifest, setServerManifest] = useState<CatalogueManifest | null>(null)
   const normalized = query.trim().toLocaleLowerCase()
   const availableManifest = serverManifest ?? catalogueManifest
@@ -94,6 +98,7 @@ export function CataloguePage() {
 
   const download = async () => {
     setPackState('working')
+    setPackError(null)
     try {
       const nextInstalled = await downloadCataloguePack(availableManifest)
       setInstalled(nextInstalled)
@@ -108,7 +113,8 @@ export function CataloguePage() {
         ))
       }
       setPackState('idle')
-    } catch {
+    } catch (error) {
+      setPackError(error instanceof Error ? error.message : null)
       setPackState('error')
     }
   }
@@ -166,7 +172,10 @@ export function CataloguePage() {
             </button>
           )}
           {packState === 'error' && (
-            <span role="alert">Download failed. Any previously installed version was kept.</span>
+            <span role="alert">
+              Download failed. Any previously installed version was kept.
+              {packError ? ` (${packError})` : ''}
+            </span>
           )}
         </div>
       </div>

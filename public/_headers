@@ -13,3 +13,11 @@
 /assets/ort-wasm-*.wasm
   Cache-Control: public, max-age=31536000, immutable
   X-Content-Type-Options: nosniff
+
+# Offline-catalogue reference images are SHA-256 verified against the pack
+# manifest, so any CDN-side re-encoding (Cloudflare Polish converting these to
+# WebP, for instance) breaks the download for everyone. no-transform keeps the
+# published bytes intact.
+/reference-images/*
+  Cache-Control: public, max-age=31536000, immutable, no-transform
+  X-Content-Type-Options: nosniff
