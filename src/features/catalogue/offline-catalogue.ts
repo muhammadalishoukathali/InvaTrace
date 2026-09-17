@@ -182,7 +182,17 @@ export async function downloadCataloguePack(
       // converting JPEG to WebP, say) fails the hash below every single time,
       // so the narrow Accept header is the client half of the no-transform
       // cache headers the static hosts set on /reference-images/*.
-      const response = await fetch(asset.url, { cache: 'no-store', headers: { Accept: 'image/jpeg' } })
+      //
+      // The version query is the other half. no-transform stops *new* edge
+      // copies being re-encoded, but copies cached before it was set survive:
+      // they are keyed by the old `Vary: accept`, and each revalidation
+      // refreshes the transformed body instead of replacing it, so a stale
+      // WebP can outlive its TTL indefinitely. Requesting a URL the edge has
+      // never seen sidesteps every one of those entries, and re-busts by
+      // itself whenever the catalogue version moves.
+      const separator = asset.url.includes('?') ? '&' : '?'
+      const requestUrl = `${asset.url}${separator}v=${encodeURIComponent(manifest.catalogue_version)}`
+      const response = await fetch(requestUrl, { cache: 'no-store', headers: { Accept: 'image/jpeg' } })
       if (!response.ok) throw new Error(`Catalogue asset download failed for ${asset.url}.`)
       const bytes = await response.arrayBuffer()
       if (bytes.byteLength !== asset.byte_length || await sha256Bytes(bytes) !== asset.sha256) {

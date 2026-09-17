@@ -10,6 +10,11 @@
 # silent for anyone whose tooling never adds one. Trailers naming a person are
 # left untouched.
 #
+# This hook only sees commits git routes through it. `git cherry-pick`,
+# `git rebase` and `git merge` commit without running commit-msg, so a trailer
+# written elsewhere can still be replayed onto a branch - that is exactly how
+# one reached main once. .githooks/pre-push is the backstop for those paths.
+#
 # Enable once per clone (git does not carry hooks in the repository itself):
 #
 #     git config core.hooksPath .githooks

@@ -19,7 +19,7 @@
  * details. A `?sighting=` query param or a "My Reports" nav state can
  * also drive the initial camera position - see map-location-link.ts.
  */
-import { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import { createPortal } from 'react-dom'
 import { useQuery } from '@tanstack/react-query'
 import { Link, useLocation, useSearchParams } from 'react-router-dom'
@@ -114,16 +114,9 @@ export function ThreatMapPage() {
   const loadVisiblePlaces = useRef<(target: Map) => void>(() => undefined)
   const placeReturnFocus = useRef<HTMLElement | null>(null)
   const placeSuppressFocusRestore = useRef(false)
-  // What the place preview owes focus to once the accessible list has actually
-  // re-rendered. Null when nothing is pending.
-  const placePendingFocus = useRef<{
-    placeId: string
-    previous: HTMLElement | null
-    expiresAt: number
-  } | null>(null)
-  const placeFocusBackstop = useRef<number | null>(null)
-  // Bumped to re-run the restore effect when no other state changed.
-  const [placeFocusTick, setPlaceFocusTick] = useState(0)
+  // Teardown for an in-flight focus restore: disconnects the observer and
+  // clears the deadline. Null when no restore is pending.
+  const placeFocusCleanup = useRef<(() => void) | null>(null)
   const placePreviewRef = useRef<HTMLElement>(null)
   const isDesktop = useIsDesktop()
   const routeLocation = useLocation()
@@ -177,6 +170,10 @@ export function ThreatMapPage() {
     }, 300)
   }
 
+  // Dispose any in-flight restore if the map unmounts mid-flight, so the
+  // observer and its deadline do not outlive the page.
+  useEffect(() => () => { placeFocusCleanup.current?.() }, [])
+
   useEffect(() => {
     if (!selectedPlace) return
     const previous = placeReturnFocus.current
@@ -199,57 +196,59 @@ export function ThreatMapPage() {
         placeReturnFocus.current = null
         return
       }
-      // Hand the restore to the effect below rather than chasing it here.
-      // Focus has to land on the place button in the accessible list, and that
-      // button is re-created whenever an in-flight /places/map response lands -
-      // which can be any number of frames after the preview closes. Two earlier
-      // attempts tried to win that race on a requestAnimationFrame loop and
-      // both flaked in CI. Record what is owed, then restore when the list has
-      // genuinely re-rendered.
-      placePendingFocus.current = {
-        placeId: closingPlaceId,
-        previous,
-        expiresAt: performance.now() + PLACE_FOCUS_RESTORE_WINDOW_MS,
+      // Watch the DOM for the button coming back, rather than guessing when it
+      // will. The accessible place list is rebuilt whenever an in-flight
+      // /places/map response lands, so the button this focus is owed to may not
+      // exist for several frames. Earlier attempts hung the restore off
+      // animation frames and then off React commits; both left focus on <body>
+      // when the timing did not line up, which is silent for a sighted user and
+      // total for a keyboard one.
+      //
+      // A MutationObserver fires when the node actually appears, whatever
+      // caused the render, so there is no timing to get wrong.
+      placeFocusCleanup.current?.()
+      const restoreTarget = (): HTMLElement | null =>
+        document.querySelector<HTMLElement>(`[data-place-id="${closingPlaceId}"]`)
+
+      const finish = (target: HTMLElement | null) => {
+        placeFocusCleanup.current?.()
+        placeReturnFocus.current = null
+        if (target && document.activeElement !== target) {
+          target.focus({ preventScroll: true })
+        }
       }
-      // Backstop for the case where the place never comes back - filtered out,
-      // or panned off-screen - so the restore still falls through to a sane
-      // target instead of waiting for a render that is not coming.
-      if (placeFocusBackstop.current !== null) window.clearTimeout(placeFocusBackstop.current)
-      placeFocusBackstop.current = window.setTimeout(
-        () => setPlaceFocusTick((tick) => tick + 1),
-        PLACE_FOCUS_RESTORE_WINDOW_MS,
-      )
-      setPlaceFocusTick((tick) => tick + 1)
+
+      const attempt = (): boolean => {
+        const target = restoreTarget()
+        if (!target) return false
+        finish(target)
+        return true
+      }
+
+      if (!attempt()) {
+        const observer = new MutationObserver(() => { attempt() })
+        observer.observe(document.body, { childList: true, subtree: true })
+        const deadline = window.setTimeout(() => {
+          // The place never came back - filtered out, or panned off-screen.
+          // Land somewhere deliberate rather than leaving focus on <body>,
+          // which is what the keyboard user is left with otherwise.
+          const canvas = map.current?.getCanvas()
+          finish(
+            restoreTarget()
+            ?? (previous?.isConnected ? previous : null)
+            ?? (canvas?.isConnected ? canvas : null)
+            ?? document.querySelector<HTMLElement>('.map-places-toggle')
+            ?? document.querySelector<HTMLElement>('section[aria-label="Mapped places in current view"]'),
+          )
+        }, PLACE_FOCUS_RESTORE_WINDOW_MS)
+        placeFocusCleanup.current = () => {
+          observer.disconnect()
+          window.clearTimeout(deadline)
+          placeFocusCleanup.current = null
+        }
+      }
     }
   }, [selectedPlace])
-
-  // Runs after every commit that could have rebuilt the place list, so the
-  // restore happens the moment the button exists rather than at a guessed
-  // time. useLayoutEffect so focus moves before the browser paints and the
-  // user never sees it parked somewhere else.
-  useLayoutEffect(() => {
-    const pending = placePendingFocus.current
-    if (!pending || selectedPlace) return
-    const button = document.querySelector<HTMLElement>(`[data-place-id="${pending.placeId}"]`)
-    let target: HTMLElement | null = button
-    if (!target && performance.now() >= pending.expiresAt) {
-      // The place is not coming back. Fall back, in order, to the original
-      // trigger, the map canvas, then the show/hide toggle.
-      const canvas = map.current?.getCanvas()
-      target = (pending.previous?.isConnected ? pending.previous : null)
-        ?? (canvas?.isConnected ? canvas : null)
-        ?? document.querySelector<HTMLElement>('.map-places-toggle')
-    }
-    // No target yet and still inside the window: wait for the next render.
-    if (!target) return
-    placePendingFocus.current = null
-    placeReturnFocus.current = null
-    if (placeFocusBackstop.current !== null) {
-      window.clearTimeout(placeFocusBackstop.current)
-      placeFocusBackstop.current = null
-    }
-    if (document.activeElement !== target) target.focus({ preventScroll: true })
-  }, [selectedPlace, placeData, placeFocusTick])
 
   // When we successfully recenter the user, the toast is really just a
   // quick "yep, done" - no reason to leave it stuck on screen. Errors

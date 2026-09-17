@@ -1,0 +1,55 @@
+#!/bin/sh
+# Backstop for the commit authorship policy.
+#
+# .githooks/commit-msg cleans messages as they are written, but git does not
+# run it for every path that creates a commit: `git cherry-pick`, `git rebase`
+# and `git merge` all commit without it, so a trailer written elsewhere can be
+# replayed onto a branch untouched. That is not hypothetical - it is how one
+# reached main and cost a history rewrite to remove.
+#
+# This refuses the push instead, which is the last point where it can still be
+# fixed cheaply.
+#
+# Enable once per clone:  git config core.hooksPath .githooks
+# (scripts/install-hooks.sh does it for you.)
+
+remote_name="$1"
+zero="0000000000000000000000000000000000000000"
+pattern='^[[:space:]]*[Cc]o-[Aa]uthored-[Bb]y:.*([Cc]laude|[Aa]nthropic|[Cc]opilot|[Cc]hat[Gg][Pp][Tt]|[Oo]pen[Aa][Ii]|[Cc]ursor)'
+found=""
+
+while read -r _local_ref local_sha _remote_ref remote_sha; do
+  [ "$local_sha" = "$zero" ] && continue          # branch deletion
+  if [ "$remote_sha" = "$zero" ]; then
+    # New branch: check against whatever the remote already has.
+    range="$local_sha --not --remotes=$remote_name"
+  else
+    range="$remote_sha..$local_sha"
+  fi
+  # shellcheck disable=SC2086
+  for sha in $(git rev-list $range 2>/dev/null); do
+    if git log -1 --format=%B "$sha" | grep -Eq "$pattern"; then
+      found="$found  $(git log -1 --format='%h %s' "$sha")
+"
+    fi
+  done
+done
+
+[ -z "$found" ] && exit 0
+
+cat >&2 <<MSG
+push rejected: these commits credit a tool as co-author
+
+$found
+Commits here are attributed to the people who wrote them. Rewrite the messages
+before pushing, for example:
+
+  git rebase -i <commit-before-the-first-one-listed>   # mark them 'reword'
+
+A single most-recent commit can be fixed with:
+
+  git commit --amend --no-edit
+
+(the commit-msg hook strips the trailer as it rewrites the message).
+MSG
+exit 1
