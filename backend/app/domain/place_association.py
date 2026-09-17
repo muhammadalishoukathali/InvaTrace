@@ -23,6 +23,10 @@ from app.db.models import MonitoredArea, MonitoredPlace, Trail
 # ignored so the surfaced label is genuinely useful for a field volunteer.
 _TRAIL_CATEGORIES = {"path", "footway", "track"}
 _AREA_CATEGORIES = {"park", "forest", "wood"}
+# AC 4.3.1 names 5 km as the search radius, so it stays the default. Callers
+# may narrow it - the /api/v1/location-context endpoint exposes radius_m - and
+# the value is applied to the OSM lookup itself rather than only to any
+# fallback, which is what the documented contract promises.
 _NEAREST_RADIUS_M = 5_000
 # AC Iteration 1 P10 - how many nearest candidates per table to fetch before
 # giving up. Small enough to keep the SQL cheap; large enough that a handful
@@ -124,11 +128,16 @@ def associate_place(
 
 
 def nearest_osm_feature(
-    session: Session, *, latitude: float, longitude: float
+    session: Session,
+    *,
+    latitude: float,
+    longitude: float,
+    radius_m: float = _NEAREST_RADIUS_M,
 ) -> NearestOsmFeature | None:
-    """Finds the actual nearest named trail or park/forest area within 5km
-    of the point, looking at both the trail lines table (paths/footways/
-    tracks) and the polygon areas table (park/forest/wood). Returns None
+    """Finds the actual nearest named trail or park/forest area within
+    `radius_m` (5 km by default, the figure AC 4.3.1 names) of the point,
+    looking at both the trail lines table (paths/footways/tracks) and the
+    polygon areas table (park/forest/wood). Returns None
     if nothing named in our allow-list is close enough - in that case the
     screening worker just leaves the columns null on the sighting and the
     detail panel shows "No named trail, park or forest found nearby".
@@ -157,7 +166,7 @@ def nearest_osm_feature(
         )
         .where(
             Trail.name.is_not(None),
-            func.ST_DWithin(Trail.geometry, geography, _NEAREST_RADIUS_M),
+            func.ST_DWithin(Trail.geometry, geography, radius_m),
         )
         .order_by(func.ST_Distance(Trail.geometry, geography), Trail.id)
         .limit(_NEAREST_CANDIDATE_LIMIT)
@@ -176,7 +185,7 @@ def nearest_osm_feature(
         )
         .where(
             MonitoredArea.name.is_not(None),
-            func.ST_DWithin(MonitoredArea.geometry, geography, _NEAREST_RADIUS_M),
+            func.ST_DWithin(MonitoredArea.geometry, geography, radius_m),
         )
         .order_by(func.ST_Distance(MonitoredArea.geometry, geography), MonitoredArea.id)
         .limit(_NEAREST_CANDIDATE_LIMIT)
