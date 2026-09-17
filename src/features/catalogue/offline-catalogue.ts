@@ -191,8 +191,19 @@ export async function downloadCataloguePack(
       // never seen sidesteps every one of those entries, and re-busts by
       // itself whenever the catalogue version moves.
       const separator = asset.url.includes('?') ? '&' : '?'
-      const requestUrl = `${asset.url}${separator}v=${encodeURIComponent(manifest.catalogue_version)}`
-      const response = await fetch(requestUrl, { cache: 'no-store', headers: { Accept: 'image/jpeg' } })
+      const version = `${separator}v=${encodeURIComponent(manifest.catalogue_version)}`
+      // scripts/publish-pack-assets.mjs puts a byte-identical copy of every
+      // image at <name>.jpg.bin. It is served as application/octet-stream,
+      // which Cloudflare Polish ignores - and Polish is the whole problem
+      // here: it re-encodes the JPEG *after* the object lands in the edge
+      // cache, no-transform and all, so the bytes behind a plain image URL
+      // change under us within seconds of being cached and the hash below can
+      // never pass. Dev servers and any host without the postbuild step have
+      // no .bin, hence the fallback to the image itself.
+      let response = await fetch(`${asset.url}.bin${version}`, { cache: 'no-store' })
+      if (!response.ok) {
+        response = await fetch(`${asset.url}${version}`, { cache: 'no-store', headers: { Accept: 'image/jpeg' } })
+      }
       if (!response.ok) throw new Error(`Catalogue asset download failed for ${asset.url}.`)
       const bytes = await response.arrayBuffer()
       if (bytes.byteLength !== asset.byte_length || await sha256Bytes(bytes) !== asset.sha256) {
@@ -206,8 +217,12 @@ export async function downloadCataloguePack(
           + ` but the manifest lists ${asset.byte_length} bytes.`,
         )
       }
+      // Always image/jpeg, never the response's own type: the pack copy
+      // arrives as application/octet-stream, and these bytes are handed
+      // straight to <img> as a blob URL when the catalogue renders offline.
+      // They are verified JPEG bytes either way - the hash above says so.
       await cache.put(new Request(asset.url), new Response(bytes, {
-        headers: { 'Content-Type': response.headers.get('Content-Type') ?? 'image/jpeg' },
+        headers: { 'Content-Type': 'image/jpeg' },
       }))
     }
   } catch (error) {

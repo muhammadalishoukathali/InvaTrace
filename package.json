@@ -17,6 +17,7 @@
     "dev:real": "cross-env VITE_ENABLE_MOCKS=false VITE_ENABLE_FAKE_MODEL=false VITE_API_BASE_URL=http://localhost:8000 vite --host",
     "prebuild": "npm run prepare:model",
     "build": "tsc -b && vite build",
+    "postbuild": "node scripts/publish-pack-assets.mjs",
     "preview": "vite preview",
     "pretypecheck": "npm run prepare:model",
     "lint": "eslint .",

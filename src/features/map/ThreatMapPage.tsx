@@ -93,10 +93,12 @@ const EMPTY_PLACES: GeoJSON.FeatureCollection<GeoJSON.Point, PlaceMapProperties>
   features: [],
 }
 
-// Long enough to outlast the 300 ms places-refresh debounce plus the request
-// and its re-render, short enough that it cannot interfere with whatever the
-// user does next.
-const PLACE_FOCUS_RESTORE_WINDOW_MS = 800
+// Selecting a place eases the map, which starts another debounced (300 ms)
+// /places/map request; the list is rebuilt again when that lands. The restore
+// has to stay armed across both rebuilds, so this covers the debounce, the
+// request and its render with room to spare. It is only ever allowed to move
+// focus off <body>, so a generous window cannot fight the user.
+const PLACE_FOCUS_RESTORE_WINDOW_MS = 2_500
 
 export function ThreatMapPage() {
   const container = useRef<HTMLDivElement>(null)
@@ -210,36 +212,51 @@ export function ThreatMapPage() {
       const restoreTarget = (): HTMLElement | null =>
         document.querySelector<HTMLElement>(`[data-place-id="${closingPlaceId}"]`)
 
-      const finish = (target: HTMLElement | null) => {
-        placeFocusCleanup.current?.()
-        placeReturnFocus.current = null
+      const focusTarget = (target: HTMLElement | null) => {
         if (target && document.activeElement !== target) {
           target.focus({ preventScroll: true })
         }
       }
 
-      const attempt = (): boolean => {
-        const target = restoreTarget()
-        if (!target) return false
-        finish(target)
-        return true
+      // Keep watching until the window closes rather than stopping at the
+      // first success. Selecting a place calls map.easeTo, which moves the
+      // viewport and kicks off another debounced /places/map request, so the
+      // list is typically rebuilt once more AFTER focus has been restored. An
+      // earlier version disconnected on the first hit, the replacement render
+      // threw away the focused node, and focus fell back to <body> with
+      // nothing left watching - which is exactly what CI kept reporting.
+      //
+      // Only ever re-focus out of <body>: anywhere else means the user moved
+      // focus themselves and it is not ours to take back.
+      const attempt = (): void => {
+        const active = document.activeElement
+        if (active !== null && active !== document.body) return
+        focusTarget(restoreTarget())
       }
 
-      if (!attempt()) {
-        const observer = new MutationObserver(() => { attempt() })
+      const settle = () => {
+        placeFocusCleanup.current?.()
+        placeReturnFocus.current = null
+      }
+
+      attempt()
+      {
+        const observer = new MutationObserver(attempt)
         observer.observe(document.body, { childList: true, subtree: true })
         const deadline = window.setTimeout(() => {
-          // The place never came back - filtered out, or panned off-screen.
-          // Land somewhere deliberate rather than leaving focus on <body>,
-          // which is what the keyboard user is left with otherwise.
-          const canvas = map.current?.getCanvas()
-          finish(
-            restoreTarget()
-            ?? (previous?.isConnected ? previous : null)
-            ?? (canvas?.isConnected ? canvas : null)
-            ?? document.querySelector<HTMLElement>('.map-places-toggle')
-            ?? document.querySelector<HTMLElement>('section[aria-label="Mapped places in current view"]'),
-          )
+          // Last resort: land somewhere deliberate rather than leaving focus
+          // on <body>, which for a keyboard user is no position at all.
+          const active = document.activeElement
+          if (active === null || active === document.body) {
+            const canvas = map.current?.getCanvas()
+            focusTarget(
+              restoreTarget()
+              ?? (previous?.isConnected ? previous : null)
+              ?? (canvas?.isConnected ? canvas : null)
+              ?? document.querySelector<HTMLElement>('.map-places-toggle'),
+            )
+          }
+          settle()
         }, PLACE_FOCUS_RESTORE_WINDOW_MS)
         placeFocusCleanup.current = () => {
           observer.disconnect()
