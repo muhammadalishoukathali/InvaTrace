@@ -556,6 +556,16 @@ test('private detector can scan, analyse, and submit', async ({ page, context, b
     if (FORBIDDEN_ACCOUNT_ENDPOINTS.includes(path)) accountEndpointCalls.push(path)
   })
 
+  // Pin what the development model reports. Which class a given photo lands on
+  // is a function of the image hash and the number of classes in the catalogue,
+  // so this assertion used to pass only because the old 31-class model made the
+  // arithmetic land on Mikania. This test is about the scan-to-report journey,
+  // not about the classifier, so say which species outright and let a catalogue
+  // change happen without breaking it.
+  await page.addInitScript(() => {
+    window.localStorage.setItem('invatrace.development-model-species', 'mikania_micrantha')
+  })
+
   const initialSession = await startPrivateAccess(page)
 
   await page.getByRole('button', { name: /Scan a plant|New scan/ }).first().click()

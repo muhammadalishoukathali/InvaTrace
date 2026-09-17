@@ -44,7 +44,12 @@ test('a model download failure keeps the photo available for retry', async ({ pa
     const realFetch = globalThis.fetch.bind(globalThis)
     globalThis.fetch = (input, init) => {
       const url = typeof input === 'string' ? input : input instanceof URL ? input.href : input.url
-      return url.endsWith('.part-000')
+      // Fail the model weights themselves. This used to target `.part-000`,
+      // the chunked layout the retired PULIH kit shipped in; Student33 is a
+      // single .onnx, so that URL is never requested and the stub quietly
+      // stopped faking anything - the download succeeded and the spec failed
+      // waiting for a failure message that was never going to appear.
+      return url.endsWith('.onnx')
         ? Promise.resolve(new Response('temporary test failure', { status: 503 }))
         : realFetch(input, init)
     }
@@ -69,7 +74,9 @@ test('leaving an interrupted analysis cannot navigate back to a stale result', a
     const realFetch = globalThis.fetch.bind(globalThis)
     globalThis.fetch = (input, init) => {
       const url = typeof input === 'string' ? input : input instanceof URL ? input.href : input.url
-      if (!url.endsWith('.part-000')) return realFetch(input, init)
+      // Same retired-chunk URL as above: hold the single .onnx request open
+      // instead, which is what actually stalls the analysis now.
+      if (!url.endsWith('.onnx')) return realFetch(input, init)
       return new Promise<Response>((resolve) => {
         Object.assign(window, {
           __releaseModelDownload: () => resolve(new Response('interrupted', { status: 503 })),

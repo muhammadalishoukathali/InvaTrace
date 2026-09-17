@@ -122,5 +122,15 @@ function resolveCatalogueRecord(result: IdentifyResult): ApprovedSpeciesRecord |
 
 function isVersionMismatch(resultVersion: string | undefined): boolean {
   if (!resultVersion || !CATALOGUE_MODEL_VERSION) return false
-  return resultVersion !== CATALOGUE_MODEL_VERSION
+  // The development adapter mirrors the shipped class list exactly and only
+  // tags its version `development-<model version>` so a mocked scan is
+  // identifiable in logs. Comparing that string literally made every mocked
+  // scan look like a catalogue drift, so status was forced to uncertain and
+  // reporting stayed blocked - which is the guard doing the right thing to the
+  // wrong input. Strip the marker in dev builds only; a production bundle still
+  // compares the version verbatim, so real drift is caught exactly as before.
+  const comparable = import.meta.env.DEV
+    ? resultVersion.replace(/^development-/, '')
+    : resultVersion
+  return comparable !== CATALOGUE_MODEL_VERSION
 }

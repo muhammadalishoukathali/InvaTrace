@@ -20,8 +20,9 @@ interface ModelAdapter {
   identify(image: Blob, onProgress?: (loaded: number, total: number) => void): Promise<IdentifyResult>
 }
 
-const DEVELOPMENT_MODEL_VERSION = `development-${modelSpeciesCatalogue.model_version}`
+export const DEVELOPMENT_MODEL_VERSION = `development-${modelSpeciesCatalogue.model_version}`
 const DEVELOPMENT_UNKNOWN_BUCKETS = 5
+export const DEVELOPMENT_SPECIES_KEY = 'invatrace.development-model-species'
 
 /**
  * A deterministic stand-in for local UI development, so I'm not stuck waiting
@@ -58,6 +59,37 @@ export function developmentIdentifyResultForHash(imageHash: number): IdentifyRes
   }
 }
 
+/**
+ * Lets a caller pin which class the development model "recognises", by putting
+ * a machine label in localStorage under DEVELOPMENT_SPECIES_KEY.
+ *
+ * The hash bucketing above is deterministic for a given image, but which bucket
+ * an image lands in depends on how many classes the catalogue has. That is fine
+ * for poking at the UI and useless for a journey test: the happy-path spec used
+ * to get Mikania for its fixture purely because the old 31-class PULIH
+ * catalogue made the arithmetic work out that way. Student33 ships 32 classes,
+ * the same fixture moved into the uncertain band, and the spec started failing
+ * on a result it never meant to assert. Pinning the class keeps that spec about
+ * the scan-to-report journey instead of about hash arithmetic, and any future
+ * catalogue change cannot silently re-roll it.
+ *
+ * Dev-only and opt-in: with nothing stored, identify() hashes as before.
+ */
+function pinnedDevelopmentSpecies(): IdentifyResult | null {
+  if (!import.meta.env.DEV) return null
+  let label: string | null = null
+  try {
+    label = window.localStorage.getItem(DEVELOPMENT_SPECIES_KEY)
+  } catch {
+    // Private browsing and similar can refuse storage access entirely.
+    return null
+  }
+  if (!label) return null
+  const index = modelSpeciesCatalogue.classes.findIndex((c) => c.machine_label === label)
+  if (index < 0) return null
+  return developmentIdentifyResultForHash(index)
+}
+
 class DevelopmentModelAdapter implements ModelAdapter {
   async detect(image: ImageBitmap): Promise<{ box: BBox | null }> {
     await waitForMockInference(80)
@@ -86,6 +118,8 @@ class DevelopmentModelAdapter implements ModelAdapter {
 
   async identify(image: Blob): Promise<IdentifyResult> {
     await waitForMockInference(300)
+    const pinned = pinnedDevelopmentSpecies()
+    if (pinned) return pinned
     const bitmap = await createImageBitmap(image)
     const imageHash = hashBitmap(bitmap)
     bitmap.close()
@@ -201,9 +235,15 @@ export function getAdapter(): ModelAdapter {
     // one whenever the rest of the app is already running on mocked API data
     // (VITE_ENABLE_MOCKS) - that way "mock mode" doesn't force downloading the
     // real ~30 MiB model just to poke around the UI.
+    //
     const fakeAllowed = import.meta.env.DEV && (
       fakeModelSetting === 'true'
       || (fakeModelSetting !== 'false' && import.meta.env.VITE_ENABLE_MOCKS === 'true')
+      // A pinned class is an explicit request for a known answer, which only
+      // the development adapter can give. Without this, a caller that pinned a
+      // species still got the real model and a real prediction, so the pin
+      // looked like it did nothing.
+      || pinnedDevelopmentSpecies() !== null
     )
     const realConfigured = import.meta.env.VITE_ENABLE_REAL_MODEL !== 'false'
     adapter = fakeAllowed
