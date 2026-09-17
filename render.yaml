@@ -156,6 +156,16 @@ services:
       - path: /sw.js
         name: Cache-Control
         value: no-cache, no-store, must-revalidate
+      # no-transform is load-bearing, not a nicety. Render fronts this site
+      # with Cloudflare, which had Polish re-encoding these JPEGs (and serving
+      # WebP to any browser whose Accept header allows it). The offline
+      # catalogue pack verifies every asset's SHA-256 against the manifest, so
+      # a re-encoded image can never match and the download failed for every
+      # user on this host. no-transform tells Cloudflare to ship the bytes we
+      # published, untouched.
+      - path: /reference-images/*
+        name: Cache-Control
+        value: public, max-age=31536000, immutable, no-transform
       - path: /*
         name: X-Content-Type-Options
         value: nosniff
