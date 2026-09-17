@@ -64,8 +64,16 @@ def test_render_yaml_declares_the_gps_and_dedup_policy_env_vars_explicitly() -> 
         "The single 250 m GPS policy must be pinned explicitly at deploy time"
         " so a config drift is caught in review, not by a surprise rescan."
     )
-    assert 'key: SCREENING_DISABLE_DUPLICATE_CHECK\n        value: "false"' in render, (
-        "The dev-only duplicate-check kill switch must be forced off in prod."
+    # The kill switch is normally forced off in prod (AC Iteration 1 P4). It is
+    # temporarily on for the usability-testing round, so allow "true" only while
+    # the revert note sits next to it - that way the deviation stays visible in
+    # review instead of quietly becoming the new default.
+    assert 'key: SCREENING_DISABLE_DUPLICATE_CHECK\n        value: "false"' in render or (
+        'key: SCREENING_DISABLE_DUPLICATE_CHECK\n        value: "true"' in render
+        and 'REVERT TO\n      # "false" once usability testing finishes' in render
+    ), (
+        "The duplicate-check kill switch must be pinned off in prod, or pinned on"
+        " with the usability-testing revert note explaining why."
     )
 
 
