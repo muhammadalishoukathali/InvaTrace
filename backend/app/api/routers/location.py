@@ -207,7 +207,10 @@ def location_context(
     session: Session = Depends(get_session),
 ) -> LocationContextResponse:
     """AC 4.3.1 - nearest named highway=path/footway/track, leisure=park,
-    landuse=forest or natural=wood within `radius_m` metres. Distance is
+    landuse=forest or natural=wood within `radius_m` metres (default 5000,
+    the figure the AC names). radius_m is passed through to the OSM lookup;
+    it used to bound only the seed fallback, so a caller asking for 200 m
+    still got a feature up to 5 km away. Distance is
     geospatial (PostGIS Geography ST_Distance metres); the caller's lat/lon
     is never mutated. Delegates to the shared `nearest_osm_feature` helper
     used by the screening worker so both the on-demand endpoint and the
@@ -217,7 +220,7 @@ def location_context(
     never re-classified as `park`.
     """
     try:
-        feature = nearest_osm_feature(session, latitude=lat, longitude=lon)
+        feature = nearest_osm_feature(session, latitude=lat, longitude=lon, radius_m=radius_m)
         if feature is not None:
             return LocationContextResponse(
                 found=True,
