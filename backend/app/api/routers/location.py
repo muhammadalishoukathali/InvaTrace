@@ -10,6 +10,7 @@ from __future__ import annotations
 
 from typing import Literal
 
+import structlog
 from fastapi import APIRouter, Depends, Query
 from geoalchemy2 import Geography, Geometry
 from pydantic import Field
@@ -24,6 +25,8 @@ from app.db.models import (
     ProtectedAreaDataset,
 )
 from app.domain.place_association import nearest_osm_feature
+
+log = structlog.get_logger("invatrace.location_context")
 
 router = APIRouter(prefix="/api/v1/location-context", tags=["location"])
 
@@ -225,7 +228,7 @@ def location_context(
             return LocationContextResponse(
                 found=True,
                 feature_type=_normalise_feature_type(feature.feature_type),
-                feature_name=feature.feature_name,
+                feature_name=feature.name,
                 distance_m=round(float(feature.distance_m), 1),
             )
 
@@ -252,7 +255,15 @@ def location_context(
         # AC 4.3.2: no result - surface `found=false`; caller must not fabricate a name.
         return LocationContextResponse(found=False)
     except Exception:
-        # AC 4.3.2: OSM/PostGIS failure must not block report publication.
+        # AC 4.3.2: OSM/PostGIS failure must not block report publication, so
+        # this stays fail-soft. It must not stay silent though: swallowing the
+        # exception with no trace is how `feature.feature_name` - an attribute
+        # NearestOsmFeature has never had, its field is `name` - survived in
+        # production. Every lookup that found a feature raised AttributeError
+        # here and answered "temporarily_unavailable", while the screening
+        # worker stored nearest_feature_* correctly through the same helper,
+        # so the data looked fine and only the endpoint was broken.
+        log.exception("location_context.failed", lat=lat, lon=lon, radius_m=radius_m)
         return LocationContextResponse(
             found=False,
             context_status="temporarily_unavailable",
