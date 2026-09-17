@@ -93,6 +93,11 @@ const EMPTY_PLACES: GeoJSON.FeatureCollection<GeoJSON.Point, PlaceMapProperties>
   features: [],
 }
 
+// Long enough to outlast the 300 ms places-refresh debounce plus the request
+// and its re-render, short enough that it cannot interfere with whatever the
+// user does next.
+const PLACE_FOCUS_RESTORE_WINDOW_MS = 800
+
 export function ThreatMapPage() {
   const container = useRef<HTMLDivElement>(null)
   const map = useRef<Map | null>(null)
@@ -109,6 +114,9 @@ export function ThreatMapPage() {
   const loadVisiblePlaces = useRef<(target: Map) => void>(() => undefined)
   const placeReturnFocus = useRef<HTMLElement | null>(null)
   const placeSuppressFocusRestore = useRef(false)
+  // Bumped every time a place preview closes, so a restore loop still running
+  // from a previous close gives up instead of fighting the current one.
+  const placeFocusRestoreRun = useRef(0)
   const placePreviewRef = useRef<HTMLElement>(null)
   const isDesktop = useIsDesktop()
   const routeLocation = useLocation()
@@ -194,31 +202,43 @@ export function ThreatMapPage() {
       //      connected;
       //   3. otherwise focus the map canvas or the show/hide toggle,
       //      whichever is still on screen.
-      const restore = () => {
+      const restoreTarget = (): HTMLElement | null => {
         const currentForPlace = document.querySelector<HTMLElement>(
           `[data-place-id="${closingPlaceId}"]`,
         )
-        if (currentForPlace) {
-          currentForPlace.focus({ preventScroll: true })
-          placeReturnFocus.current = null
-          return
-        }
-        if (previous?.isConnected) {
-          previous.focus({ preventScroll: true })
-          placeReturnFocus.current = null
-          return
-        }
+        if (currentForPlace) return currentForPlace
+        if (previous?.isConnected) return previous
         const canvas = map.current?.getCanvas()
-        if (canvas?.isConnected) {
-          canvas.focus({ preventScroll: true })
-          placeReturnFocus.current = null
+        if (canvas?.isConnected) return canvas
+        return document.querySelector<HTMLElement>('.map-places-toggle')
+      }
+
+      // One restore frame is not enough. The places list re-renders whenever an
+      // in-flight /places/map response lands, and that debounced request can
+      // resolve several frames after the preview closes. The button we just
+      // focused gets thrown away with the old render and focus drops to
+      // <body>, so a keyboard user silently loses their place in the list.
+      // Keep re-applying across a short window instead.
+      //
+      // Only ever re-focus out of <body>. If focus is sitting on some other
+      // element the user put it there themselves - tabbing onward during this
+      // window is perfectly normal - and yanking it back would be worse than
+      // the bug being fixed here.
+      const run = ++placeFocusRestoreRun.current
+      const deadline = performance.now() + PLACE_FOCUS_RESTORE_WINDOW_MS
+      const settle = () => {
+        if (placeFocusRestoreRun.current !== run) return
+        const target = restoreTarget()
+        const lost = document.activeElement === null
+          || document.activeElement === document.body
+        if (target && lost) target.focus({ preventScroll: true })
+        if (performance.now() < deadline) {
+          window.requestAnimationFrame(settle)
           return
         }
-        const toggle = document.querySelector<HTMLElement>('.map-places-toggle')
-        toggle?.focus({ preventScroll: true })
         placeReturnFocus.current = null
       }
-      window.requestAnimationFrame(restore)
+      window.requestAnimationFrame(settle)
     }
   }, [selectedPlace])
 
