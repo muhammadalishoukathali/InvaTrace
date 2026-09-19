@@ -3,28 +3,15 @@
 // so it needs almost none of what ThreatMapPage does - no markers, no filters,
 // no click handling, just fit the camera to the geometry and stop.
 //
-// Uses the same raster basemap as the main map so the two screens look alike.
+// Uses the same basemap as the main map so the two screens look alike.
 import { useEffect, useRef } from 'react'
 import * as maplibregl from 'maplibre-gl'
 import type { Map } from 'maplibre-gl'
 import mapLibreWorkerUrl from 'maplibre-gl/dist/maplibre-gl-worker.mjs?url'
 import 'maplibre-gl/dist/maplibre-gl.css'
+import { BASEMAP_STYLE } from '@/features/map/basemap'
 
 maplibregl.setWorkerUrl(mapLibreWorkerUrl)
-
-const STYLE: maplibregl.StyleSpecification = {
-  version: 8,
-  sources: {
-    basemap: {
-      type: 'raster',
-      tiles: [(import.meta.env.VITE_MAP_TILE_URL as string | undefined)
-        ?? 'https://tile.openstreetmap.org/{z}/{x}/{y}.png'],
-      tileSize: 256,
-      attribution: '© OpenStreetMap contributors',
-    },
-  },
-  layers: [{ id: 'basemap', type: 'raster', source: 'basemap' }],
-}
 
 export function PlaceGeometryMap({ geometry, name }: { geometry: GeoJSON.Geometry; name: string }) {
   const container = useRef<HTMLDivElement>(null)
@@ -34,7 +21,7 @@ export function PlaceGeometryMap({ geometry, name }: { geometry: GeoJSON.Geometr
     if (!container.current || map.current) return
     const instance = new maplibregl.Map({
       container: container.current,
-      style: STYLE,
+      style: BASEMAP_STYLE,
       center: [101.68, 3.14],
       zoom: 11,
       interactive: true,

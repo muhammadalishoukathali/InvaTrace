@@ -38,6 +38,7 @@ import { MapLegend } from './MapLegend'
 import { Icon } from '@/components/Icon'
 import { parseMapLocationTarget, type MapLocationTarget } from './map-location-link'
 import { PLACE_ICONS, PLACE_TYPES, formatPlaceType, loadSvgImage } from './place-icons'
+import { BASEMAP_ATTRIBUTION, BASEMAP_FONT, BASEMAP_STYLE } from './basemap'
 
 // Point MapLibre at its worker file ourselves. If we don't, it tries to
 // guess a URL that sits next to Vite's optimized dep file in dev, and the
@@ -54,32 +55,6 @@ const MY_BOUNDS: [[number, number], [number, number]] = [
   [99.3, 0.8],   // South-west corner.
   [119.5, 7.5],  // North-east corner.
 ]
-
-/** We keep the tile provider in an env var so that later (if we ever move
- *  past FYP demo) we can switch to a keyed provider like MapTiler or Stadia
- *  without touching code. OSM's shared tiles are rate-limited and not really
- *  meant for production, so this gives us an escape hatch. Set
- *  VITE_MAP_TILE_URL and VITE_MAP_TILE_ATTRIBUTION in .env to override. */
-const TILE_URL =
-  (import.meta.env.VITE_MAP_TILE_URL as string | undefined) ??
-  'https://tile.openstreetmap.org/{z}/{x}/{y}.png'
-const TILE_ATTRIBUTION =
-  (import.meta.env.VITE_MAP_TILE_ATTRIBUTION as string | undefined) ??
-  '© <a href="https://openstreetmap.org/copyright" target="_blank" rel="noopener">OpenStreetMap contributors</a>'
-
-const STYLE_URL: maplibregl.StyleSpecification = {
-  version: 8,
-  sources: {
-    'basemap-src': {
-      type: 'raster',
-      tiles: [TILE_URL],
-      tileSize: 256,
-      maxzoom: 19,
-      attribution: TILE_ATTRIBUTION,
-    },
-  },
-  layers: [{ id: 'basemap', type: 'raster', source: 'basemap-src' }],
-}
 
 const PLACE_SOURCE_ID = 'mapped-places'
 const PLACE_LAYER_IDS = [
@@ -308,7 +283,7 @@ export function ThreatMapPage() {
     if (!container.current || map.current) return
     const m = new maplibregl.Map({
       container: container.current,
-      style: STYLE_URL,
+      style: BASEMAP_STYLE,
       center: CENTRE,
       zoom: isDesktop ? INITIAL_ZOOM : INITIAL_ZOOM_MOBILE,
       minZoom: 6,
@@ -426,7 +401,7 @@ export function ThreatMapPage() {
         type: 'symbol',
         source: PLACE_SOURCE_ID,
         filter: ['has', 'point_count'],
-        layout: { 'text-field': ['get', 'point_count_abbreviated'], 'text-size': 12 },
+        layout: { 'text-field': ['get', 'point_count_abbreviated'], 'text-font': BASEMAP_FONT, 'text-size': 12 },
         paint: { 'text-color': '#FFFFFF' },
       })
       // A coloured circle remains underneath each icon. Besides increasing
@@ -929,10 +904,10 @@ function formatSavedRecordTime(iso: string): string {
 }
 
 /**
- * Small OpenStreetMap credit chip. Sits in a corner where it won't get
+ * Small basemap credit chip. Sits in a corner where it won't get
  * covered by the scan button on mobile, and stays above the MapLibre
- * nav buttons on desktop. We have to keep OSM attribution visible per
- * their licence, so this needs to always be there.
+ * nav buttons on desktop. We have to keep OSM (and tile provider)
+ * attribution visible per their licences, so this needs to always be there.
  */
 function MapAttribution() {
   return (
@@ -941,9 +916,9 @@ function MapAttribution() {
       target="_blank"
       rel="noopener noreferrer"
       className="map-attribution"
-      aria-label="OpenStreetMap contributors - data license"
+      aria-label={`${BASEMAP_ATTRIBUTION} - data license`}
     >
-      © OpenStreetMap contributors
+      {BASEMAP_ATTRIBUTION}
     </a>
   )
 }
