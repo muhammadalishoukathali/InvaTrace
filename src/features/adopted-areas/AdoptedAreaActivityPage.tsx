@@ -13,6 +13,7 @@ import * as maplibregl from 'maplibre-gl'
 import type { Map, Marker } from 'maplibre-gl'
 import mapLibreWorkerUrl from 'maplibre-gl/dist/maplibre-gl-worker.mjs?url'
 import 'maplibre-gl/dist/maplibre-gl.css'
+import { BASEMAP_STYLE } from '@/features/map/basemap'
 import { api } from '@/services/api-client'
 import { useOnline } from '@/hooks/useOnline'
 import type { AdoptedAreaActivity } from '@/types'
@@ -20,20 +21,6 @@ import { approvedSpeciesDataset } from '@shared/catalogue'
 import './adopted-areas.css'
 
 maplibregl.setWorkerUrl(mapLibreWorkerUrl)
-
-const STYLE: maplibregl.StyleSpecification = {
-  version: 8,
-  sources: {
-    basemap: {
-      type: 'raster',
-      tiles: [(import.meta.env.VITE_MAP_TILE_URL as string | undefined)
-        ?? 'https://tile.openstreetmap.org/{z}/{x}/{y}.png'],
-      tileSize: 256,
-      attribution: '© OpenStreetMap contributors',
-    },
-  },
-  layers: [{ id: 'basemap', type: 'raster', source: 'basemap' }],
-}
 
 export function AdoptedAreaActivityPage() {
   const { adoptionId } = useParams()
@@ -58,7 +45,7 @@ export function AdoptedAreaActivityPage() {
     if (!container.current || map.current) return
     const instance = new maplibregl.Map({
       container: container.current,
-      style: STYLE,
+      style: BASEMAP_STYLE,
       center: [101.68, 3.14],
       zoom: 12,
       minZoom: 6,

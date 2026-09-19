@@ -116,6 +116,21 @@ export default defineConfig({
             method: 'PATCH',
           },
           {
+            // The default vector basemap also needs its style, TileJSON and
+            // sprite index before any tile can draw. These change when
+            // OpenFreeMap publishes a new build, so serve the cached copy for
+            // offline use but refresh it in the background.
+            urlPattern: ({ url }) =>
+              url.hostname.endsWith('openfreemap.org') &&
+              !/\.(png|jpg|jpeg|webp|pbf)$/.test(url.pathname),
+            handler: 'StaleWhileRevalidate',
+            options: {
+              cacheName: 'invatrace-map-styles',
+              expiration: { maxEntries: 20, maxAgeSeconds: 30 * 24 * 60 * 60 },
+              cacheableResponse: { statuses: [200] },
+            },
+          },
+          {
             // Keep recently viewed map areas available offline, with a fixed
             // cache limit to control disk use.
             urlPattern: ({ url }) =>
