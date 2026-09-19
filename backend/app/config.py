@@ -102,6 +102,15 @@ class Settings(BaseSettings):
     # the event loop). Off by default so tests / dev with the standalone
     # `invatrace worker` CLI don't double-run.
     run_workers_in_api: bool = False
+    # Render's free plan spins a web service down after 15 minutes without
+    # inbound traffic, and the next visitor waits ~a minute for a cold start.
+    # GitHub's scheduled keepalive is throttled to one run every few hours, so
+    # when this is on the API pings its own public URL instead. The URL falls
+    # back to RENDER_EXTERNAL_URL, which Render sets on every web service, so
+    # the same blueprint keeps working in any workspace.
+    self_keepalive_enabled: bool = False
+    self_keepalive_url: str | None = None
+    self_keepalive_interval_seconds: float = Field(default=540, ge=30, le=840)
 
     @field_validator("cors_origins", "e1_model_versions", mode="before")
     @classmethod

@@ -10,10 +10,12 @@ this file.
 from __future__ import annotations
 
 import asyncio
+import os
 import re
 import uuid
 from contextlib import asynccontextmanager, suppress
 
+import httpx
 import structlog
 from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
@@ -64,6 +66,31 @@ async def _run_worker_loop(name: str, sync_step, poll_seconds: float) -> None:
         await asyncio.sleep(poll_seconds)
 
 
+def _self_keepalive_target(settings) -> str | None:
+    """Liveness URL the API should ping on itself, or None when disabled or
+    when there is no public URL to reach (local dev, tests)."""
+    if not settings.self_keepalive_enabled:
+        return None
+    base = settings.self_keepalive_url or os.environ.get("RENDER_EXTERNAL_URL")
+    if not base:
+        return None
+    return f"{base.rstrip('/')}/health/live"
+
+
+async def _run_self_keepalive(url: str, interval_seconds: float) -> None:
+    """Hit our own public URL on a timer. The request has to leave the
+    container and come back through Render's edge to count as traffic, which
+    is why this goes to the public URL rather than localhost."""
+    async with httpx.AsyncClient(timeout=30) as client:
+        while True:
+            await asyncio.sleep(interval_seconds)
+            try:
+                response = await client.get(url)
+                log.info("self_keepalive_ping", status=response.status_code)
+            except httpx.HTTPError as error:
+                log.warning("self_keepalive_ping_failed", error=type(error).__name__)
+
+
 @asynccontextmanager
 async def _lifespan(app: FastAPI):
     """Optionally spawn verification + cleanup workers inside the API process.
@@ -94,6 +121,15 @@ async def _lifespan(app: FastAPI):
             )
         )
         log.info("in_process_workers_started")
+    keepalive_url = _self_keepalive_target(settings)
+    if keepalive_url:
+        tasks.append(
+            asyncio.create_task(
+                _run_self_keepalive(keepalive_url, settings.self_keepalive_interval_seconds),
+                name="invatrace.self-keepalive",
+            )
+        )
+        log.info("self_keepalive_started", url=keepalive_url)
     try:
         yield
     finally:
