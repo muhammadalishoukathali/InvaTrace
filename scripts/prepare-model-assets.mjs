@@ -4,13 +4,18 @@
 // shared/catalogue/reference-images.json and re-checks the Student33 ONNX
 // model against the SHA-256 stored in its runtime manifest. Doing this on
 // every run means the served model is always freshly re-verified rather than
-// trusting whatever was left in public/ from before.
+// trusting whatever was left in public/ from before. It also restores the
+// packed app logos (assets/runtime-packed/) that the favicon, header and PWA
+// manifest point at, since they are not committed as plain PNGs.
 import { createHash } from 'node:crypto'
 import { readFile } from 'node:fs/promises'
 import { dirname, join, resolve } from 'node:path'
 import { fileURLToPath } from 'node:url'
+import { restoreRuntimeAssets } from './restore-runtime-assets.mjs'
 
 const projectRoot = resolve(dirname(fileURLToPath(import.meta.url)), '..')
+
+await restoreRuntimeAssets()
 const modelRoot = join(projectRoot, 'public', 'models', 'invatrace-student33-v1')
 
 // Catalogue images are versioned independently from the classifier. Verify
