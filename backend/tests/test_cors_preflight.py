@@ -23,6 +23,7 @@ import importlib
 import pytest
 
 FRONTEND_ORIGINS = (
+    "https://invatrace-web-siul.onrender.com",
     "https://invatrace-web.onrender.com",
     "https://invatrace.pages.dev",
 )

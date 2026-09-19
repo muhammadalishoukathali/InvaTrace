@@ -8,6 +8,6 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - run: |
-          for url in https://invatrace-api.onrender.com/health https://invatrace-web.onrender.com; do
+          for url in https://invatrace-api-lmzr.onrender.com/health/live; do
             curl -fsS -o /dev/null -w "%{http_code} $url\n" -m 60 "$url" || true
           done
