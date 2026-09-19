@@ -91,6 +91,11 @@ def test_render_yaml_declares_expected_frontend_cache_headers() -> None:
     assert render.count("value: no-cache, no-store, must-revalidate") >= 3
 
 
+def test_render_yaml_turns_on_the_api_self_keepalive() -> None:
+    render = _read("render.yaml")
+    assert "key: SELF_KEEPALIVE_ENABLED" in render.split("name: invatrace-web")[0]
+
+
 def test_render_yaml_health_check_hits_the_liveness_endpoint() -> None:
     render = _read("render.yaml")
     assert "healthCheckPath: /health/live" in render

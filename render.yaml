@@ -69,6 +69,10 @@ services:
       # verification + cleanup as background asyncio tasks.
       - key: RUN_WORKERS_IN_API
         value: "true"
+      # Free plan sleeps after 15 idle minutes; the API pings its own
+      # RENDER_EXTERNAL_URL every 9 minutes so visitors never hit a cold start.
+      - key: SELF_KEEPALIVE_ENABLED
+        value: "true"
       # AC 2.3.3 - the actual master switch. Pydantic's default is already
       # true, but a stale dashboard override once flipped this to false in
       # prod and every rate check silently no-op'd - testers uploaded past
