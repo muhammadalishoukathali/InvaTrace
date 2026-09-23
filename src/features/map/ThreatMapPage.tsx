@@ -929,10 +929,11 @@ function MapAttribution() {
 }
 
 /**
- * The screen-reader-only mirror of the map pins. Every marker gets a
- * matching list item, so someone using a screen reader or just tabbing
- * with the keyboard can still open the report details without ever
- * needing to interact with the actual map canvas.
+ * The community reports list that sits below the map. It mirrors every pin as a
+ * plain list item, so it works for screen-reader and keyboard users without
+ * touching the map canvas - and, since usability testers looking for "the
+ * reports list below the map" could not find a screen-reader-only one (UT-13),
+ * it is now a visible, collapsible panel too. One accessible list serves both.
  */
 function AccessibleSightingList({
   items, onSelect, isLoading, isError, onRetry,
@@ -943,52 +944,63 @@ function AccessibleSightingList({
   isError: boolean
   onRetry: () => void
 }) {
-  // The accessible fallback has to render in loading and error states too,
-  // not just when data arrives. Otherwise a screen reader user who hit a
-  // network error would have literally nothing to interact with - the map
-  // canvas doesn't help them at all. Came from the accessibility review.
+  const summary = isLoading
+    ? 'Community reports · loading…'
+    : isError
+      ? 'Community reports · could not load'
+      : `Community reports · ${items.length}`
+  // The list has to render in loading and error states too, not just when data
+  // arrives - otherwise a keyboard or screen-reader user who hit a network
+  // error would have nothing to interact with, since the map canvas doesn't
+  // help them. Came from the accessibility review.
   return (
-    <section aria-label="Community reports list" className="sr-only">
-      {isLoading && <p role="status">Loading community reports…</p>}
-      {isError && (
-        <p role="alert">
-          Community reports could not load.{' '}
-          <button type="button" onClick={onRetry}>Try again</button>
-        </p>
-      )}
-      {!isLoading && !isError && (
-        <>
-          <p>
-            {items.length === 0
-              ? 'No community reports match the current filters.'
-              : `${items.length} community report${items.length === 1 ? '' : 's'} match the current filters.`}
-          </p>
-          {items.length > 0 && (
-            <ul>
-              {items.map((s) => {
-                const statusLabel = s.status === 'screened'
-                  ? 'Community report - not expert validated'
-                  : s.status === 'removal_reported' ? 'Removal reported' : 'Removed'
-                const statusDate = s.status === 'removal_reported'
-                  ? ` on ${formatStatusDate(s.removalReportedAt ?? s.lastReportedAt)}`
-                  : ''
-                const tierLabel = PIN_TIERS[pinTier(s)].label
-                return (
-                  <li key={s.id}>
-                    <button type="button" onClick={() => onSelect(s.id)}>
-                      {s.speciesName} ({s.latinName}) - {tierLabel} - {statusLabel}{statusDate}
-                      {' - '}
-                      {s.place.source === 'fallback' || !s.place.displayName
-                        ? 'No named trail, park or forest found nearby'
-                        : s.place.displayName}
-                    </button>
-                  </li>
-                )
-              })}
-            </ul>
+    <section aria-label="Community reports list" className="map-reports-panel">
+      <details open>
+        <summary className="map-reports-panel__summary">{summary}</summary>
+        <div className="map-reports-panel__body">
+          {isLoading && <p role="status">Loading community reports…</p>}
+          {isError && (
+            <p role="alert">
+              Community reports could not load.{' '}
+              <button type="button" onClick={onRetry}>Try again</button>
+            </p>
           )}
-        </>
-      )}
+          {!isLoading && !isError && (
+            <>
+              <p className="map-reports-panel__count">
+                {items.length === 0
+                  ? 'No community reports match the current filters.'
+                  : `${items.length} community report${items.length === 1 ? '' : 's'} match the current filters.`}
+              </p>
+              {items.length > 0 && (
+                <ul className="map-reports-panel__list">
+                  {items.map((s) => {
+                    const statusLabel = s.status === 'screened'
+                      ? 'Community report - not expert validated'
+                      : s.status === 'removal_reported' ? 'Removal reported' : 'Removed'
+                    const statusDate = s.status === 'removal_reported'
+                      ? ` on ${formatStatusDate(s.removalReportedAt ?? s.lastReportedAt)}`
+                      : ''
+                    const tierLabel = PIN_TIERS[pinTier(s)].label
+                    const placeName = s.place.source === 'fallback' || !s.place.displayName
+                      ? 'No named trail, park or forest found nearby'
+                      : s.place.displayName
+                    return (
+                      <li key={s.id}>
+                        <button type="button" onClick={() => onSelect(s.id)} className="map-reports-panel__item">
+                          <span className="map-reports-panel__item-name">{s.speciesName} <i>({s.latinName})</i></span>
+                          <span className="map-reports-panel__item-meta">{tierLabel} · {statusLabel}{statusDate}</span>
+                          <span className="map-reports-panel__item-place">{placeName}</span>
+                        </button>
+                      </li>
+                    )
+                  })}
+                </ul>
+              )}
+            </>
+          )}
+        </div>
+      </details>
     </section>
   )
 }
