@@ -17,7 +17,8 @@ import { listScanHistory, type ScanHistoryRecord } from '@/features/scan/scan-hi
 import { profileStateFromPath } from '@/features/private-access/profile-navigation'
 import { mapStateForLocation } from '@/features/map/map-location-link'
 import { usePrivateAccess } from '@/features/private-access/private-access-store'
-import type { Report, ReportListResponse, ReportStatus } from '@/types'
+import { findApprovedSpecies } from '@shared/catalogue'
+import type { GeoPoint, Report, ReportListResponse, ReportStatus } from '@/types'
 import './my-reports.css'
 
 const STATUS_COPY: Record<ReportStatus, { label: string; tone: 'progress' | 'ok' | 'warn' | 'error' | 'muted' }> = {
@@ -50,6 +51,39 @@ function speciesName(speciesId: string | null): string {
 }
 
 /**
+ * Testers could not recognise repeated reports when a row showed only one
+ * derived label (UT-09). Resolve both the common and scientific names from the
+ * closed catalogue so each row carries the pair, falling back to whatever the
+ * scan captured, then to the title-cased id.
+ */
+function resolveNames(
+  speciesId: string | null,
+  fallbackCommon?: string | null,
+  fallbackScientific?: string | null,
+): { common: string; scientific: string | null } {
+  const record = findApprovedSpecies({ speciesId })
+  if (record) {
+    return {
+      common: record.common_names[0] ?? record.scientific_name,
+      scientific: record.scientific_name,
+    }
+  }
+  return {
+    common: fallbackCommon ?? speciesName(speciesId),
+    scientific: fallbackScientific ?? null,
+  }
+}
+
+/** Short, human-readable location context so a row is recognisable without
+ *  opening the map (UT-09). Coordinates only - no reverse geocoding. */
+function locationLabel(location: GeoPoint | null | undefined): string | null {
+  if (!location) return null
+  const lat = `${Math.abs(location.lat).toFixed(3)}°${location.lat >= 0 ? 'N' : 'S'}`
+  const lng = `${Math.abs(location.lng).toFixed(3)}°${location.lng >= 0 ? 'E' : 'W'}`
+  return `${lat}, ${lng}`
+}
+
+/**
  * This is the "My records" page. The tricky part building this was that a
  * user's history is actually two different sources stitched together: reports
  * that made it to the server, and scans sitting only in local history because
@@ -72,7 +106,11 @@ export function MyReportsPage() {
     enabled: online,
     staleTime: 15_000,
   })
-  const reports = query.data?.pages.flatMap((page) => page.items) ?? []
+  const reports = (query.data?.pages.flatMap((page) => page.items) ?? [])
+    // Newest-first so the most recent submission is always at the top, even if a
+    // page or the server ever returns them out of order (UT-09).
+    .slice()
+    .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())
   const submittedCaptureIds = new Set(reports.map((report) => report.submission.captureId))
   const localRecords = scanHistory.filter((scan) => !submittedCaptureIds.has(scan.captureId))
   const unsubmittedRecords = localRecords.filter((scan) => !scan.submission)
@@ -215,7 +253,9 @@ export function MyReportsPage() {
 }
 
 function ScanHistoryRow({ scan }: { scan: ScanHistoryRecord }) {
-  const name = scan.speciesName ?? scan.scientificName ?? speciesName(scan.speciesId)
+  const names = resolveNames(scan.speciesId, scan.speciesName, scan.scientificName)
+  const name = names.common
+  const place = locationLabel(scan.location)
   const status = scan.submission?.status === 'queued'
     ? 'Waiting to upload'
     : scan.submission?.status === 'submitted'
@@ -232,9 +272,18 @@ function ScanHistoryRow({ scan }: { scan: ScanHistoryRecord }) {
           <time className="my-reports__date" dateTime={scan.observedAt}>{relativeDate(scan.observedAt)}</time>
         </div>
         <div className="my-reports__row my-reports__row--body">
-          <span className="my-reports__species">{name}</span>
+          <span className="my-reports__species">
+            {names.common}
+            {names.scientific && <i className="my-reports__sci">{names.scientific}</i>}
+          </span>
           <span className="my-reports__confidence">{Math.round(scan.confidence * 100)}% match</span>
         </div>
+        {place && (
+          <span className="my-reports__place">
+            <Icon name="MapPin" size={13} />
+            {place}
+          </span>
+        )}
       </div>
       {scan.location && (
         <Link
@@ -258,7 +307,9 @@ function ScanHistoryRow({ scan }: { scan: ScanHistoryRecord }) {
 
 function ReportRow({ report }: { report: Report }) {
   const status = STATUS_COPY[report.status]
-  const name = speciesName(report.submission.speciesId)
+  const names = resolveNames(report.submission.speciesId)
+  const name = names.common
+  const place = locationLabel(report.submission.location)
   const mapHref = report.sightingId ? `/map?sighting=${encodeURIComponent(report.sightingId)}` : '/map'
   const mapState = report.sightingId
     ? undefined
@@ -281,10 +332,17 @@ function ReportRow({ report }: { report: Report }) {
         </div>
         <div className="my-reports__row my-reports__row--body">
           <span className="my-reports__species">
-            {name}
+            {names.common}
+            {names.scientific && <i className="my-reports__sci">{names.scientific}</i>}
           </span>
           <span className="my-reports__ref">Ref {shortId(report.id)}</span>
         </div>
+        {place && (
+          <span className="my-reports__place">
+            <Icon name="MapPin" size={13} />
+            {place}
+          </span>
+        )}
         <span className="my-reports__chevron" aria-hidden>
           <Icon name="ChevronRight" size={16} color="var(--icon)" />
         </span>

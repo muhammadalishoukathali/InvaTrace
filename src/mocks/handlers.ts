@@ -1038,7 +1038,11 @@ export const handlers = [
     if (!hasActiveSession(request)) {
       return HttpResponse.json({ detail: 'API session unavailable' }, { status: 401 })
     }
-    return HttpResponse.json({ items: mockReports })
+    // Newest-first, matching the backend's created_at DESC order for /mine.
+    const orderedReports = [...mockReports].sort(
+      (a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime(),
+    )
+    return HttpResponse.json({ items: orderedReports })
   }),
 
   http.get(url('/api/v1/reports/:id'), ({ params, request }) => {
