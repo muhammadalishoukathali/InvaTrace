@@ -618,6 +618,72 @@ test('private detector can scan, analyse, and submit', async ({ page, context, b
   expect(accountEndpointCalls).toEqual([])
 })
 
+// UT-10: a reporter who published a sighting by mistake can withdraw it from the
+// public map. The sighting drops off /sightings, but the report row and its
+// history are kept for review - published community evidence is never silently
+// deleted. Mirrors the backend withdrawal endpoint and its integration test.
+test('private detector can withdraw a published report', async ({ page, context, baseURL }) => {
+  await context.grantPermissions(['geolocation'], { origin: new URL(baseURL!).origin })
+  await context.setGeolocation({ latitude: 3.1497, longitude: 101.6412, accuracy: 15 })
+  // The withdrawal is guarded by a window.confirm; auto-accept it.
+  page.on('dialog', (dialog) => void dialog.accept())
+  await page.addInitScript(() => {
+    window.localStorage.setItem('invatrace.development-model-species', 'mikania_micrantha')
+  })
+
+  const session = await startPrivateAccess(page)
+
+  // Same scan -> analyse -> report -> submit journey as the test above.
+  await page.getByRole('button', { name: /Scan a plant|New scan/ }).first().click()
+  await expect(page).toHaveURL(/\/scan$/)
+  await page.locator('input[aria-label="Choose photo from gallery"]').setInputFiles(
+    path.join(process.cwd(), 'public/reference-images/mikania-micrantha.jpg'),
+  )
+  await expect(page.getByText('Photo quality check passed')).toBeVisible({ timeout: 5000 })
+  await page.getByRole('button', { name: /Analyse plant/ }).click()
+  await expect(page).toHaveURL(/\/scan\/result$/, { timeout: 5000 })
+  await page.getByRole('button', { name: /Report sighting/ }).click()
+  await expect(page).toHaveURL(/\/report$/)
+  await page.getByRole('button', { name: 'Continue' }).click()
+  await page.getByText('Single plant', { exact: true }).click()
+  await page.getByRole('button', { name: 'Continue' }).click()
+  await page.getByRole('checkbox', { name: /accurate/i }).check()
+  await page.getByRole('checkbox', { name: /personal information/i }).check()
+  await page.getByRole('button', { name: 'Review submission' }).click()
+  await page.getByRole('button', { name: 'Submit report' }).click()
+
+  await expect(page.getByRole('heading', { name: 'Report submitted' })).toBeVisible({ timeout: 8000 })
+  await page.getByRole('button', { name: 'View report' }).click()
+  await expect(page.getByRole('heading', { name: 'Report published' })).toBeVisible({ timeout: 7000 })
+
+  // The published sighting is on the public map before withdrawal.
+  const sightingsBefore = await page.evaluate(async (token) =>
+    (await fetch('/api/v1/sightings', { headers: { authorization: `Bearer ${token}` } })).json() as Promise<{ items: unknown[] }>,
+  session.accessToken)
+  const beforeCount = sightingsBefore.items.length
+  expect(beforeCount).toBeGreaterThan(0)
+
+  // Withdraw it.
+  await expect(page.getByRole('heading', { name: 'Reported this by mistake?' })).toBeVisible()
+  await page.getByRole('textbox', { name: /Reason/ }).fill('E2E: misidentified the plant')
+  await page.getByRole('button', { name: 'Request withdrawal' }).click()
+
+  await expect(page.getByText('Withdrawal recorded. This report no longer appears on the public map.'))
+    .toBeVisible({ timeout: 7000 })
+
+  // The sighting has dropped off the public map...
+  const sightingsAfter = await page.evaluate(async (token) =>
+    (await fetch('/api/v1/sightings', { headers: { authorization: `Bearer ${token}` } })).json() as Promise<{ items: unknown[] }>,
+  session.accessToken)
+  expect(sightingsAfter.items.length).toBe(beforeCount - 1)
+
+  // ...but the report itself is kept for review.
+  const mine = await page.evaluate(async (token) =>
+    (await fetch('/api/v1/reports/mine', { headers: { authorization: `Bearer ${token}` } })).json() as Promise<{ items: unknown[] }>,
+  session.accessToken)
+  expect(mine.items.length).toBeGreaterThan(0)
+})
+
 // A report queued while offline shouldn't try to bootstrap a session or
 // upload anything until the app is actually back online, and the bootstrap
 // has to finish before the queued report gets flushed - the upload needs a

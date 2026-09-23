@@ -44,4 +44,49 @@ suite, including the iteration-2 usability guards).
 
 - **UT-07 images** — sourcing licensed reviewed look-alike photos and populating
   each species' `nativeTwin` is a content/licensing pass; the UI handles the
-  missing-image case honestly in the meantime.
+  missing-image case honestly in the meantime. Backlog + process:
+  [ut07-native-twin-backlog.md](ut07-native-twin-backlog.md).
+
+## Follow-up: automated retest coverage (later on 2026-09-23)
+
+The retest scope is now a single command, `npm run test:e2e:retest`
+(dev-mock journeys + the built-PWA offline suite):
+
+- **UT-10 withdrawal, UI end to end** — new e2e in `e2e/happy-path.spec.ts`:
+  scan → report → publish → withdraw → the sighting drops off `/sightings`
+  while the report is kept in `/reports/mine`. (The live UI click was blocked
+  only by a browser geolocation-permission wall; Playwright mocks the fix, so
+  this now runs headlessly. Backend already covered by `test_full_stack.py`.)
+- **UT-02 camera fallback** — new e2e in `e2e/mobile-robustness.spec.ts`: a
+  failed `getUserMedia` shows the error + gallery fallback, and a library photo
+  reaches a usable large preview. Real multi-device camera QA stays manual:
+  [ut02-camera-device-checklist.md](ut02-camera-device-checklist.md).
+- **UT-11 offline** — `npm run test:e2e:pwa` covers install, offline shell,
+  download, update, keep-on-failed-replace, and removal. Green.
+- Result: `test:e2e:retest` → 13 passed (dev journeys) + 2 passed (offline).
+
+### Model accuracy (measurement only — not a UT finding)
+
+Note: the documented model finding (UT-01) was scan *reliability* — timeouts and
+verification failures — which is fixed. Raw *accuracy* is not a findings item;
+this is an extra check.
+
+Ran the `known-species-harness` (clean catalogue photos, real Student33
+classifier). An initial reading of "4/7" was **wrong**: two of the seven images
+(*Dicranopteris linearis*, *Ageratum conyzoides*) are **not among the model's 33
+classes**, so the closed-set model cannot output them — counting them as misses
+was a test-set error. On the five in-vocabulary species the result is **4/5**;
+the only genuine miss is Mikania micrantha → Chromolaena odorata (Siam weed), two
+white-flowered scrambling Asteraceae that are easy to confuse. It surfaces as a
+*confident* wrong species, but both are invasives whose guidance is the same
+conservative "report, do not remove", so the safety action is unchanged.
+
+Verified there is **no code defect**: the output-index → species mapping matches
+between `student33_class_map.json` (what the model was trained on) and
+`student33_species.json` (32/33 identical; index 23 differs only by synonym,
+Pennisetum polystachyon = Cenchrus setosus), and preprocessing follows the
+runtime manifest. Improving accuracy further is therefore a deliberate effort —
+threshold/temperature tuning (a UX trade-off needing the confidence distribution
+and an eval pass) or retraining — not a safe one-line change, so the model is
+left untouched here. Native-plant inputs (out of vocabulary) are handled by the
+Unknown class + confidence thresholds rather than a per-species rule.
