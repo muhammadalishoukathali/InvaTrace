@@ -56,7 +56,7 @@ function speciesName(speciesId: string | null): string {
  * closed catalogue so each row carries the pair, falling back to whatever the
  * scan captured, then to the title-cased id.
  */
-function resolveNames(
+export function resolveNames(
   speciesId: string | null,
   fallbackCommon?: string | null,
   fallbackScientific?: string | null,
@@ -76,7 +76,7 @@ function resolveNames(
 
 /** Short, human-readable location context so a row is recognisable without
  *  opening the map (UT-09). Coordinates only - no reverse geocoding. */
-function locationLabel(location: GeoPoint | null | undefined): string | null {
+export function locationLabel(location: GeoPoint | null | undefined): string | null {
   if (!location) return null
   const lat = `${Math.abs(location.lat).toFixed(3)}°${location.lat >= 0 ? 'N' : 'S'}`
   const lng = `${Math.abs(location.lng).toFixed(3)}°${location.lng >= 0 ? 'E' : 'W'}`
