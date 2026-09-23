@@ -16,10 +16,10 @@ Verifier: independent read of source (`src/`, `backend/app/`), tests
 
 | Iteration | Total ACs (from CSV) | PASS | REJECTED-lane but code passes | Genuinely blocked |
 |---|---|---|---|---|
-| Iteration 1 (lane: `iteration 1 done:acceptance criteria`) | 28 | 28 | — | 0 |
+| Iteration 1 (lane: `iteration 1 done:acceptance criteria`) | 33 | 33 | — | 0 |
 | Iteration 1 rejected (lane: `review by smart action:rejected`) | 2 | 2* | 2 | 0 |
-| Iteration 2 (lane: `doing:in progress:acceptance criteria`) | 33 | 33 | — | 0 |
-| **Total InvaTrace ACs** | **63** | **63** | **2** | **0** |
+| Iteration 2 (lane: `doing:in progress:acceptance criteria`) | 44 | 44 | — | 0 |
+| **Total InvaTrace ACs** | **79** | **79** | **2** | **0** |
 
 `*` = code satisfies the AC literal; mentor rejection is not reproducible
 against tip `f26bdd2`. Details below.
@@ -174,10 +174,17 @@ against the mock backend.
 
 ## Section C — Iteration 2 in-progress ACs (lane `doing:in progress:acceptance criteria`)
 
-All 33 are marked PASS in `docs/iteration-2-ac-verification.md` (dated
+All 44 are marked PASS in `docs/iteration-2-ac-verification.md` (dated
 2026-09-15). Spot-checked evidence still resolves.
 
-### Epic 3.0 — Safe-Response Location Context
+Epic, user-story and AC order below follows the board hierarchy exactly.
+Epics 3.0 and 4.0 are tagged `Iteration 1 & 2` on the board — only their
+Iteration 2 user stories (US 3.3, US 4.5) appear here; their Iteration 1
+stories are in Section B.
+
+### Epic 3.0 — Safe Invasive Plant Response Guidance & Safe Response Location Context
+
+**US 3.3 — Check mapped protected-area context**
 
 | AC | Title | Status | Notes |
 |---|---|---|---|
@@ -187,19 +194,27 @@ All 33 are marked PASS in `docs/iteration-2-ac-verification.md` (dated
 | 3.3.4 | Uncertain / unavailable boundary | PASS | `_uncertain_context` returned for missing dataset, out-of-coverage, or `accuracy_m > 250`. Failure never defaults to outside. |
 | 3.3.5 | Visible source information | PASS | Every response includes `boundary_source`, `boundary_version`, `boundary_updated_at`, `accuracy_m`, permission disclaimer. |
 
-### Epic 4.0 — Sighting Reporting & Removal
+### Epic 4.0 — Sighting Reporting & Community Sighting Status
+
+**US 4.5 — Mark a nearby sighting as removal reported**
 
 | AC | Title | Status | Notes |
 |---|---|---|---|
 | 4.5.1 | Removal action availability | PASS | Gated by current sighting status; rejected/deleted/already-removed states excluded. |
 | 4.5.2 | Fresh GPS collection | PASS | Confirmation dialog requests fresh browser geolocation; no editable coordinate fields. |
 | 4.5.3 | Server-side vicinity validation | PASS | `POST /api/v1/reports/{id}/removal` uses PostGIS geography `ST_Distance` for stored-to-submitted distance. 250 m boundary regression tests present. |
-| 4.5.4 | Rejected-location evidence | PASS | Machine-readable stale/unavailable, inaccurate, too-far failures precede mutation; no partial update on reject. |
+| 4.5.4 | Rejected-location evidence | PASS | Machine-readable stale/unavailable, inaccurate, too-far failures precede mutation; no partial update on reject. **Board files this card under US 3.3, not US 4.5** — see Finding B1. |
 | 4.5.5 | Preserved report and status history | PASS | Append-only `sighting_status_events` table; original report untouched. |
 | 4.5.6 | Public marker update | PASS | Response exposes status/date; private raw removal-fix coordinates excluded. |
-| (bonus) 4.5.7 | Idempotent duplicate event | PASS | Unique constraint + existing-event short-circuit before GPS revalidation. |
 
-### Epic 5.0 — Place-based Discovery & Catalogue
+Beyond the board: idempotent duplicate removal events (unique constraint +
+existing-event short-circuit before GPS revalidation) are implemented and
+tested. No board AC covers this — previously listed here as "AC 4.5.7",
+which does not exist on the board.
+
+### Epic 5.0 — Place-Based Plant Discovery and Catalogue
+
+**US 5.1 — Explore plants recorded near a place**
 
 | AC | Title | Status | Notes |
 |---|---|---|---|
@@ -207,21 +222,38 @@ All 33 are marked PASS in `docs/iteration-2-ac-verification.md` (dated
 | 5.1.2 | Direct + nearby spatial association | PASS | Closed 32-species allowlist; Present / uncertainty / duplicate handling; national-polygon filter. |
 | 5.1.3 | Association ranking | PASS | Inside strictly outranks nearby; distance decay; upstream evidence gated. Real data produced 249 area-record + 353 trail-record pairs. |
 | 5.1.4 | Place result info | PASS | Directed 5 km network distance; 150 m snap; combined ≤ 250 m uncertainty ceiling; boundary regression tests. |
-| 5.1.5 | No-evidence response | PASS | Explicit "no evidence" copy + full-catalogue link. Never claims a place is invasive-free. |
-| (5.1.6, 5.1.7 in CSV grouped under 5.1) | Card fields / no evidence | PASS | Real association response includes imported data version + approved image. |
+| 5.1.5 | No-evidence response | PASS | Explicit "no evidence" copy + full-catalogue link. Never claims a place is invasive-free. Real association response also carries the imported data version + approved image. |
+
+US 5.1 ends at 5.1.5 on the board. An earlier revision of this section
+claimed "5.1.6, 5.1.7 in CSV grouped under 5.1"; no such cards exist.
+
+**US 5.2 — Browse the supported plant catalogue**
+
+| AC | Title | Status | Notes |
+|---|---|---|---|
 | 5.2.1 | Complete catalogue listing | PASS | Exactly 32 unique records with version/review date and one local reviewed image each. |
 | 5.2.2 | Catalogue search | PASS | Trimmed, case-insensitive live search; exact empty copy. |
 | 5.2.3 | Plant detail content | PASS | Independent reviewed detail dataset merges status + detail sources for all 32. |
 | 5.2.4 | Honest missing information | PASS | Exact missing-severity copy; "No beginner-safe active action" explicit. |
 | 5.2.5 | References + image attribution | PASS | Commons importer verifies taxon, licence, source, hash/size before atomic activation. 32/32 valid provenance. |
 | 5.2.6 | Consistent record linking | PASS | Scanner + place links resolve through the same approved `species_id`. |
+
+**US 5.3 — Use the catalogue offline** (orphaned on the board — see Finding B2)
+
+| AC | Title | Status | Notes |
+|---|---|---|---|
 | 5.3.1 | Offline pack installation | PASS | Staging cache, SHA-256 checks, atomic pointer switch; failed install preserves last valid pack. |
 | 5.3.2 | Offline catalogue availability | PASS | Installed pack includes list + details + guidance + 32 integrity-checked images. |
 | 5.3.3 | Offline state communication | PASS | Notice shows installed version/review date; place/adopted-area pages explain server data needs connection. |
-| 5.3.4 | Offline storage management | PASS | Reconnect checks `/api/v1/offline-pack/latest`; version/size and remove controls surfaced. Rollback test present. |
-| (5.3.5) | Storage remove | PASS | Removal targets only the catalogue cache; identity/reports/adoptions preserved. |
+| 5.3.4 | Offline storage management | PASS | Reconnect checks `/api/v1/offline-pack/latest`; version/size and remove controls surfaced. Rollback test present. Removal targets only the catalogue cache; identity/reports/adoptions preserved. |
 
-### Epic 6.0 — Adopted-Area Stewardship
+US 5.3 ends at 5.3.4 on the board. An earlier revision listed a separate
+"5.3.5 Storage remove"; no such card exists, so its evidence is folded into
+5.3.4 above.
+
+### Epic 6.0 — Personal Area Stewardship and Progress
+
+**US 6.1 — Adopt an area for monitoring**
 
 | AC | Title | Status | Notes |
 |---|---|---|---|
@@ -229,14 +261,24 @@ All 33 are marked PASS in `docs/iteration-2-ac-verification.md` (dated
 | 6.1.2 | Post-report adoption prompt | PASS | Prompt on identified place-linked reports; dismiss is local-only. |
 | 6.1.3 | Non-exclusive adoption | PASS | Unique key is `(profile_id, place_id)`. Different identities can adopt the same place. |
 | 6.1.4 | Duplicate adoption handling | PASS | Advisory lock + existing-adoption return; no duplicate row. |
-| 6.1.5 | Remove an adoption | PASS | Owner-scoped DELETE; public rows untouched. |
+| 6.1.5 | Remove an adoption | PASS | Owner-scoped DELETE; public rows untouched. **Board parents this card to Epic 6.0 directly, not to US 6.1** — see Finding B3. |
 | 6.1.6 | No ownership implication | PASS | Monitoring-bookmark language + permission disclaimer everywhere. |
+
+**US 6.2 — View my adopted areas**
+
+| AC | Title | Status | Notes |
+|---|---|---|---|
 | 6.2.1 | Adopted-area list | PASS | Owner-scoped list with place/type/date/latest report. |
 | 6.2.2 | Defined monitoring indicators | PASS | Server-clock metrics exclude inactive statuses; half-open latest-30-day window. |
 | 6.2.3 | Consistent area membership | PASS | Stored geometry snapshot + version; polygon membership + 750 m trail rule. |
 | 6.2.4 | Monitoring language | PASS | Exact "Community monitoring activity"; no combined score. |
 | 6.2.5 | Sorting and navigation | PASS | UI sends `sort=recent_activity`; server sorts by latest qualifying report, no-report areas last. |
 | 6.2.6 | Empty state | PASS | Zero-item state with Browse-places CTA; no synthetic KPI. |
+
+**US 6.3 — Explore activity within an adopted area**
+
+| AC | Title | Status | Notes |
+|---|---|---|---|
 | 6.3.1 | Area-restricted report map | PASS | Owner-scoped activity endpoint; stored geometry buffered 750 m for trails. |
 | 6.3.2 | Report status and date | PASS | Marker detail exposes labels/dates/status; private raw removal fix withheld. |
 | 6.3.3 | Activity filters | PASS | Plant/status/period filters server-applied; filtered counts + concentration layer. |
@@ -295,6 +337,27 @@ last full green rerun of every suite is documented in
 ---
 
 ## Section E — Findings
+
+### Board hygiene (fix in the Kanban tool, not in code)
+
+These are card-filing problems in the Iteration 2 board CSV. None of them
+affects the implemented system — every AC below is PASS — but they make the
+board's epic hierarchy read wrongly when exported.
+
+- **B1 — AC 4.5.4 is filed under the wrong user story.** "AC 4.5.4 Rejected
+  location evidence" is parented to US 3.3 (Epic 3.0). Its number and its
+  content both belong to US 4.5 (Epic 4.0). Reparent to US 4.5.
+- **B2 — US 5.3 is orphaned.** "US 5.3: Use the catalogue offline" has an
+  empty `ParentCardID`, so it does not appear under Epic 5.0 in any export
+  even though its four ACs (5.3.1–5.3.4) correctly parent to it. Attach
+  US 5.3 to Epic 5.0.
+- **B3 — AC 6.1.5 skips its user story.** "AC 6.1.5 Remove an adoption" is
+  parented to Epic 6.0 directly instead of US 6.1. Reparent to US 6.1.
+- **B4 — `ExternalCardID` typos.** Two cards read `Ieration 2` (AC 3.3.5)
+  and `ITeration 2` (AC 6.3.4) instead of `Iteration 2`. These break naive
+  iteration filters.
+
+### Implementation findings
 
 1. **AC 4.2.3 (rejected lane) — code passes literal AC.** On re-inspection,
    the visible result-count chip already carries
