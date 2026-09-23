@@ -99,6 +99,8 @@ SPECIES = [
                 "No heart-shaped leaves",
                 "Does not climb or smother other plants",
             ],
+            "referenceImageUrl": "/reference-images/dicranopteris_linearis.jpg",
+            "referenceImageCredit": "Wikimedia · Starr Environmental",
         },
         "removal_steps": [
             {"order": 1, "action": "Cut the vine at ground level", "safe": True},

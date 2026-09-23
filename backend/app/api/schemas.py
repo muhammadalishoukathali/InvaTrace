@@ -198,6 +198,12 @@ class NativeTwin(ApiModel):
     name: str
     latin_name: str
     distinguishing_traits: list[str]
+    # Reviewed photo of the native look-alike so the scan result can show it
+    # side-by-side. Optional: many invasives have no documented native twin
+    # image yet, and the client renders an honest "no reviewed photo" state
+    # (UT-07) when this is absent rather than a broken image.
+    reference_image_url: str | None = None
+    reference_image_credit: str | None = None
 
 
 class RemovalStep(ApiModel):
