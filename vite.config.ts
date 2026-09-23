@@ -1,8 +1,33 @@
-import { defineConfig } from 'vite'
+import { readFileSync } from 'node:fs'
+import { defineConfig, type Plugin } from 'vite'
 import react from '@vitejs/plugin-react'
 import basicSsl from '@vitejs/plugin-basic-ssl'
 import { VitePWA } from 'vite-plugin-pwa'
 import { fileURLToPath, URL } from 'node:url'
+
+// The MapLibre worker we import with `?url` in src/features/map/ThreatMapPage.tsx
+// still contains a plain ES import for `./maplibre-gl-shared.mjs`. Vite copies
+// the worker file into `dist/assets/` but does not follow that sibling import,
+// so the shared module ends up missing at runtime; Render's SPA rewrite then
+// returns `index.html` for it and the browser rejects it as JS (MIME type
+// text/html). Emit the shared file alongside the worker to make the sibling
+// import resolve on the deployed site the same way it does in node_modules.
+function copyMaplibreWorkerShared(): Plugin {
+  return {
+    name: 'copy-maplibre-worker-shared',
+    apply: 'build',
+    generateBundle() {
+      const sourcePath = fileURLToPath(
+        new URL('./node_modules/maplibre-gl/dist/maplibre-gl-shared.mjs', import.meta.url),
+      )
+      this.emitFile({
+        type: 'asset',
+        fileName: 'assets/maplibre-gl-shared.mjs',
+        source: readFileSync(sourcePath),
+      })
+    },
+  }
+}
 
 // Camera access over a LAN address requires HTTPS. The development certificate
 // stays in memory and does not change the operating system trust store.
@@ -21,6 +46,7 @@ export default defineConfig({
   plugins: [
     react(),
     ...(httpsEnabled ? [basicSsl()] : []),
+    copyMaplibreWorkerShared(),
     VitePWA({
       // Replace the cached application shell as soon as a new release is ready.
       registerType: 'autoUpdate',
