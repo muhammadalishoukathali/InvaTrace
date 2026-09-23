@@ -859,3 +859,63 @@
   .map-legend-toggle,
   .map-legend-card { background: var(--surface-translucent-strong); }
 }
+
+/* Visible community reports list below the map (UT-13). Testers hunting for
+   "the reports list below the map" could not find the screen-reader-only one,
+   so it is now an on-screen collapsible panel that doubles as the accessible
+   mirror of the pins. Bounded height with its own scroll so it never crowds
+   the map out. */
+.map-reports-panel {
+  flex-shrink: 0;
+  border-top: 1px solid var(--border);
+  background: var(--surface);
+}
+.map-reports-panel__summary {
+  cursor: pointer;
+  min-height: 44px;
+  display: flex;
+  align-items: center;
+  padding: 10px 14px;
+  color: var(--heading);
+  font-size: 13.5px;
+  font-weight: 650;
+  list-style: none;
+}
+.map-reports-panel__summary::-webkit-details-marker { display: none; }
+.map-reports-panel__summary::after {
+  content: '';
+  margin-left: 8px;
+  width: 8px;
+  height: 8px;
+  border-right: 2px solid var(--muted);
+  border-bottom: 2px solid var(--muted);
+  transform: rotate(-45deg);
+  transition: transform 150ms ease;
+}
+.map-reports-panel[open] .map-reports-panel__summary::after,
+details[open] > .map-reports-panel__summary::after { transform: rotate(45deg); }
+.map-reports-panel__body {
+  max-height: 32vh;
+  overflow-y: auto;
+  padding: 0 14px 12px;
+}
+.map-reports-panel__count { color: var(--muted); font-size: 12px; margin-bottom: 8px; }
+.map-reports-panel__list { list-style: none; display: flex; flex-direction: column; gap: 6px; }
+.map-reports-panel__item {
+  width: 100%;
+  text-align: left;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding: 10px 12px;
+  border: 1px solid var(--border);
+  border-radius: var(--r-button);
+  background: var(--bg-alt);
+  color: var(--body);
+  cursor: pointer;
+}
+.map-reports-panel__item:hover { border-color: var(--green-border); background: var(--hover); }
+.map-reports-panel__item:focus-visible { outline: 2px solid var(--green); outline-offset: 1px; }
+.map-reports-panel__item-name { color: var(--heading); font-size: 13.5px; font-weight: 600; }
+.map-reports-panel__item-meta { color: var(--muted); font-size: 11.5px; }
+.map-reports-panel__item-place { color: var(--body); font-size: 12px; }

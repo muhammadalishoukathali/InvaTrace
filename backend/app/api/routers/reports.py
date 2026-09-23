@@ -85,6 +85,18 @@ class RemovalReportResponse(ApiModel):
     distance_m: float
 
 
+class WithdrawalReportRequest(ApiModel):
+    reason: str = Field(default="", max_length=300)
+
+
+class WithdrawalReportResponse(ApiModel):
+    report_id: uuid.UUID
+    sighting_id: uuid.UUID
+    status: Literal["withdrawn"]
+    withdrawn_at: datetime
+    reason: str
+
+
 def _distance_metres(lat1: float, lon1: float, lat2: float, lon2: float) -> float:
     """Great-circle distance used for the 250 m server-side removal gate."""
     radius_m = 6_371_008.8
@@ -589,6 +601,75 @@ def report_removal(
         removal_reported_at=event.created_at,
         accuracy_m=event.accuracy_m,
         distance_m=float(event.distance_m),
+    )
+
+
+@router.post("/{report_id}/withdrawal", response_model=WithdrawalReportResponse)
+def report_withdrawal(
+    report_id: uuid.UUID,
+    body: WithdrawalReportRequest,
+    request: Request,
+    auth: AuthContext = Depends(require_auth),
+    session: Session = Depends(get_session),
+) -> WithdrawalReportResponse:
+    """Withdraw an accidental *published* report.
+
+    A reporter cannot delete a report that already backs a public sighting
+    (that path 409s). This gives them a controlled alternative: the sighting is
+    flagged ``withdrawn`` so it drops off the public map, but the report row,
+    its report/sighting link and the full audit trail are preserved - published
+    community evidence is never silently deleted. Unpublished reports keep using
+    the DELETE path below.
+    """
+    now = utcnow()
+    report = session.scalar(
+        select(Report)
+        .where(Report.id == report_id, Report.profile_id == auth.profile.id)
+        .with_for_update()
+    )
+    if report is None:
+        raise ApiProblem(404, "report_not_found", "Not found")
+    sighting_id = _sighting_id(session, report.id)
+    if sighting_id is None or report.status not in {"screened", "merged"}:
+        raise ApiProblem(
+            409,
+            "withdrawal_not_available",
+            "Only a published report can be withdrawn. "
+            "Unsubmitted reports can be deleted directly.",
+        )
+    sighting = session.scalar(
+        select(Sighting).where(Sighting.id == sighting_id).with_for_update()
+    )
+    if sighting is None:
+        raise ApiProblem(
+            409, "withdrawal_not_available", "This report is not linked to a public sighting."
+        )
+    if sighting.status == "withdrawn":
+        return WithdrawalReportResponse(
+            report_id=report.id,
+            sighting_id=sighting.id,
+            status="withdrawn",
+            withdrawn_at=sighting.updated_at,
+            reason=body.reason,
+        )
+    sighting.status = "withdrawn"
+    session.add(
+        AuditEvent(
+            event_type="sighting.withdrawn",
+            acting_profile_id=auth.profile.id,
+            subject_type="sighting",
+            subject_id=str(sighting.id),
+            request_id=request_id_var.get(),
+            metadata_json={"report_id": str(report.id), "reason": body.reason},
+        )
+    )
+    session.commit()
+    return WithdrawalReportResponse(
+        report_id=report.id,
+        sighting_id=sighting.id,
+        status="withdrawn",
+        withdrawn_at=now,
+        reason=body.reason,
     )
 
 

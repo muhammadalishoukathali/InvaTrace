@@ -7,6 +7,7 @@
 // wait on them.
 import { useMutation, useQuery } from '@tanstack/react-query'
 import { Link, useParams } from 'react-router-dom'
+import { BackLink } from '@/components/BackLink'
 import { useOnline } from '@/hooks/useOnline'
 import { api } from '@/services/api-client'
 import type { PlaceDetail, PlacePlantAssociationsResponse } from '@/types'
@@ -45,7 +46,7 @@ export function PlaceDetailPage() {
   }
   return (
     <section className="place-detail">
-      <Link to="/places">Back to places</Link>
+      <BackLink to="/places">Back to places</BackLink>
       <header>
         <div>
           <h2>{place.data.displayName}</h2>

@@ -67,7 +67,7 @@ export interface AccessOverview {
 }
 
 /** "screened" just means it passed the current deterministic rules, not that a human looked at it. */
-export type SightingStatus = 'screened' | 'removed' | 'removal_reported'
+export type SightingStatus = 'screened' | 'removed' | 'removal_reported' | 'withdrawn'
 export type ReportStatus =
   | 'processing'
   | 'screened'
@@ -298,6 +298,14 @@ export interface RemovalReportResponse {
   removalReportedAt: string
   accuracyM: number
   distanceM: number
+}
+
+export interface WithdrawalReportResponse {
+  reportId: string
+  sightingId: string
+  status: 'withdrawn'
+  withdrawnAt: string
+  reason: string
 }
 
 export interface AdoptionMetrics {

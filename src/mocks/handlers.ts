@@ -1038,7 +1038,11 @@ export const handlers = [
     if (!hasActiveSession(request)) {
       return HttpResponse.json({ detail: 'API session unavailable' }, { status: 401 })
     }
-    return HttpResponse.json({ items: mockReports })
+    // Newest-first, matching the backend's created_at DESC order for /mine.
+    const orderedReports = [...mockReports].sort(
+      (a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime(),
+    )
+    return HttpResponse.json({ items: orderedReports })
   }),
 
   http.get(url('/api/v1/reports/:id'), ({ params, request }) => {
@@ -1104,6 +1108,34 @@ export const handlers = [
     sighting.status = 'removal_reported'
     sighting.removalReportedAt = response.removalReportedAt
     return HttpResponse.json(response)
+  }),
+
+  // UT-10: withdraw an accidental published report. The sighting is flagged
+  // 'withdrawn' (so it drops off the public map) but the report row and its
+  // history are preserved - nothing is silently deleted.
+  http.post(url('/api/v1/reports/:id/withdrawal'), async ({ params, request }) => {
+    const session = sessionForRequest(request)
+    if (!session) return sessionUnavailable()
+    const report = findReport(params.id as string)
+    if (!report) {
+      return HttpResponse.json({ detail: 'Not found' }, { status: 404 })
+    }
+    if (!report.sightingId || !['screened', 'merged'].includes(report.status)) {
+      return HttpResponse.json({
+        code: 'withdrawal_not_available',
+        detail: 'Only a published report can be withdrawn. Unsubmitted reports can be deleted directly.',
+      }, { status: 409 })
+    }
+    const body = (await request.json().catch(() => ({}))) as { reason?: string }
+    const sighting = SIGHTINGS.find((item) => item.id === report.sightingId)
+    if (sighting) sighting.status = 'withdrawn'
+    return HttpResponse.json({
+      reportId: report.id,
+      sightingId: report.sightingId,
+      status: 'withdrawn' as const,
+      withdrawnAt: new Date().toISOString(),
+      reason: (body.reason ?? '').slice(0, 300),
+    })
   }),
 
   http.get(url('/api/v1/places/at-location'), ({ request }) => {
@@ -1350,7 +1382,8 @@ export const handlers = [
     const statusFilter = params.getAll('status')
     const riskFilter = params.getAll('risk')
     const search = params.get('q')?.trim().toLowerCase() ?? ''
-    let items = SIGHTINGS
+    // Withdrawn sightings are kept for audit but never shown on the public map.
+    let items = SIGHTINGS.filter((s) => s.status !== 'withdrawn')
     if (speciesFilter.length) items = items.filter((s) => speciesFilter.includes(s.speciesId))
     if (statusFilter.length) items = items.filter((s) => statusFilter.includes(s.status))
     if (riskFilter.length) items = items.filter((s) => riskFilter.includes(s.risk))
@@ -1716,6 +1749,7 @@ const RECOMMENDED_ACTION: Record<string, string> = {
   rejected: 'Duplicate evidence was rejected. No new map record was created.',
   removed: 'Removal recorded. Recheck for regrowth in 2-3 weeks.',
   removal_reported: 'A community member reported removal. This has not been expert validated.',
+  withdrawn: 'The reporter withdrew this report. It is kept for review but not shown on the public map.',
 }
 
 /** Bukit Kiara centre point - sample sightings get scattered within roughly 1km of this. */

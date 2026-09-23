@@ -89,6 +89,23 @@ ALTERNATE_JPEG = alternate_jpeg()
 ALTERNATE_CROP_JPEG = alternate_jpeg(crop=True)
 
 
+def make_unique_photo() -> bytes:
+    """A fresh random JPEG (both bytes and perceptual content) so a run does not
+    collide with an earlier photo on the exact- or perceptual-hash duplicate
+    paths."""
+    seed = uuid.uuid4().int
+    image = seeded_background(seed)
+    draw = ImageDraw.Draw(image)
+    for index in range(0, 640, 32):
+        draw.ellipse(
+            (index, 40 + (seed % 100), index + 60, 200 + (seed % 100)),
+            fill=((seed >> 8) & 0xFF, (seed >> 16) & 0xFF, 90),
+        )
+    buf = BytesIO()
+    image.save(buf, format="JPEG", quality=90)
+    return buf.getvalue()
+
+
 def installation_token() -> str:
     return base64.urlsafe_b64encode(os.urandom(32)).decode().rstrip("=")
 
@@ -571,6 +588,72 @@ def test_scan_report_publish_sighting_end_to_end() -> None:
         assert public_after["status"] == "removal_reported"
         assert public_after["removalReportedAt"] == removal["removalReportedAt"]
         assert not {"actingProfileId", "accuracyM", "distanceM"} & public_after.keys()
+
+
+def test_report_withdrawal_hides_sighting_but_keeps_the_report() -> None:
+    """UT-10 - a reporter can withdraw an accidental *published* report against
+    the real stack. The linked sighting must leave the public feed while the
+    report row (its private record and audit trail) is preserved. Withdrawal is
+    idempotent.
+    """
+    with httpx.Client(base_url=BASE_URL, timeout=15) as client:
+        started = assert_ok(
+            client.post(
+                "/api/v1/profiles/start",
+                json={"installationToken": installation_token()},
+            )
+        ).json()
+        token = started["accessToken"]
+
+        report = create_report(
+            client,
+            token,
+            key=f"e2e-withdraw-{uuid.uuid4().hex}",
+            lat=RUN_LATITUDE + 0.0011,
+            lng=RUN_LONGITUDE + 0.0011,
+            photo=make_unique_photo(),
+        )
+        resolved = wait_for_resolution(client, token, report["id"])
+        assert resolved["status"] == "screened", resolved
+        sighting_id = resolved["sightingId"]
+        assert sighting_id, "screened report must expose its sightingId"
+
+        # Baseline: the published sighting is on the public feed.
+        listing = assert_ok(client.get("/api/v1/sightings")).json()
+        assert sighting_id in {item["id"] for item in listing["items"]}
+
+        withdrawal = assert_ok(
+            client.post(
+                f"/api/v1/reports/{report['id']}/withdrawal",
+                headers=auth(token),
+                json={"reason": "I misidentified the plant"},
+            )
+        ).json()
+        assert withdrawal["status"] == "withdrawn"
+        assert withdrawal["sightingId"] == sighting_id
+        assert withdrawal["reason"] == "I misidentified the plant"
+
+        # The sighting is gone from the public feed (not silently deleted -
+        # the row still exists, just no longer public).
+        after = assert_ok(client.get("/api/v1/sightings")).json()
+        assert sighting_id not in {item["id"] for item in after["items"]}
+
+        # The reporter's own record is preserved for audit.
+        mine = assert_ok(
+            client.get("/api/v1/reports/mine", headers=auth(token))
+        ).json()
+        assert report["id"] in {item["id"] for item in mine["items"]}
+
+        # Idempotent: a second withdrawal returns the same withdrawn state.
+        repeated = assert_ok(
+            client.post(
+                f"/api/v1/reports/{report['id']}/withdrawal",
+                headers=auth(token),
+                json={"reason": "again"},
+            )
+        ).json()
+        assert repeated["status"] == "withdrawn"
+        assert repeated["sightingId"] == sighting_id
 
 
 def test_report_cannot_swap_species_or_confidence_from_scan() -> None:

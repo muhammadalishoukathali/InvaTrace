@@ -465,14 +465,24 @@ export function ScanCapturePage() {
           {cameraError && (
             <div className="scan-capture__camera-error" role="alert">
               <p>{cameraError}</p>
-              <button
-                type="button"
-                onClick={() => cameraRef.current?.click()}
-                className="scan-capture__camera-fallback"
-              >
-                <Icon name="Camera" size={16} color="var(--ink)" />
-                Use device camera app
-              </button>
+              <div className="scan-capture__camera-fallbacks">
+                <button
+                  type="button"
+                  onClick={() => cameraRef.current?.click()}
+                  className="scan-capture__camera-fallback"
+                >
+                  <Icon name="Camera" size={16} color="var(--ink)" />
+                  Use device camera app
+                </button>
+                <button
+                  type="button"
+                  onClick={() => { captureScanLocation(); galleryRef.current?.click() }}
+                  className="scan-capture__camera-fallback"
+                >
+                  <Icon name="ImagePlus" size={16} color="var(--green)" />
+                  Choose from library
+                </button>
+              </div>
             </div>
           )}
 
