@@ -67,9 +67,26 @@ The retest scope is now a single command, `npm run test:e2e:retest`
 
 ### Model accuracy (measurement only — not a UT finding)
 
-Ran the `known-species-harness` (clean catalogue photos, real classifier) to
-quantify the misidentification seen during live testing. Best-case top-1 was
-**4/7**; notable misses were Mikania→Siam weed and, safety-relevant,
-*Dicranopteris* (native fern) → Leucaena (invasive). Top-1 picks the wrong
-class, so this is a **model-quality / retraining** item, not confidence-threshold
-tuning — tracked separately, out of the usability-findings scope.
+Note: the documented model finding (UT-01) was scan *reliability* — timeouts and
+verification failures — which is fixed. Raw *accuracy* is not a findings item;
+this is an extra check.
+
+Ran the `known-species-harness` (clean catalogue photos, real Student33
+classifier). An initial reading of "4/7" was **wrong**: two of the seven images
+(*Dicranopteris linearis*, *Ageratum conyzoides*) are **not among the model's 33
+classes**, so the closed-set model cannot output them — counting them as misses
+was a test-set error. On the five in-vocabulary species the result is **4/5**;
+the only genuine miss is Mikania micrantha → Chromolaena odorata (Siam weed), two
+white-flowered scrambling Asteraceae that are easy to confuse. It surfaces as a
+*confident* wrong species, but both are invasives whose guidance is the same
+conservative "report, do not remove", so the safety action is unchanged.
+
+Verified there is **no code defect**: the output-index → species mapping matches
+between `student33_class_map.json` (what the model was trained on) and
+`student33_species.json` (32/33 identical; index 23 differs only by synonym,
+Pennisetum polystachyon = Cenchrus setosus), and preprocessing follows the
+runtime manifest. Improving accuracy further is therefore a deliberate effort —
+threshold/temperature tuning (a UX trade-off needing the confidence distribution
+and an eval pass) or retraining — not a safe one-line change, so the model is
+left untouched here. Native-plant inputs (out of vocabulary) are handled by the
+Unknown class + confidence thresholds rather than a per-species rule.
