@@ -86,6 +86,14 @@ export function RecoveryKitSetupPage() {
           <span className="secret-badge">Keep private</span>
         </div>
 
+        <PrivateAccessNotice tone="info" title="Why this matters">
+          InvaTrace has no email or phone number for you, so this kit is the only
+          way to get back into your private profile if you switch to another
+          device or clear this browser. You only need a code when moving devices
+          or restoring access — not for everyday reporting. Save it once now and
+          keep it somewhere private.
+        </PrivateAccessNotice>
+
         {syncMessage && (
           <PrivateAccessNotice tone="warning" title="Recovery setup needs attention" live>{syncMessage}</PrivateAccessNotice>
         )}
