@@ -254,7 +254,11 @@ export function MyReportsPage() {
 
 function ScanHistoryRow({ scan }: { scan: ScanHistoryRecord }) {
   const names = resolveNames(scan.speciesId, scan.speciesName, scan.scientificName)
-  const name = names.common
+  // The map-state label and aria-labels keep the name recorded at scan time so
+  // the map marker and saved-record dialog stay identified consistently with
+  // the rest of the map; the visible row shows the richer common+scientific
+  // pair (UT-09).
+  const name = scan.speciesName ?? scan.scientificName ?? speciesName(scan.speciesId)
   const place = locationLabel(scan.location)
   const status = scan.submission?.status === 'queued'
     ? 'Waiting to upload'
@@ -308,7 +312,9 @@ function ScanHistoryRow({ scan }: { scan: ScanHistoryRecord }) {
 function ReportRow({ report }: { report: Report }) {
   const status = STATUS_COPY[report.status]
   const names = resolveNames(report.submission.speciesId)
-  const name = names.common
+  // Stable identifier for the map-state label + aria-labels (unchanged from
+  // before); the visible row shows the common+scientific pair (UT-09).
+  const name = speciesName(report.submission.speciesId)
   const place = locationLabel(report.submission.location)
   const mapHref = report.sightingId ? `/map?sighting=${encodeURIComponent(report.sightingId)}` : '/map'
   const mapState = report.sightingId
