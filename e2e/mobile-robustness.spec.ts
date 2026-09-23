@@ -50,3 +50,34 @@ test('mobile scan stops the camera on interruption and stays within the viewport
   expect(state.trackStates).toEqual(['ended'])
   expect(state.documentWidth).toBeLessThanOrEqual(state.viewportWidth)
 })
+
+// UT-02: when the camera cannot provide a usable image, the user must not be
+// stuck - they get a clear error and an obvious gallery fallback, and a photo
+// picked from the library still flows through to a usable, large preview.
+test('a failed camera offers a gallery fallback that produces a usable preview', async ({ page }) => {
+  await page.addInitScript(() => {
+    Object.defineProperty(navigator.mediaDevices, 'getUserMedia', {
+      configurable: true,
+      value: async () => {
+        throw new DOMException('Permission denied', 'NotAllowedError')
+      },
+    })
+  })
+  await startPrivateAccess(page)
+  await page.goto('/scan')
+
+  // The camera fails to start, so the error and its fallbacks appear.
+  await page.getByRole('button', { name: 'Open camera' }).click()
+  const cameraError = page.getByRole('alert')
+  await expect(cameraError).toContainText('Camera access was unavailable')
+  await expect(cameraError.getByRole('button', { name: 'Choose from library' })).toBeVisible()
+
+  // Falling back to a library photo still reaches a usable, checked preview.
+  await page.locator('input[aria-label="Choose photo from gallery"]').setInputFiles(
+    'public/reference-images/mikania-micrantha.jpg',
+  )
+  await expect(page.getByText('Photo quality check passed')).toBeVisible({ timeout: 5000 })
+  await expect(page.getByRole('button', { name: /Analyse plant/ })).toBeVisible()
+  const previewBox = await page.locator('.scan-capture__preview img[alt="Captured plant"]').boundingBox()
+  expect(previewBox?.height ?? 0).toBeGreaterThan(200)
+})

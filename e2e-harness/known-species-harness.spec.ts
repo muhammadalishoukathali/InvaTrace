@@ -36,7 +36,7 @@ function appendResult(row: Record<string, unknown>) {
 async function preparePage(page: Page) {
   await page.goto('http://localhost:5174/')
   await page.getByRole('button', { name: /Start privately/i }).click()
-  await expect(page.getByRole('heading', { name: /Save your recovery information/i })).toBeVisible({ timeout: 15_000 })
+  await expect(page.getByRole('heading', { name: /Save your recovery kit/i })).toBeVisible({ timeout: 15_000 })
   await page.evaluate(() => document.querySelector<HTMLInputElement>('input[type=checkbox]')?.click())
   await page.getByRole('button', { name: /Continue to InvaTrace/i }).click()
   await expect(page).toHaveURL(/\/map/, { timeout: 15_000 })

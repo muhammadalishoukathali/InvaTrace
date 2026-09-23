@@ -44,4 +44,32 @@ suite, including the iteration-2 usability guards).
 
 - **UT-07 images** — sourcing licensed reviewed look-alike photos and populating
   each species' `nativeTwin` is a content/licensing pass; the UI handles the
-  missing-image case honestly in the meantime.
+  missing-image case honestly in the meantime. Backlog + process:
+  [ut07-native-twin-backlog.md](ut07-native-twin-backlog.md).
+
+## Follow-up: automated retest coverage (later on 2026-09-23)
+
+The retest scope is now a single command, `npm run test:e2e:retest`
+(dev-mock journeys + the built-PWA offline suite):
+
+- **UT-10 withdrawal, UI end to end** — new e2e in `e2e/happy-path.spec.ts`:
+  scan → report → publish → withdraw → the sighting drops off `/sightings`
+  while the report is kept in `/reports/mine`. (The live UI click was blocked
+  only by a browser geolocation-permission wall; Playwright mocks the fix, so
+  this now runs headlessly. Backend already covered by `test_full_stack.py`.)
+- **UT-02 camera fallback** — new e2e in `e2e/mobile-robustness.spec.ts`: a
+  failed `getUserMedia` shows the error + gallery fallback, and a library photo
+  reaches a usable large preview. Real multi-device camera QA stays manual:
+  [ut02-camera-device-checklist.md](ut02-camera-device-checklist.md).
+- **UT-11 offline** — `npm run test:e2e:pwa` covers install, offline shell,
+  download, update, keep-on-failed-replace, and removal. Green.
+- Result: `test:e2e:retest` → 13 passed (dev journeys) + 2 passed (offline).
+
+### Model accuracy (measurement only — not a UT finding)
+
+Ran the `known-species-harness` (clean catalogue photos, real classifier) to
+quantify the misidentification seen during live testing. Best-case top-1 was
+**4/7**; notable misses were Mikania→Siam weed and, safety-relevant,
+*Dicranopteris* (native fern) → Leucaena (invasive). Top-1 picks the wrong
+class, so this is a **model-quality / retraining** item, not confidence-threshold
+tuning — tracked separately, out of the usability-findings scope.
