@@ -8,6 +8,7 @@
 import { useEffect, useRef, useState } from 'react'
 import { Link, useParams } from 'react-router-dom'
 import { Icon } from '@/components/Icon'
+import { BackLink } from '@/components/BackLink'
 import { useOnline } from '@/hooks/useOnline'
 import {
   approvedCatalogueAssetForSpecies,
@@ -58,7 +59,7 @@ export function CatalogueDetailPage() {
     return (
       <section className="catalogue-detail catalogue-empty" role="alert">
         <strong>Catalogue plant not found.</strong>
-        <Link to="/catalogue">Back to catalogue</Link>
+        <BackLink to="/catalogue">Back to catalogue</BackLink>
       </section>
     )
   }
@@ -67,7 +68,7 @@ export function CatalogueDetailPage() {
     return (
       <section className="catalogue-detail catalogue-empty" role="alert">
         <strong>Reviewed catalogue detail is unavailable.</strong>
-        <Link to="/catalogue">Back to catalogue</Link>
+        <BackLink to="/catalogue">Back to catalogue</BackLink>
       </section>
     )
   }
@@ -89,9 +90,7 @@ export function CatalogueDetailPage() {
           <span>Last reviewed {dataset.reviewed_at}. Current map and place data need a connection.</span>
         </div>
       )}
-      <Link to="/catalogue" className="catalogue-detail__back">
-        <Icon name="ChevronLeft" size={17} color="currentColor" /> Back to catalogue
-      </Link>
+      <BackLink to="/catalogue">Back to catalogue</BackLink>
       <header className="catalogue-detail__header">
         <div className="catalogue-detail__media">
           {image ? (
@@ -143,6 +142,12 @@ export function CatalogueDetailPage() {
             <ImageAttribution attribution={image} />
           ) : <p>Reference image unavailable pending reviewed attribution.</p>}
           <p>Catalogue v{dataset.catalogue_version} · last reviewed {detail.reviewed_at}</p>
+        </section>
+        <section className="catalogue-detail__places">
+          <h3>Where it is recorded</h3>
+          <p>Browse mapped parks, forests and trails to see historical occurrence
+            associations for invasive plants like this one.</p>
+          <Link to="/places">Browse mapped places</Link>
         </section>
       </div>
     </article>

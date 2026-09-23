@@ -2,7 +2,7 @@ import { useState } from 'react'
 import { useMutation, useQuery } from '@tanstack/react-query'
 import { Link, useNavigate, useParams } from 'react-router-dom'
 import { api, ApiError } from '@/services/api-client'
-import type { PlaceDetail, RemovalReportResponse, Report, ReportStatus, SightingDetail } from '@/types'
+import type { PlaceDetail, RemovalReportResponse, Report, ReportStatus, SightingDetail, WithdrawalReportResponse } from '@/types'
 import { usePrivateAccess } from '@/features/private-access/private-access-store'
 import { LOCATION_ACCURACY_INSUFFICIENT_MESSAGE } from './gps-policy'
 import './report-tracking.css'
@@ -66,6 +66,7 @@ export function ReportTrackingPage() {
   } | null>(null)
   const [locationError, setLocationError] = useState<string | null>(null)
   const [adoptionDismissed, setAdoptionDismissed] = useState(false)
+  const [withdrawReason, setWithdrawReason] = useState('')
   const query = useQuery({
     queryKey: ['report', profileId, reportId],
     queryFn: () => api<Report>(`/api/v1/reports/${reportId}`),
@@ -92,6 +93,16 @@ export function ReportTrackingPage() {
       },
     ),
     onSuccess: () => void sighting.refetch(),
+  })
+  // UT-10: a controlled way to withdraw an accidental *published* report. It
+  // removes the sighting from the public map but keeps the report and its audit
+  // history for review - it never silently deletes community evidence.
+  const withdrawal = useMutation({
+    mutationFn: (reason: string) => api<WithdrawalReportResponse>(
+      `/api/v1/reports/${reportId}/withdrawal`,
+      { method: 'POST', body: JSON.stringify({ reason }) },
+    ),
+    onSuccess: () => { void sighting.refetch(); void query.refetch() },
   })
   const adoptionPlace = useQuery({
     queryKey: ['report-adoption-place', reportId, query.data?.submission.location],
@@ -267,6 +278,54 @@ export function ReportTrackingPage() {
                 {(locationError || removal.isError) && (
                   <p className="report-tracking__removal-error" role="alert">
                     {locationError ?? removalErrorMessage(removal.error)}
+                  </p>
+                )}
+              </>
+            )}
+          </section>
+        )}
+
+        {(report.status === 'screened' || report.status === 'merged')
+          && report.sightingId && (
+          <section className="report-tracking__withdraw" aria-labelledby="withdraw-report-heading">
+            <h2 id="withdraw-report-heading">Reported this by mistake?</h2>
+            {withdrawal.data || sighting.data?.status === 'withdrawn' ? (
+              <p className="report-tracking__withdraw-success" role="status">
+                Withdrawal recorded. This report no longer appears on the public map.
+                Your original report and its history are kept for review.
+              </p>
+            ) : (
+              <>
+                <p>
+                  Request withdrawal to take this report off the public map. Your
+                  report and its history are kept for review — community evidence
+                  is never silently deleted.
+                </p>
+                <label className="report-tracking__withdraw-label">
+                  Reason (optional)
+                  <textarea
+                    value={withdrawReason}
+                    onChange={(event) => setWithdrawReason(event.target.value)}
+                    maxLength={300}
+                    rows={2}
+                    placeholder="e.g. I misidentified the plant"
+                  />
+                </label>
+                <button
+                  type="button"
+                  className="report-tracking__withdraw-button"
+                  onClick={() => {
+                    if (window.confirm('Withdraw this report from the public map? Your report history is kept for review.')) {
+                      withdrawal.mutate(withdrawReason.trim())
+                    }
+                  }}
+                  disabled={withdrawal.isPending}
+                >
+                  {withdrawal.isPending ? 'Submitting…' : 'Request withdrawal'}
+                </button>
+                {withdrawal.isError && (
+                  <p className="report-tracking__removal-error" role="alert">
+                    The withdrawal could not be submitted. Check the connection and try again.
                   </p>
                 )}
               </>

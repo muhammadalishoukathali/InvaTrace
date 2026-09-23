@@ -94,7 +94,7 @@ export function AdoptedAreasPage() {
             <h4>{area.metricsLabel}</h4>
             <dl className="areas-metrics">
               <Metric label="Active reports" value={area.metrics.activeReports} />
-              <Metric label="Approved species" value={area.metrics.distinctApprovedSpecies} />
+              <Metric label="Supported invasive plants" value={area.metrics.distinctApprovedSpecies} />
               <Metric label="New in 30 days" value={area.metrics.newReportsLast30Days} />
               <Metric label="Removal reports in 30 days" value={area.metrics.removalReportsLast30Days} />
               <Metric

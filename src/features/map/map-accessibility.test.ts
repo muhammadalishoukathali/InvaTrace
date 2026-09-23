@@ -5,8 +5,8 @@ import { fileURLToPath, URL } from 'node:url'
 // AC Iteration 1 P9 - the visual map is inert for non-sighted / keyboard-only
 // users. These tests pin the accessible-fallback contract with the ThreatMapPage
 // and MapFilters source so a future refactor cannot silently remove the
-// role="application" label, the always-rendered sr-only mirror list, or the
-// semantic filter groupings.
+// role="application" label, the always-rendered reports mirror list (now a
+// visible collapsible panel, UT-13), or the semantic filter groupings.
 
 const threatMap = readFileSync(
   fileURLToPath(new URL('./ThreatMapPage.tsx', import.meta.url)),
@@ -138,7 +138,7 @@ describe('AC 4.2.3 species filter and accessible fallback', () => {
     expect(threatMap).toContain('filtersActive > 0')
   })
 
-  it('the sr-only list restates the current filtered count for AT users', () => {
+  it('the reports list restates the current filtered count for AT users', () => {
     const body = threatMap.split('function AccessibleSightingList(')[1]
       ?.split('\n}\n')[0] ?? ''
     // Same wording the mentor's acceptance script looks for; either the

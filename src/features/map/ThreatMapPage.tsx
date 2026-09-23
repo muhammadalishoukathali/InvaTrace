@@ -38,6 +38,7 @@ import { MapLegend } from './MapLegend'
 import { Icon } from '@/components/Icon'
 import { parseMapLocationTarget, type MapLocationTarget } from './map-location-link'
 import { PLACE_ICONS, PLACE_TYPES, formatPlaceType, loadSvgImage } from './place-icons'
+import { BASEMAP_ATTRIBUTION, BASEMAP_FONT, BASEMAP_STYLE } from './basemap'
 
 // Point MapLibre at its worker file ourselves. If we don't, it tries to
 // guess a URL that sits next to Vite's optimized dep file in dev, and the
@@ -54,32 +55,6 @@ const MY_BOUNDS: [[number, number], [number, number]] = [
   [99.3, 0.8],   // South-west corner.
   [119.5, 7.5],  // North-east corner.
 ]
-
-/** We keep the tile provider in an env var so that later (if we ever move
- *  past FYP demo) we can switch to a keyed provider like MapTiler or Stadia
- *  without touching code. OSM's shared tiles are rate-limited and not really
- *  meant for production, so this gives us an escape hatch. Set
- *  VITE_MAP_TILE_URL and VITE_MAP_TILE_ATTRIBUTION in .env to override. */
-const TILE_URL =
-  (import.meta.env.VITE_MAP_TILE_URL as string | undefined) ??
-  'https://tile.openstreetmap.org/{z}/{x}/{y}.png'
-const TILE_ATTRIBUTION =
-  (import.meta.env.VITE_MAP_TILE_ATTRIBUTION as string | undefined) ??
-  '© <a href="https://openstreetmap.org/copyright" target="_blank" rel="noopener">OpenStreetMap contributors</a>'
-
-const STYLE_URL: maplibregl.StyleSpecification = {
-  version: 8,
-  sources: {
-    'basemap-src': {
-      type: 'raster',
-      tiles: [TILE_URL],
-      tileSize: 256,
-      maxzoom: 19,
-      attribution: TILE_ATTRIBUTION,
-    },
-  },
-  layers: [{ id: 'basemap', type: 'raster', source: 'basemap-src' }],
-}
 
 const PLACE_SOURCE_ID = 'mapped-places'
 const PLACE_LAYER_IDS = [
@@ -308,7 +283,7 @@ export function ThreatMapPage() {
     if (!container.current || map.current) return
     const m = new maplibregl.Map({
       container: container.current,
-      style: STYLE_URL,
+      style: BASEMAP_STYLE,
       center: CENTRE,
       zoom: isDesktop ? INITIAL_ZOOM : INITIAL_ZOOM_MOBILE,
       minZoom: 6,
@@ -426,7 +401,7 @@ export function ThreatMapPage() {
         type: 'symbol',
         source: PLACE_SOURCE_ID,
         filter: ['has', 'point_count'],
-        layout: { 'text-field': ['get', 'point_count_abbreviated'], 'text-size': 12 },
+        layout: { 'text-field': ['get', 'point_count_abbreviated'], 'text-font': BASEMAP_FONT, 'text-size': 12 },
         paint: { 'text-color': '#FFFFFF' },
       })
       // A coloured circle remains underneath each icon. Besides increasing
@@ -751,13 +726,18 @@ export function ThreatMapPage() {
           <Icon name="Trees" size={17} color="currentColor" />
           {showPlaces ? 'Hide places' : 'Show places'}
         </button>
-        {showPlaces && (placesLoading || placesError || placeData.truncated) && (
+        {showPlaces && (placesLoading || placesError || placeData.truncated || placeData.features.length === 0) && (
           <div className="map-places-status" role={placesError ? 'alert' : 'status'} aria-live="polite">
             {placesLoading
               ? 'Loading places in this view…'
               : placesError
                 ? 'Mapped places could not load for this view.'
-                : `Showing the first ${placeData.maxResults.toLocaleString()} places in this view. Zoom in for complete results.`}
+                : placeData.truncated
+                  ? `Showing the first ${placeData.maxResults.toLocaleString()} places in this view. Zoom in for complete results.`
+                  // An empty result is not the same as a broken map. Say the
+                  // area simply has no mapped evidence so it doesn't read as a
+                  // failure (UT-08).
+                  : 'No mapped places in this view yet. Pan the map or zoom out to find nearby parks, forests and trails.'}
           </div>
         )}
         {selectedPlace && (
@@ -929,10 +909,10 @@ function formatSavedRecordTime(iso: string): string {
 }
 
 /**
- * Small OpenStreetMap credit chip. Sits in a corner where it won't get
+ * Small basemap credit chip. Sits in a corner where it won't get
  * covered by the scan button on mobile, and stays above the MapLibre
- * nav buttons on desktop. We have to keep OSM attribution visible per
- * their licence, so this needs to always be there.
+ * nav buttons on desktop. We have to keep OSM (and tile provider)
+ * attribution visible per their licences, so this needs to always be there.
  */
 function MapAttribution() {
   return (
@@ -941,18 +921,19 @@ function MapAttribution() {
       target="_blank"
       rel="noopener noreferrer"
       className="map-attribution"
-      aria-label="OpenStreetMap contributors - data license"
+      aria-label={`${BASEMAP_ATTRIBUTION} - data license`}
     >
-      © OpenStreetMap contributors
+      {BASEMAP_ATTRIBUTION}
     </a>
   )
 }
 
 /**
- * The screen-reader-only mirror of the map pins. Every marker gets a
- * matching list item, so someone using a screen reader or just tabbing
- * with the keyboard can still open the report details without ever
- * needing to interact with the actual map canvas.
+ * The community reports list that sits below the map. It mirrors every pin as a
+ * plain list item, so it works for screen-reader and keyboard users without
+ * touching the map canvas - and, since usability testers looking for "the
+ * reports list below the map" could not find a screen-reader-only one (UT-13),
+ * it is now a visible, collapsible panel too. One accessible list serves both.
  */
 function AccessibleSightingList({
   items, onSelect, isLoading, isError, onRetry,
@@ -963,52 +944,63 @@ function AccessibleSightingList({
   isError: boolean
   onRetry: () => void
 }) {
-  // The accessible fallback has to render in loading and error states too,
-  // not just when data arrives. Otherwise a screen reader user who hit a
-  // network error would have literally nothing to interact with - the map
-  // canvas doesn't help them at all. Came from the accessibility review.
+  const summary = isLoading
+    ? 'Community reports · loading…'
+    : isError
+      ? 'Community reports · could not load'
+      : `Community reports · ${items.length}`
+  // The list has to render in loading and error states too, not just when data
+  // arrives - otherwise a keyboard or screen-reader user who hit a network
+  // error would have nothing to interact with, since the map canvas doesn't
+  // help them. Came from the accessibility review.
   return (
-    <section aria-label="Community reports list" className="sr-only">
-      {isLoading && <p role="status">Loading community reports…</p>}
-      {isError && (
-        <p role="alert">
-          Community reports could not load.{' '}
-          <button type="button" onClick={onRetry}>Try again</button>
-        </p>
-      )}
-      {!isLoading && !isError && (
-        <>
-          <p>
-            {items.length === 0
-              ? 'No community reports match the current filters.'
-              : `${items.length} community report${items.length === 1 ? '' : 's'} match the current filters.`}
-          </p>
-          {items.length > 0 && (
-            <ul>
-              {items.map((s) => {
-                const statusLabel = s.status === 'screened'
-                  ? 'Community report - not expert validated'
-                  : s.status === 'removal_reported' ? 'Removal reported' : 'Removed'
-                const statusDate = s.status === 'removal_reported'
-                  ? ` on ${formatStatusDate(s.removalReportedAt ?? s.lastReportedAt)}`
-                  : ''
-                const tierLabel = PIN_TIERS[pinTier(s)].label
-                return (
-                  <li key={s.id}>
-                    <button type="button" onClick={() => onSelect(s.id)}>
-                      {s.speciesName} ({s.latinName}) - {tierLabel} - {statusLabel}{statusDate}
-                      {' - '}
-                      {s.place.source === 'fallback' || !s.place.displayName
-                        ? 'No named trail, park or forest found nearby'
-                        : s.place.displayName}
-                    </button>
-                  </li>
-                )
-              })}
-            </ul>
+    <section aria-label="Community reports list" className="map-reports-panel">
+      <details open>
+        <summary className="map-reports-panel__summary">{summary}</summary>
+        <div className="map-reports-panel__body">
+          {isLoading && <p role="status">Loading community reports…</p>}
+          {isError && (
+            <p role="alert">
+              Community reports could not load.{' '}
+              <button type="button" onClick={onRetry}>Try again</button>
+            </p>
           )}
-        </>
-      )}
+          {!isLoading && !isError && (
+            <>
+              <p className="map-reports-panel__count">
+                {items.length === 0
+                  ? 'No community reports match the current filters.'
+                  : `${items.length} community report${items.length === 1 ? '' : 's'} match the current filters.`}
+              </p>
+              {items.length > 0 && (
+                <ul className="map-reports-panel__list">
+                  {items.map((s) => {
+                    const statusLabel = s.status === 'screened'
+                      ? 'Community report - not expert validated'
+                      : s.status === 'removal_reported' ? 'Removal reported' : 'Removed'
+                    const statusDate = s.status === 'removal_reported'
+                      ? ` on ${formatStatusDate(s.removalReportedAt ?? s.lastReportedAt)}`
+                      : ''
+                    const tierLabel = PIN_TIERS[pinTier(s)].label
+                    const placeName = s.place.source === 'fallback' || !s.place.displayName
+                      ? 'No named trail, park or forest found nearby'
+                      : s.place.displayName
+                    return (
+                      <li key={s.id}>
+                        <button type="button" onClick={() => onSelect(s.id)} className="map-reports-panel__item">
+                          <span className="map-reports-panel__item-name">{s.speciesName} <i>({s.latinName})</i></span>
+                          <span className="map-reports-panel__item-meta">{tierLabel} · {statusLabel}{statusDate}</span>
+                          <span className="map-reports-panel__item-place">{placeName}</span>
+                        </button>
+                      </li>
+                    )
+                  })}
+                </ul>
+              )}
+            </>
+          )}
+        </div>
+      </details>
     </section>
   )
 }

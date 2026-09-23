@@ -640,7 +640,7 @@ class Sighting(Base):
     __tablename__ = "sightings"
     __table_args__ = (
         CheckConstraint(
-            "status IN ('candidate','screened','rejected','removed','removal_reported','merged')",
+            "status IN ('candidate','screened','rejected','removed','removal_reported','merged','withdrawn')",
             name="status",
         ),
         CheckConstraint("reporter_trust IN ('New','Trusted','Steward')", name="reporter_trust"),
