@@ -251,19 +251,19 @@ export function PlantGuidancePanel({
         </figure>
       )}
 
-      <Block title="About this plant" icon="Info">
+      <DetailsBlock title="About this plant" icon="Info">
         <p style={{ fontSize: 13.5, color: 'var(--body)', lineHeight: 1.6 }}>{plant.general_information}</p>
         <SourceLine ids={plant.general_information_source_ids} />
-      </Block>
+      </DetailsBlock>
 
-      <Block title="Check the match" icon="Info">
+      <DetailsBlock title="Check the match" icon="Info">
         <p style={{ fontSize: 13, color: 'var(--body)', lineHeight: 1.6 }}>
           {naturalIdentificationNote(plant.identification_note)}
         </p>
-      </Block>
+      </DetailsBlock>
 
       {plant.risk_flags.length > 0 && (
-        <Block title="Things to watch for" icon="AlertTriangle">
+        <DetailsBlock title="Things to watch for" icon="AlertTriangle">
           <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
             {plant.risk_flags.map((flag) => (
               <span
@@ -282,7 +282,7 @@ export function PlantGuidancePanel({
               </span>
             ))}
           </div>
-        </Block>
+        </DetailsBlock>
       )}
 
       {plant.actions && (
@@ -383,9 +383,9 @@ export function PlantGuidancePanel({
       )}
 
       {plant.follow_up.length > 0 && (
-        <Block title="Follow up" icon="Clock">
+        <DetailsBlock title="Follow up" icon="Clock">
           <SourcedList items={plant.follow_up} />
-        </Block>
+        </DetailsBlock>
       )}
 
       <SafetyPolicyFooter plant={plant} />
@@ -851,19 +851,22 @@ function ModeBanner({
   tone: 'info' | 'warn' | 'danger' | 'ok'
 }) {
   const style = TONE_STYLES[tone]
+  // This is the one thing a user in the field must read first, so it leads the
+  // panel as a prominent headline action rather than another small note - the
+  // detailed reading below is collapsed so it can't compete for attention.
   return (
     <div
       role="note"
       style={{
         marginTop: 12,
-        padding: '10px 14px',
-        borderRadius: 'var(--r-input)',
+        padding: '14px 16px',
+        borderRadius: 'var(--r-card)',
         background: style.bg,
-        border: `1px solid ${style.border}`,
+        border: `2px solid ${style.border}`,
       }}
     >
-      <div style={{ fontSize: 12.5, fontWeight: 700, color: style.color, letterSpacing: '0.02em' }}>{label}</div>
-      <p style={{ marginTop: 4, fontSize: 12.5, color: 'var(--body)', lineHeight: 1.55 }}>{help}</p>
+      <div style={{ fontSize: 16, fontWeight: 750, color: style.color, letterSpacing: '0.01em', lineHeight: 1.3 }}>{label}</div>
+      <p style={{ marginTop: 6, fontSize: 13.5, color: 'var(--body)', lineHeight: 1.55 }}>{help}</p>
     </div>
   )
 }
@@ -939,17 +942,17 @@ function ActionPathBlock({
 function SpreadPreventionBlock({ items }: { items: SourcedItem[] }) {
   if (items.length === 0) {
     return (
-      <Block title="Spread prevention" icon="ShieldCheck">
+      <DetailsBlock title="Spread prevention" icon="ShieldCheck">
         <p style={{ fontSize: 13, color: 'var(--body)', lineHeight: 1.6 }}>
           Do not disturb; report the sighting instead.
         </p>
-      </Block>
+      </DetailsBlock>
     )
   }
   return (
-    <Block title="Spread prevention" icon="ShieldCheck">
+    <DetailsBlock title="Spread prevention" icon="ShieldCheck">
       <SourcedList items={items} />
-    </Block>
+    </DetailsBlock>
   )
 }
 
@@ -973,6 +976,56 @@ function Block({
       </div>
       {children}
     </div>
+  )
+}
+
+// Collapsed-by-default variant of Block for the passive reading (about the
+// plant, identification caveats, watch-for flags, spread prevention, follow up).
+// Testers found the guidance "text heavy" because all of this competed with the
+// immediate action on one screen (UT-03); tucking each behind a labelled
+// disclosure keeps the detail one tap away without burying the action. It does
+// NOT wrap the interactive permission/stop-condition gates, which stay inline.
+function DetailsBlock({
+  title,
+  icon,
+  tone,
+  defaultOpen = false,
+  children,
+}: {
+  title: string
+  icon: string
+  tone?: 'info' | 'warn' | 'danger' | 'ok'
+  defaultOpen?: boolean
+  children: React.ReactNode
+}) {
+  const style = tone ? TONE_STYLES[tone] : TONE_STYLES.info
+  return (
+    <details
+      open={defaultOpen}
+      style={{
+        marginTop: 12,
+        padding: '10px 12px',
+        borderRadius: 'var(--r-input)',
+        background: 'var(--bg-alt)',
+        border: '1px solid var(--border)',
+      }}
+    >
+      <summary
+        style={{
+          cursor: 'pointer',
+          display: 'flex',
+          alignItems: 'center',
+          gap: 6,
+          fontSize: 13.5,
+          fontWeight: 650,
+          color: 'var(--body)',
+        }}
+      >
+        <Icon name={icon} size={16} color={style.color} />
+        {title}
+      </summary>
+      <div style={{ marginTop: 8 }}>{children}</div>
+    </details>
   )
 }
 
