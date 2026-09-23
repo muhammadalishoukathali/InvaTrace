@@ -7,7 +7,10 @@ import { installPrivateAccessConnectivity, usePrivateAccess } from '@/features/p
 import { flushQueue } from '@/features/report/report-queue'
 import { queryClient } from '@/services/query-client'
 import { installPwaUpdates } from '@/pwa-update'
+import { installStaleShellRecovery } from '@/stale-shell-recovery'
 import './styles/global.css'
+
+installStaleShellRecovery()
 
 async function start() {
   // Default to mocks in dev when the flag is unset so a fresh `npm run dev`
