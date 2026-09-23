@@ -603,10 +603,10 @@ export const handlers = [
       actionEligible: false,
       statusReviewedAt: null,
       traits: [],
-      nativeTwin: null,
       removalSteps: [],
       doNotDo: ['Detailed field guidance for this plant is not yet available in InvaTrace.'],
       ...detail,
+      nativeTwin: NATIVE_TWINS_MOCK[id] ?? (detail?.nativeTwin ?? null),
       id,
       name: approved.common_names[0],
       latinName: approved.scientific_name,
@@ -1938,6 +1938,36 @@ function publishReportSighting(report: Report): string {
 function removalReportIdForSighting(sightingId: string): string | null {
   if (sightingId.startsWith('report-')) return sightingId.slice('report-'.length)
   return SEEDED_REPORTS.find((report) => report.sightingId === sightingId)?.id ?? null
+}
+
+// UT-07 native look-alike pairings, mirroring backend seed.py NATIVE_TWINS so the
+// mock/demo/offline path shows the same reviewed twins as the real API. Each is
+// documented by an authoritative source and reviewed before shipping.
+const NATIVE_TWINS_MOCK: Record<string, unknown> = {
+  'limnocharis-flava': {
+    id: 'monochoria-vaginalis',
+    name: 'Monochoria',
+    latinName: 'Monochoria vaginalis',
+    distinguishingTraits: [
+      'Native Monochoria has rounded leaf stalks; invasive Limnocharis has three-angled (trigonous) petioles.',
+      'Monochoria leaf blades are oval to egg-shaped with pointed tips; Limnocharis blades are broad and rounded with blunt tips.',
+      'Monochoria flowers are dark blue to purple; Limnocharis flowers are yellow.',
+    ],
+    referenceImageUrl: '/reference-images/monochoria_vaginalis.jpg',
+    referenceImageCredit: 'Wikimedia · Vinayaraj · CC BY-SA 3.0',
+  },
+  'mimosa-pigra': {
+    id: 'neptunia-oleracea',
+    name: 'Water mimosa',
+    latinName: 'Neptunia oleracea',
+    distinguishingTraits: [
+      'Water mimosa is a small creeping or floating herb; Mimosa pigra is a large erect shrub up to several metres tall.',
+      'Neptunia stems have no prickles; Mimosa pigra stems are prickly and bristly.',
+      'Neptunia has yellow flower heads and its pods stay whole, rather than breaking into one-seeded segments like Mimosa pigra.',
+    ],
+    referenceImageUrl: '/reference-images/neptunia_oleracea.jpg',
+    referenceImageCredit: 'Wikimedia · David J. Stang · CC BY-SA 4.0',
+  },
 }
 
 const SPECIES_DETAIL: Record<string, unknown> = {

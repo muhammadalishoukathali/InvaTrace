@@ -317,6 +317,43 @@ _GENERIC_INVASIVE_GUIDANCE = {
 }
 
 
+# UT-07 native look-alike pairings. Kept separate from the full field-guide
+# SPECIES entries so a reviewed look-alike can be attached to any species without
+# hand-authoring a whole detail block. Each pairing is documented by an
+# authoritative source and reviewed before shipping - a wrong native pairing
+# could get a native plant destroyed, so only documented confusions belong here.
+NATIVE_TWINS = {
+    # Limnocharis flava vs native Monochoria - Weeds of Australia "similar
+    # species" (keyserver.lucidcentral.org/weeds/.../limnocharis_flava.htm).
+    "limnocharis-flava": {
+        "id": "monochoria-vaginalis",
+        "name": "Monochoria",
+        "latinName": "Monochoria vaginalis",
+        "distinguishingTraits": [
+            "Native Monochoria has rounded leaf stalks; invasive Limnocharis has three-angled (trigonous) petioles.",
+            "Monochoria leaf blades are oval to egg-shaped with pointed tips; Limnocharis blades are broad and rounded with blunt tips.",
+            "Monochoria flowers are dark blue to purple; Limnocharis flowers are yellow.",
+        ],
+        "referenceImageUrl": "/reference-images/monochoria_vaginalis.jpg",
+        "referenceImageCredit": "Wikimedia · Vinayaraj · CC BY-SA 3.0",
+    },
+    # Mimosa pigra vs the benign, edible water mimosa - Weeds of Australia
+    # (sensitive-plant-common; mimosa_pigra.htm; neptunia_oleracea...htm).
+    "mimosa-pigra": {
+        "id": "neptunia-oleracea",
+        "name": "Water mimosa",
+        "latinName": "Neptunia oleracea",
+        "distinguishingTraits": [
+            "Water mimosa is a small creeping or floating herb; Mimosa pigra is a large erect shrub up to several metres tall.",
+            "Neptunia stems have no prickles; Mimosa pigra stems are prickly and bristly.",
+            "Neptunia has yellow flower heads and its pods stay whole, rather than breaking into one-seeded segments like Mimosa pigra.",
+        ],
+        "referenceImageUrl": "/reference-images/neptunia_oleracea.jpg",
+        "referenceImageCredit": "Wikimedia · David J. Stang · CC BY-SA 4.0",
+    },
+}
+
+
 def _apply_shared_catalogue_to_species_seed() -> None:
     """Rebuilds the SPECIES list at import time from the shared catalogue
     JSON - that file is where the Malaysian status actually lives, so I
@@ -354,6 +391,8 @@ def _apply_shared_catalogue_to_species_seed() -> None:
                 "action_guides": [],
             },
         )
+        if species_id in NATIVE_TWINS:
+            detail["native_twin"] = NATIVE_TWINS[species_id]
         catalog_source = record.evidence_source_ids[0]
         # AC Iteration 1 - status columns always come from the catalogue,
         # never from hand-written seed detail, so a catalogue change flows
