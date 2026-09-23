@@ -302,6 +302,21 @@ function TargetResult({
               caption="Native. Do not remove."
             />
           </div>
+          {!detail.nativeTwin.referenceImageUrl && (
+            <p
+              role="note"
+              style={{
+                marginTop: 10, padding: '10px 12px', borderRadius: 'var(--r-input)',
+                background: '#FFF9ED', border: '1px solid #E8C879',
+                fontSize: 12.5, color: 'var(--body)', lineHeight: 1.55,
+              }}
+            >
+              No reviewed reference photo of the native look-alike is available yet.
+              Use the written differences below to compare, and treat the match as
+              uncertain — if in doubt, photograph and report the plant without
+              removing it.
+            </p>
+          )}
           <ul style={{ marginTop: 10, paddingLeft: 18, fontSize: 13, color: 'var(--body)', lineHeight: 1.65 }}>
             {detail.nativeTwin.distinguishingTraits.map((trait) => <li key={trait}>{trait}</li>)}
           </ul>
@@ -337,7 +352,7 @@ function ComparisonCard({
           width: '100%', aspectRatio: '4 / 3',
           background: 'var(--surface)', display: 'flex', alignItems: 'center', justifyContent: 'center',
           color: 'var(--muted)', fontSize: 11,
-        }}>No reference photo</div>
+        }}>No reviewed photo yet</div>
       )}
       <div style={{ padding: '10px 11px' }}>
         <span style={{
