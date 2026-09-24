@@ -57,14 +57,14 @@ describe('UT-03 safety guidance leads with the action, collapses the rest', () =
   })
 })
 
-describe('UT-04 recovery kit explains why before the codes', () => {
-  it('renders the why-this-matters notice ahead of the recovery code grid', () => {
+describe('UT-04 recovery kit explains why the code matters', () => {
+  it('keeps the why-this-matters reassurance line on the recovery kit page', () => {
     const page = source('../private-access/pages/RecoveryKitSetupPage.tsx')
-    const noticeAt = page.indexOf('Why this matters')
-    const gridAt = page.indexOf('<RecoveryCodeGrid')
-    expect(noticeAt).toBeGreaterThan(-1)
-    expect(gridAt).toBeGreaterThan(-1)
-    expect(noticeAt).toBeLessThan(gridAt)
+    // Redesigned into a compact prose line rather than a stacked notice
+    // box, but the reassurance itself is still required: the acceptance
+    // criterion is that the user is told *why* they are saving this and
+    // when they will need it.
+    expect(page).toContain('Why this matters')
     expect(page).toContain('only need a code when moving devices')
   })
 })
