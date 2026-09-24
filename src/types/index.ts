@@ -62,7 +62,9 @@ export interface AuthorizedInstallation {
 
 export interface AccessOverview {
   profileId: string
-  unusedRecoveryCodeCount: number
+  /** Reusable recovery codes currently on file. Restores do not consume
+   *  a code, so this only changes when the user rotates them. */
+  recoveryCodeCount: number
   installations: AuthorizedInstallation[]
 }
 

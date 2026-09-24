@@ -1,11 +1,14 @@
 """Pseudonymous auth: installation tokens, recovery codes, and JWT sessions.
 
 InvaTrace has no email/password. A "profile" is created on first launch and
-identified by an opaque public id (IVT-XXXX-...); the app itself holds an
-installation token that proves it's talking to that profile, and recovery
-codes let someone re-link a profile on a new device if they lose the
-installation token. Nothing here is stored in plaintext - see keyed_hash.
-This module is what app/api/routers/* depend on for require_auth/require_admin.
+identified by a short 6-character alphanumeric public id (memorable enough
+that a user can speak or type it back without a file); the app itself holds an installation
+token that proves it's talking to that profile, and a small set of long-lived
+recovery codes let someone re-link a profile on a new device if they lose the
+installation token. Recovery codes are reusable so a user does not run out;
+they only stop working when explicitly rotated from the account screen.
+Nothing here is stored in plaintext - see keyed_hash. This module is what
+app/api/routers/* depend on for require_auth/require_admin.
 """
 
 from __future__ import annotations
@@ -73,8 +76,45 @@ def random_grouped_secret(byte_count: int = 16) -> str:
     return "-".join(output[index : index + 4] for index in range(0, len(output), 4))
 
 
+PROFILE_PUBLIC_ID_SUGGESTED_LENGTH = 6
+PROFILE_PUBLIC_ID_MIN_LENGTH = 4
+PROFILE_PUBLIC_ID_MAX_LENGTH = 12
+# Username-style: uppercase letters + digits from the shared Crockford
+# base32 alphabet (no 0/1/I/O/L). No hyphens, no punctuation. Chosen so a
+# user-picked id and a server-suggested id look and normalize the same
+# way, and so nothing about the id can be confused with a recovery code.
+_PUBLIC_ID_ALPHABET_SET = set(BASE32_ALPHABET)
+
+
 def new_profile_public_id() -> str:
-    return f"IVT-{random_grouped_secret(12)}"
+    """Random suggested profile id ("A3F8K2"), no hyphens.
+
+    Only a *suggestion* - the user can overwrite it on start or later via
+    the rename endpoint. Uniqueness is enforced by the DB unique index on
+    Profile.public_id plus a caller-side retry loop (see start_profile) -
+    on a collision we just try again with a different id.
+    """
+    return "".join(
+        secrets.choice(BASE32_ALPHABET) for _ in range(PROFILE_PUBLIC_ID_SUGGESTED_LENGTH)
+    )
+
+
+def normalize_public_id(candidate: str) -> str:
+    """Trim, uppercase and return a proposed public id ready for validation.
+
+    The DB stores public ids exactly as normalized here; lookups on the
+    restore endpoint apply the same normalization so a user who types
+    "abc123" is matched against the stored "ABC123".
+    """
+    return candidate.strip().upper()
+
+
+def is_valid_public_id(candidate: str) -> bool:
+    """Length + alphabet check for a normalized public id."""
+    return (
+        PROFILE_PUBLIC_ID_MIN_LENGTH <= len(candidate) <= PROFILE_PUBLIC_ID_MAX_LENGTH
+        and all(character in _PUBLIC_ID_ALPHABET_SET for character in candidate)
+    )
 
 
 def issue_access_token(profile_id: uuid.UUID, installation_id: uuid.UUID) -> str:

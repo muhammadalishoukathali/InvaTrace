@@ -3,14 +3,20 @@ import { Navigate, useNavigate } from 'react-router-dom'
 import { PrivateAccessLayout } from '@/features/private-access/components/PrivateAccessLayout'
 import { PrivateAccessButton, PrivateAccessField, RecoveryCodeGrid, PrivateAccessNotice } from '@/features/private-access/components/PrivateAccessControls'
 import { copyText, downloadRecoveryKit, recoveryKitText } from '@/features/private-access/recovery-kit'
-import { usePrivateAccess } from '@/features/private-access/private-access-store'
+import {
+  usePrivateAccess,
+  normalizePublicIdInput,
+  isValidPublicId,
+  PUBLIC_ID_MIN_LENGTH,
+  PUBLIC_ID_MAX_LENGTH,
+} from '@/features/private-access/private-access-store'
 import { usePageHeadingFocus } from '@/hooks/usePageHeadingFocus'
 
-/** Shows the ten one-time recovery codes right after a new profile is
- *  created (or after a forced re-issue), lets the user copy/download them,
- *  and requires an explicit "I saved these" confirmation before it will
- *  hand off to the rest of the app. This is the only place these raw codes
- *  are ever shown - see recovery-kit.ts for why they're not persisted. */
+/** Shows the reusable recovery codes right after a new profile is created
+ *  (or after a forced re-issue), lets the user copy/download them, and
+ *  requires an explicit "I saved these" confirmation before it will hand
+ *  off to the rest of the app. This is the only place these raw codes are
+ *  ever shown - see recovery-kit.ts for why they're not persisted. */
 export function RecoveryKitSetupPage() {
   const navigate = useNavigate()
   const headingRef = usePageHeadingFocus()
@@ -24,11 +30,16 @@ export function RecoveryKitSetupPage() {
   const acknowledgeRecovery = usePrivateAccess((state) => state.acknowledgeRecovery)
   const reissueRecoveryCodes = usePrivateAccess((state) => state.reissueRecoveryCodes)
   const retryPendingStorage = usePrivateAccess((state) => state.retryPendingStorage)
+  const updatePublicId = usePrivateAccess((state) => state.updatePublicId)
   const [displayName, setDisplayName] = useState(profile?.displayName ?? '')
   const [acknowledged, setAcknowledged] = useState(false)
   const [message, setMessage] = useState<string | null>(null)
   const [error, setError] = useState<string | null>(null)
   const [continuing, setContinuing] = useState(false)
+  const [editingId, setEditingId] = useState(false)
+  const [customPublicId, setCustomPublicId] = useState(profile?.id ?? '')
+  const [publicIdError, setPublicIdError] = useState<string | null>(null)
+  const [renamingId, setRenamingId] = useState(false)
 
   // Already acknowledged (or arrived here with no reason to be here) - don't
   // let the recovery-code screen linger once it's done its job.
@@ -108,13 +119,72 @@ export function RecoveryKitSetupPage() {
         <div className="recovery-public-id">
           <div><span>Public profile ID</span><code>{profile.id}</code></div>
           <PrivateAccessButton kind="quiet" icon="Copy" onClick={() => void copy('id')}>Copy ID</PrivateAccessButton>
+          <PrivateAccessButton
+            kind="quiet"
+            icon="Pencil"
+            onClick={() => { setCustomPublicId(profile.id); setPublicIdError(null); setEditingId(true) }}
+          >
+            Change ID
+          </PrivateAccessButton>
         </div>
-        <p className="recovery-public-id__note">Your public ID identifies this profile. It cannot restore access by itself.</p>
+        <p className="recovery-public-id__note">
+          Your public ID identifies this profile. It cannot restore access by itself. You can pick your own
+          ({PUBLIC_ID_MIN_LENGTH}-{PUBLIC_ID_MAX_LENGTH} letters or digits, no 0/1/I/O), or keep this suggestion.
+        </p>
+        {editingId && (
+          <div className="recovery-public-id-editor">
+            <PrivateAccessField
+              id="recovery-public-id-input"
+              label="Choose a profile ID"
+              hint={`Letters and digits only, ${PUBLIC_ID_MIN_LENGTH}-${PUBLIC_ID_MAX_LENGTH} characters.`}
+              error={publicIdError}
+              value={customPublicId}
+              onChange={(event) => {
+                setCustomPublicId(normalizePublicIdInput(event.target.value))
+                setPublicIdError(null)
+              }}
+              autoCapitalize="characters"
+              autoComplete="off"
+              spellCheck={false}
+              maxLength={PUBLIC_ID_MAX_LENGTH}
+              placeholder={profile.id}
+            />
+            <div className="recovery-kit-actions">
+              <PrivateAccessButton
+                kind="secondary"
+                disabled={renamingId || !isValidPublicId(customPublicId) || customPublicId === profile.id}
+                onClick={async () => {
+                  setRenamingId(true)
+                  setPublicIdError(null)
+                  try {
+                    await updatePublicId(customPublicId)
+                    setEditingId(false)
+                    setMessage('Profile ID saved. Update your recovery kit copy if you already downloaded it.')
+                  } catch (renameError) {
+                    setPublicIdError(renameError instanceof Error ? renameError.message : 'Profile ID could not be saved.')
+                  } finally {
+                    setRenamingId(false)
+                  }
+                }}
+              >
+                {renamingId ? 'Saving…' : 'Save profile ID'}
+              </PrivateAccessButton>
+              <PrivateAccessButton kind="quiet" onClick={() => { setEditingId(false); setPublicIdError(null) }} disabled={renamingId}>Cancel</PrivateAccessButton>
+            </div>
+          </div>
+        )}
 
         {codes ? (
           <>
             <div className="recovery-code-heading">
-              <div><h2>10 one-time recovery codes</h2><p>Use one unused code to restore this profile on another device. Each code works once.</p></div>
+              <div>
+                <h2>{codes.length === 1 ? 'Your recovery code' : 'Your recovery codes'}</h2>
+                <p>
+                  {codes.length === 1
+                    ? 'Use this code together with your profile ID to restore this profile on another device. It stays valid and can be used again.'
+                    : 'Use any one of these codes together with your profile ID to restore this profile on another device. Each code stays valid and can be used again.'}
+                </p>
+              </div>
             </div>
             <RecoveryCodeGrid codes={codes} />
             <div className="recovery-kit-actions">

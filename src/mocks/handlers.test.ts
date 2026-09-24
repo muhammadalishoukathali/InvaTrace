@@ -117,14 +117,16 @@ describe('reported sighting species labels', () => {
 })
 
 describe('private access mock contract', () => {
-  it('creates explicit Detector/New access, returns ten 128-bit codes, and persists only hashes', async () => {
+  it('creates explicit Detector/New access, returns three 128-bit reusable codes, and persists only hashes', async () => {
     const { response, payload } = await start()
 
     expect(response.status).toBe(201)
     expect(response.headers.get('cache-control')).toBe('no-store')
     expect(payload.profile).toMatchObject({ role: 'Detector', trustLevel: 'New' })
-    expect(payload.profile.id).toMatch(/^IVT-/)
-    expect(payload.recoveryCodes).toHaveLength(10)
+    // 6-character alphanumeric public profile id (Crockford base32, no
+    // 0/1/I/O/L), matching the FastAPI backend.
+    expect(payload.profile.id).toMatch(/^[ABCDEFGHJKLMNPQRSTUVWXYZ23456789]{6}$/)
+    expect(payload.recoveryCodes).toHaveLength(1)
     for (const code of payload.recoveryCodes) expect(code.replace(/-/g, '')).toHaveLength(26)
 
     const persisted = localStorage.getItem('invatrace-mock-server-v2') ?? ''
@@ -161,7 +163,7 @@ describe('private access mock contract', () => {
     expect(await acknowledged.json()).toMatchObject({ recoverySetupRequired: false })
   })
 
-  it('restores a second installation transactionally and returns indistinguishable failures', async () => {
+  it('restores additional installations with reusable codes and returns indistinguishable failures', async () => {
     const { payload } = await start()
     const restore = (token: string, profileId = payload.profile.id, code = payload.recoveryCodes[0]) =>
       fetch('http://localhost/api/v1/profiles/restore', {
@@ -169,28 +171,33 @@ describe('private access mock contract', () => {
         body: JSON.stringify({ profileId, recoveryCode: code, installationToken: token }),
       })
 
-    const concurrent = await Promise.all([
-      restore(installationToken('B')),
-      restore(installationToken('C')),
-    ])
-    expect(concurrent.map((response) => response.status).sort()).toEqual([200, 400])
+    // Reusable codes accept back-to-back restores from different devices.
+    const first = await restore(installationToken('B'))
+    const second = await restore(installationToken('C'))
+    expect(first.status).toBe(200)
+    expect(second.status).toBe(200)
 
-    const invalidId = await restore(installationToken('D'), 'IVT-MISSING', payload.recoveryCodes[1])
-    const usedCode = await restore(installationToken('E'))
-    expect(invalidId.status).toBe(usedCode.status)
-    expect(await invalidId.text()).toBe(await usedCode.text())
+    // A profile id that doesn't exist and a wrong code for the real
+    // profile must return the same 400 payload, so callers can't
+    // distinguish "no such profile" from "wrong code".
+    const invalidId = await restore(installationToken('D'), 'ZZZZZZ', 'ZZZZ-ZZZZ-ZZZZ-ZZZZ-ZZZZ-ZZZZ-ZZ')
+    const wrongCode = await restore(installationToken('E'), payload.profile.id, 'ZZZZ-ZZZZ-ZZZZ-ZZZZ-ZZZZ-ZZZZ-ZZ')
+    expect(invalidId.status).toBe(400)
+    expect(wrongCode.status).toBe(400)
+    expect(await invalidId.text()).toBe(await wrongCode.text())
 
-    const successful = concurrent.find((response) => response.status === 200)!
-    const restored = await successful.json() as { accessToken: string }
+    const restored = await first.json() as { accessToken: string }
     const overview = await fetch('http://localhost/api/v1/profiles/me/access', {
       headers: { Authorization: `Bearer ${restored.accessToken}` },
     })
-    const access = await overview.json() as { installations: unknown[]; unusedRecoveryCodeCount: number }
-    expect(access.installations).toHaveLength(2)
-    expect(access.unusedRecoveryCodeCount).toBe(9)
+    const access = await overview.json() as { installations: unknown[]; recoveryCodeCount: number }
+    // original + two successful restores.
+    expect(access.installations).toHaveLength(3)
+    // Restores do not consume the code; the single reusable code is still on file.
+    expect(access.recoveryCodeCount).toBe(1)
   })
 
-  it('rotation invalidates older unused codes and revocation blocks only the selected installation', async () => {
+  it('rotation invalidates every earlier code and revocation blocks only the selected installation', async () => {
     const { payload } = await start()
     const restoredResponse = await fetch('http://localhost/api/v1/profiles/restore', {
       method: 'POST', headers: { 'Content-Type': 'application/json' },
@@ -205,13 +212,15 @@ describe('private access mock contract', () => {
       method: 'POST', headers: { Authorization: `Bearer ${restored.accessToken}` },
     })
     const rotated = await rotatedResponse.json() as { recoveryCodes: string[] }
-    expect(rotated.recoveryCodes).toHaveLength(10)
+    expect(rotated.recoveryCodes).toHaveLength(1)
 
+    // The pre-rotation code was reusable, but rotation retires it - a
+    // restore attempt with it must now fail like any other wrong code.
     const oldCode = await fetch('http://localhost/api/v1/profiles/restore', {
       method: 'POST', headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
         profileId: payload.profile.id,
-        recoveryCode: payload.recoveryCodes[1],
+        recoveryCode: payload.recoveryCodes[0],
         installationToken: installationToken('C'),
       }),
     })

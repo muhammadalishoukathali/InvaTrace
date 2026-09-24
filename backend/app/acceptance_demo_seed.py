@@ -74,11 +74,15 @@ def _digest(key: str) -> bytes:
 
 
 PROFILES = (
-    # (public_id, display_name, role, trust_level, resolved_reports, valid_reports, hard_failures)
-    ("nurul-aisyah", "Nurul Aisyah", "Detector", "New", 0, 0, 0),
-    ("hafiz-rahman", "Muhammad Hafiz Rahman", "Volunteer", "Trusted", 12, 10, 1),
-    ("siti-nurhaliza", "Dr. Siti Nurhaliza Ismail", "Expert", "Steward", 40, 38, 0),
-    ("ahmad-faizal", "Ahmad Faizal Zulkifli", "Admin", "Steward", 5, 5, 0),
+    # (slug, public_id, display_name, role, trust_level, resolved_reports, valid_reports, hard_failures)
+    # The slug is only used as a stable Python dict key inside this seed
+    # module - the user-facing public_id is the short alphanumeric column
+    # below (Crockford base32: no 0/1/I/O/L).
+    # public_id must be 4-12 chars from BASE32_ALPHABET (no 0/1/I/O).
+    ("nurul-aisyah", "NURUL2", "Nurul Aisyah", "Detector", "New", 0, 0, 0),
+    ("hafiz-rahman", "HAFZ22", "Muhammad Hafiz Rahman", "Volunteer", "Trusted", 12, 10, 1),
+    ("siti-nurhaliza", "STHR33", "Dr. Siti Nurhaliza Ismail", "Expert", "Steward", 40, 38, 0),
+    ("ahmad-faizal", "FAZL44", "Ahmad Faizal Zulkifli", "Admin", "Steward", 5, 5, 0),
 )
 
 
@@ -149,8 +153,10 @@ def _seed_recovery_codes(session: Session, profile: Profile) -> None:
         )
     )
     session.flush()
-    for index in range(10):
-        used_at = _NOW - timedelta(days=1) if index == 0 else None
+    # One reusable recovery code - matches the runtime batch size, and
+    # is not marked used because reusable codes are never consumed by a
+    # successful restore.
+    for index in range(1):
         code_id = _ac_uuid(f"recovery-code:{profile.public_id}:{index}")
         session.add(
             RecoveryCode(
@@ -159,7 +165,7 @@ def _seed_recovery_codes(session: Session, profile: Profile) -> None:
                 profile_id=profile.id,
                 code_hash=_digest(f"recovery-code:{profile.public_id}:{index}"),
                 key_version=1,
-                used_at=used_at,
+                used_at=None,
             )
         )
 
@@ -865,10 +871,10 @@ def load_acceptance_demo_fixtures(session: Session) -> None:
     _seed_waterway(session)
 
     profiles = {
-        public_id: _upsert_profile(
+        slug: _upsert_profile(
             session, public_id, display_name, role, trust, resolved, valid, failures
         )
-        for public_id, display_name, role, trust, resolved, valid, failures in PROFILES
+        for slug, public_id, display_name, role, trust, resolved, valid, failures in PROFILES
     }
     for profile in profiles.values():
         _seed_installations(session, profile)

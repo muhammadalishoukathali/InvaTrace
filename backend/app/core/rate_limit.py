@@ -56,6 +56,9 @@ def _build_limits() -> dict[str, Limit]:
         "profile_restore_ip": Limit(5, 15 * 60, algorithm="sliding"),
         "recovery_rotate": Limit(5, 60 * 60),
         "installation_revoke": Limit(20, 60 * 60),
+        # Prevents a single profile from cycling through the public-id
+        # space to squat identifiers.
+        "public_id_rename": Limit(5, 24 * 60 * 60),
         "upload_presign": Limit(30, 60),
         # AC 2.3.3 - env-backed sliding submission limits.
         "report_create_burst": Limit(

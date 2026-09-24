@@ -193,7 +193,6 @@ function haversineMetres(a: { lat: number; lng: number }, b: { lat: number; lng:
 interface MockRecoveryCode {
   hash: string
   createdAt: string
-  usedAt: string | null
 }
 
 interface MockInstallation {
@@ -264,15 +263,50 @@ function randomGroupedSecret(byteCount = 16): string {
   return output.match(/.{1,4}/g)!.join('-')
 }
 
+const MOCK_RECOVERY_BATCH_SIZE = 1
+
 async function freshRecoveryBatch() {
   const createdAt = new Date().toISOString()
-  const raw = Array.from({ length: 10 }, () => randomGroupedSecret(16))
+  const raw = Array.from({ length: MOCK_RECOVERY_BATCH_SIZE }, () => randomGroupedSecret(16))
   const hashes = await Promise.all(raw.map(secretHash))
   return {
     createdAt,
     raw,
-    records: hashes.map((hash) => ({ hash, createdAt, usedAt: null })),
+    records: hashes.map((hash) => ({ hash, createdAt })),
   }
+}
+
+// Suggested public profile id: 6 chars from the shared Crockford-style
+// base32 alphabet (no 0/1/I/O) so mock-issued ids look and normalize the
+// same way real ids do. The user can pre-commit a preferred id at start
+// or rename it later - both paths go through mockPublicIdError.
+const PROFILE_PUBLIC_ID_SUGGESTED_LENGTH = 6
+const PROFILE_PUBLIC_ID_MIN_LENGTH = 4
+const PROFILE_PUBLIC_ID_MAX_LENGTH = 12
+const PUBLIC_ID_REGEX = new RegExp(`^[${BASE32}]{${PROFILE_PUBLIC_ID_MIN_LENGTH},${PROFILE_PUBLIC_ID_MAX_LENGTH}}$`)
+
+function normalizeMockPublicId(input: unknown): string | null {
+  if (typeof input !== 'string') return null
+  const trimmed = input.trim().toUpperCase()
+  return trimmed || null
+}
+
+function mockPublicIdError(candidate: string): string | null {
+  if (!PUBLIC_ID_REGEX.test(candidate)) {
+    return `Profile ID must be ${PROFILE_PUBLIC_ID_MIN_LENGTH}-${PROFILE_PUBLIC_ID_MAX_LENGTH} letters or digits.`
+  }
+  return null
+}
+
+function allocateMockPublicId(existing: MockServerState): string {
+  const used = new Set(existing.profiles.map((record) => record.profile.id))
+  for (let attempt = 0; attempt < 32; attempt += 1) {
+    const bytes = crypto.getRandomValues(new Uint8Array(PROFILE_PUBLIC_ID_SUGGESTED_LENGTH))
+    let candidate = ''
+    for (const byte of bytes) candidate += BASE32[byte % BASE32.length]
+    if (!used.has(candidate)) return candidate
+  }
+  throw new Error('Could not allocate a unique alphanumeric profile id.')
 }
 
 function identityJson<T extends JsonBodyType>(data: T, status = 200, headers: Record<string, string> = {}) {
@@ -376,19 +410,29 @@ export const handlers = [
     HttpResponse.json({ status: 'ok', database: 'ok' })),
 
   http.post(url('/api/v1/profiles/start'), async ({ request }) => {
-    const body = (await request.json()) as { installationToken?: unknown; displayName?: unknown }
+    const body = (await request.json()) as {
+      installationToken?: unknown; displayName?: unknown; publicId?: unknown
+    }
     if (!validInstallationToken(body.installationToken) || !validDisplayName(body.displayName)) {
       return identityJson({ code: 'invalid_request', detail: 'Private access could not be started.' }, 400)
+    }
+    const requestedPublicId = normalizeMockPublicId(body.publicId)
+    if (requestedPublicId) {
+      const formatError = mockPublicIdError(requestedPublicId)
+      if (formatError) return identityJson({ code: 'invalid_public_id', detail: formatError }, 400)
     }
     const tokenHash = await secretHash(body.installationToken)
     const state = loadMockServer()
     if (state.profiles.some((record) => record.installations.some((item) => item.tokenHash === tokenHash))) {
       return identityJson({ code: 'installation_exists', detail: 'Private access could not be started.' }, 409)
     }
+    if (requestedPublicId && state.profiles.some((record) => record.profile.id === requestedPublicId)) {
+      return identityJson({ code: 'profile_id_taken', detail: 'That profile ID is already in use.' }, 409)
+    }
     const now = new Date().toISOString()
     const batch = await freshRecoveryBatch()
     const profile: PseudonymousProfile = {
-      id: `IVT-${randomGroupedSecret(12)}`,
+      id: requestedPublicId ?? allocateMockPublicId(state),
       displayName: typeof body.displayName === 'string' && body.displayName.trim() ? body.displayName.trim() : null,
       role: 'Detector',
       trustLevel: 'New',
@@ -460,17 +504,16 @@ export const handlers = [
     const [codeHash, tokenHash] = await Promise.all([secretHash(recoveryCode), secretHash(body.installationToken)])
     const state = loadMockServer()
     const record = state.profiles.find((candidate) => candidate.profile.id === profileId)
-    const code = record?.recoveryCodes.find((candidate) => candidate.hash === codeHash && !candidate.usedAt)
+    // Recovery codes are reusable, so we look up by hash only - no
+    // usedAt gate. Rotation replaces the whole record.recoveryCodes
+    // array, which is what actually retires an old code.
+    const code = record?.recoveryCodes.find((candidate) => candidate.hash === codeHash)
     if (!record || !code) {
       recordRestoreFailure(profileId, clientIp)
       return identityJson({ detail: genericError }, 400)
     }
 
-    // this whole block is synchronous so two restore requests can't both
-    // read the same one-time code as unused before either one marks it used -
-    // no real race condition possible in JS single-threaded execution here
     const now = new Date().toISOString()
-    code.usedAt = now
     const installation: MockInstallation = {
       id: `ins_${crypto.randomUUID()}`,
       tokenHash,
@@ -506,6 +549,31 @@ export const handlers = [
     return identityJson(record.profile)
   }),
 
+  http.patch(url('/api/v1/profiles/me/public-id'), async ({ request }) => {
+    const session = sessionForRequest(request)
+    if (!session) return identityJson({ detail: 'API session unavailable' }, 401)
+    const body = (await request.json()) as { publicId?: unknown }
+    const requested = normalizeMockPublicId(body.publicId)
+    if (!requested) {
+      return identityJson({ code: 'invalid_public_id', detail: 'A profile ID is required.' }, 400)
+    }
+    const formatError = mockPublicIdError(requested)
+    if (formatError) return identityJson({ code: 'invalid_public_id', detail: formatError }, 400)
+    const state = loadMockServer()
+    const record = state.profiles.find((candidate) => candidate.profile.id === session.profile.id)!
+    if (requested === record.profile.id) return identityJson(record.profile)
+    if (state.profiles.some((candidate) => candidate.profile.id === requested)) {
+      return identityJson({ code: 'profile_id_taken', detail: 'That profile ID is already in use.' }, 409)
+    }
+    record.profile.id = requested
+    saveMockServer(state)
+    for (const value of sessions.values()) {
+      if (value.profile === record.profile) value.profile = record.profile
+    }
+    session.profile = record.profile
+    return identityJson(record.profile)
+  }),
+
   http.post(url('/api/v1/profiles/me/recovery-setup/acknowledge'), ({ request }) => {
     const session = sessionForRequest(request)
     if (!session) return identityJson({ detail: 'API session unavailable' }, 401)
@@ -534,7 +602,7 @@ export const handlers = [
     const record = state.profiles.find((candidate) => candidate.profile.id === session.profile.id)!
     const overview: AccessOverview = {
       profileId: record.profile.id,
-      unusedRecoveryCodeCount: record.recoveryCodes.filter((code) => !code.usedAt).length,
+      recoveryCodeCount: record.recoveryCodes.length,
       installations: record.installations.map((item) => ({
         id: item.id,
         createdAt: item.createdAt,

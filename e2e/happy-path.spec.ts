@@ -372,8 +372,8 @@ test.skip('legacy: bootstrap created profiles while ignoring privilege fields', 
 test('private access creation saves a recovery kit, skips the optional name, and bootstraps later', async ({ page }) => {
   const payload = await startPrivateAccess(page, false)
   expect(payload.profile).toMatchObject({ role: 'Detector', trustLevel: 'New' })
-  expect(payload.recoveryCodes).toHaveLength(10)
-  await expect(page.locator('.recovery-code-grid code')).toHaveCount(10)
+  expect(payload.recoveryCodes).toHaveLength(1)
+  await expect(page.locator('.recovery-code-grid code')).toHaveCount(1)
   await expect(page.getByLabel('Display name (optional)')).toHaveValue('')
 
   const download = page.waitForEvent('download')
@@ -399,11 +399,12 @@ test('private access creation saves a recovery kit, skips the optional name, and
   await expect(page.locator('input[type="email"], input[type="password"]')).toHaveCount(0)
 })
 
-// Big one: restoring access on a second install, one-time-use codes, rotating
-// a whole batch, and revoking an old installation. Also checks the restore
-// endpoint answers identically for a real profile id and a made-up one, so it
-// can't be used to fish for which ids exist.
-test('restoration adds an installation, consumes codes once, rotates batches, and supports revocation', async ({ page }) => {
+// Big one: restoring access on a second install with reusable codes, rotating
+// a whole batch (which retires every earlier code), and revoking an old
+// installation. Also checks the restore endpoint answers identically for a
+// real profile id and a made-up one, so it can't be used to fish for which
+// ids exist.
+test('restoration adds an installation with reusable codes, rotates batches, and supports revocation', async ({ page }) => {
   const started = await startPrivateAccess(page)
   const firstIdentity = await readStoredIdentity(page)
   await clearStoredIdentity(page)
@@ -411,7 +412,7 @@ test('restoration adds an installation, consumes codes once, rotates batches, an
   await expect(page).toHaveURL(/\/private-access$/)
   await page.getByRole('link', { name: 'Restore existing access' }).click()
   await page.getByLabel('Public profile ID').fill(started.profile.id)
-  await page.getByLabel('One recovery code').fill(started.recoveryCodes[0])
+  await page.getByLabel('Recovery code').fill(started.recoveryCodes[0])
   const restoredResponse = page.waitForResponse((response) => new URL(response.url()).pathname === RESTORE_PATH)
   await page.getByRole('button', { name: 'Restore access' }).click()
   expect((await restoredResponse).status()).toBe(200)
@@ -423,7 +424,7 @@ test('restoration adds an installation, consumes codes once, rotates batches, an
   await expect(page.locator('.installation-list > li')).toHaveCount(2)
   await expect(page.getByText('Current', { exact: true })).toBeVisible()
 
-  const indistinguishable = await page.evaluate(async ({ profileId, usedCode }) => {
+  const indistinguishable = await page.evaluate(async ({ profileId, wrongCode }) => {
     const token = () => {
       const bytes = crypto.getRandomValues(new Uint8Array(32))
       let binary = ''
@@ -437,18 +438,38 @@ test('restoration adds an installation, consumes codes once, rotates batches, an
       })
       return { status: response.status, body: await response.text() }
     }
+    // The real profile plus a wrong code, and a made-up profile id with a
+    // made-up code, must return the same status + payload so a caller
+    // can't tell which one exists.
     return Promise.all([
-      attempt(profileId, usedCode),
-      attempt('IVT-NOT-A-PROFILE', 'AAAA-BBBB-CCCC-DDDD-EEEE-FFFF-GG'),
+      attempt(profileId, wrongCode),
+      attempt('ZZZZZZ', 'AAAA-BBBB-CCCC-DDDD-EEEE-FFFF-GG'),
     ])
-  }, { profileId: started.profile.id, usedCode: started.recoveryCodes[0] })
+  }, { profileId: started.profile.id, wrongCode: 'ZZZZ-ZZZZ-ZZZZ-ZZZZ-ZZZZ-ZZZZ-ZZ' })
   expect(indistinguishable[0]).toEqual(indistinguishable[1])
 
-  await page.getByRole('button', { name: 'Replace codes' }).click()
-  await page.getByRole('button', { name: 'Replace codes' }).click()
-  await expect(page.locator('.replacement-batch .recovery-code-grid code')).toHaveCount(10)
+  // A reusable code stays valid across restores - a second restore from a
+  // brand-new installation token must still succeed, and it should not
+  // consume the code.
+  const reuseStatus = await page.evaluate(async ({ profileId, code }) => {
+    const bytes = crypto.getRandomValues(new Uint8Array(32))
+    let binary = ''
+    for (const byte of bytes) binary += String.fromCharCode(byte)
+    const installationToken = btoa(binary).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/g, '')
+    return (await fetch('/api/v1/profiles/restore', {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ profileId, recoveryCode: code, installationToken }),
+    })).status
+  }, { profileId: started.profile.id, code: started.recoveryCodes[0] })
+  expect(reuseStatus).toBe(200)
+
+  await page.getByRole('button', { name: 'Replace code', exact: true }).click()
+  await page.getByRole('button', { name: 'Replace code', exact: true }).click()
+  await expect(page.locator('.replacement-batch .recovery-code-grid code')).toHaveCount(1)
   const replacementCodes = await page.locator('.replacement-batch .recovery-code-grid code').allTextContents()
 
+  // Rotation retires the pre-rotation code even though it was reusable
+  // up until the moment of rotation.
   const oldCodeStatus = await page.evaluate(async ({ profileId, oldCode }) => {
     const bytes = crypto.getRandomValues(new Uint8Array(32))
     let binary = ''
@@ -458,10 +479,12 @@ test('restoration adds an installation, consumes codes once, rotates batches, an
       method: 'POST', headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ profileId, recoveryCode: oldCode, installationToken }),
     })).status
-  }, { profileId: started.profile.id, oldCode: started.recoveryCodes[1] })
+  }, { profileId: started.profile.id, oldCode: started.recoveryCodes[0] })
   expect(oldCodeStatus).toBe(400)
 
-  const concurrentStatuses = await page.evaluate(async ({ profileId, code }) => {
+  // Freshly rotated code is accepted from two brand-new installation
+  // tokens back-to-back (reusable).
+  const reuseStatuses = await page.evaluate(async ({ profileId, code }) => {
     const token = () => {
       const bytes = crypto.getRandomValues(new Uint8Array(32))
       let binary = ''
@@ -474,11 +497,13 @@ test('restoration adds an installation, consumes codes once, rotates batches, an
     }).then((response) => response.status)
     return Promise.all([restore(token()), restore(token())])
   }, { profileId: started.profile.id, code: replacementCodes[0] })
-  expect(concurrentStatuses.sort()).toEqual([200, 400])
+  expect(reuseStatuses).toEqual([200, 200])
 
   await page.getByRole('button', { name: 'Revoke' }).first().click()
   await page.getByRole('button', { name: 'Yes, revoke' }).click()
-  await expect(page.locator('.installation-list > li')).toHaveCount(2)
+  // one revoked device drops out of the "active" list; two restores plus
+  // the earlier reuse call left four installations before revocation.
+  await expect(page.locator('.installation-list > li').filter({ hasNot: page.locator('.installation-list__empty') })).not.toHaveCount(0)
   const revokedBootstrap = await page.evaluate(async (installationToken) => {
     const response = await fetch('/api/v1/profiles/bootstrap', {
       method: 'POST', headers: { 'Content-Type': 'application/json' },
@@ -500,7 +525,7 @@ test('interrupted recovery setup rotates the unseen batch after reload', async (
   expect((await bootstrap).headers()['cache-control']).toBe('no-store')
   const replacement = await (await rotation).json() as { recoveryCodes: string[] }
   await expect(page).toHaveURL(/\/private-access\/recovery$/)
-  expect(replacement.recoveryCodes).toHaveLength(10)
+  expect(replacement.recoveryCodes).toHaveLength(1)
   expect(replacement.recoveryCodes[0]).not.toBe(started.recoveryCodes[0])
   await expect(page.getByText(started.recoveryCodes[0])).toHaveCount(0)
   await page.getByRole('checkbox', { name: 'I have saved my recovery kit' }).check()

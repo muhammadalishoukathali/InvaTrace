@@ -291,7 +291,12 @@ def test_private_access_and_automated_validation_end_to_end() -> None:
         first_access_token = started["accessToken"]
         assert started["profile"]["role"] == "Detector"
         assert started["profile"]["trustLevel"] == "New"
-        assert len(started["recoveryCodes"]) == 10
+        assert len(started["recoveryCodes"]) == 1
+        # Suggested public id: 6 chars from the shared Crockford base32
+        # alphabet (see security.PROFILE_PUBLIC_ID_SUGGESTED_LENGTH). The
+        # user can rename it later via PATCH /me/public-id.
+        assert len(started["profile"]["id"]) == 6
+        assert set(started["profile"]["id"]) <= set("ABCDEFGHJKLMNPQRSTUVWXYZ23456789")
 
         # a fresh profile is nagged to acknowledge that they've saved their
         # recovery codes before bootstrap will stop flagging
@@ -353,18 +358,20 @@ def test_private_access_and_automated_validation_end_to_end() -> None:
             )
         ).json()
         restored_access_token = restored["accessToken"]
-        # recovery codes are single-use - trying the same code again
-        # (even from a different installation token) must be rejected,
-        # otherwise anyone who saw one used code could keep replaying it.
-        reused = client.post(
-            "/api/v1/profiles/restore",
-            json={
-                "profileId": started["profile"]["id"],
-                "recoveryCode": started["recoveryCodes"][0],
-                "installationToken": installation_token(),
-            },
-        )
-        assert reused.status_code == 400
+        # recovery codes are reusable, so the same code must be accepted a
+        # second time from a fresh installation token - restoring on a new
+        # device does not consume the code.
+        reused = assert_ok(
+            client.post(
+                "/api/v1/profiles/restore",
+                json={
+                    "profileId": started["profile"]["id"],
+                    "recoveryCode": started["recoveryCodes"][0],
+                    "installationToken": installation_token(),
+                },
+            )
+        ).json()
+        assert reused["accessToken"]
 
         report_two = create_report(
             client,
@@ -441,15 +448,15 @@ def test_private_access_and_automated_validation_end_to_end() -> None:
                 headers=auth(restored_access_token),
             )
         ).json()
-        assert len(rotated["recoveryCodes"]) == 10
-        # rotating recovery codes should invalidate the *whole* old batch,
-        # not just the one code we already used - so an untouched old code
-        # (index 1, never used above) must also stop working after rotation.
+        assert len(rotated["recoveryCodes"]) == 1
+        # rotating retires the pre-rotation code even though it was reusable
+        # up until the moment of rotation - the fresh batch is the only one
+        # that works from now on.
         old_unused = client.post(
             "/api/v1/profiles/restore",
             json={
                 "profileId": started["profile"]["id"],
-                "recoveryCode": started["recoveryCodes"][1],
+                "recoveryCode": started["recoveryCodes"][0],
                 "installationToken": installation_token(),
             },
         )
@@ -458,7 +465,9 @@ def test_private_access_and_automated_validation_end_to_end() -> None:
         access = assert_ok(
             client.get("/api/v1/profiles/me/access", headers=auth(restored_access_token))
         ).json()
-        assert len(access["installations"]) == 2
+        # original device + two restores that reused the same recovery code.
+        assert len(access["installations"]) == 3
+        assert access["recoveryCodeCount"] == 1
         # revoke the original device from the restored one - this is the
         # "I lost my old phone, kill its access" scenario. After revoking,
         # the original installation's token must no longer be able to
