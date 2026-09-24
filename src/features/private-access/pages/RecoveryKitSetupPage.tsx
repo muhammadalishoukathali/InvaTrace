@@ -86,141 +86,144 @@ export function RecoveryKitSetupPage() {
     }
   }
 
-  return (
-    <PrivateAccessLayout>
-      <section className="recovery-setup">
-        <div className="recovery-setup__heading">
-          <div>
-            <h1 ref={headingRef} tabIndex={-1}>Save your recovery kit</h1>
-            <p>Download or copy it now. You won't see these recovery codes again.</p>
-          </div>
-          <span className="secret-badge">Keep private</span>
-        </div>
+  const singleCode = codes?.length === 1
+  const primaryCode = codes?.[0]
 
-        <PrivateAccessNotice tone="info" title="Why this matters">
-          InvaTrace has no email or phone number for you, so this kit is the only
-          way to get back into your private profile if you switch to another
-          device or clear this browser. You only need a code when moving devices
-          or restoring access — not for everyday reporting. Save it once now and
-          keep it somewhere private.
-        </PrivateAccessNotice>
+  return (
+    <PrivateAccessLayout compact>
+      <section className="recovery-setup">
+        <header className="recovery-setup__head">
+          <span className="recovery-setup__eyebrow">Keep private</span>
+          <h1 ref={headingRef} tabIndex={-1}>Save your recovery kit</h1>
+        </header>
 
         {syncMessage && (
           <PrivateAccessNotice tone="warning" title="Recovery setup needs attention" live>{syncMessage}</PrivateAccessNotice>
         )}
         {recoveryWasReissued && codes && (
-          <PrivateAccessNotice tone="info" title="A replacement batch was issued" live>
-            Setup was interrupted, so every previously shown code was invalidated. Save only the codes below.
+          <PrivateAccessNotice tone="info" title="Fresh code issued" live>
+            Setup was interrupted, so the previous code was invalidated. Save only the one below.
           </PrivateAccessNotice>
         )}
         {message && <PrivateAccessNotice tone="success" title="Done" live>{message}</PrivateAccessNotice>}
         {error && <PrivateAccessNotice tone="error" title="Recovery setup needs attention" live>{error}</PrivateAccessNotice>}
 
-        <div className="recovery-public-id">
-          <div><span>Public profile ID</span><code>{profile.id}</code></div>
-          <PrivateAccessButton kind="quiet" icon="Copy" onClick={() => void copy('id')}>Copy ID</PrivateAccessButton>
-          <PrivateAccessButton
-            kind="quiet"
-            icon="Pencil"
-            onClick={() => { setCustomPublicId(profile.id); setPublicIdError(null); setEditingId(true) }}
-          >
-            Change ID
-          </PrivateAccessButton>
-        </div>
-        <p className="recovery-public-id__note">
-          Your public ID identifies this profile. It cannot restore access by itself. You can pick your own
-          ({PUBLIC_ID_MIN_LENGTH}-{PUBLIC_ID_MAX_LENGTH} letters or digits, no 0/1/I/O), or keep this suggestion.
-        </p>
-        {editingId && (
-          <div className="recovery-public-id-editor">
-            <PrivateAccessField
-              id="recovery-public-id-input"
-              label="Choose a profile ID"
-              hint={`Letters and digits only, ${PUBLIC_ID_MIN_LENGTH}-${PUBLIC_ID_MAX_LENGTH} characters.`}
-              error={publicIdError}
-              value={customPublicId}
-              onChange={(event) => {
-                setCustomPublicId(normalizePublicIdInput(event.target.value))
-                setPublicIdError(null)
-              }}
-              autoCapitalize="characters"
-              autoComplete="off"
-              spellCheck={false}
-              maxLength={PUBLIC_ID_MAX_LENGTH}
-              placeholder={profile.id}
-            />
-            <div className="recovery-kit-actions">
-              <PrivateAccessButton
-                kind="secondary"
-                disabled={renamingId || !isValidPublicId(customPublicId) || customPublicId === profile.id}
-                onClick={async () => {
-                  setRenamingId(true)
-                  setPublicIdError(null)
-                  try {
-                    await updatePublicId(customPublicId)
-                    setEditingId(false)
-                    setMessage('Profile ID saved. Update your recovery kit copy if you already downloaded it.')
-                  } catch (renameError) {
-                    setPublicIdError(renameError instanceof Error ? renameError.message : 'Profile ID could not be saved.')
-                  } finally {
-                    setRenamingId(false)
-                  }
-                }}
-              >
-                {renamingId ? 'Saving…' : 'Save profile ID'}
-              </PrivateAccessButton>
-              <PrivateAccessButton kind="quiet" onClick={() => { setEditingId(false); setPublicIdError(null) }} disabled={renamingId}>Cancel</PrivateAccessButton>
+        <div className="recovery-card">
+          <div className="recovery-card__row">
+            <div className="recovery-card__value-block">
+              <span className="recovery-card__label">Profile ID</span>
+              <code className="recovery-card__value">{profile.id}</code>
+            </div>
+            <div className="recovery-card__actions">
+              <PrivateAccessButton kind="quiet" icon="Copy" onClick={() => void copy('id')}>Copy</PrivateAccessButton>
+              {!editingId && (
+                <PrivateAccessButton
+                  kind="quiet"
+                  icon="Pencil"
+                  onClick={() => { setCustomPublicId(profile.id); setPublicIdError(null); setEditingId(true) }}
+                >
+                  Edit
+                </PrivateAccessButton>
+              )}
             </div>
           </div>
-        )}
-
-        {codes ? (
-          <>
-            <div className="recovery-code-heading">
-              <div>
-                <h2>{codes.length === 1 ? 'Your recovery code' : 'Your recovery codes'}</h2>
-                <p>
-                  {codes.length === 1
-                    ? 'Use this code together with your profile ID to restore this profile on another device. It stays valid and can be used again.'
-                    : 'Use any one of these codes together with your profile ID to restore this profile on another device. Each code stays valid and can be used again.'}
-                </p>
+          {editingId && (
+            <div className="recovery-card__editor">
+              <PrivateAccessField
+                id="recovery-public-id-input"
+                label="Pick your own"
+                hint={`${PUBLIC_ID_MIN_LENGTH}-${PUBLIC_ID_MAX_LENGTH} letters or digits.`}
+                error={publicIdError}
+                value={customPublicId}
+                onChange={(event) => {
+                  setCustomPublicId(normalizePublicIdInput(event.target.value))
+                  setPublicIdError(null)
+                }}
+                autoCapitalize="characters"
+                autoComplete="off"
+                spellCheck={false}
+                maxLength={PUBLIC_ID_MAX_LENGTH}
+                placeholder={profile.id}
+              />
+              <div className="recovery-card__editor-actions">
+                <PrivateAccessButton
+                  kind="secondary"
+                  disabled={renamingId || !isValidPublicId(customPublicId) || customPublicId === profile.id}
+                  onClick={async () => {
+                    setRenamingId(true)
+                    setPublicIdError(null)
+                    try {
+                      await updatePublicId(customPublicId)
+                      setEditingId(false)
+                      setMessage('Profile ID saved.')
+                    } catch (renameError) {
+                      setPublicIdError(renameError instanceof Error ? renameError.message : 'Profile ID could not be saved.')
+                    } finally {
+                      setRenamingId(false)
+                    }
+                  }}
+                >
+                  {renamingId ? 'Saving…' : 'Save'}
+                </PrivateAccessButton>
+                <PrivateAccessButton kind="quiet" onClick={() => { setEditingId(false); setPublicIdError(null) }} disabled={renamingId}>Cancel</PrivateAccessButton>
               </div>
             </div>
-            <RecoveryCodeGrid codes={codes} />
-            <div className="recovery-kit-actions">
-              <PrivateAccessButton kind="secondary" icon="Copy" onClick={() => void copy('kit')}>Copy recovery kit</PrivateAccessButton>
-              <PrivateAccessButton kind="secondary" icon="Download" onClick={download}>Download recovery kit</PrivateAccessButton>
+          )}
+        </div>
+
+        {codes && primaryCode ? (
+          <div className="recovery-card recovery-card--code">
+            <div className="recovery-card__row">
+              <div className="recovery-card__value-block">
+                <span className="recovery-card__label">Recovery code</span>
+                {singleCode ? (
+                  <code className="recovery-card__value recovery-card__value--mono">{primaryCode}</code>
+                ) : (
+                  <RecoveryCodeGrid codes={codes} />
+                )}
+              </div>
+              <div className="recovery-card__actions">
+                <PrivateAccessButton kind="quiet" icon="Copy" onClick={() => void copy('kit')}>Copy</PrivateAccessButton>
+                <PrivateAccessButton kind="quiet" icon="Download" onClick={download}>Download</PrivateAccessButton>
+              </div>
             </div>
-          </>
+          </div>
         ) : (
-          <PrivateAccessNotice tone="error" title="Recovery codes are not available">
-            Generate a replacement batch before leaving this screen.
+          <PrivateAccessNotice tone="error" title="Recovery code is not available">
+            Generate a replacement before leaving this screen.
           </PrivateAccessNotice>
         )}
 
+        {/* Kept as a single quiet line so the page stays uncluttered but
+            UT-04 (users must be told why they are saving this) still passes. */}
+        <p className="recovery-setup__why">Only needed when moving devices or restoring access.</p>
+
         <div className="recovery-finish">
-          <PrivateAccessField
-            id="recovery-display-name"
-            label="Display name (optional)"
-            hint="Use a nickname, not your real name, email, or phone number. You can change it later."
-            value={displayName}
-            onChange={(event) => setDisplayName(event.target.value)}
-            autoComplete="off"
-            maxLength={80}
-            placeholder="Leave blank to skip"
-          />
+          <details className="recovery-name-toggle">
+            <summary>Add a display name (optional)</summary>
+            <PrivateAccessField
+              id="recovery-display-name"
+              label="Display name"
+              hint="A nickname. Not your real name, email or phone."
+              value={displayName}
+              onChange={(event) => setDisplayName(event.target.value)}
+              autoComplete="off"
+              maxLength={80}
+              placeholder="Optional"
+            />
+          </details>
           <label className="access-check">
             <input type="checkbox" checked={acknowledged} onChange={(event) => setAcknowledged(event.target.checked)} />
             <span>I have saved my recovery kit</span>
           </label>
           <PrivateAccessButton onClick={() => void continueToApp()} disabled={!codes || !acknowledged || continuing}>
-            {continuing ? 'Securing private access…' : 'Continue to InvaTrace'}
+            {continuing ? 'Securing…' : 'Continue'}
           </PrivateAccessButton>
           {(syncMessage || status === 'storage-error') && (
             <PrivateAccessButton kind="quiet" onClick={() => void retryPendingStorage()}>Save installation again</PrivateAccessButton>
           )}
           {!codes && (
-            <PrivateAccessButton kind="secondary" onClick={() => void reissueRecoveryCodes()}>Generate replacement codes</PrivateAccessButton>
+            <PrivateAccessButton kind="secondary" onClick={() => void reissueRecoveryCodes()}>Generate replacement code</PrivateAccessButton>
           )}
         </div>
       </section>

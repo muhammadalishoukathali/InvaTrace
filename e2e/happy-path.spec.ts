@@ -373,7 +373,10 @@ test('private access creation saves a recovery kit, skips the optional name, and
   const payload = await startPrivateAccess(page, false)
   expect(payload.profile).toMatchObject({ role: 'Detector', trustLevel: 'New' })
   expect(payload.recoveryCodes).toHaveLength(1)
-  await expect(page.locator('.recovery-code-grid code')).toHaveCount(1)
+  // Single-code layout renders the code inline in a .recovery-card__value
+  // block instead of the numbered grid; the grid still ships for the
+  // multi-code fallback.
+  await expect(page.locator('.recovery-card--code code').first()).toHaveText(payload.recoveryCodes[0])
   await expect(page.getByLabel('Display name (optional)')).toHaveValue('')
 
   const download = page.waitForEvent('download')
