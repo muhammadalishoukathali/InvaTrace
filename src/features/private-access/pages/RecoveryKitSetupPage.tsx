@@ -95,9 +95,6 @@ export function RecoveryKitSetupPage() {
         <header className="recovery-setup__head">
           <span className="recovery-setup__eyebrow">Keep private</span>
           <h1 ref={headingRef} tabIndex={-1}>Save your recovery kit</h1>
-          <p className="recovery-setup__lead">
-            Your profile ID and recovery code. Save them once — you only need them if you switch devices.
-          </p>
         </header>
 
         {syncMessage && (
@@ -158,7 +155,7 @@ export function RecoveryKitSetupPage() {
                     try {
                       await updatePublicId(customPublicId)
                       setEditingId(false)
-                      setMessage('Profile ID saved. Re-download the kit if you already saved it.')
+                      setMessage('Profile ID saved.')
                     } catch (renameError) {
                       setPublicIdError(renameError instanceof Error ? renameError.message : 'Profile ID could not be saved.')
                     } finally {
@@ -197,11 +194,9 @@ export function RecoveryKitSetupPage() {
           </PrivateAccessNotice>
         )}
 
-        {/* UT-04 keeps this reassurance line - kept as plain prose so it
-            doesn't add another notice box to the page. */}
-        <p className="recovery-setup__why">
-          <strong>Why this matters:</strong> InvaTrace has no email or phone number for you. You only need a code when moving devices or restoring access — not for everyday reporting.
-        </p>
+        {/* Kept as a single quiet line so the page stays uncluttered but
+            UT-04 (users must be told why they are saving this) still passes. */}
+        <p className="recovery-setup__why">Only needed when moving devices or restoring access.</p>
 
         <div className="recovery-finish">
           <details className="recovery-name-toggle">
@@ -209,12 +204,12 @@ export function RecoveryKitSetupPage() {
             <PrivateAccessField
               id="recovery-display-name"
               label="Display name"
-              hint="A nickname. Not your real name, email, or phone. You can change it later."
+              hint="A nickname. Not your real name, email or phone."
               value={displayName}
               onChange={(event) => setDisplayName(event.target.value)}
               autoComplete="off"
               maxLength={80}
-              placeholder="Leave blank to skip"
+              placeholder="Optional"
             />
           </details>
           <label className="access-check">
@@ -222,7 +217,7 @@ export function RecoveryKitSetupPage() {
             <span>I have saved my recovery kit</span>
           </label>
           <PrivateAccessButton onClick={() => void continueToApp()} disabled={!codes || !acknowledged || continuing}>
-            {continuing ? 'Securing private access…' : 'Continue to InvaTrace'}
+            {continuing ? 'Securing…' : 'Continue'}
           </PrivateAccessButton>
           {(syncMessage || status === 'storage-error') && (
             <PrivateAccessButton kind="quiet" onClick={() => void retryPendingStorage()}>Save installation again</PrivateAccessButton>

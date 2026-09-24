@@ -233,8 +233,9 @@
 .access-state h1 { margin-top: 6px; font-size: 21px; letter-spacing: -0.02em; }
 .access-state p { color: var(--body); font-size: 14px; }
 
-.recovery-setup { width: min(560px, 100%); margin: 0 auto; display: grid; gap: 20px; }
-.recovery-setup__head { display: grid; gap: 6px; }
+.recovery-setup { width: min(520px, 100%); margin: 0 auto; display: grid; gap: 16px; }
+.recovery-setup__head { display: grid; gap: 4px; margin-bottom: 4px; }
+.recovery-setup h1 { font-size: 24px; margin: 0; }
 .recovery-setup__eyebrow {
   align-self: start;
   padding: 3px 8px;
@@ -252,15 +253,11 @@
   line-height: 1.5;
 }
 .recovery-setup__why {
-  margin: 0;
-  padding: 12px 14px;
-  border-radius: var(--r-card);
-  background: color-mix(in srgb, var(--body) 4%, transparent);
-  color: var(--body);
-  font-size: 12.5px;
-  line-height: 1.55;
+  margin: -6px 4px 0;
+  color: var(--muted);
+  font-size: 12px;
+  line-height: 1.4;
 }
-.recovery-setup__why strong { color: var(--ink); font-weight: 700; }
 
 .recovery-card {
   display: grid;
