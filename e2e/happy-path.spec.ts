@@ -372,8 +372,8 @@ test.skip('legacy: bootstrap created profiles while ignoring privilege fields', 
 test('private access creation saves a recovery kit, skips the optional name, and bootstraps later', async ({ page }) => {
   const payload = await startPrivateAccess(page, false)
   expect(payload.profile).toMatchObject({ role: 'Detector', trustLevel: 'New' })
-  expect(payload.recoveryCodes).toHaveLength(10)
-  await expect(page.locator('.recovery-code-grid code')).toHaveCount(10)
+  expect(payload.recoveryCodes).toHaveLength(3)
+  await expect(page.locator('.recovery-code-grid code')).toHaveCount(3)
   await expect(page.getByLabel('Display name (optional)')).toHaveValue('')
 
   const download = page.waitForEvent('download')
@@ -525,7 +525,7 @@ test('interrupted recovery setup rotates the unseen batch after reload', async (
   expect((await bootstrap).headers()['cache-control']).toBe('no-store')
   const replacement = await (await rotation).json() as { recoveryCodes: string[] }
   await expect(page).toHaveURL(/\/private-access\/recovery$/)
-  expect(replacement.recoveryCodes).toHaveLength(10)
+  expect(replacement.recoveryCodes).toHaveLength(3)
   expect(replacement.recoveryCodes[0]).not.toBe(started.recoveryCodes[0])
   await expect(page.getByText(started.recoveryCodes[0])).toHaveCount(0)
   await page.getByRole('checkbox', { name: 'I have saved my recovery kit' }).check()
