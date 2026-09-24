@@ -101,34 +101,97 @@
   border-radius: 8px;
 }
 
-.map-places-toggle {
+/* Tidy horizontal cluster of map controls (reports, places toggle, browse
+   places, legend). One pill on both viewports. Desktop shows icon + label;
+   mobile shrinks non-primary items to icon-only so the corner stays clean. */
+.map-controls-cluster {
   position: absolute;
   z-index: 6;
-  top: 52px;
+  top: 12px;
   left: 12px;
-  min-height: 44px;
-  padding: 0 12px;
-  border: 1px solid var(--control-border);
-  border-radius: var(--r-button);
-  background: var(--surface-raised);
-  color: var(--body);
-  box-shadow: var(--shadow-md);
   display: inline-flex;
   align-items: center;
-  gap: 7px;
-  font: inherit;
-  font-size: 12px;
-  font-weight: 700;
-  cursor: pointer;
+  gap: 6px;
+  padding: 4px;
+  border-radius: 999px;
+  background: var(--surface-translucent-strong);
+  border: 1px solid var(--border);
+  box-shadow: 0 6px 18px rgba(20, 40, 30, 0.12);
+  backdrop-filter: saturate(1.2) blur(14px);
+  -webkit-backdrop-filter: saturate(1.2) blur(14px);
 }
 
-.map-places-toggle--active {
-  border-color: var(--green-border);
+.map-cluster-btn {
+  position: relative;
+  min-height: 36px;
+  min-width: 36px;
+  padding: 0 12px;
+  border: 0;
+  border-radius: 999px;
+  background: transparent;
+  color: var(--body);
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font: inherit;
+  font-size: 12px;
+  font-weight: 650;
+  cursor: pointer;
+  white-space: nowrap;
+  text-decoration: none;
+}
+.map-cluster-btn:hover { background: var(--hover); }
+.map-cluster-btn:focus-visible {
+  outline: 2px solid var(--green);
+  outline-offset: 2px;
+}
+.map-cluster-btn--active {
   background: var(--green-light);
   color: var(--green-dark);
 }
+.map-cluster-btn__label { display: inline; }
+.map-cluster-btn__label-suffix { color: var(--muted); font-weight: 500; }
+.map-cluster-btn--active .map-cluster-btn__label-suffix { color: var(--green-dark); }
+.map-cluster-btn__badge {
+  min-width: 18px;
+  height: 18px;
+  padding: 0 5px;
+  border-radius: 999px;
+  background: var(--green);
+  color: #fff;
+  font-size: 10.5px;
+  font-weight: 700;
+  display: inline-grid;
+  place-items: center;
+}
 
-.map-places-toggle:focus-visible,
+/* Mobile: each cluster item stacks its icon over a tiny label so users
+   do not have to guess what an icon-only chip does. Labels shortened so
+   three chips fit the corner without wrapping. */
+@media (max-width: 899.98px) {
+  .map-controls-cluster { gap: 4px; padding: 4px 6px; }
+  .map-cluster-btn {
+    flex-direction: column;
+    gap: 1px;
+    padding: 4px 8px;
+    min-height: 44px;
+    min-width: 52px;
+    font-size: 10px;
+    line-height: 1.1;
+    font-weight: 700;
+    letter-spacing: 0.01em;
+  }
+  .map-cluster-btn__label-suffix { display: none; }
+  .map-cluster-btn__badge {
+    position: absolute;
+    top: -2px;
+    right: -2px;
+    min-width: 16px;
+    height: 16px;
+    font-size: 9.5px;
+  }
+}
+
 .map-place-preview:focus-visible,
 .map-place-preview a:focus-visible,
 .map-place-preview button:focus-visible {
@@ -139,7 +202,7 @@
 .map-places-status {
   position: absolute;
   z-index: 5;
-  top: 104px;
+  top: 60px;
   left: 12px;
   max-width: min(360px, calc(100% - 24px));
   padding: 7px 10px;
@@ -551,23 +614,64 @@
   color: var(--on-accent);
 }
 
+/* Attribution: shortened to "© OSM" (full credit lives in title / aria-label).
+   Sits bottom-right on desktop; bottom-left ABOVE the mobile bottom-tabs so
+   it never wraps under the nav pill. */
 .map-attribution {
   position: absolute;
-  right: 12px;
-  bottom: var(--map-legend-bottom);
   z-index: 5;
-  padding: 4px 8px;
+  padding: 3px 8px;
   border-radius: 999px;
   border: 1px solid var(--border);
   background: var(--surface-translucent);
   color: var(--muted);
-  font-size: 11px;
+  font-size: 10.5px;
   font-weight: 600;
   line-height: 1.2;
   text-decoration: none;
-  box-shadow: 0 6px 16px rgba(20, 40, 30, 0.1);
+  box-shadow: 0 4px 12px rgba(20, 40, 30, 0.08);
   backdrop-filter: saturate(1.1) blur(10px);
   -webkit-backdrop-filter: saturate(1.1) blur(10px);
+}
+@media (min-width: 900px) {
+  .map-attribution { right: 12px; bottom: 12px; }
+}
+@media (max-width: 899.98px) {
+  .map-attribution { left: 12px; bottom: calc(var(--mobile-nav-clearance) + 6px); }
+}
+
+/* Legend trigger sits on the bottom of the map (bottom-left desktop /
+   bottom-right mobile, out of the way of attribution). Opens the same
+   centered popover as before. */
+.map-legend-toggle {
+  position: absolute;
+  z-index: 5;
+  min-height: 34px;
+  padding: 6px 12px;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  border-radius: 999px;
+  border: 1px solid var(--border);
+  background: var(--surface-translucent-strong);
+  color: var(--body);
+  font-size: 12px;
+  font-weight: 650;
+  cursor: pointer;
+  box-shadow: 0 4px 14px rgba(20, 40, 30, 0.12);
+  backdrop-filter: saturate(1.2) blur(14px);
+  -webkit-backdrop-filter: saturate(1.2) blur(14px);
+}
+.map-legend-toggle:hover,
+.map-legend-toggle:focus-visible {
+  background: var(--surface-raised);
+  outline: none;
+}
+@media (min-width: 900px) {
+  .map-legend-toggle { left: 12px; bottom: 12px; }
+}
+@media (max-width: 899.98px) {
+  .map-legend-toggle { right: 12px; bottom: calc(var(--mobile-nav-clearance) + 6px); }
 }
 
 .map-location-notice {
@@ -625,41 +729,9 @@
   text-decoration: underline;
 }
 
-.map-legend-toggle {
-  position: absolute;
-  left: 12px;
-  bottom: var(--map-legend-bottom);
-  z-index: 5;
-  display: inline-flex;
-  align-items: center;
-  gap: 8px;
-  padding: 8px 14px;
-  border-radius: 999px;
-  border: 1px solid var(--border);
-  background: var(--surface-translucent);
-  box-shadow: 0 8px 24px rgba(20, 40, 30, 0.15);
-  color: var(--body);
-  font-size: 12px;
-  font-weight: 600;
-  cursor: pointer;
-  backdrop-filter: saturate(1.2) blur(14px);
-  -webkit-backdrop-filter: saturate(1.2) blur(14px);
-  transition: transform 140ms ease-out, box-shadow 140ms ease-out, background-color 140ms ease-out;
-}
-.map-legend-toggle:hover,
-.map-legend-toggle:focus-visible {
-  background: var(--surface-raised);
-  box-shadow: var(--shadow-md);
-  outline: none;
-}
-.map-legend-toggle:active { transform: translateY(1px); }
-
 .map-legend-card {
-  position: absolute;
-  left: 12px;
-  bottom: var(--map-legend-bottom);
-  z-index: 5;
-  width: 200px;
+  z-index: 60;
+  width: 220px;
   padding: 12px 14px;
   border-radius: var(--r-card);
   border: 1px solid var(--border);
@@ -845,10 +917,6 @@
   to { opacity: 1; transform: translateY(0); }
 }
 
-@media (max-width: 380px) {
-  .map-attribution { bottom: calc(var(--map-legend-bottom) + 54px); }
-}
-
 @media (max-width: 350px) {
   .filter-option-grid--status {
     grid-template-columns: 1fr;
@@ -860,48 +928,92 @@
   .map-legend-card { background: var(--surface-translucent-strong); }
 }
 
-/* Visible community reports list below the map (UT-13). Testers hunting for
-   "the reports list below the map" could not find the screen-reader-only one,
-   so it is now an on-screen collapsible panel that doubles as the accessible
-   mirror of the pins. Bounded height with its own scroll so it never crowds
-   the map out. */
-.map-reports-panel {
-  flex-shrink: 0;
-  border-top: 1px solid var(--border);
-  background: var(--surface);
-}
-.map-reports-panel__summary {
+/* Reports sheet: opens from the reports button in the map controls cluster.
+   Desktop = right-side drawer; mobile = bottom sheet floated above the fixed
+   bottom-tabs. Replaces the always-visible below-map panel, which sat behind
+   the mobile bottom-tabs and read as clutter. */
+.map-reports-sheet__scrim {
+  position: absolute;
+  inset: 0;
+  z-index: 7;
+  border: 0;
+  padding: 0;
+  background: var(--scrim);
   cursor: pointer;
-  min-height: 44px;
+}
+.map-reports-sheet {
+  position: absolute;
+  z-index: 8;
+  display: flex;
+  flex-direction: column;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--r-card);
+  box-shadow: var(--shadow-lg);
+  transition: transform 200ms cubic-bezier(.2,.8,.2,1), opacity 160ms ease-out;
+  pointer-events: none;
+  opacity: 0;
+}
+.map-reports-sheet--open { pointer-events: auto; opacity: 1; }
+@media (min-width: 900px) {
+  .map-reports-sheet {
+    top: 12px;
+    right: 12px;
+    bottom: 12px;
+    width: 360px;
+    transform: translateX(24px);
+  }
+  .map-reports-sheet--open { transform: translateX(0); }
+}
+@media (max-width: 899.98px) {
+  .map-reports-sheet {
+    left: 12px;
+    right: 12px;
+    bottom: calc(var(--mobile-nav-clearance) + 8px);
+    max-height: 55vh;
+    transform: translateY(24px);
+  }
+  .map-reports-sheet--open { transform: translateY(0); }
+}
+.map-reports-sheet__header {
   display: flex;
   align-items: center;
-  padding: 10px 14px;
+  gap: 8px;
+  padding: 10px 8px 10px 14px;
+  border-bottom: 1px solid var(--border);
+}
+.map-reports-sheet__title {
+  flex: 1;
   color: var(--heading);
   font-size: 13.5px;
   font-weight: 650;
-  list-style: none;
 }
-.map-reports-panel__summary::-webkit-details-marker { display: none; }
-.map-reports-panel__summary::after {
-  content: '';
-  margin-left: 8px;
-  width: 8px;
-  height: 8px;
-  border-right: 2px solid var(--muted);
-  border-bottom: 2px solid var(--muted);
-  transform: rotate(-45deg);
-  transition: transform 150ms ease;
+.map-reports-sheet__close {
+  width: 36px;
+  height: 36px;
+  min-width: 36px;
+  border: 0;
+  border-radius: 50%;
+  background: transparent;
+  color: var(--muted);
+  cursor: pointer;
+  display: grid;
+  place-items: center;
 }
-.map-reports-panel[open] .map-reports-panel__summary::after,
-details[open] > .map-reports-panel__summary::after { transform: rotate(45deg); }
-.map-reports-panel__body {
-  max-height: 32vh;
+.map-reports-sheet__close:hover,
+.map-reports-sheet__close:focus-visible {
+  background: var(--hover);
+  color: var(--body);
+  outline: none;
+}
+.map-reports-sheet__body {
+  flex: 1;
   overflow-y: auto;
-  padding: 0 14px 12px;
+  padding: 10px 14px 14px;
 }
-.map-reports-panel__count { color: var(--muted); font-size: 12px; margin-bottom: 8px; }
-.map-reports-panel__list { list-style: none; display: flex; flex-direction: column; gap: 6px; }
-.map-reports-panel__item {
+.map-reports-sheet__count { color: var(--muted); font-size: 12px; margin-bottom: 8px; }
+.map-reports-sheet__list { list-style: none; display: flex; flex-direction: column; gap: 6px; }
+.map-reports-sheet__item {
   width: 100%;
   text-align: left;
   display: flex;
@@ -914,8 +1026,8 @@ details[open] > .map-reports-panel__summary::after { transform: rotate(45deg); }
   color: var(--body);
   cursor: pointer;
 }
-.map-reports-panel__item:hover { border-color: var(--green-border); background: var(--hover); }
-.map-reports-panel__item:focus-visible { outline: 2px solid var(--green); outline-offset: 1px; }
-.map-reports-panel__item-name { color: var(--heading); font-size: 13.5px; font-weight: 600; }
-.map-reports-panel__item-meta { color: var(--muted); font-size: 11.5px; }
-.map-reports-panel__item-place { color: var(--body); font-size: 12px; }
+.map-reports-sheet__item:hover { border-color: var(--green-border); background: var(--hover); }
+.map-reports-sheet__item:focus-visible { outline: 2px solid var(--green); outline-offset: 1px; }
+.map-reports-sheet__item-name { color: var(--heading); font-size: 13.5px; font-weight: 600; }
+.map-reports-sheet__item-meta { color: var(--muted); font-size: 11.5px; }
+.map-reports-sheet__item-place { color: var(--body); font-size: 12px; }

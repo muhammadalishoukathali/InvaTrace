@@ -110,6 +110,7 @@ export function ThreatMapPage() {
     text: string
   } | null>(null)
   const [recordDetailsOpen, setRecordDetailsOpen] = useState(false)
+  const [reportsSheetOpen, setReportsSheetOpen] = useState(false)
   const [showPlaces, setShowPlaces] = useState(true)
   const showPlacesRef = useRef(showPlaces)
   const [placeData, setPlaceData] = useState<PlaceMapResponse>({
@@ -654,16 +655,12 @@ export function ThreatMapPage() {
   const resultCountLabel = `Showing ${filtered.length} ${filtered.length === 1 ? 'report' : 'reports'}`
 
   return (
-    <div style={{
-      position: 'relative', height: '100%', minHeight: 0,
-      display: 'flex', flexDirection: 'column',
-    }}>
-      {/* Accessibility bit - the map canvas itself is basically invisible
-          to keyboard-only or screen reader users. So we always render an
-          AccessibleSightingList below that mirrors the pins, including
-          during loading and error states, so the report data is still
-          reachable. Came out of the Iteration 1 P9 accessibility review. */}
-      <div style={{ position: 'relative', flex: 1, minHeight: 0 }}>
+    <div style={{ position: 'relative', height: '100%', minHeight: 0 }}>
+      {/* Accessibility (P9): the map canvas is invisible to keyboard and
+          screen-reader users, so a sr-only sighting list mirrors every pin.
+          On-screen users open the visible list from the reports button in
+          the map controls cluster - it renders as ReportsSheet below. */}
+      <div style={{ position: 'relative', height: '100%', minHeight: 0 }}>
         <div
           ref={container}
           role="application"
@@ -693,39 +690,50 @@ export function ThreatMapPage() {
             No community reports are visible yet.
           </div>
         )}
-        <MapLegend />
         <MapAttribution />
-        {/* Same AC 4.2.3 - the visible count chip. We set aria-live so
-            screen readers actually hear the new number after someone
-            changes a filter, rather than silently updating. */}
-        <div
-          id="map-live-count"
-          role="status"
-          aria-live="polite"
-          style={{
-            position: 'absolute', top: 12, left: 12, zIndex: 5,
-            padding: '6px 10px', borderRadius: 'var(--r-chip)',
-            background: 'var(--surface)', border: '1px solid var(--border)',
-            fontSize: 12, fontWeight: 600, color: 'var(--body)',
-            boxShadow: '0 2px 6px rgba(0,0,0,0.08)',
-          }}
-        >
-          {resultCountLabel}
-          {filtersActive > 0 && (
-            <span style={{ marginLeft: 6, color: 'var(--muted)', fontWeight: 500 }}>
-              · {filtersActive} filter{filtersActive === 1 ? '' : 's'} active
+        {/* Compact horizontal cluster of map controls. Icon-only on mobile;
+            icon + label on desktop. Places-shortcut lives here too (was a
+            floating pill in BottomTabs; kept clashing with the bottom nav). */}
+        <div className="map-controls-cluster" role="group" aria-label="Map controls">
+          <button
+            type="button"
+            id="map-live-count"
+            className={`map-cluster-btn map-cluster-btn--reports${reportsSheetOpen ? ' map-cluster-btn--active' : ''}`}
+            aria-live="polite"
+            aria-expanded={reportsSheetOpen}
+            aria-controls="map-reports-sheet"
+            aria-label={`${resultCountLabel}${filtersActive > 0 ? ` (${filtersActive} filter${filtersActive === 1 ? '' : 's'} active)` : ''}. Open reports list`}
+            onClick={() => setReportsSheetOpen(true)}
+          >
+            <Icon name="ClipboardList" size={16} color="currentColor" />
+            <span className="map-cluster-btn__label">
+              {filtered.length}
+              <span className="map-cluster-btn__label-suffix"> report{filtered.length === 1 ? '' : 's'}</span>
             </span>
-          )}
+            {filtersActive > 0 && (
+              <span className="map-cluster-btn__badge" aria-hidden>{filtersActive}</span>
+            )}
+          </button>
+          <button
+            type="button"
+            className={`map-cluster-btn map-cluster-btn--places${showPlaces ? ' map-cluster-btn--active' : ''}`}
+            aria-pressed={showPlaces}
+            aria-label={showPlaces ? 'Hide mapped places' : 'Show mapped places'}
+            onClick={() => setShowPlaces((current) => !current)}
+          >
+            <Icon name="Trees" size={16} color="currentColor" />
+            <span className="map-cluster-btn__label">Places</span>
+          </button>
+          <Link
+            to="/places"
+            className="map-cluster-btn map-cluster-btn--browse"
+            aria-label="Browse mapped places"
+          >
+            <Icon name="Map" size={16} color="currentColor" />
+            <span className="map-cluster-btn__label">Browse</span>
+          </Link>
         </div>
-        <button
-          type="button"
-          className={`map-places-toggle${showPlaces ? ' map-places-toggle--active' : ''}`}
-          aria-pressed={showPlaces}
-          onClick={() => setShowPlaces((current) => !current)}
-        >
-          <Icon name="Trees" size={17} color="currentColor" />
-          {showPlaces ? 'Hide places' : 'Show places'}
-        </button>
+        <MapLegend />
         {showPlaces && (placesLoading || placesError || placeData.truncated || placeData.features.length === 0) && (
           <div className="map-places-status" role={placesError ? 'alert' : 'status'} aria-live="polite">
             {placesLoading
@@ -785,24 +793,27 @@ export function ThreatMapPage() {
             </button>
           </div>
         )}
+        <ReportsSheet
+          open={reportsSheetOpen}
+          onClose={() => setReportsSheetOpen(false)}
+          items={filtered}
+          onSelect={(id) => { setReportsSheetOpen(false); select(id) }}
+          isLoading={isLoading}
+          isError={isError}
+          onRetry={() => void refetch()}
+        />
+        <SrOnlySightingList items={filtered} onSelect={select} />
+        <AccessiblePlaceList
+          items={showPlaces ? placeData.features : []}
+          isLoading={showPlaces && placesLoading}
+          isError={showPlaces && placesError}
+          onSelect={(feature, trigger) => {
+            placeReturnFocus.current = trigger
+            setSelectedPlace(feature.properties)
+            map.current?.easeTo({ center: feature.geometry.coordinates as [number, number], zoom: 15 })
+          }}
+        />
       </div>
-      <AccessibleSightingList
-        items={filtered}
-        onSelect={select}
-        isLoading={isLoading}
-        isError={isError}
-        onRetry={() => void refetch()}
-      />
-      <AccessiblePlaceList
-        items={showPlaces ? placeData.features : []}
-        isLoading={showPlaces && placesLoading}
-        isError={showPlaces && placesError}
-        onSelect={(feature, trigger) => {
-          placeReturnFocus.current = trigger
-          setSelectedPlace(feature.properties)
-          map.current?.easeTo({ center: feature.geometry.coordinates as [number, number], zoom: 15 })
-        }}
-      />
       <SightingDetailsSheet />
       <SavedRecordDetailsSheet
         target={requestedLocation}
@@ -921,43 +932,65 @@ function MapAttribution() {
       target="_blank"
       rel="noopener noreferrer"
       className="map-attribution"
+      title={BASEMAP_ATTRIBUTION}
       aria-label={`${BASEMAP_ATTRIBUTION} - data license`}
     >
-      {BASEMAP_ATTRIBUTION}
+      © OSM
     </a>
   )
 }
 
-/**
- * The community reports list that sits below the map. It mirrors every pin as a
- * plain list item, so it works for screen-reader and keyboard users without
- * touching the map canvas - and, since usability testers looking for "the
- * reports list below the map" could not find a screen-reader-only one (UT-13),
- * it is now a visible, collapsible panel too. One accessible list serves both.
- */
-function AccessibleSightingList({
-  items, onSelect, isLoading, isError, onRetry,
+/** On-demand reports sheet. Right-side drawer on desktop, bottom sheet on
+ *  mobile floated above the fixed bottom-tabs. Opens from the reports button
+ *  in the map controls cluster - the always-visible below-map panel it
+ *  replaces sat behind the mobile bottom-tabs and felt like clutter. */
+function ReportsSheet({
+  open, onClose, items, onSelect, isLoading, isError, onRetry,
 }: {
+  open: boolean
+  onClose: () => void
   items: Sighting[]
   onSelect: (id: string) => void
   isLoading: boolean
   isError: boolean
   onRetry: () => void
 }) {
-  const summary = isLoading
+  const heading = isLoading
     ? 'Community reports · loading…'
     : isError
       ? 'Community reports · could not load'
       : `Community reports · ${items.length}`
-  // The list has to render in loading and error states too, not just when data
-  // arrives - otherwise a keyboard or screen-reader user who hit a network
-  // error would have nothing to interact with, since the map canvas doesn't
-  // help them. Came from the accessibility review.
   return (
-    <section aria-label="Community reports list" className="map-reports-panel">
-      <details open>
-        <summary className="map-reports-panel__summary">{summary}</summary>
-        <div className="map-reports-panel__body">
+    <>
+      {open && (
+        <button
+          type="button"
+          className="map-reports-sheet__scrim"
+          aria-hidden
+          tabIndex={-1}
+          onClick={onClose}
+        />
+      )}
+      <aside
+        id="map-reports-sheet"
+        role="dialog"
+        aria-modal="false"
+        aria-label="Community reports list"
+        aria-hidden={!open}
+        className={`map-reports-sheet${open ? ' map-reports-sheet--open' : ''}`}
+      >
+        <div className="map-reports-sheet__header">
+          <span className="map-reports-sheet__title">{heading}</span>
+          <button
+            type="button"
+            onClick={onClose}
+            aria-label="Close community reports list"
+            className="map-reports-sheet__close"
+          >
+            <Icon name="X" size={16} color="currentColor" />
+          </button>
+        </div>
+        <div className="map-reports-sheet__body">
           {isLoading && <p role="status">Loading community reports…</p>}
           {isError && (
             <p role="alert">
@@ -967,13 +1000,13 @@ function AccessibleSightingList({
           )}
           {!isLoading && !isError && (
             <>
-              <p className="map-reports-panel__count">
+              <p className="map-reports-sheet__count">
                 {items.length === 0
                   ? 'No community reports match the current filters.'
                   : `${items.length} community report${items.length === 1 ? '' : 's'} match the current filters.`}
               </p>
               {items.length > 0 && (
-                <ul className="map-reports-panel__list">
+                <ul className="map-reports-sheet__list">
                   {items.map((s) => {
                     const statusLabel = s.status === 'screened'
                       ? 'Community report - not expert validated'
@@ -987,10 +1020,10 @@ function AccessibleSightingList({
                       : s.place.displayName
                     return (
                       <li key={s.id}>
-                        <button type="button" onClick={() => onSelect(s.id)} className="map-reports-panel__item">
-                          <span className="map-reports-panel__item-name">{s.speciesName} <i>({s.latinName})</i></span>
-                          <span className="map-reports-panel__item-meta">{tierLabel} · {statusLabel}{statusDate}</span>
-                          <span className="map-reports-panel__item-place">{placeName}</span>
+                        <button type="button" onClick={() => onSelect(s.id)} className="map-reports-sheet__item">
+                          <span className="map-reports-sheet__item-name">{s.speciesName} <i>({s.latinName})</i></span>
+                          <span className="map-reports-sheet__item-meta">{tierLabel} · {statusLabel}{statusDate}</span>
+                          <span className="map-reports-sheet__item-place">{placeName}</span>
                         </button>
                       </li>
                     )
@@ -1000,7 +1033,38 @@ function AccessibleSightingList({
             </>
           )}
         </div>
-      </details>
+      </aside>
+    </>
+  )
+}
+
+/** sr-only mirror of the pins (P9 accessibility). Always rendered so
+ *  screen-reader/keyboard users can enumerate reports without opening the
+ *  sheet. */
+function SrOnlySightingList({
+  items, onSelect,
+}: {
+  items: Sighting[]
+  onSelect: (id: string) => void
+}) {
+  return (
+    <section aria-label="Community reports list" className="sr-only">
+      <p>{items.length} community report{items.length === 1 ? '' : 's'} match the current filters.</p>
+      <ul>
+        {items.map((s) => {
+          const tierLabel = PIN_TIERS[pinTier(s)].label
+          const statusLabel = s.status === 'screened'
+            ? 'Community report - not expert validated'
+            : s.status === 'removal_reported' ? 'Removal reported' : 'Removed'
+          return (
+            <li key={s.id}>
+              <button type="button" onClick={() => onSelect(s.id)}>
+                {s.speciesName} ({s.latinName}) - {tierLabel} - {statusLabel}
+              </button>
+            </li>
+          )
+        })}
+      </ul>
     </section>
   )
 }

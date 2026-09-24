@@ -57,6 +57,10 @@ export function AppShell() {
   const pageFillsAvailableSpace = pathname === '/map'
   const showBottomTabs = !isDesktop
   const showProfileBack = !isDesktop && pathname === '/profile'
+  // Places lives outside the mobile bottom-tabs (entry is from the map
+  // controls cluster) so it needs its own back-to-map affordance in the
+  // header, otherwise users get stranded on /places with no exit path.
+  const showPlacesBack = !isDesktop && pathname === '/places'
   const showProfileShortcut = !isDesktop && pathname !== '/profile' && pathname !== '/reports'
   const profileReturnTo = profileReturnPath(location.state)
 
@@ -77,6 +81,16 @@ export function AppShell() {
                 className="app-header__back"
                 aria-label={profileReturnTo === '/reports' ? 'Back to my records' : 'Back to threat map'}
                 onClick={() => navigate(profileReturnTo, { replace: true })}
+              >
+                <Icon name="ChevronLeft" size={20} color="var(--body)" />
+              </button>
+            )}
+            {showPlacesBack && (
+              <button
+                type="button"
+                className="app-header__back"
+                aria-label="Back to threat map"
+                onClick={() => navigate('/map')}
               >
                 <Icon name="ChevronLeft" size={20} color="var(--body)" />
               </button>
