@@ -113,10 +113,10 @@ export function AccessManagementPage() {
     } finally { setBusy(null) }
   }
 
-  // Rotating replaces the whole unused-code batch - this matches the server
-  // rule that rotating invalidates every unused code from earlier batches
-  // (docs/product.md), so we show the fresh batch here rather than silently
-  // discarding it, the user needs to save these too.
+  // Rotation replaces the whole reusable batch. The server retires every
+  // code from every earlier batch (see backend rotate_recovery_codes), so we
+  // show the fresh batch here rather than silently discarding it - the user
+  // needs to save these too.
   const rotate = async () => {
     setBusy('rotate'); setError(null); setMessage(null)
     try {
@@ -124,9 +124,9 @@ export function AccessManagementPage() {
       setReplacement(batch)
       setConfirmRotate(false)
       await load()
-      setMessage('New codes generated. Older unused codes no longer work.')
+      setMessage('New codes generated. Your previous codes no longer work.')
     } catch {
-      setError('Replacement codes could not be generated. Your current unused codes remain unchanged.')
+      setError('Replacement codes could not be generated. Your current recovery codes remain unchanged.')
     } finally { setBusy(null) }
   }
 
@@ -139,7 +139,7 @@ export function AccessManagementPage() {
       await api<void>(`/api/v1/profiles/me/installations/${encodeURIComponent(installationId)}/revoke`, { method: 'POST' })
       setConfirmRevoke(null)
       await load()
-      setMessage('Device revoked. It can no longer restore this profile.')
+      setMessage('Device revoked. It can no longer access this profile.')
     } catch {
       setError('That installation could not be revoked. Refresh the list and try again.')
     } finally { setBusy(null) }
@@ -197,7 +197,7 @@ export function AccessManagementPage() {
       </section>
 
       <section className="access-management__section" aria-labelledby="recovery-access-heading">
-        <div className="section-heading-row"><div><h3 id="recovery-access-heading">Recovery codes</h3><p>One code restores this profile on a new device. Each code works once.</p></div></div>
+        <div className="section-heading-row"><div><h3 id="recovery-access-heading">Recovery codes</h3><p>Any one of your codes restores this profile on a new device. Codes stay valid and can be reused; replace them here if you think they may have leaked.</p></div></div>
         {replacement && replacementInput ? (
           <div className="replacement-batch">
             <PrivateAccessNotice tone="warning" title="Save these codes now">They stay in memory only until you leave this page.</PrivateAccessNotice>
@@ -211,14 +211,14 @@ export function AccessManagementPage() {
         ) : confirmRotate ? (
           <div className="destructive-confirmation">
             <Icon name="AlertTriangle" size={22} color="var(--amber-text)" />
-            <div><strong>Replace all unused codes?</strong><p>Older unused codes stop working the moment new ones are issued.</p></div>
+            <div><strong>Replace your recovery codes?</strong><p>Your current codes stop working the moment new ones are issued.</p></div>
             <div><PrivateAccessButton kind="danger" onClick={() => void rotate()} disabled={busy === 'rotate'}>{busy === 'rotate' ? 'Replacing…' : 'Replace codes'}</PrivateAccessButton><PrivateAccessButton kind="quiet" onClick={() => setConfirmRotate(false)}>Cancel</PrivateAccessButton></div>
           </div>
         ) : (
           <div className="recovery-status-row">
             <span className="recovery-status-row__icon" aria-hidden><Icon name="KeyRound" size={20} /></span>
             <div>
-              <strong>{loading ? 'Checking recovery codes…' : `${overview?.unusedRecoveryCodeCount ?? 0} unused code${overview?.unusedRecoveryCodeCount === 1 ? '' : 's'}`}</strong>
+              <strong>{loading ? 'Checking recovery codes…' : `${overview?.recoveryCodeCount ?? 0} recovery code${overview?.recoveryCodeCount === 1 ? '' : 's'} on file`}</strong>
               <p>{loading ? 'One moment…' : 'Keep at least one code stored off this device.'}</p>
             </div>
             <PrivateAccessButton kind="secondary" icon="RefreshCw" onClick={() => setConfirmRotate(true)} disabled={!online || loading}>Replace codes</PrivateAccessButton>
@@ -247,7 +247,7 @@ export function AccessManagementPage() {
             <Icon name="AlertTriangle" size={22} color="var(--red-text)" />
             <div>
               <strong>Sign out of this browser?</strong>
-              <p>This removes the local profile. You will need your profile ID and an unused recovery code to return.</p>
+              <p>This removes the local profile. You will need your profile ID and one of your recovery codes to return.</p>
             </div>
             <div>
               <PrivateAccessButton kind="danger" onClick={() => void handleSignOut()} disabled={busy === 'sign-out'}>

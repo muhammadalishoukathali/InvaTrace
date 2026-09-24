@@ -1,8 +1,9 @@
 """AC 2.1.1 + 2.1.2 verification-only tests for anonymous recovery secrets.
 
-The implementation is deliberately batched into ten independent 128-bit
-one-time codes so any single lost code does not lock the profile out.
-Every assertion here guards a property the AC calls out explicitly:
+Recovery codes are batched into three independent 128-bit reusable codes -
+few enough for a user to keep track of, and reusable so restoring on a new
+device does not draw down a limited pool. Every assertion here guards a
+property the AC calls out explicitly:
 
 * raw codes come from a CSPRNG with at least 128 bits of entropy each;
 * raw codes only appear in the initial creation / rotation response and
@@ -57,7 +58,7 @@ def test_recovery_codes_come_from_secrets_module() -> None:
     assert "secrets.token_bytes" in source
 
 
-def test_profile_start_returns_no_store_and_ten_codes() -> None:
+def test_profile_start_returns_no_store_and_recovery_codes() -> None:
     # AC 2.1.2 - the only endpoint that hands over raw recovery secrets
     # must set Cache-Control: no-store so no shared proxy / browser cache
     # retains them.
@@ -74,7 +75,7 @@ def test_profile_start_returns_no_store_and_ten_codes() -> None:
     assert response.headers.get("pragma") == "no-cache"
 
 
-def test_recovery_batch_helper_returns_ten_unique_raw_codes() -> None:
+def test_recovery_batch_helper_returns_unique_raw_codes() -> None:
     # AC 2.1.2 - batch cardinality + uniqueness. The helper writes to
     # the DB (session.add / flush); pass a stand-in session so we can
     # inspect the raw codes it returned without needing Postgres up.
@@ -92,8 +93,8 @@ def test_recovery_batch_helper_returns_ten_unique_raw_codes() -> None:
         _StubSession(),
         profile_id=__import__("uuid").uuid4(),
     )
-    assert len(raw_codes) == 10
-    assert len(set(raw_codes)) == 10
+    assert len(raw_codes) == identity.RECOVERY_CODES_PER_BATCH
+    assert len(set(raw_codes)) == identity.RECOVERY_CODES_PER_BATCH
     for code in raw_codes:
         assert BASE32_RE.fullmatch(code), code
         assert len(code.replace("-", "")) >= MIN_ENCODED_CHARS

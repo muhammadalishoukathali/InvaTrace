@@ -177,7 +177,9 @@ class InstallationResponse(ApiModel):
 
 class AccessOverviewResponse(ApiModel):
     profile_id: str
-    unused_recovery_code_count: int
+    # Reusable recovery codes currently on file for this profile (not
+    # consumed by restores; only rotation retires them).
+    recovery_code_count: int
     installations: list[InstallationResponse]
 
 

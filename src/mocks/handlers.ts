@@ -193,7 +193,6 @@ function haversineMetres(a: { lat: number; lng: number }, b: { lat: number; lng:
 interface MockRecoveryCode {
   hash: string
   createdAt: string
-  usedAt: string | null
 }
 
 interface MockInstallation {
@@ -264,15 +263,30 @@ function randomGroupedSecret(byteCount = 16): string {
   return output.match(/.{1,4}/g)!.join('-')
 }
 
+const MOCK_RECOVERY_BATCH_SIZE = 3
+
 async function freshRecoveryBatch() {
   const createdAt = new Date().toISOString()
-  const raw = Array.from({ length: 10 }, () => randomGroupedSecret(16))
+  const raw = Array.from({ length: MOCK_RECOVERY_BATCH_SIZE }, () => randomGroupedSecret(16))
   const hashes = await Promise.all(raw.map(secretHash))
   return {
     createdAt,
     raw,
-    records: hashes.map((hash) => ({ hash, createdAt, usedAt: null })),
+    records: hashes.map((hash) => ({ hash, createdAt })),
   }
+}
+
+// 6-digit numeric public profile id, matching the backend (see
+// backend/app/core/security.new_profile_public_id). Retries on collision
+// against the currently persisted mock profiles.
+function allocateMockPublicId(existing: MockServerState): string {
+  const used = new Set(existing.profiles.map((record) => record.profile.id))
+  for (let attempt = 0; attempt < 32; attempt += 1) {
+    const bytes = crypto.getRandomValues(new Uint32Array(1))
+    const candidate = String(bytes[0] % 1_000_000).padStart(6, '0')
+    if (!used.has(candidate)) return candidate
+  }
+  throw new Error('Could not allocate a unique 6-digit profile id.')
 }
 
 function identityJson<T extends JsonBodyType>(data: T, status = 200, headers: Record<string, string> = {}) {
@@ -388,7 +402,7 @@ export const handlers = [
     const now = new Date().toISOString()
     const batch = await freshRecoveryBatch()
     const profile: PseudonymousProfile = {
-      id: `IVT-${randomGroupedSecret(12)}`,
+      id: allocateMockPublicId(state),
       displayName: typeof body.displayName === 'string' && body.displayName.trim() ? body.displayName.trim() : null,
       role: 'Detector',
       trustLevel: 'New',
@@ -444,7 +458,7 @@ export const handlers = [
     const body = (await request.json()) as {
       profileId?: unknown; recoveryCode?: unknown; installationToken?: unknown
     }
-    const profileId = typeof body.profileId === 'string' ? body.profileId.trim().toUpperCase() : ''
+    const profileId = typeof body.profileId === 'string' ? body.profileId.trim() : ''
     const recoveryCode = typeof body.recoveryCode === 'string' ? body.recoveryCode.trim().toUpperCase() : ''
     const clientIp = request.headers.get('x-forwarded-for')?.split(',')[0].trim() || null
     const blockedSeconds = restoreBlocked(profileId, clientIp)
@@ -460,17 +474,16 @@ export const handlers = [
     const [codeHash, tokenHash] = await Promise.all([secretHash(recoveryCode), secretHash(body.installationToken)])
     const state = loadMockServer()
     const record = state.profiles.find((candidate) => candidate.profile.id === profileId)
-    const code = record?.recoveryCodes.find((candidate) => candidate.hash === codeHash && !candidate.usedAt)
+    // Recovery codes are reusable, so we look up by hash only - no
+    // usedAt gate. Rotation replaces the whole record.recoveryCodes
+    // array, which is what actually retires an old code.
+    const code = record?.recoveryCodes.find((candidate) => candidate.hash === codeHash)
     if (!record || !code) {
       recordRestoreFailure(profileId, clientIp)
       return identityJson({ detail: genericError }, 400)
     }
 
-    // this whole block is synchronous so two restore requests can't both
-    // read the same one-time code as unused before either one marks it used -
-    // no real race condition possible in JS single-threaded execution here
     const now = new Date().toISOString()
-    code.usedAt = now
     const installation: MockInstallation = {
       id: `ins_${crypto.randomUUID()}`,
       tokenHash,
@@ -534,7 +547,7 @@ export const handlers = [
     const record = state.profiles.find((candidate) => candidate.profile.id === session.profile.id)!
     const overview: AccessOverview = {
       profileId: record.profile.id,
-      unusedRecoveryCodeCount: record.recoveryCodes.filter((code) => !code.usedAt).length,
+      recoveryCodeCount: record.recoveryCodes.length,
       installations: record.installations.map((item) => ({
         id: item.id,
         createdAt: item.createdAt,

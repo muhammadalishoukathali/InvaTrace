@@ -2,15 +2,16 @@
 
 This is the only way an account comes into existence in InvaTrace - there is no
 signup form, no email, no password. /start creates a pseudonymous profile and
-hands back an installation token plus ten one-time recovery codes; /restore
-takes one of those codes and re-links the profile on a new device. The hashing
-and token issuing all live in app/core/security.py, this module is the HTTP
-shape around it plus the audit trail.
+hands back an installation token plus three reusable recovery codes; /restore
+takes one of those codes and re-links the profile on a new device without
+consuming it, so the same code can be reused later on yet another device. The
+hashing and token issuing all live in app/core/security.py, this module is the
+HTTP shape around it plus the audit trail.
 
 Every route here responds with Cache-Control: no-store, and raw recovery codes
 are returned exactly once at generation time and never stored in the clear, so
-losing every installation and every unused code really does mean the profile is
-gone. That is a deliberate trade for not holding personal data.
+losing every installation and every recovery code really does mean the profile
+is gone. That is a deliberate trade for not holding personal data.
 """
 from __future__ import annotations
 
@@ -105,12 +106,20 @@ def audit(
     )
 
 
-# Generates a fresh set of 10 one-time recovery codes and stores their hashes
-# (never the raw codes - those only exist in the response, once). Used on
-# first profile creation and whenever the user rotates their codes.
+# Number of reusable recovery codes issued per batch. Small on purpose - the
+# user only has to keep track of three secrets rather than ten, and they don't
+# get consumed on restore, so running out is not a concern; rotation replaces
+# the whole set.
+RECOVERY_CODES_PER_BATCH = 3
+
+
+# Generates a fresh set of RECOVERY_CODES_PER_BATCH reusable recovery codes and
+# stores their hashes (never the raw codes - those only exist in the response,
+# once). Used on first profile creation and whenever the user rotates their
+# codes.
 def create_recovery_batch(session: Session, profile_id: uuid.UUID) -> tuple[list[str], datetime]:
     now = utcnow()
-    raw_codes = [random_grouped_secret(16) for _ in range(10)]
+    raw_codes = [random_grouped_secret(16) for _ in range(RECOVERY_CODES_PER_BATCH)]
     batch = RecoveryCodeBatch(profile_id=profile_id, created_at=now)
     session.add(batch)
     session.flush()
@@ -124,6 +133,21 @@ def create_recovery_batch(session: Session, profile_id: uuid.UUID) -> tuple[list
         for code in raw_codes
     )
     return raw_codes, now
+
+
+# Retry loop around new_profile_public_id: the 6-digit id space is small
+# enough (10**6) that we do have to plan for collisions. 12 attempts is
+# vanishingly unlikely to fail at demo scale, and if it ever does the
+# outer transaction just fails cleanly rather than issuing a duplicate id.
+_PUBLIC_ID_MAX_ATTEMPTS = 12
+
+
+def _allocate_profile_public_id(session: Session) -> str:
+    for _ in range(_PUBLIC_ID_MAX_ATTEMPTS):
+        candidate = new_profile_public_id()
+        if not session.scalar(select(Profile.id).where(Profile.public_id == candidate)):
+            return candidate
+    raise ApiProblem(503, "profile_id_unavailable", "Please try again in a moment.")
 
 
 # First-run flow - called once when the app is freshly installed. Client
@@ -144,7 +168,7 @@ def start_profile(
         raise ApiProblem(409, "installation_exists", "Private access could not be started.")
 
     profile = Profile(
-        public_id=new_profile_public_id(),
+        public_id=_allocate_profile_public_id(session),
         display_name=body.display_name,
         role="Detector",
         trust_level="New",
@@ -197,8 +221,10 @@ def bootstrap(
 
 
 # Recovery flow for "I got a new phone / cleared my browser storage" - trades
-# a profile ID + one of the 10 recovery codes for a new installation on the
-# same profile. Called from the app's "restore access" screen.
+# a profile ID + any one of the profile's reusable recovery codes for a new
+# installation on the same profile. The code stays valid for future restores;
+# only rotation from the account screen retires it. Called from the app's
+# "restore access" screen.
 @router.post("/restore", response_model=RestoreResponse)
 def restore(
     body: RestoreRequest,
@@ -232,11 +258,9 @@ def restore(
             .join(RecoveryCodeBatch, RecoveryCodeBatch.id == RecoveryCode.batch_id)
             .where(
                 RecoveryCode.profile_id == profile.id,
-                RecoveryCode.used_at.is_(None),
                 RecoveryCodeBatch.invalidated_at.is_(None),
             )
             .order_by(RecoveryCode.created_at)
-            .with_for_update()
         ).all()
         for candidate in active_codes:
             if hmac.compare_digest(candidate.code_hash, supplied_hash):
@@ -252,17 +276,8 @@ def restore(
         raise _fail_generic()
 
     now = utcnow()
-    # Conditional UPDATE on used_at IS NULL - if two requests race to spend
-    # the same code, only one rowcount comes back as 1. Cheap way to make
-    # "spend this one-time code" atomic without a separate lock.
-    result = session.execute(
-        update(RecoveryCode)
-        .where(RecoveryCode.id == matched_code.id, RecoveryCode.used_at.is_(None))
-        .values(used_at=now)
-    )
-    if result.rowcount != 1:
-        session.rollback()
-        raise _fail_generic()
+    # Recovery codes are reusable, so the code row stays as-is. Rotation is
+    # the only path that retires a code (see rotate_recovery_codes below).
     installation = Installation(
         profile_id=profile.id,
         token_hash=token_hash,
@@ -324,8 +339,8 @@ def acknowledge_recovery_setup(
     return Response(status_code=204)
 
 
-# Burns any unused codes from previous batches and issues 10 new ones - for
-# when a user suspects their old codes leaked, or just wants a clean set.
+# Invalidates every existing code and issues a fresh batch - for when a user
+# suspects their old codes leaked, or just wants a clean set.
 @router.post("/me/recovery-codes/rotate", response_model=RecoveryBatchResponse)
 def rotate_recovery_codes(
     auth: AuthContext = Depends(require_auth),
@@ -356,20 +371,19 @@ def rotate_recovery_codes(
 
 
 # Powers the "devices & recovery" section of account settings - how many
-# unused recovery codes are left and which installations (devices) are
-# currently linked to this profile.
+# active reusable recovery codes are on file and which installations (devices)
+# are currently linked to this profile.
 @router.get("/me/access", response_model=AccessOverviewResponse)
 def access_overview(
     auth: AuthContext = Depends(require_auth),
     session: Session = Depends(get_session),
 ) -> AccessOverviewResponse:
-    unused = (
+    active_code_count = (
         session.scalar(
             select(func.count(RecoveryCode.id))
             .join(RecoveryCodeBatch, RecoveryCodeBatch.id == RecoveryCode.batch_id)
             .where(
                 RecoveryCode.profile_id == auth.profile.id,
-                RecoveryCode.used_at.is_(None),
                 RecoveryCodeBatch.invalidated_at.is_(None),
             )
         )
@@ -382,7 +396,7 @@ def access_overview(
     ).all()
     return AccessOverviewResponse(
         profile_id=auth.profile.public_id,
-        unused_recovery_code_count=unused,
+        recovery_code_count=active_code_count,
         installations=[
             InstallationResponse(
                 id=str(item.id),

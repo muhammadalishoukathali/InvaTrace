@@ -6,11 +6,11 @@ import { copyText, downloadRecoveryKit, recoveryKitText } from '@/features/priva
 import { usePrivateAccess } from '@/features/private-access/private-access-store'
 import { usePageHeadingFocus } from '@/hooks/usePageHeadingFocus'
 
-/** Shows the ten one-time recovery codes right after a new profile is
- *  created (or after a forced re-issue), lets the user copy/download them,
- *  and requires an explicit "I saved these" confirmation before it will
- *  hand off to the rest of the app. This is the only place these raw codes
- *  are ever shown - see recovery-kit.ts for why they're not persisted. */
+/** Shows the reusable recovery codes right after a new profile is created
+ *  (or after a forced re-issue), lets the user copy/download them, and
+ *  requires an explicit "I saved these" confirmation before it will hand
+ *  off to the rest of the app. This is the only place these raw codes are
+ *  ever shown - see recovery-kit.ts for why they're not persisted. */
 export function RecoveryKitSetupPage() {
   const navigate = useNavigate()
   const headingRef = usePageHeadingFocus()
@@ -114,7 +114,7 @@ export function RecoveryKitSetupPage() {
         {codes ? (
           <>
             <div className="recovery-code-heading">
-              <div><h2>10 one-time recovery codes</h2><p>Use one unused code to restore this profile on another device. Each code works once.</p></div>
+              <div><h2>Your recovery codes</h2><p>Use any one of these codes together with your profile ID to restore this profile on another device. Each code stays valid and can be used again.</p></div>
             </div>
             <RecoveryCodeGrid codes={codes} />
             <div className="recovery-kit-actions">

@@ -8,11 +8,12 @@ import { usePageHeadingFocus } from '@/hooks/usePageHeadingFocus'
 
 const GENERIC_RESTORE_ERROR = 'We couldn’t restore this access. Check the profile ID and recovery code, then try again.'
 
-/** Cross-device recovery form: public profile ID plus one unused recovery
- *  code, which the store exchanges for a new authorized installation on
- *  this device (existing installations elsewhere stay active). See the
- *  "same error either way" comment near the bottom - that's deliberate,
- *  not a missed case. */
+/** Cross-device recovery form: 6-digit public profile ID plus one of the
+ *  profile's reusable recovery codes, which the store exchanges for a new
+ *  authorized installation on this device (existing installations elsewhere
+ *  stay active, and the code stays valid for future restores). See the
+ *  "same error either way" comment near the bottom - that's deliberate, not
+ *  a missed case. */
 export function RestorePrivateAccessPage() {
   const navigate = useNavigate()
   const online = useOnline()
@@ -70,7 +71,7 @@ export function RestorePrivateAccessPage() {
         </Link>
         <h1 ref={headingRef} tabIndex={-1}>Restore existing access</h1>
         <p className="access-form-panel__lead">
-          Use the public profile ID and one unused recovery code. This device becomes an additional active installation.
+          Enter your 6-digit profile ID and any one of your recovery codes. This device becomes an additional active installation and your recovery codes stay valid.
         </p>
 
         {success && (
@@ -97,18 +98,20 @@ export function RestorePrivateAccessPage() {
             <PrivateAccessField
               id="restore-profile-id"
               label="Public profile ID"
+              hint="Six digits, shown on the recovery kit you saved when this profile was created."
               value={profileId}
-              onChange={(event) => setProfileId(event.target.value)}
-              autoCapitalize="characters"
+              onChange={(event) => setProfileId(event.target.value.replace(/\D+/g, '').slice(0, 6))}
               autoComplete="off"
               spellCheck={false}
-              maxLength={80}
-              placeholder="IVT-…"
+              maxLength={6}
+              inputMode="numeric"
+              pattern="[0-9]{6}"
+              placeholder="123456"
             />
             <PrivateAccessField
               id="restore-recovery-code"
               label="One recovery code"
-              hint="A recovery code is secret and can be used only once."
+              hint="A recovery code is secret. It stays valid and can be reused on future devices."
               value={recoveryCode}
               onChange={(event) => setRecoveryCode(event.target.value)}
               autoCapitalize="characters"
