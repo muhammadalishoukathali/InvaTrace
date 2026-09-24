@@ -235,16 +235,13 @@
 
 .recovery-setup { width: min(520px, 100%); margin: 0 auto; display: grid; gap: 16px; }
 .recovery-setup__head { display: grid; gap: 4px; margin-bottom: 4px; }
-.recovery-setup h1 { font-size: 24px; margin: 0; }
+.recovery-setup h1 { max-width: none; font-size: clamp(19px, 5.4vw, 22px); line-height: 1.15; letter-spacing: -0.01em; margin: 0; white-space: nowrap; text-wrap: nowrap; }
 .recovery-setup__eyebrow {
   align-self: start;
-  padding: 3px 8px;
-  border-radius: 4px;
-  background: color-mix(in srgb, var(--red) 12%, transparent);
-  color: var(--red-text);
+  color: var(--muted);
   font-size: 10px;
   font-weight: 700;
-  letter-spacing: 0.1em;
+  letter-spacing: 0.14em;
   text-transform: uppercase;
 }
 .recovery-setup__lead {
@@ -547,8 +544,8 @@
   .private-access-main { padding-inline: 16px; }
   .access-trail { padding: 28px 20px 22px; border-radius: 14px; }
   .access-form-panel { padding: 0; }
-  .recovery-setup { gap: 16px; }
-  .recovery-setup h1 { font-size: 24px; }
+  .recovery-setup { gap: 14px; }
+  .recovery-setup h1 { font-size: 20px; }
   .recovery-setup__heading { display: grid; }
   .secret-badge { justify-self: start; }
   .recovery-public-id { align-items: flex-start; flex-direction: column; }
