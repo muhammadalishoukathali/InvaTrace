@@ -76,11 +76,12 @@ def _digest(key: str) -> bytes:
 PROFILES = (
     # (slug, public_id, display_name, role, trust_level, resolved_reports, valid_reports, hard_failures)
     # The slug is only used as a stable Python dict key inside this seed
-    # module - the user-facing public_id is the short numeric column below.
-    ("nurul-aisyah", "100001", "Nurul Aisyah", "Detector", "New", 0, 0, 0),
-    ("hafiz-rahman", "100002", "Muhammad Hafiz Rahman", "Volunteer", "Trusted", 12, 10, 1),
-    ("siti-nurhaliza", "100003", "Dr. Siti Nurhaliza Ismail", "Expert", "Steward", 40, 38, 0),
-    ("ahmad-faizal", "100004", "Ahmad Faizal Zulkifli", "Admin", "Steward", 5, 5, 0),
+    # module - the user-facing public_id is the short alphanumeric column
+    # below (Crockford base32: no 0/1/I/O/L).
+    ("nurul-aisyah", "NURUL2", "Nurul Aisyah", "Detector", "New", 0, 0, 0),
+    ("hafiz-rahman", "HAFZ22", "Muhammad Hafiz Rahman", "Volunteer", "Trusted", 12, 10, 1),
+    ("siti-nurhaliza", "STHR33", "Dr. Siti Nurhaliza Ismail", "Expert", "Steward", 40, 38, 0),
+    ("ahmad-faizal", "FAZL44", "Ahmad Faizal Zulkifli", "Admin", "Steward", 5, 5, 0),
 )
 
 

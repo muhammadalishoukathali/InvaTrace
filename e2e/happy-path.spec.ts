@@ -443,7 +443,7 @@ test('restoration adds an installation with reusable codes, rotates batches, and
     // can't tell which one exists.
     return Promise.all([
       attempt(profileId, wrongCode),
-      attempt('000000', 'AAAA-BBBB-CCCC-DDDD-EEEE-FFFF-GG'),
+      attempt('ZZZZZZ', 'AAAA-BBBB-CCCC-DDDD-EEEE-FFFF-GG'),
     ])
   }, { profileId: started.profile.id, wrongCode: 'ZZZZ-ZZZZ-ZZZZ-ZZZZ-ZZZZ-ZZZZ-ZZ' })
   expect(indistinguishable[0]).toEqual(indistinguishable[1])

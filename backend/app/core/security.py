@@ -1,8 +1,8 @@
 """Pseudonymous auth: installation tokens, recovery codes, and JWT sessions.
 
 InvaTrace has no email/password. A "profile" is created on first launch and
-identified by a short 6-digit public id (memorable enough that a user can
-speak or type it back without a file); the app itself holds an installation
+identified by a short 6-character alphanumeric public id (memorable enough
+that a user can speak or type it back without a file); the app itself holds an installation
 token that proves it's talking to that profile, and a small set of long-lived
 recovery codes let someone re-link a profile on a new device if they lose the
 installation token. Recovery codes are reusable so a user does not run out;
@@ -76,19 +76,20 @@ def random_grouped_secret(byte_count: int = 16) -> str:
     return "-".join(output[index : index + 4] for index in range(0, len(output), 4))
 
 
-PROFILE_PUBLIC_ID_DIGITS = 6
+PROFILE_PUBLIC_ID_LENGTH = 6
 
 
 def new_profile_public_id() -> str:
-    """Random 6-digit numeric profile id, zero-padded ("000042").
+    """Random 6-character alphanumeric profile id ("A3F8K2"), no hyphens.
 
-    Short enough that a user can read it aloud or type it into the restore
-    form from memory. Uniqueness is enforced by the DB unique index on
-    Profile.public_id plus a caller-side retry loop (see start_profile) - on
-    a collision we just try again with a different number rather than
-    growing the id length.
+    Draws from BASE32_ALPHABET (Crockford-style: no 0/1/I/O/L) so a user
+    reading the id aloud or typing it into the restore form does not hit
+    ambiguous characters. Uniqueness is enforced by the DB unique index on
+    Profile.public_id plus a caller-side retry loop (see start_profile) -
+    on a collision we just try again with a different id rather than
+    growing the length.
     """
-    return f"{secrets.randbelow(10 ** PROFILE_PUBLIC_ID_DIGITS):0{PROFILE_PUBLIC_ID_DIGITS}d}"
+    return "".join(secrets.choice(BASE32_ALPHABET) for _ in range(PROFILE_PUBLIC_ID_LENGTH))
 
 
 def issue_access_token(profile_id: uuid.UUID, installation_id: uuid.UUID) -> str:

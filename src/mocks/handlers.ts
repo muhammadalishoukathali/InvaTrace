@@ -276,17 +276,21 @@ async function freshRecoveryBatch() {
   }
 }
 
-// 6-digit numeric public profile id, matching the backend (see
-// backend/app/core/security.new_profile_public_id). Retries on collision
-// against the currently persisted mock profiles.
+// 6-character alphanumeric public profile id, matching the backend (see
+// backend/app/core/security.new_profile_public_id). Uses the same
+// Crockford-style base32 alphabet the backend uses (no 0/1/I/O/L) so
+// mock-issued ids look and normalize the same way real ids do. Retries on
+// collision against the currently persisted mock profiles.
+const PROFILE_PUBLIC_ID_LENGTH = 6
 function allocateMockPublicId(existing: MockServerState): string {
   const used = new Set(existing.profiles.map((record) => record.profile.id))
   for (let attempt = 0; attempt < 32; attempt += 1) {
-    const bytes = crypto.getRandomValues(new Uint32Array(1))
-    const candidate = String(bytes[0] % 1_000_000).padStart(6, '0')
+    const bytes = crypto.getRandomValues(new Uint8Array(PROFILE_PUBLIC_ID_LENGTH))
+    let candidate = ''
+    for (const byte of bytes) candidate += BASE32[byte % BASE32.length]
     if (!used.has(candidate)) return candidate
   }
-  throw new Error('Could not allocate a unique 6-digit profile id.')
+  throw new Error('Could not allocate a unique alphanumeric profile id.')
 }
 
 function identityJson<T extends JsonBodyType>(data: T, status = 200, headers: Record<string, string> = {}) {
@@ -458,7 +462,7 @@ export const handlers = [
     const body = (await request.json()) as {
       profileId?: unknown; recoveryCode?: unknown; installationToken?: unknown
     }
-    const profileId = typeof body.profileId === 'string' ? body.profileId.trim() : ''
+    const profileId = typeof body.profileId === 'string' ? body.profileId.trim().toUpperCase() : ''
     const recoveryCode = typeof body.recoveryCode === 'string' ? body.recoveryCode.trim().toUpperCase() : ''
     const clientIp = request.headers.get('x-forwarded-for')?.split(',')[0].trim() || null
     const blockedSeconds = restoreBlocked(profileId, clientIp)

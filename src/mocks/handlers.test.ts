@@ -123,8 +123,9 @@ describe('private access mock contract', () => {
     expect(response.status).toBe(201)
     expect(response.headers.get('cache-control')).toBe('no-store')
     expect(payload.profile).toMatchObject({ role: 'Detector', trustLevel: 'New' })
-    // 6-digit numeric public profile id, matching the FastAPI backend.
-    expect(payload.profile.id).toMatch(/^\d{6}$/)
+    // 6-character alphanumeric public profile id (Crockford base32, no
+    // 0/1/I/O/L), matching the FastAPI backend.
+    expect(payload.profile.id).toMatch(/^[ABCDEFGHJKLMNPQRSTUVWXYZ23456789]{6}$/)
     expect(payload.recoveryCodes).toHaveLength(3)
     for (const code of payload.recoveryCodes) expect(code.replace(/-/g, '')).toHaveLength(26)
 
@@ -179,7 +180,7 @@ describe('private access mock contract', () => {
     // A profile id that doesn't exist and a code that doesn't belong to
     // the profile must return the same 400 payload, so callers can't
     // distinguish "no such profile" from "wrong code".
-    const invalidId = await restore(installationToken('D'), '000000', payload.recoveryCodes[1])
+    const invalidId = await restore(installationToken('D'), 'ZZZZZZ', payload.recoveryCodes[1])
     const wrongCode = await restore(installationToken('E'), payload.profile.id, 'ZZZZ-ZZZZ-ZZZZ-ZZZZ-ZZZZ-ZZZZ-ZZ')
     expect(invalidId.status).toBe(400)
     expect(wrongCode.status).toBe(400)

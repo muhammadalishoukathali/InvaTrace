@@ -135,10 +135,11 @@ def create_recovery_batch(session: Session, profile_id: uuid.UUID) -> tuple[list
     return raw_codes, now
 
 
-# Retry loop around new_profile_public_id: the 6-digit id space is small
-# enough (10**6) that we do have to plan for collisions. 12 attempts is
-# vanishingly unlikely to fail at demo scale, and if it ever does the
-# outer transaction just fails cleanly rather than issuing a duplicate id.
+# Retry loop around new_profile_public_id: the 6-character alphanumeric id
+# space (32**6 ≈ 1.07B) is large enough that a collision is extremely
+# unlikely, but we still plan for one; 12 attempts is vanishingly unlikely
+# to fail at demo scale, and if it ever does the outer transaction just
+# fails cleanly rather than issuing a duplicate id.
 _PUBLIC_ID_MAX_ATTEMPTS = 12
 
 

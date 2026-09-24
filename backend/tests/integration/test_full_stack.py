@@ -292,9 +292,10 @@ def test_private_access_and_automated_validation_end_to_end() -> None:
         assert started["profile"]["role"] == "Detector"
         assert started["profile"]["trustLevel"] == "New"
         assert len(started["recoveryCodes"]) == 3
-        # 6-digit numeric profile id (see security.PROFILE_PUBLIC_ID_DIGITS).
-        assert started["profile"]["id"].isdigit()
+        # 6-char alphanumeric profile id (see security.PROFILE_PUBLIC_ID_LENGTH,
+        # Crockford base32 alphabet - no 0/1/I/O/L).
         assert len(started["profile"]["id"]) == 6
+        assert set(started["profile"]["id"]) <= set("ABCDEFGHJKLMNPQRSTUVWXYZ23456789")
 
         # a fresh profile is nagged to acknowledge that they've saved their
         # recovery codes before bootstrap will stop flagging
