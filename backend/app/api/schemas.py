@@ -78,6 +78,15 @@ Risk = Literal["high", "watch"]
 InstallationSecret = Annotated[str, StringConstraints(pattern=r"^[A-Za-z0-9_-]{43}$")]
 DisplayName = Annotated[str, StringConstraints(max_length=80)]
 
+# Username-style public profile id: 4-12 characters from the shared
+# Crockford base32 alphabet (see backend/app/core/security.py). Matches
+# is_valid_public_id there; the field validator on request models
+# uppercases the input before this regex is applied.
+PublicProfileId = Annotated[
+    str,
+    StringConstraints(pattern=r"^[ABCDEFGHJKLMNPQRSTUVWXYZ23456789]{4,12}$"),
+]
+
 
 # Rejects control characters in free-text fields (display names, notes) -
 # mostly to stop someone smuggling weird terminal escape codes or null bytes
@@ -104,6 +113,10 @@ class ProfileResponse(ApiModel):
 class StartProfileRequest(ApiModel):
     installation_token: InstallationSecret
     display_name: DisplayName | None = None
+    # Optional at start: the client can call POST /start with no public
+    # id and take the server-issued suggestion, or pre-commit the user's
+    # preferred id here so we skip a follow-up PATCH.
+    public_id: PublicProfileId | None = None
 
     @field_validator("display_name")
     @classmethod
@@ -112,6 +125,22 @@ class StartProfileRequest(ApiModel):
             return None
         value = _no_controls(value.strip())
         return value or None
+
+    @field_validator("public_id", mode="before")
+    @classmethod
+    def normalize_public_id_field(cls, value: str | None) -> str | None:
+        if value is None or (isinstance(value, str) and not value.strip()):
+            return None
+        return value.strip().upper() if isinstance(value, str) else value
+
+
+class UpdatePublicIdRequest(ApiModel):
+    public_id: PublicProfileId
+
+    @field_validator("public_id", mode="before")
+    @classmethod
+    def normalize_public_id_field(cls, value: str) -> str:
+        return value.strip().upper() if isinstance(value, str) else value
 
 
 class StartProfileResponse(ApiModel):
@@ -132,6 +161,9 @@ class BootstrapResponse(ApiModel):
 
 
 class RestoreRequest(ApiModel):
+    # Profile ids are 4-12 chars (see PublicProfileId), but we accept up to
+    # 80 here so a typo is answered with the same generic 400 as a real
+    # mismatch instead of a schema 422 that would leak the length.
     profile_id: Annotated[str, StringConstraints(min_length=1, max_length=80)]
     recovery_code: Annotated[str, StringConstraints(min_length=1, max_length=64)]
     installation_token: InstallationSecret

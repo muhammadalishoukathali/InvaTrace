@@ -76,20 +76,45 @@ def random_grouped_secret(byte_count: int = 16) -> str:
     return "-".join(output[index : index + 4] for index in range(0, len(output), 4))
 
 
-PROFILE_PUBLIC_ID_LENGTH = 6
+PROFILE_PUBLIC_ID_SUGGESTED_LENGTH = 6
+PROFILE_PUBLIC_ID_MIN_LENGTH = 4
+PROFILE_PUBLIC_ID_MAX_LENGTH = 12
+# Username-style: uppercase letters + digits from the shared Crockford
+# base32 alphabet (no 0/1/I/O/L). No hyphens, no punctuation. Chosen so a
+# user-picked id and a server-suggested id look and normalize the same
+# way, and so nothing about the id can be confused with a recovery code.
+_PUBLIC_ID_ALPHABET_SET = set(BASE32_ALPHABET)
 
 
 def new_profile_public_id() -> str:
-    """Random 6-character alphanumeric profile id ("A3F8K2"), no hyphens.
+    """Random suggested profile id ("A3F8K2"), no hyphens.
 
-    Draws from BASE32_ALPHABET (Crockford-style: no 0/1/I/O/L) so a user
-    reading the id aloud or typing it into the restore form does not hit
-    ambiguous characters. Uniqueness is enforced by the DB unique index on
+    Only a *suggestion* - the user can overwrite it on start or later via
+    the rename endpoint. Uniqueness is enforced by the DB unique index on
     Profile.public_id plus a caller-side retry loop (see start_profile) -
-    on a collision we just try again with a different id rather than
-    growing the length.
+    on a collision we just try again with a different id.
     """
-    return "".join(secrets.choice(BASE32_ALPHABET) for _ in range(PROFILE_PUBLIC_ID_LENGTH))
+    return "".join(
+        secrets.choice(BASE32_ALPHABET) for _ in range(PROFILE_PUBLIC_ID_SUGGESTED_LENGTH)
+    )
+
+
+def normalize_public_id(candidate: str) -> str:
+    """Trim, uppercase and return a proposed public id ready for validation.
+
+    The DB stores public ids exactly as normalized here; lookups on the
+    restore endpoint apply the same normalization so a user who types
+    "abc123" is matched against the stored "ABC123".
+    """
+    return candidate.strip().upper()
+
+
+def is_valid_public_id(candidate: str) -> bool:
+    """Length + alphabet check for a normalized public id."""
+    return (
+        PROFILE_PUBLIC_ID_MIN_LENGTH <= len(candidate) <= PROFILE_PUBLIC_ID_MAX_LENGTH
+        and all(character in _PUBLIC_ID_ALPHABET_SET for character in candidate)
+    )
 
 
 def issue_access_token(profile_id: uuid.UUID, installation_id: uuid.UUID) -> str:

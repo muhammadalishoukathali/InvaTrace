@@ -124,12 +124,15 @@ export function PrivateAccessNotice({
   )
 }
 
-/** Renders the reusable recovery codes as a numbered grid. Purely
+/** Renders the reusable recovery code(s) as a numbered grid. Purely
  *  presentational - it never persists or transmits the codes itself, that's
  *  on the caller (see RecoveryKitSetupPage.tsx and AccessManagementPage.tsx). */
 export function RecoveryCodeGrid({ codes }: { codes: string[] }) {
   return (
-    <ol className="recovery-code-grid" aria-label="Reusable recovery codes">
+    <ol
+      className="recovery-code-grid"
+      aria-label={codes.length === 1 ? 'Recovery code' : 'Recovery codes'}
+    >
       {codes.map((code, index) => (
         <li key={index}>
           <span aria-hidden>{String(index + 1).padStart(2, '0')}</span>

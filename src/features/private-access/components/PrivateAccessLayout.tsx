@@ -14,7 +14,7 @@ export function PrivateAccessLayout({ children, compact = false }: { children: R
       </header>
       <main id="main-content" className="private-access-main">{children}</main>
       <footer className="private-access-footer">
-        InvaTrace connects reports to a pseudonymous profile. Your recovery codes remain yours to protect.
+        InvaTrace connects reports to a pseudonymous profile. Your recovery code remains yours to protect.
       </footer>
     </div>
   )

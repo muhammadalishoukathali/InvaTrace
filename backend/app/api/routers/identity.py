@@ -35,6 +35,7 @@ from app.api.schemas import (
     StartProfileRequest,
     StartProfileResponse,
     UpdateProfileRequest,
+    UpdatePublicIdRequest,
 )
 from app.core.errors import ApiProblem, request_id_var
 from app.core.rate_limit import client_address, rate_limiter
@@ -106,11 +107,10 @@ def audit(
     )
 
 
-# Number of reusable recovery codes issued per batch. Small on purpose - the
-# user only has to keep track of three secrets rather than ten, and they don't
-# get consumed on restore, so running out is not a concern; rotation replaces
-# the whole set.
-RECOVERY_CODES_PER_BATCH = 3
+# Number of reusable recovery codes issued per batch. One is enough - a
+# recovery code does not get consumed on restore, so running out is not a
+# concern; rotation replaces it if the user thinks it may have leaked.
+RECOVERY_CODES_PER_BATCH = 1
 
 
 # Generates a fresh set of RECOVERY_CODES_PER_BATCH reusable recovery codes and
@@ -151,6 +151,20 @@ def _allocate_profile_public_id(session: Session) -> str:
     raise ApiProblem(503, "profile_id_unavailable", "Please try again in a moment.")
 
 
+def _claim_public_id_or_conflict(session: Session, requested: str) -> str:
+    """Verify a user-supplied public id is free before we insert with it.
+
+    The DB unique index is still the source of truth (a concurrent insert
+    could grab the same id between this check and our commit, and the
+    IntegrityError from the flush would surface as a 409 to the caller),
+    but the up-front check turns the common case into a clean 409 with a
+    friendly message instead of a raw DB error.
+    """
+    if session.scalar(select(Profile.id).where(Profile.public_id == requested)):
+        raise ApiProblem(409, "profile_id_taken", "That profile ID is already in use.")
+    return requested
+
+
 # First-run flow - called once when the app is freshly installed. Client
 # generates a random installation_token locally (this endpoint never sees a
 # password) and we mint a brand new pseudonymous profile for it, starting at
@@ -168,8 +182,16 @@ def start_profile(
     if session.scalar(select(Installation.id).where(Installation.token_hash == token_hash)):
         raise ApiProblem(409, "installation_exists", "Private access could not be started.")
 
+    # If the client pre-committed a preferred public id, honour it (with a
+    # uniqueness pre-check); otherwise pick a suggested one that the user
+    # can rename later via PATCH /me/public-id.
+    public_id = (
+        _claim_public_id_or_conflict(session, body.public_id)
+        if body.public_id
+        else _allocate_profile_public_id(session)
+    )
     profile = Profile(
-        public_id=_allocate_profile_public_id(session),
+        public_id=public_id,
         display_name=body.display_name,
         role="Detector",
         trust_level="New",
@@ -316,6 +338,34 @@ def update_profile(
 ) -> ProfileResponse:
     auth.profile.display_name = body.display_name
     audit(session, "profile.updated", "profile", auth.profile.public_id, auth.profile.id)
+    session.commit()
+    return profile_response(auth.profile)
+
+
+# Renames the profile's public id ("username"). Rate-limited so a single
+# profile can't burn through the id space, and unique-per-DB so two profiles
+# can never share an id. The old id stops working immediately on restore.
+@router.patch("/me/public-id", response_model=ProfileResponse)
+def update_public_id(
+    body: UpdatePublicIdRequest,
+    auth: AuthContext = Depends(require_auth),
+    session: Session = Depends(get_session),
+) -> ProfileResponse:
+    rate_limiter.check("public_id_rename", str(auth.profile.id))
+    requested = body.public_id
+    if requested == auth.profile.public_id:
+        return profile_response(auth.profile)
+    _claim_public_id_or_conflict(session, requested)
+    previous = auth.profile.public_id
+    auth.profile.public_id = requested
+    audit(
+        session,
+        "profile.public_id_changed",
+        "profile",
+        requested,
+        auth.profile.id,
+        {"previous": previous},
+    )
     session.commit()
     return profile_response(auth.profile)
 

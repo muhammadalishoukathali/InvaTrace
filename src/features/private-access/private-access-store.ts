@@ -69,6 +69,7 @@ interface PrivateAccessState {
   reissueRecoveryCodes: () => Promise<void>
   retryPendingStorage: () => Promise<boolean>
   updateDisplayName: (displayName: string | null) => Promise<void>
+  updatePublicId: (publicId: string) => Promise<PseudonymousProfile>
   clearRecoveryCodes: () => void
   markOffline: () => void
   signOut: () => Promise<void>
@@ -86,6 +87,29 @@ function localProfile(installation: InstallationIdentity): PseudonymousProfile {
     role: 'Detector',
     trustLevel: 'New',
   }
+}
+
+export const PUBLIC_ID_MIN_LENGTH = 4
+export const PUBLIC_ID_MAX_LENGTH = 12
+const PUBLIC_ID_ALPHABET = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789'
+const PUBLIC_ID_PATTERN = new RegExp(`^[${PUBLIC_ID_ALPHABET}]{${PUBLIC_ID_MIN_LENGTH},${PUBLIC_ID_MAX_LENGTH}}$`)
+
+export function normalizePublicIdInput(value: string): string {
+  return value.toUpperCase().replace(new RegExp(`[^${PUBLIC_ID_ALPHABET}]+`, 'g'), '').slice(0, PUBLIC_ID_MAX_LENGTH)
+}
+
+export function isValidPublicId(value: string): boolean {
+  return PUBLIC_ID_PATTERN.test(value)
+}
+
+function normalizePublicId(value: string): string {
+  const cleaned = normalizePublicIdInput(value)
+  if (!isValidPublicId(cleaned)) {
+    throw new Error(
+      `Profile ID must be ${PUBLIC_ID_MIN_LENGTH}-${PUBLIC_ID_MAX_LENGTH} letters or digits (no 0/1/I/O).`,
+    )
+  }
+  return cleaned
 }
 
 function normalizeDisplayName(value: string): string | null {
@@ -471,6 +495,28 @@ export const usePrivateAccess = create<PrivateAccessState>((set, get) => ({
       body: JSON.stringify({ displayName: displayName === null ? null : normalizeDisplayName(displayName) }),
     })
     set({ profile: updated })
+  },
+
+  updatePublicId: async (publicId) => {
+    const normalized = normalizePublicId(publicId)
+    const updated = await api<PseudonymousProfile>('/api/v1/profiles/me/public-id', {
+      method: 'PATCH',
+      body: JSON.stringify({ publicId: normalized }),
+    })
+    set({ profile: updated })
+    const currentInstallation = get().installation
+    if (currentInstallation) {
+      // Keep the persisted installation record in sync with the renamed
+      // profile so a later bootstrap sees the new id.
+      try {
+        await rememberProfileId(currentInstallation, updated.id, currentInstallation.recoverySetupComplete)
+        set({ installation: { ...currentInstallation, profileId: updated.id } })
+      } catch {
+        // The server-side rename already succeeded; the installation
+        // record will re-align next time acknowledgeRecovery / sync runs.
+      }
+    }
+    return updated
   },
 
   clearRecoveryCodes: () => set({ recoveryCodes: null, recoveryBatchCreatedAt: null, recoveryWasReissued: false }),

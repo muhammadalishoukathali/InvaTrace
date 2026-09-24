@@ -291,9 +291,10 @@ def test_private_access_and_automated_validation_end_to_end() -> None:
         first_access_token = started["accessToken"]
         assert started["profile"]["role"] == "Detector"
         assert started["profile"]["trustLevel"] == "New"
-        assert len(started["recoveryCodes"]) == 3
-        # 6-char alphanumeric profile id (see security.PROFILE_PUBLIC_ID_LENGTH,
-        # Crockford base32 alphabet - no 0/1/I/O/L).
+        assert len(started["recoveryCodes"]) == 1
+        # Suggested public id: 6 chars from the shared Crockford base32
+        # alphabet (see security.PROFILE_PUBLIC_ID_SUGGESTED_LENGTH). The
+        # user can rename it later via PATCH /me/public-id.
         assert len(started["profile"]["id"]) == 6
         assert set(started["profile"]["id"]) <= set("ABCDEFGHJKLMNPQRSTUVWXYZ23456789")
 
@@ -447,15 +448,15 @@ def test_private_access_and_automated_validation_end_to_end() -> None:
                 headers=auth(restored_access_token),
             )
         ).json()
-        assert len(rotated["recoveryCodes"]) == 3
-        # rotating recovery codes invalidates the *whole* old batch - even
-        # though the pre-rotation codes were reusable, they must all stop
-        # working once a fresh batch is issued.
+        assert len(rotated["recoveryCodes"]) == 1
+        # rotating retires the pre-rotation code even though it was reusable
+        # up until the moment of rotation - the fresh batch is the only one
+        # that works from now on.
         old_unused = client.post(
             "/api/v1/profiles/restore",
             json={
                 "profileId": started["profile"]["id"],
-                "recoveryCode": started["recoveryCodes"][1],
+                "recoveryCode": started["recoveryCodes"][0],
                 "installationToken": installation_token(),
             },
         )
@@ -466,7 +467,7 @@ def test_private_access_and_automated_validation_end_to_end() -> None:
         ).json()
         # original device + two restores that reused the same recovery code.
         assert len(access["installations"]) == 3
-        assert access["recoveryCodeCount"] == 3
+        assert access["recoveryCodeCount"] == 1
         # revoke the original device from the restored one - this is the
         # "I lost my old phone, kill its access" scenario. After revoking,
         # the original installation's token must no longer be able to

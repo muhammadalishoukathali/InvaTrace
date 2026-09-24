@@ -5,7 +5,13 @@ import type { AccessOverview, AuthorizedInstallation, RecoveryCodeBatchResponse 
 import { PrivateAccessButton, PrivateAccessField, PrivateAccessLink, RecoveryCodeGrid, PrivateAccessNotice } from '@/features/private-access/components/PrivateAccessControls'
 import { Icon } from '@/components/Icon'
 import { api } from '@/services/api-client'
-import { usePrivateAccess } from '@/features/private-access/private-access-store'
+import {
+  usePrivateAccess,
+  normalizePublicIdInput,
+  isValidPublicId,
+  PUBLIC_ID_MIN_LENGTH,
+  PUBLIC_ID_MAX_LENGTH,
+} from '@/features/private-access/private-access-store'
 import { useOnline } from '@/hooks/useOnline'
 import { copyText, downloadRecoveryKit, recoveryKitText } from '@/features/private-access/recovery-kit'
 import { usePageHeadingFocus } from '@/hooks/usePageHeadingFocus'
@@ -39,7 +45,11 @@ export function AccessManagementPage() {
   const online = useOnline()
   const profile = usePrivateAccess((state) => state.profile)!
   const updateDisplayName = usePrivateAccess((state) => state.updateDisplayName)
+  const updatePublicId = usePrivateAccess((state) => state.updatePublicId)
   const signOut = usePrivateAccess((state) => state.signOut)
+  const [editingPublicId, setEditingPublicId] = useState(false)
+  const [publicIdInput, setPublicIdInput] = useState(profile.id)
+  const [publicIdError, setPublicIdError] = useState<string | null>(null)
   const [confirmSignOut, setConfirmSignOut] = useState(false)
   const [overview, setOverview] = useState<AccessOverview | null>(null)
   const [displayName, setDisplayName] = useState(profile.displayName ?? '')
@@ -124,9 +134,9 @@ export function AccessManagementPage() {
       setReplacement(batch)
       setConfirmRotate(false)
       await load()
-      setMessage('New codes generated. Your previous codes no longer work.')
+      setMessage('New recovery code generated. Your previous code no longer works.')
     } catch {
-      setError('Replacement codes could not be generated. Your current recovery codes remain unchanged.')
+      setError('Replacement code could not be generated. Your current recovery code remains unchanged.')
     } finally { setBusy(null) }
   }
 
@@ -193,35 +203,83 @@ export function AccessManagementPage() {
         <div className="profile-id-row">
           <div><span>Public profile ID</span><code>{profileId}</code></div>
           <PrivateAccessButton kind="quiet" icon="Copy" onClick={() => void copy(profileId, 'Public profile ID copied.')}>Copy ID</PrivateAccessButton>
+          {!editingPublicId && (
+            <PrivateAccessButton
+              kind="quiet"
+              icon="Pencil"
+              onClick={() => { setPublicIdInput(profileId); setPublicIdError(null); setEditingPublicId(true) }}
+              disabled={!online}
+            >
+              Change ID
+            </PrivateAccessButton>
+          )}
         </div>
+        {editingPublicId && (
+          <div className="profile-id-editor">
+            <PrivateAccessField
+              id="edit-public-id"
+              label="New profile ID"
+              hint={`Letters and digits only, ${PUBLIC_ID_MIN_LENGTH}-${PUBLIC_ID_MAX_LENGTH} characters. Old ID stops working immediately.`}
+              error={publicIdError}
+              value={publicIdInput}
+              onChange={(event) => {
+                setPublicIdInput(normalizePublicIdInput(event.target.value))
+                setPublicIdError(null)
+              }}
+              autoCapitalize="characters"
+              autoComplete="off"
+              spellCheck={false}
+              maxLength={PUBLIC_ID_MAX_LENGTH}
+            />
+            <div className="profile-id-editor__actions">
+              <PrivateAccessButton
+                onClick={async () => {
+                  setBusy('public-id'); setPublicIdError(null); setError(null); setMessage(null)
+                  try {
+                    const updated = await updatePublicId(publicIdInput)
+                    setEditingPublicId(false)
+                    setMessage(`Profile ID changed to ${updated.id}. Update anywhere you have it saved.`)
+                    await load()
+                  } catch (renameError) {
+                    setPublicIdError(renameError instanceof Error ? renameError.message : 'Profile ID could not be saved.')
+                  } finally { setBusy(null) }
+                }}
+                disabled={busy === 'public-id' || !isValidPublicId(publicIdInput) || publicIdInput === profileId}
+              >
+                {busy === 'public-id' ? 'Saving…' : 'Save profile ID'}
+              </PrivateAccessButton>
+              <PrivateAccessButton kind="quiet" onClick={() => { setEditingPublicId(false); setPublicIdError(null) }} disabled={busy === 'public-id'}>Cancel</PrivateAccessButton>
+            </div>
+          </div>
+        )}
       </section>
 
       <section className="access-management__section" aria-labelledby="recovery-access-heading">
-        <div className="section-heading-row"><div><h3 id="recovery-access-heading">Recovery codes</h3><p>Any one of your codes restores this profile on a new device. Codes stay valid and can be reused; replace them here if you think they may have leaked.</p></div></div>
+        <div className="section-heading-row"><div><h3 id="recovery-access-heading">Recovery code</h3><p>Your recovery code restores this profile on a new device. It stays valid and can be reused; replace it here if you think it may have leaked.</p></div></div>
         {replacement && replacementInput ? (
           <div className="replacement-batch">
-            <PrivateAccessNotice tone="warning" title="Save these codes now">They stay in memory only until you leave this page.</PrivateAccessNotice>
+            <PrivateAccessNotice tone="warning" title={replacement.recoveryCodes.length === 1 ? 'Save this code now' : 'Save these codes now'}>It stays in memory only until you leave this page.</PrivateAccessNotice>
             <RecoveryCodeGrid codes={replacement.recoveryCodes} />
             <div className="recovery-kit-actions">
-              <PrivateAccessButton kind="secondary" icon="Copy" onClick={() => void copy(recoveryKitText(replacementInput), 'Recovery codes copied.')}>Copy recovery information</PrivateAccessButton>
+              <PrivateAccessButton kind="secondary" icon="Copy" onClick={() => void copy(recoveryKitText(replacementInput), replacement.recoveryCodes.length === 1 ? 'Recovery code copied.' : 'Recovery codes copied.')}>Copy recovery information</PrivateAccessButton>
               <PrivateAccessButton kind="secondary" icon="Download" onClick={() => downloadRecoveryKit(replacementInput)}>Download recovery kit</PrivateAccessButton>
-              <PrivateAccessButton kind="quiet" onClick={() => setReplacement(null)}>I have saved these codes</PrivateAccessButton>
+              <PrivateAccessButton kind="quiet" onClick={() => setReplacement(null)}>{replacement.recoveryCodes.length === 1 ? 'I have saved this code' : 'I have saved these codes'}</PrivateAccessButton>
             </div>
           </div>
         ) : confirmRotate ? (
           <div className="destructive-confirmation">
             <Icon name="AlertTriangle" size={22} color="var(--amber-text)" />
-            <div><strong>Replace your recovery codes?</strong><p>Your current codes stop working the moment new ones are issued.</p></div>
-            <div><PrivateAccessButton kind="danger" onClick={() => void rotate()} disabled={busy === 'rotate'}>{busy === 'rotate' ? 'Replacing…' : 'Replace codes'}</PrivateAccessButton><PrivateAccessButton kind="quiet" onClick={() => setConfirmRotate(false)}>Cancel</PrivateAccessButton></div>
+            <div><strong>Replace your recovery code?</strong><p>Your current code stops working the moment a new one is issued.</p></div>
+            <div><PrivateAccessButton kind="danger" onClick={() => void rotate()} disabled={busy === 'rotate'}>{busy === 'rotate' ? 'Replacing…' : 'Replace code'}</PrivateAccessButton><PrivateAccessButton kind="quiet" onClick={() => setConfirmRotate(false)}>Cancel</PrivateAccessButton></div>
           </div>
         ) : (
           <div className="recovery-status-row">
             <span className="recovery-status-row__icon" aria-hidden><Icon name="KeyRound" size={20} /></span>
             <div>
-              <strong>{loading ? 'Checking recovery codes…' : `${overview?.recoveryCodeCount ?? 0} recovery code${overview?.recoveryCodeCount === 1 ? '' : 's'} on file`}</strong>
-              <p>{loading ? 'One moment…' : 'Keep at least one code stored off this device.'}</p>
+              <strong>{loading ? 'Checking recovery code…' : `${overview?.recoveryCodeCount ?? 0} recovery code${overview?.recoveryCodeCount === 1 ? '' : 's'} on file`}</strong>
+              <p>{loading ? 'One moment…' : 'Keep a copy stored off this device.'}</p>
             </div>
-            <PrivateAccessButton kind="secondary" icon="RefreshCw" onClick={() => setConfirmRotate(true)} disabled={!online || loading}>Replace codes</PrivateAccessButton>
+            <PrivateAccessButton kind="secondary" icon="RefreshCw" onClick={() => setConfirmRotate(true)} disabled={!online || loading}>Replace code</PrivateAccessButton>
           </div>
         )}
       </section>
@@ -247,7 +305,7 @@ export function AccessManagementPage() {
             <Icon name="AlertTriangle" size={22} color="var(--red-text)" />
             <div>
               <strong>Sign out of this browser?</strong>
-              <p>This removes the local profile. You will need your profile ID and one of your recovery codes to return.</p>
+              <p>This removes the local profile. You will need your profile ID and your recovery code to return.</p>
             </div>
             <div>
               <PrivateAccessButton kind="danger" onClick={() => void handleSignOut()} disabled={busy === 'sign-out'}>

@@ -71,7 +71,7 @@ export function RestorePrivateAccessPage() {
         </Link>
         <h1 ref={headingRef} tabIndex={-1}>Restore existing access</h1>
         <p className="access-form-panel__lead">
-          Enter your 6-character profile ID and any one of your recovery codes. This device becomes an additional active installation and your recovery codes stay valid.
+          Enter your profile ID (the one you chose or the suggested one) and your recovery code. This device becomes an additional active installation and your recovery code stays valid.
         </p>
 
         {success && (
@@ -98,22 +98,22 @@ export function RestorePrivateAccessPage() {
             <PrivateAccessField
               id="restore-profile-id"
               label="Public profile ID"
-              hint="Six characters (letters and digits), shown on the recovery kit you saved when this profile was created."
+              hint="Letters and digits only, 4-12 characters. Case does not matter."
               value={profileId}
               onChange={(event) => setProfileId(
-                event.target.value.toUpperCase().replace(/[^A-Z0-9]+/g, '').slice(0, 6),
+                event.target.value.toUpperCase().replace(/[^A-Z0-9]+/g, '').slice(0, 12),
               )}
               autoCapitalize="characters"
               autoComplete="off"
               spellCheck={false}
-              maxLength={6}
-              pattern="[A-Z0-9]{6}"
+              maxLength={12}
+              pattern="[A-Z0-9]{4,12}"
               placeholder="A3F8K2"
             />
             <PrivateAccessField
               id="restore-recovery-code"
-              label="One recovery code"
-              hint="A recovery code is secret. It stays valid and can be reused on future devices."
+              label="Recovery code"
+              hint="Your recovery code is secret. It stays valid and can be reused on future devices."
               value={recoveryCode}
               onChange={(event) => setRecoveryCode(event.target.value)}
               autoCapitalize="characters"

@@ -26,7 +26,7 @@ test('private access starts and bootstraps against the real API', async ({ page,
     recoveryCodes: string[]
   }
   expect(created.profile).toMatchObject({ role: 'Detector', trustLevel: 'New' })
-  expect(created.recoveryCodes).toHaveLength(3)
+  expect(created.recoveryCodes).toHaveLength(1)
 
   await page.getByRole('checkbox', { name: 'I have saved my recovery kit' }).check()
   await page.getByRole('button', { name: 'Continue to InvaTrace' }).click()

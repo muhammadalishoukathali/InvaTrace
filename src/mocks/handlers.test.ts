@@ -126,7 +126,7 @@ describe('private access mock contract', () => {
     // 6-character alphanumeric public profile id (Crockford base32, no
     // 0/1/I/O/L), matching the FastAPI backend.
     expect(payload.profile.id).toMatch(/^[ABCDEFGHJKLMNPQRSTUVWXYZ23456789]{6}$/)
-    expect(payload.recoveryCodes).toHaveLength(3)
+    expect(payload.recoveryCodes).toHaveLength(1)
     for (const code of payload.recoveryCodes) expect(code.replace(/-/g, '')).toHaveLength(26)
 
     const persisted = localStorage.getItem('invatrace-mock-server-v2') ?? ''
@@ -177,10 +177,10 @@ describe('private access mock contract', () => {
     expect(first.status).toBe(200)
     expect(second.status).toBe(200)
 
-    // A profile id that doesn't exist and a code that doesn't belong to
-    // the profile must return the same 400 payload, so callers can't
+    // A profile id that doesn't exist and a wrong code for the real
+    // profile must return the same 400 payload, so callers can't
     // distinguish "no such profile" from "wrong code".
-    const invalidId = await restore(installationToken('D'), 'ZZZZZZ', payload.recoveryCodes[1])
+    const invalidId = await restore(installationToken('D'), 'ZZZZZZ', 'ZZZZ-ZZZZ-ZZZZ-ZZZZ-ZZZZ-ZZZZ-ZZ')
     const wrongCode = await restore(installationToken('E'), payload.profile.id, 'ZZZZ-ZZZZ-ZZZZ-ZZZZ-ZZZZ-ZZZZ-ZZ')
     expect(invalidId.status).toBe(400)
     expect(wrongCode.status).toBe(400)
@@ -193,8 +193,8 @@ describe('private access mock contract', () => {
     const access = await overview.json() as { installations: unknown[]; recoveryCodeCount: number }
     // original + two successful restores.
     expect(access.installations).toHaveLength(3)
-    // Restores do not consume codes; the full reusable batch is still on file.
-    expect(access.recoveryCodeCount).toBe(3)
+    // Restores do not consume the code; the single reusable code is still on file.
+    expect(access.recoveryCodeCount).toBe(1)
   })
 
   it('rotation invalidates every earlier code and revocation blocks only the selected installation', async () => {
@@ -212,13 +212,15 @@ describe('private access mock contract', () => {
       method: 'POST', headers: { Authorization: `Bearer ${restored.accessToken}` },
     })
     const rotated = await rotatedResponse.json() as { recoveryCodes: string[] }
-    expect(rotated.recoveryCodes).toHaveLength(3)
+    expect(rotated.recoveryCodes).toHaveLength(1)
 
+    // The pre-rotation code was reusable, but rotation retires it - a
+    // restore attempt with it must now fail like any other wrong code.
     const oldCode = await fetch('http://localhost/api/v1/profiles/restore', {
       method: 'POST', headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
         profileId: payload.profile.id,
-        recoveryCode: payload.recoveryCodes[1],
+        recoveryCode: payload.recoveryCodes[0],
         installationToken: installationToken('C'),
       }),
     })

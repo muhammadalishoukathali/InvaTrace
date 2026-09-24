@@ -1,9 +1,9 @@
 """AC 2.1.1 + 2.1.2 verification-only tests for anonymous recovery secrets.
 
-Recovery codes are batched into three independent 128-bit reusable codes -
-few enough for a user to keep track of, and reusable so restoring on a new
-device does not draw down a limited pool. Every assertion here guards a
-property the AC calls out explicitly:
+Each profile gets a single 128-bit reusable recovery code - one secret to
+save, reusable so restoring on a new device does not draw down a limited
+pool. Rotation replaces it if the user suspects it has leaked. Every
+assertion here guards a property the AC calls out explicitly:
 
 * raw codes come from a CSPRNG with at least 128 bits of entropy each;
 * raw codes only appear in the initial creation / rotation response and

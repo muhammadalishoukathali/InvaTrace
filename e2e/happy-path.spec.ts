@@ -372,8 +372,8 @@ test.skip('legacy: bootstrap created profiles while ignoring privilege fields', 
 test('private access creation saves a recovery kit, skips the optional name, and bootstraps later', async ({ page }) => {
   const payload = await startPrivateAccess(page, false)
   expect(payload.profile).toMatchObject({ role: 'Detector', trustLevel: 'New' })
-  expect(payload.recoveryCodes).toHaveLength(3)
-  await expect(page.locator('.recovery-code-grid code')).toHaveCount(3)
+  expect(payload.recoveryCodes).toHaveLength(1)
+  await expect(page.locator('.recovery-code-grid code')).toHaveCount(1)
   await expect(page.getByLabel('Display name (optional)')).toHaveValue('')
 
   const download = page.waitForEvent('download')
@@ -412,7 +412,7 @@ test('restoration adds an installation with reusable codes, rotates batches, and
   await expect(page).toHaveURL(/\/private-access$/)
   await page.getByRole('link', { name: 'Restore existing access' }).click()
   await page.getByLabel('Public profile ID').fill(started.profile.id)
-  await page.getByLabel('One recovery code').fill(started.recoveryCodes[0])
+  await page.getByLabel('Recovery code').fill(started.recoveryCodes[0])
   const restoredResponse = page.waitForResponse((response) => new URL(response.url()).pathname === RESTORE_PATH)
   await page.getByRole('button', { name: 'Restore access' }).click()
   expect((await restoredResponse).status()).toBe(200)
@@ -463,13 +463,13 @@ test('restoration adds an installation with reusable codes, rotates batches, and
   }, { profileId: started.profile.id, code: started.recoveryCodes[0] })
   expect(reuseStatus).toBe(200)
 
-  await page.getByRole('button', { name: 'Replace codes' }).click()
-  await page.getByRole('button', { name: 'Replace codes' }).click()
-  await expect(page.locator('.replacement-batch .recovery-code-grid code')).toHaveCount(3)
+  await page.getByRole('button', { name: 'Replace code', exact: true }).click()
+  await page.getByRole('button', { name: 'Replace code', exact: true }).click()
+  await expect(page.locator('.replacement-batch .recovery-code-grid code')).toHaveCount(1)
   const replacementCodes = await page.locator('.replacement-batch .recovery-code-grid code').allTextContents()
 
-  // Rotation retires every code from the pre-rotation batch, even
-  // though those codes were reusable up until the moment of rotation.
+  // Rotation retires the pre-rotation code even though it was reusable
+  // up until the moment of rotation.
   const oldCodeStatus = await page.evaluate(async ({ profileId, oldCode }) => {
     const bytes = crypto.getRandomValues(new Uint8Array(32))
     let binary = ''
@@ -479,7 +479,7 @@ test('restoration adds an installation with reusable codes, rotates batches, and
       method: 'POST', headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ profileId, recoveryCode: oldCode, installationToken }),
     })).status
-  }, { profileId: started.profile.id, oldCode: started.recoveryCodes[1] })
+  }, { profileId: started.profile.id, oldCode: started.recoveryCodes[0] })
   expect(oldCodeStatus).toBe(400)
 
   // Freshly rotated code is accepted from two brand-new installation
@@ -525,7 +525,7 @@ test('interrupted recovery setup rotates the unseen batch after reload', async (
   expect((await bootstrap).headers()['cache-control']).toBe('no-store')
   const replacement = await (await rotation).json() as { recoveryCodes: string[] }
   await expect(page).toHaveURL(/\/private-access\/recovery$/)
-  expect(replacement.recoveryCodes).toHaveLength(3)
+  expect(replacement.recoveryCodes).toHaveLength(1)
   expect(replacement.recoveryCodes[0]).not.toBe(started.recoveryCodes[0])
   await expect(page.getByText(started.recoveryCodes[0])).toHaveCount(0)
   await page.getByRole('checkbox', { name: 'I have saved my recovery kit' }).check()
