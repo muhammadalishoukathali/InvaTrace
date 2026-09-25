@@ -236,7 +236,7 @@ const PATHWAY_CONFIG: Record<ResultPathway, {
   label: string; bg: string; border: string; color: string; icon: string
 }> = {
   invasive_reportable: { label: 'Invasive in Malaysia', bg: 'var(--red-light)', border: 'var(--red-border)', color: 'var(--red)', icon: 'AlertTriangle' },
-  invasive_unsupported: { label: 'Invasive in Malaysia', bg: 'var(--red-light)', border: 'var(--red-border)', color: 'var(--red)', icon: 'AlertTriangle' },
+  invasive_unsupported: { label: 'Possible invasive match', bg: '#FEF3E2', border: '#F0D9A8', color: 'var(--amber)', icon: 'AlertTriangle' },
   information_only: { label: 'Information only', bg: '#EEF3F7', border: '#D5DEE7', color: '#2F5F86', icon: 'Info' },
   status_uncertain: { label: 'Status uncertain. Take another photo.', bg: '#FEF3E2', border: '#F0D9A8', color: 'var(--amber)', icon: 'HelpCircle' },
   other_plant: { label: 'Not a target species', bg: 'var(--green-light)', border: 'var(--green-border)', color: 'var(--green)', icon: 'Check' },
@@ -451,42 +451,39 @@ function UncertainResult({ result }: { result: IdentifyResult }) {
     navigate('/scan', { replace: true, state: location.state })
   }
   const verification = result.verification
-  // Guard against PlantNet identifying the plant as one of the 32 InvaTrace
-  // invasives that Student33 was uncertain about: labelling that "Native
-  // Species" would understate the risk. If PlantNet's top match sits in the
-  // approved catalogue we fall back to Not Sure with a note that the user
-  // should retake the photo so Student33 can classify it confidently, rather
-  // than pretending it's non-invasive.
+  // A PlantNet match is a tentative species suggestion. It cannot establish
+  // whether a plant is native or invasive in Malaysia.
   const plantnetMatchesInvasive = verification?.species
     ? findApprovedSpecies({ scientificName: verification.species.scientificName }) !== null
     : false
-  const identifiedAsNative = (
+  const hasUntrackedSuggestion = (
     verification?.label === 'native'
     && verification.species
     && !plantnetMatchesInvasive
   )
-  const headline = identifiedAsNative
-    ? 'Native Species'
+  const headline = hasUntrackedSuggestion
+    ? 'Possible species match'
     : 'Not Sure - Unable to verify'
-  const speciesLine = identifiedAsNative
+  const speciesLine = hasUntrackedSuggestion
     ? verification!.species!.scientificName
     : null
-  const commonName = identifiedAsNative
+  const commonName = hasUntrackedSuggestion
     ? (verification!.species!.commonNames ?? [])[0] ?? null
     : null
   return (
     <div style={{ marginTop: 16, padding: '16px 18px', borderRadius: 'var(--r-card)', background: 'var(--surface)', border: '1px solid var(--border)' }}>
       <h2 style={{ fontSize: 16, fontWeight: 600 }}>{headline}</h2>
-      {identifiedAsNative ? (
+      {hasUntrackedSuggestion ? (
         <>
           <p style={{ marginTop: 6, color: 'var(--body)', fontSize: 13.5, lineHeight: 1.6 }}>
             <em>{speciesLine}</em>
             {commonName ? <> · {commonName}</> : null}
           </p>
           <p style={{ marginTop: 6, color: 'var(--muted)', fontSize: 12, lineHeight: 1.5 }}>
-            Not in the InvaTrace invasive catalogue. Result cross-checked with a
-            second identifier. Treat this as a cross-check, not a formal
-            ecological determination.
+            PlantNet suggested this species, but the identification is unverified.
+            Being outside the InvaTrace catalogue does not establish that a plant
+            is native or harmless in Malaysia. Do not remove or report it from
+            this result alone.
           </p>
         </>
       ) : (
@@ -600,20 +597,12 @@ function UnsupportedTargetResult({ result }: { result: IdentifyResult }) {
       )}
       {/* Kept this summary short on purpose - the full guidance is further down. */}
       <p style={{ marginTop: 8, color: 'var(--body)', fontSize: 13.5, lineHeight: 1.6 }}>
-        {guidance?.general_information
-          ? firstSentence(guidance.general_information)
-          : 'We do not have reviewed field advice for this plant yet. Leave it in place.'}
+        The model suggested this catalogue species, but the photo has not been
+        verified. Compare it with the reference image and seek a second
+        identification before reporting or removing the plant.
       </p>
     </div>
   )
-}
-
-/** Cuts a longer description down to just its first sentence, for the compact
- *  result boxes. If it can't find a sentence boundary it just returns the
- *  whole text rather than mangling it. */
-function firstSentence(text: string): string {
-  const match = text.match(/^.*?[.!?](?=\s|$)/)
-  return match ? match[0] : text
 }
 
 /** Turns an ISO date into something like "March 2025" for display. If the

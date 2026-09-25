@@ -208,8 +208,8 @@ class PulihAdapter implements ModelAdapter {
     // Two-stage identification: the on-device Student33 model runs first and
     // owns the "Invasive" verdict for anything in the 32-species catalogue.
     // When it comes back uncertain, we cross-check the same photo with
-    // PlantNet via the backend proxy so the UI can still show a useful
-    // "Native Species" or "Not Sure" answer instead of a bare "uncertain".
+    // PlantNet via the backend proxy so the UI can show a tentative species
+    // suggestion or ask for another photo.
     if (result.outcome !== 'uncertain') return result
     // Extreme low certainty: the local model already flagged the photo as
     // unrecoverable. Spending a PlantNet call here would burn free-tier quota

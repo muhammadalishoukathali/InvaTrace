@@ -8,8 +8,8 @@ import { findApprovedSpecies, findPlantStatus } from '@shared/catalogue'
  * the runtime manifest, starting the onnxruntime-web session (WebGPU with a
  * WASM fallback), turning a photo into the tensor shape the model expects, and
  * turning the raw logits back into an IdentifyResult. Unknown handling uses a
- * calibrated max-core-probability threshold; class index 32 is the
- * Unknown/Other bucket.
+ * calibrated max-core-probability threshold and, when supplied by the model
+ * release, a core-logit energy threshold. Class index 32 is Unknown/Other.
  *
  * plant-model-adapter.ts sits above this file and doesn't touch ONNX at all -
  * it picks which model implementation the app should run (this real one, a
@@ -37,6 +37,8 @@ interface RuntimeManifest {
   std: [number, number, number]
   temperature: number
   unknownProbabilityThreshold: number
+  /** Optional -T * logsumexp(core logits / T) rejection threshold. */
+  energyThreshold?: number
   /** Max core probability at or above which the local model's answer is used
    *  directly - no PlantNet handover. */
   confidentThreshold?: number
@@ -272,9 +274,7 @@ function interpret(
   if (logits.length !== catalog.class_count) {
     throw new Error(`Expected ${catalog.class_count} logits but received ${logits.length}.`)
   }
-  // Temperature scaling on the logits before softmax is what makes the
-  // model's confidence numbers actually mean something for the calibrated
-  // Unknown gate.
+  // Apply the calibration selected on validation data before either gate.
   const temperature = manifest.temperature
   const scaled = logits.map((value) => value / temperature)
   const maximum = Math.max(...scaled)
@@ -298,7 +298,15 @@ function interpret(
   const confidentThreshold = manifest.confidentThreshold ?? manifest.unknownProbabilityThreshold
   const handoverThreshold = manifest.handoverThreshold ?? manifest.unknownProbabilityThreshold
   const retakeThreshold = manifest.retakeThreshold ?? 0
+  const coreScaled = scaled.slice(0, unknownIndex)
+  const coreMaximum = Math.max(...coreScaled)
+  const coreEnergy = -temperature * (
+    coreMaximum + Math.log(coreScaled.reduce(
+      (sum, value) => sum + Math.exp(value - coreMaximum), 0,
+    ))
+  )
   const isUnknown = maxCoreProbability < confidentThreshold
+    || (manifest.energyThreshold !== undefined && coreEnergy > manifest.energyThreshold)
   const retakeAdvice = maxCoreProbability < retakeThreshold
     ? {
         reason: 'low_certainty' as const,
@@ -430,6 +438,9 @@ export class PulihModel {
     }
     if (catalog.unknown_index !== manifest.unknownIndex) {
       throw new PlantModelRuntimeError('integrity', 'Plant model unknown index disagrees with catalogue.')
+    }
+    if (manifest.energyThreshold !== undefined && !Number.isFinite(manifest.energyThreshold)) {
+      throw new PlantModelRuntimeError('integrity', 'Plant model energy threshold is invalid.')
     }
     const modelBytes = await verifiedModelBytes(manifest, cacheMode, onProgress)
     return { manifest, catalog, modelBytes }
