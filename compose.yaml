@@ -31,8 +31,13 @@ services:
       timeout: 3s
       retries: 20
 
+  # Local/CI stand-in for Cloudflare R2. The upstream quay.io/minio and
+  # Docker Hub minio/* images are no longer publicly pullable, so this uses
+  # the Pigsty-maintained MinIO community build (same server, same S3 API
+  # semantics the app relies on: presigned PUT with locked size/type,
+  # CopySourceIfMatch, CORS). Pinned by tag and multi-arch index digest.
   minio:
-    image: quay.io/minio/minio:RELEASE.2024-12-18T13-15-44Z
+    image: pgsty/minio:RELEASE.2026-08-04T00-00-00Z@sha256:b6bfe7239bfc83fb90d31612d9704d86039dd714f7904b3f1ad68f211e602372
     command: ["server", "/data", "--console-address", ":9001"]
     environment:
       MINIO_ROOT_USER: minioadmin
@@ -43,11 +48,17 @@ services:
       - "127.0.0.1:9001:9001"
     volumes:
       - invatrace-minio:/data
+    healthcheck:
+      test: ["CMD", "curl", "-fsS", "http://localhost:9000/minio/health/live"]
+      interval: 5s
+      timeout: 3s
+      retries: 20
+
   minio-init:
-    image: quay.io/minio/mc:RELEASE.2024-11-21T17-21-54Z
+    image: pgsty/mc:RELEASE.2026-09-16T00-00-00Z@sha256:cfc83108c3abb371f8fb84d99c1fdc88f8c237e022409b0081fb7c0a3be634dd
     depends_on:
       minio:
-        condition: service_started
+        condition: service_healthy
     entrypoint:
       - /bin/sh
       - -c
