@@ -23,9 +23,10 @@ export function PlacesPage() {
   })
   const normalized = search.trim().toLocaleLowerCase()
   const places = useMemo(() => (query.data?.items ?? []).filter((place) => (
-    !normalized
-    || place.displayName.toLocaleLowerCase().includes(normalized)
-    || place.placeType.toLocaleLowerCase().includes(normalized)
+    place.placeType !== 'trail'
+    && (!normalized
+      || place.displayName.toLocaleLowerCase().includes(normalized)
+      || place.placeType.toLocaleLowerCase().includes(normalized))
   )), [normalized, query.data?.items])
   if (!online) {
     return (
@@ -46,7 +47,7 @@ export function PlacesPage() {
     <section className="places-page">
       <header>
         <h2>Browse mapped places</h2>
-        <p>Select a named park, forest or trail to view historical occurrence associations.</p>
+        <p>Select a named park, forest or woodland to view historical occurrence associations.</p>
       </header>
       <label className="places-search">
         <span>Search places</span>
@@ -54,7 +55,7 @@ export function PlacesPage() {
           type="search"
           value={search}
           onChange={(event) => setSearch(event.target.value)}
-          placeholder="Search park, forest or trail"
+          placeholder="Search park, forest or woodland"
         />
         {search && <button type="button" onClick={() => setSearch('')}>Clear search</button>}
       </label>

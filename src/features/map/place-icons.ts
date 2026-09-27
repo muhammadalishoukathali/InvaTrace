@@ -82,6 +82,14 @@ export const PLACE_ICONS: Record<PlaceType, PlaceIconSpec> = {
 export const PLACE_TYPES: PlaceType[] = ['park', 'forest', 'wood', 'trail']
 
 /**
+ * Place types that are publicly selectable on the map and in Browse Places.
+ * `trail` stays in `PLACE_TYPES` and the shared contracts for backward
+ * compatibility (existing trail detail URLs and adoptions), but new
+ * discovery surfaces should filter to this list.
+ */
+export const PUBLIC_PLACE_TYPES: PlaceType[] = ['park', 'forest', 'wood']
+
+/**
  * Convert a raw place-type value into its user-facing label. In OSM the
  * `landuse=forest` value covers dense forest while `natural=wood` is the
  * lower-canopy woodland tag; the raw string "wood" is confusing so we
