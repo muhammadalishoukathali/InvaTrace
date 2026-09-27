@@ -76,10 +76,10 @@ export default defineConfig({
             // The ONNX model and its manifest are checksum-verified by the
             // browser adapter on first load, so once a response is good it is
             // safe to keep. Cache it so scanning still works offline.
-            urlPattern: ({ url }) => url.pathname.startsWith('/models/invatrace-student33-v1/'),
+            urlPattern: ({ url }) => url.pathname.startsWith('/models/invatrace-student33-v6/'),
             handler: 'CacheFirst',
             options: {
-              cacheName: 'invatrace-student33-model-v1',
+              cacheName: 'invatrace-student33-model-v6',
               expiration: { maxEntries: 12, maxAgeSeconds: 365 * 24 * 60 * 60 },
               cacheableResponse: { statuses: [200] },
             },

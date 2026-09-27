@@ -74,6 +74,7 @@ export const MSW_LOCATION_ACCURACY_MAX_M = 250
 // accepts submissions tagged with the retained secondary while any client
 // still ships it.
 export const MSW_SUPPORTED_MODEL_VERSIONS = [
+  'invatrace-student33-v6-epoch2-320-fp16',
   'invatrace-student33-tinyvit5m-320-fp16',
   'oe_v4_31class_web_fp16',
   // The development adapter tags its results `development-<model version>`, and

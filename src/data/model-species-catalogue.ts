@@ -5,7 +5,7 @@
 // instead. Set it up this way so swapping the model can't silently relabel a
 // class in the UI; the shared catalogue has to be updated (and its sha256
 // rechecked against the backend) as a separate, deliberate step.
-import modelManifest from '../../public/models/invatrace-student33-v1/student33_species.json'
+import modelManifest from '../../public/models/invatrace-student33-v6/student33_species.json'
 import {
   findPlantStatus,
   findApprovedSpecies,

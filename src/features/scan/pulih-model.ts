@@ -18,7 +18,7 @@ import { findApprovedSpecies, findPlantStatus } from '@shared/catalogue'
  * this file directly.
  */
 
-const MODEL_ROOT = import.meta.env.VITE_MODEL_BASE_URL || '/models/invatrace-student33-v1'
+const MODEL_ROOT = import.meta.env.VITE_MODEL_BASE_URL || '/models/invatrace-student33-v6'
 
 interface RuntimeManifest {
   schemaVersion: 'invatrace.student33-runtime.v1'
@@ -305,7 +305,8 @@ function interpret(
       (sum, value) => sum + Math.exp(value - coreMaximum), 0,
     ))
   )
-  const isUnknown = maxCoreProbability < confidentThreshold
+  const isUnknown = probabilities[unknownIndex] > maxCoreProbability
+    || maxCoreProbability < confidentThreshold
     || (manifest.energyThreshold !== undefined && coreEnergy > manifest.energyThreshold)
   const retakeAdvice = maxCoreProbability < retakeThreshold
     ? {

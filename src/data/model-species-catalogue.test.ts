@@ -1,7 +1,7 @@
 import { existsSync } from 'node:fs'
 import { fileURLToPath } from 'node:url'
 import { describe, expect, it } from 'vitest'
-import runtimeCatalog from '../../public/models/invatrace-student33-v1/student33_species.json'
+import runtimeCatalog from '../../public/models/invatrace-student33-v6/student33_species.json'
 import { approvedSpeciesDataset, findApprovedSpecies } from '@shared/catalogue'
 import {
   findModelSpecies, modelReferenceImageUrl, modelSpeciesCatalogue,

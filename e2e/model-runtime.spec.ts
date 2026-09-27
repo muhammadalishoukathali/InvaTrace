@@ -30,7 +30,7 @@ test('model runtime retries a failed download, falls back to WASM, and reuses on
   const modelRequests = new Map<string, number>()
   page.on('request', (request) => {
     const pathname = new URL(request.url()).pathname
-    if (!pathname.startsWith('/models/invatrace-student33-v1/')) return
+    if (!pathname.startsWith('/models/invatrace-student33-v6/')) return
     modelRequests.set(pathname, (modelRequests.get(pathname) ?? 0) + 1)
   })
   await page.goto('/private-access')
@@ -74,8 +74,8 @@ test('model runtime retries a failed download, falls back to WASM, and reuses on
 
   expect(result.firstErrorCode).toBe('download')
   expect(result.versions).toEqual([
-    'invatrace-student33-tinyvit5m-320-fp16',
-    'invatrace-student33-tinyvit5m-320-fp16',
+    'invatrace-student33-v6-epoch2-320-fp16',
+    'invatrace-student33-v6-epoch2-320-fp16',
   ])
   expect(result.diagnostics.provider).toBe('wasm')
   expect(result.diagnostics.loadMs).toBeGreaterThan(0)
@@ -133,10 +133,10 @@ test('a corrupted model download is evicted and re-fetched instead of failing fo
 
   await page.goto('/private-access')
   const result = await page.evaluate(async () => {
-    const modelUrl = '/models/invatrace-student33-v1/tinyvit5m_student33_320_fp16.onnx'
+    const modelUrl = '/models/invatrace-student33-v6/tinyvit5m_student33_v6_epoch2_320_fp16.onnx'
     // Stand in for the service worker's CacheFirst entry so the test can prove
     // the loader actually evicts what it found, not just that it retried.
-    const cache = await caches.open('invatrace-student33-model-v1')
+    const cache = await caches.open('invatrace-student33-model-v6')
     await cache.put(new Request(modelUrl, { cache: 'force-cache' }), new Response(new Uint8Array([1, 2, 3])))
     const { PulihModel } = await import('/src/features/scan/pulih-model.ts')
     const model = new PulihModel()

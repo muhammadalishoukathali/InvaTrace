@@ -33,6 +33,7 @@ def test_production_accepts_explicit_origins_and_deterministic_screening() -> No
     settings = production_settings()
     assert settings.app_env == "production"
     assert settings.e1_model_versions == [
+        "invatrace-student33-v6-epoch2-320-fp16",
         "invatrace-student33-tinyvit5m-320-fp16",
         "oe_v4_31class_web_fp16",
     ]

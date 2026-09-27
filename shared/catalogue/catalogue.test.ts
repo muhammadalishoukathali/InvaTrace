@@ -3,7 +3,7 @@ import { readFileSync } from 'node:fs'
 import { fileURLToPath } from 'node:url'
 import { describe, expect, it } from 'vitest'
 import Ajv2020 from 'ajv/dist/2020'
-import runtimeCatalog from '../../public/models/invatrace-student33-v1/student33_species.json'
+import runtimeCatalog from '../../public/models/invatrace-student33-v6/student33_species.json'
 
 interface RuntimeClass { class_index: number; machine_label: string; scientific_name: string }
 const runtimeCoreClasses = (runtimeCatalog.classes as RuntimeClass[])

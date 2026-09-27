@@ -62,6 +62,7 @@ class Settings(BaseSettings):
     # the outcome as unsupported rather than blindly accepting it - see
     # client_model_supported in app/workers/verification.py.
     e1_model_versions: Annotated[list[str], NoDecode] = [
+        "invatrace-student33-v6-epoch2-320-fp16",
         "invatrace-student33-tinyvit5m-320-fp16",
         # Kept while any client PWA still ships the retired PULIH bundle; can be
         # removed once release monitoring shows no more submissions from it.

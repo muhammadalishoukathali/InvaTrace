@@ -2,7 +2,7 @@
   "$schema": "./schemas/plant-status.schema.json",
   "schema_version": "invatrace.catalogue.plant-status.v1",
   "catalogue_version": "2.0.0",
-  "model_version": "invatrace-student33-tinyvit5m-320-fp16",
+  "model_version": "invatrace-student33-v6-epoch2-320-fp16",
   "last_reviewed": "2026-09-13",
   "class_count": 32,
   "records": [

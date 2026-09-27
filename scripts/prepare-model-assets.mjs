@@ -16,7 +16,7 @@ import { restoreRuntimeAssets } from './restore-runtime-assets.mjs'
 const projectRoot = resolve(dirname(fileURLToPath(import.meta.url)), '..')
 
 await restoreRuntimeAssets()
-const modelRoot = join(projectRoot, 'public', 'models', 'invatrace-student33-v1')
+const modelRoot = join(projectRoot, 'public', 'models', 'invatrace-student33-v6')
 
 // Catalogue images are versioned independently from the classifier. Verify
 // every reviewed local image here so production builds fail on missing,
