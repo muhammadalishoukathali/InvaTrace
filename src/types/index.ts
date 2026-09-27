@@ -108,6 +108,10 @@ export interface IdentifyResult {
   // the local classification, it just won't let you report until this
   // comes back true.
   serverAccepted?: boolean
+  // true only when serverAccepted is false because the gate couldn't be
+  // reached at all - lets the result screen avoid calling a plain
+  // low-confidence rejection a server outage.
+  serverGateUnavailable?: boolean
   topPredictions?: Array<{
     speciesId: string
     name: string

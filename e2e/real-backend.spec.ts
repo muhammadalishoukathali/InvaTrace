@@ -29,7 +29,7 @@ test('private access starts and bootstraps against the real API', async ({ page,
   expect(created.recoveryCodes).toHaveLength(1)
 
   await page.getByRole('checkbox', { name: 'I have saved my recovery kit' }).check()
-  await page.getByRole('button', { name: 'Continue to InvaTrace' }).click()
+  await page.getByRole('button', { name: 'Continue', exact: true }).click()
   await expect(page).toHaveURL(/\/map$/)
 
   const bootstrap = page.waitForResponse((response) =>
@@ -98,7 +98,7 @@ test('real geospatial data is discoverable from the main map', async ({ page, re
   await page.getByRole('checkbox', { name: 'I have saved my recovery kit' }).check()
   const mapPlaces = page.waitForResponse((response) =>
     new URL(response.url()).pathname === '/api/v1/places/map' && response.status() === 200)
-  await page.getByRole('button', { name: 'Continue to InvaTrace' }).click()
+  await page.getByRole('button', { name: 'Continue', exact: true }).click()
   const payload = await (await mapPlaces).json() as { features: unknown[] }
   expect(payload.features.length).toBeGreaterThan(0)
 

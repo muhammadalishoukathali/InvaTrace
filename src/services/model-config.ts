@@ -67,21 +67,25 @@ export interface ClassifierResult {
   modelVersion: string
   speciesId?: string | null
   serverAccepted?: boolean
+  serverGateUnavailable?: boolean
 }
 
 export function applyServerAcceptance<T extends ClassifierResult>(
   result: T,
   config: ModelConfig | null,
-): T & { serverAccepted: boolean } {
+): T & { serverAccepted: boolean; serverGateUnavailable: boolean } {
+  // serverGateUnavailable tells the result screen *why* serverAccepted is
+  // false: only a missing config means the server couldn't be reached. A
+  // rejection (low confidence, retired model) must not be worded as an outage.
   if (!config) {
-    return { ...result, serverAccepted: false }
+    return { ...result, serverAccepted: false, serverGateUnavailable: true }
   }
   const versionOk = config.supportedVersions.length === 0
     || config.supportedVersions.includes(result.modelVersion)
   const confidentEnough = result.confidence >= config.acceptanceThreshold
   const hasLabel = result.outcome === 'target' ? Boolean(result.speciesId) : true
   if (!versionOk || !confidentEnough || !hasLabel) {
-    return { ...result, outcome: 'uncertain', speciesId: null, serverAccepted: false }
+    return { ...result, outcome: 'uncertain', speciesId: null, serverAccepted: false, serverGateUnavailable: false }
   }
-  return { ...result, serverAccepted: true }
+  return { ...result, serverAccepted: true, serverGateUnavailable: false }
 }

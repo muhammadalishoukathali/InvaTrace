@@ -5,13 +5,13 @@ async function startPrivateAccess(page: Page) {
   await page.getByRole('button', { name: 'Start privately' }).click()
   await expect(page.getByRole('heading', { name: 'Save your recovery kit' })).toBeVisible()
   await page.getByRole('checkbox', { name: 'I have saved my recovery kit' }).check()
-  await page.getByRole('button', { name: 'Continue to InvaTrace' }).click()
+  await page.getByRole('button', { name: 'Continue', exact: true }).click()
   await expect(page).toHaveURL(/\/map$/)
 }
 
 test('map place discovery opens an accessible preview and canonical place route', async ({ page }) => {
   await startPrivateAccess(page)
-  await expect(page.getByRole('button', { name: 'Hide places' })).toBeVisible()
+  await expect(page.getByRole('button', { name: 'Hide mapped places' })).toBeVisible()
   const places = page.getByRole('region', { name: 'Mapped places in current view' })
   const bukitKiara = places.getByRole('button', {
     name: /Bukit Kiara.*View plants recorded nearby/,
@@ -65,10 +65,10 @@ test('map place discovery opens an accessible preview and canonical place route'
     )
     .toBe('place-button:10000000-0000-4000-8000-000000000001')
 
-  await page.getByRole('button', { name: 'Hide places' }).click()
-  await expect(page.getByRole('button', { name: 'Show places' })).toBeVisible()
+  await page.getByRole('button', { name: 'Hide mapped places' }).click()
+  await expect(page.getByRole('button', { name: 'Show mapped places' })).toBeVisible()
   await expect(places.getByText('0 mapped places in the current view.')).toBeAttached()
-  await page.getByRole('button', { name: 'Show places' }).click()
+  await page.getByRole('button', { name: 'Show mapped places' }).click()
   await expect(bukitKiara).toBeAttached({ timeout: 10_000 })
 })
 

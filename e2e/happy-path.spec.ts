@@ -133,7 +133,7 @@ async function startPrivateAccess(page: Page, acknowledge = true) {
   await expect(page.getByRole('heading', { name: 'Save your recovery kit' })).toBeVisible()
   if (acknowledge) {
     await page.getByRole('checkbox', { name: 'I have saved my recovery kit' }).check()
-    await page.getByRole('button', { name: 'Continue to InvaTrace' }).click()
+    await page.getByRole('button', { name: 'Continue', exact: true }).click()
     await expect(page).toHaveURL(/\/map$/)
   }
   return payload
@@ -377,10 +377,11 @@ test('private access creation saves a recovery kit, skips the optional name, and
   // block instead of the numbered grid; the grid still ships for the
   // multi-code fallback.
   await expect(page.locator('.recovery-card--code code').first()).toHaveText(payload.recoveryCodes[0])
-  await expect(page.getByLabel('Display name (optional)')).toHaveValue('')
+  // The optional name now sits in a collapsed disclosure; skipping it leaves it empty.
+  await expect(page.getByLabel('Display name', { exact: true })).toHaveValue('')
 
   const download = page.waitForEvent('download')
-  await page.getByRole('button', { name: 'Download recovery kit' }).click()
+  await page.getByRole('button', { name: 'Download', exact: true }).click()
   expect((await download).suggestedFilename()).toBe(`invatrace-recovery-kit-${payload.profile.id}.txt`)
 
   const storageBeforeLeaving = await serializedBrowserStorage(page)
@@ -388,7 +389,7 @@ test('private access creation saves a recovery kit, skips the optional name, and
   expect(storageBeforeLeaving).not.toContain(payload.accessToken)
 
   await page.getByRole('checkbox', { name: 'I have saved my recovery kit' }).check()
-  await page.getByRole('button', { name: 'Continue to InvaTrace' }).click()
+  await page.getByRole('button', { name: 'Continue', exact: true }).click()
   await expect(page).toHaveURL(/\/map$/)
   const identity = await readStoredIdentity(page)
   expect(identity).toMatchObject({ schemaVersion: 2, profileId: payload.profile.id, recoverySetupComplete: true })
@@ -532,7 +533,7 @@ test('interrupted recovery setup rotates the unseen batch after reload', async (
   expect(replacement.recoveryCodes[0]).not.toBe(started.recoveryCodes[0])
   await expect(page.getByText(started.recoveryCodes[0])).toHaveCount(0)
   await page.getByRole('checkbox', { name: 'I have saved my recovery kit' }).check()
-  await page.getByRole('button', { name: 'Continue to InvaTrace' }).click()
+  await page.getByRole('button', { name: 'Continue', exact: true }).click()
   await expect(page).toHaveURL(/\/map$/)
 })
 
@@ -805,6 +806,6 @@ test('offline launch restores locally, then reconnects before flushing reports',
 test('threat map shows pins and ODbL attribution', async ({ page }) => {
   await startPrivateAccess(page)
   await expect(page.locator('.maplibregl-canvas')).toBeVisible()
-  await expect(page.locator('.map-attribution')).toContainText('OpenStreetMap')
+  await expect(page.locator('.map-attribution')).toHaveAttribute('title', /OpenStreetMap/)
   await expect(page.locator('.map-pin').first()).toBeVisible({ timeout: 5000 })
 })
