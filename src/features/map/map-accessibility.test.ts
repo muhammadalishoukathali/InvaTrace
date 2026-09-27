@@ -25,11 +25,12 @@ describe('map accessibility fallback', () => {
     expect(threatMap).toContain('id="map-live-count"')
   })
 
-  it('the accessible list renders in loading, error, and empty states', () => {
-    // Extracting the component body isolates the state-branch invariants.
-    const body = threatMap.split('function AccessibleSightingList(')[1]
+  it('the reports sheet renders in loading, error, and empty states', () => {
+    // The on-demand reports drawer (UT-13) carries the loading/error/empty
+    // state branches. Extracting its body isolates those invariants.
+    const body = threatMap.split('function ReportsSheet(')[1]
       ?.split('\n}\n')[0]
-    expect(body, 'AccessibleSightingList missing').toBeTruthy()
+    expect(body, 'ReportsSheet missing').toBeTruthy()
     expect(body).toContain('isLoading')
     expect(body).toContain('isError')
     expect(body).toContain('onRetry')
@@ -38,14 +39,12 @@ describe('map accessibility fallback', () => {
     expect(body).toMatch(/Community reports could not load/)
   })
 
-  it('the accessible list is always rendered, not gated on data', () => {
-    // The JSX call site must not guard the fallback on `data`, `isLoading`,
+  it('the reports sheet passes state flags through, not gated on data', () => {
+    // The JSX call site must not guard the drawer on `data`, `isLoading`,
     // or `!isError` - otherwise SR users lose the mirror in exactly the
     // states where the visual map is least usable.
-    // Match the JSX with attributes; the leading `\n` skips the comment
-    // that mentions <AccessibleSightingList/> as a self-closing token.
-    const callSite = threatMap.match(/<AccessibleSightingList\s[\s\S]*?\n\s*\/>/)?.[0]
-    expect(callSite, 'AccessibleSightingList call site missing').toBeTruthy()
+    const callSite = threatMap.match(/<ReportsSheet\s[\s\S]*?\n\s*\/>/)?.[0]
+    expect(callSite, 'ReportsSheet call site missing').toBeTruthy()
     // Sanity: the call site passes through the state flags rather than being
     // wrapped in a `data && …` conditional.
     expect(callSite).toContain('isLoading={isLoading}')
@@ -87,7 +86,7 @@ describe('map accessibility fallback', () => {
     expect(threatMap).toContain('}, 300)')
     expect(threatMap).toContain('/api/v1/places/map?')
     expect(threatMap).toContain('aria-pressed={showPlaces}')
-    expect(threatMap).toContain("{showPlaces ? 'Hide places' : 'Show places'}")
+    expect(threatMap).toContain("showPlaces ? 'Hide mapped places' : 'Show mapped places'")
   })
 
   it('provides an accessible place list and canonical preview action', () => {
@@ -123,10 +122,12 @@ describe('AC 4.2.3 species filter and accessible fallback', () => {
     // new count when a filter toggles, not just when the page loads.
     expect(threatMap).toContain('id="map-live-count"')
     // The live region attributes sit next to each other in the JSX; the
-    // aria-describedby on the map canvas points to this same id.
+    // aria-describedby on the map canvas points to this same id. The count is
+    // now surfaced on the reports button itself (UT-13), which acts as the
+    // live region via aria-live and opens the reports drawer.
     const liveBlock = threatMap.split('id="map-live-count"')[1]?.split('</div>')[0] ?? ''
-    expect(liveBlock).toContain('role="status"')
     expect(liveBlock).toContain('aria-live="polite"')
+    expect(liveBlock).toContain('Open reports list')
     // The result count and the active-filter count must both appear,
     // so a mentor running the acceptance test sees "Showing N reports · M
     // filters active" rather than one number without context.
@@ -134,12 +135,12 @@ describe('AC 4.2.3 species filter and accessible fallback', () => {
     // The "N filters active" suffix must render whenever any filter is
     // engaged; text-only check tolerates future whitespace tweaks.
     expect(threatMap).toContain('{filtersActive}')
-    expect(threatMap).toContain("filter{filtersActive === 1 ? '' : 's'} active")
+    expect(threatMap).toContain("filter${filtersActive === 1 ? '' : 's'} active")
     expect(threatMap).toContain('filtersActive > 0')
   })
 
   it('the reports list restates the current filtered count for AT users', () => {
-    const body = threatMap.split('function AccessibleSightingList(')[1]
+    const body = threatMap.split('function ReportsSheet(')[1]
       ?.split('\n}\n')[0] ?? ''
     // Same wording the mentor's acceptance script looks for; either the
     // "N reports match" plural or the singular / empty state.
