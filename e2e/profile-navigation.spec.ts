@@ -9,7 +9,7 @@ test('leaving profile for records does not trap Back between the two pages', asy
   await page.goto('/private-access')
   await page.getByRole('button', { name: 'Start privately' }).click()
   await page.getByRole('checkbox', { name: 'I have saved my recovery kit' }).check()
-  await page.getByRole('button', { name: 'Continue to InvaTrace' }).click()
+  await page.getByRole('button', { name: 'Continue', exact: true }).click()
   await expect(page).toHaveURL(/\/map$/)
 
   await page.goto('/profile')
@@ -27,7 +27,7 @@ test('a saved record marker opens its record details from the map', async ({ pag
   await page.goto('/private-access')
   await page.getByRole('button', { name: 'Start privately' }).click()
   await page.getByRole('checkbox', { name: 'I have saved my recovery kit' }).check()
-  await page.getByRole('button', { name: 'Continue to InvaTrace' }).click()
+  await page.getByRole('button', { name: 'Continue', exact: true }).click()
   await expect(page).toHaveURL(/\/map$/)
 
   await page.evaluate(() => {

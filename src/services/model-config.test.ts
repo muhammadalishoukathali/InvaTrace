@@ -36,6 +36,7 @@ describe('applyServerAcceptance', () => {
     expect(out.outcome).toBe('target')
     expect(out.speciesId).toBe('mikania-micrantha')
     expect(out.serverAccepted).toBe(false)
+    expect(out.serverGateUnavailable).toBe(true)
   })
 
   it('forces uncertain below the acceptance threshold', () => {
@@ -45,6 +46,8 @@ describe('applyServerAcceptance', () => {
     )
     expect(out.outcome).toBe('uncertain')
     expect(out.serverAccepted).toBe(false)
+    // A reachable server that rejects a low-confidence scan is not an outage.
+    expect(out.serverGateUnavailable).toBe(false)
   })
 
   it('accepts at the exact threshold boundary', () => {

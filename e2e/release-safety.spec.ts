@@ -12,7 +12,7 @@ async function startPrivateAccess(page: Page) {
   await expect(page.getByRole('heading', { name: /Save your recovery kit/i }))
     .toBeVisible({ timeout: 15_000 })
   await page.locator('input[type="checkbox"]').check()
-  await page.getByRole('button', { name: /Continue to InvaTrace/i }).click()
+  await page.getByRole('button', { name: 'Continue', exact: true }).click()
   await expect(page).toHaveURL(/\/map$/, { timeout: 15_000 })
 }
 
