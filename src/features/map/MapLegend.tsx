@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from 'react'
 import { createPortal } from 'react-dom'
 import { Icon } from '@/components/Icon'
-import { PLACE_ICONS, PLACE_TYPES } from './place-icons'
+import { PLACE_ICONS, PUBLIC_PLACE_TYPES } from './place-icons'
 import './map-controls.css'
 
 /**
@@ -79,7 +79,7 @@ export function MapLegend() {
             <Row colour="#8B978F" label="Removed" muted />
             <div className="map-legend-card__divider" role="separator" aria-hidden />
             <span className="map-legend-card__subtitle">Mapped places</span>
-            {PLACE_TYPES.map((placeType) => (
+            {PUBLIC_PLACE_TYPES.map((placeType) => (
               <PlaceRow key={placeType} placeType={placeType} />
             ))}
             <p className="map-legend-card__note">

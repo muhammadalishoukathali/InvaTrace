@@ -145,7 +145,7 @@ export function CatalogueDetailPage() {
         </section>
         <section className="catalogue-detail__places">
           <h3>Where it is recorded</h3>
-          <p>Browse mapped parks, forests and trails to see historical occurrence
+          <p>Browse mapped parks, forests and woodlands to see historical occurrence
             associations for invasive plants like this one.</p>
           <Link to="/places">Browse mapped places</Link>
         </section>

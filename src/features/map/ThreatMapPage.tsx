@@ -37,7 +37,7 @@ import { SightingDetailsSheet } from './SightingDetailsSheet'
 import { MapLegend } from './MapLegend'
 import { Icon } from '@/components/Icon'
 import { parseMapLocationTarget, type MapLocationTarget } from './map-location-link'
-import { PLACE_ICONS, PLACE_TYPES, formatPlaceType, loadSvgImage } from './place-icons'
+import { PLACE_ICONS, PLACE_TYPES, PUBLIC_PLACE_TYPES, formatPlaceType, loadSvgImage } from './place-icons'
 import { BASEMAP_ATTRIBUTION, BASEMAP_FONT, BASEMAP_STYLE } from './basemap'
 
 // Point MapLibre at its worker file ourselves. If we don't, it tries to
@@ -135,11 +135,20 @@ export function ThreatMapPage() {
         max_lon: Math.min(MY_BOUNDS[1][0], bounds.getEast()).toFixed(6),
         max_lat: Math.min(MY_BOUNDS[1][1], bounds.getNorth()).toFixed(6),
       })
+      PUBLIC_PLACE_TYPES.forEach((placeType) => params.append('place_type', placeType))
       const sequence = ++placeRequestSequence.current
       setPlacesLoading(true)
       setPlacesError(false)
       void api<PlaceMapResponse>(`/api/v1/places/map?${params}`).then((response) => {
-        if (sequence === placeRequestSequence.current) setPlaceData(response)
+        if (sequence !== placeRequestSequence.current) return
+        // Defensive filter: protects the presentation if an older backend or
+        // mock ignores the place_type query params and still returns trails.
+        setPlaceData({
+          ...response,
+          features: response.features.filter((feature) => (
+            (PUBLIC_PLACE_TYPES as readonly string[]).includes(feature.properties.placeType)
+          )),
+        })
       }).catch(() => {
         if (sequence === placeRequestSequence.current) setPlacesError(true)
       }).finally(() => {
@@ -745,7 +754,7 @@ export function ThreatMapPage() {
                   // An empty result is not the same as a broken map. Say the
                   // area simply has no mapped evidence so it doesn't read as a
                   // failure (UT-08).
-                  : 'No mapped places in this view yet. Pan the map or zoom out to find nearby parks, forests and trails.'}
+                  : 'No mapped places in this view yet. Pan the map or zoom out to find nearby parks, forests and woodlands.'}
           </div>
         )}
         {selectedPlace && (

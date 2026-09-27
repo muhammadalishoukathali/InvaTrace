@@ -5,6 +5,7 @@ import { api, ApiError } from '@/services/api-client'
 import type { PlaceDetail, RemovalReportResponse, Report, ReportStatus, SightingDetail, WithdrawalReportResponse } from '@/types'
 import { usePrivateAccess } from '@/features/private-access/private-access-store'
 import { LOCATION_ACCURACY_INSUFFICIENT_MESSAGE } from './gps-policy'
+import { PUBLIC_PLACE_TYPES } from '@/features/map/place-icons'
 import './report-tracking.css'
 
 const COPY: Record<ReportStatus, { title: string; body: string }> = {
@@ -210,6 +211,7 @@ export function ReportTrackingPage() {
 
         {(report.status === 'screened' || report.status === 'merged')
           && adoptionPlace.data?.place
+          && (PUBLIC_PLACE_TYPES as readonly string[]).includes(adoptionPlace.data.place.placeType)
           && !adoptionDismissed && (
           <section className="report-tracking__adoption" aria-labelledby="report-adoption-heading">
             <h2 id="report-adoption-heading">Adopt this area for monitoring?</h2>
