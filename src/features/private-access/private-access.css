@@ -250,7 +250,7 @@
   line-height: 1.5;
 }
 .recovery-setup__why {
-  margin: -6px 4px 0;
+  margin: 2px 0 0;
   color: var(--muted);
   font-size: 12px;
   line-height: 1.4;

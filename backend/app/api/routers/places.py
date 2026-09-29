@@ -8,7 +8,7 @@ from collections import defaultdict
 from datetime import datetime
 from typing import Literal
 
-from fastapi import APIRouter, Depends, Query
+from fastapi import APIRouter, Depends, Query, Request
 from geoalchemy2 import Geography, Geometry
 from sqlalchemy import and_, cast, func, or_, select
 from sqlalchemy.orm import Session
@@ -16,6 +16,7 @@ from sqlalchemy.orm import Session
 from app.api.routers.location import _classify_area
 from app.api.schemas import ApiModel
 from app.core.errors import ApiProblem
+from app.core.rate_limit import client_address, rate_limiter
 from app.db.base import get_session
 from app.db.models import (
     MonitoredArea,
@@ -282,8 +283,12 @@ def _place_detail_response(
 
 
 @router.get("", response_model=PlaceListResponse)
-def list_places(session: Session = Depends(get_session)) -> PlaceListResponse:
+def list_places(
+    request: Request,
+    session: Session = Depends(get_session),
+) -> PlaceListResponse:
     """Return searchable place metadata without expensive full geometries."""
+    rate_limiter.check("places_read", client_address(request))
     items: list[PlaceSummary] = []
     area_rows = session.execute(
         select(
@@ -359,6 +364,7 @@ def _map_properties(summary: PlaceSummary) -> PlaceMapFeatureProperties:
 
 @router.get("/map", response_model=PlaceMapResponse)
 def place_map(
+    request: Request,
     min_lon: float = Query(...),
     min_lat: float = Query(...),
     max_lon: float = Query(...),
@@ -367,6 +373,7 @@ def place_map(
     session: Session = Depends(get_session),
 ) -> PlaceMapResponse:
     """Return at most 2,000 representative points intersecting one viewport."""
+    rate_limiter.check("places_read", client_address(request))
     _validate_viewport(min_lon, min_lat, max_lon, max_lat)
     requested_types = set(place_type or ("park", "forest", "wood", "trail"))
     envelope = func.ST_MakeEnvelope(min_lon, min_lat, max_lon, max_lat, 4326)
@@ -455,11 +462,13 @@ def place_map(
 
 @router.get("/at-location", response_model=PlaceAtLocationResponse)
 def place_at_location(
+    request: Request,
     lat: float = Query(..., ge=0.8, le=7.5),
     lon: float = Query(..., ge=99.3, le=119.5),
     session: Session = Depends(get_session),
 ) -> PlaceAtLocationResponse:
     """Resolve the exact supported place offered after a successful report."""
+    rate_limiter.check("places_read", client_address(request))
     point = func.ST_SetSRID(func.ST_MakePoint(lon, lat), 4326)
     area = session.scalar(
         select(MonitoredArea)
@@ -494,16 +503,23 @@ def place_at_location(
 
 
 @router.get("/{place_id}", response_model=PlaceDetail)
-def place_detail(place_id: uuid.UUID, session: Session = Depends(get_session)) -> PlaceDetail:
+def place_detail(
+    request: Request,
+    place_id: uuid.UUID,
+    session: Session = Depends(get_session),
+) -> PlaceDetail:
+    rate_limiter.check("places_read", client_address(request))
     place, place_type = _place(session, place_id)
     return _place_detail_response(session, place, place_type)
 
 
 @router.get("/{place_id}/plant-associations", response_model=PlacePlantAssociationsResponse)
 def plant_associations(
+    request: Request,
     place_id: uuid.UUID,
     session: Session = Depends(get_session),
 ) -> PlacePlantAssociationsResponse:
+    rate_limiter.check("places_read", client_address(request))
     place, place_type = _place(session, place_id)
     _, _, geometry_version = _place_metadata(place)
     radius_m = 750 if place_type == "trail" else 1000

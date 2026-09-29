@@ -11,13 +11,14 @@ from __future__ import annotations
 from typing import Literal
 
 import structlog
-from fastapi import APIRouter, Depends, Query
+from fastapi import APIRouter, Depends, Query, Request
 from geoalchemy2 import Geography, Geometry
 from pydantic import Field
 from sqlalchemy import cast, func, select
 from sqlalchemy.orm import Session
 
 from app.api.schemas import ApiModel
+from app.core.rate_limit import client_address, rate_limiter
 from app.db.base import get_session
 from app.db.models import (
     MonitoredPlace,
@@ -99,9 +100,11 @@ def _uncertain_context(
 @router.post("", response_model=ProtectedLocationContextResponse)
 def protected_location_context(
     body: ProtectedLocationContextRequest,
+    request: Request,
     session: Session = Depends(get_session),
 ) -> ProtectedLocationContextResponse:
     """Fail closed when the boundary release or GPS fix is not reliable."""
+    rate_limiter.check("location_context_read", client_address(request))
     dataset = session.scalar(
         select(ProtectedAreaDataset)
         .where(ProtectedAreaDataset.active.is_(True))
@@ -204,11 +207,13 @@ def _normalise_feature_type(raw: str) -> FeatureType:
 # gets rejected by FastAPI's own validation before we even touch the DB.
 @router.get("", response_model=LocationContextResponse)
 def location_context(
+    request: Request,
     lat: float = Query(..., ge=0.8, le=7.5),
     lon: float = Query(..., ge=99.3, le=119.5),
     radius_m: int = Query(default=5000, ge=100, le=10000),
     session: Session = Depends(get_session),
 ) -> LocationContextResponse:
+    rate_limiter.check("location_context_read", client_address(request))
     """AC 4.3.1 - nearest named highway=path/footway/track, leisure=park,
     landuse=forest or natural=wood within `radius_m` metres (default 5000,
     the figure the AC names). radius_m is passed through to the OSM lookup;

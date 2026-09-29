@@ -4,10 +4,11 @@ from __future__ import annotations
 
 from datetime import date
 
-from fastapi import APIRouter, Query
+from fastapi import APIRouter, Query, Request
 
 from app.api.schemas import ApiModel
 from app.core.errors import ApiProblem
+from app.core.rate_limit import client_address, rate_limiter
 from app.domain.catalogue import (
     approved_catalogue_image_for_species,
     approved_species_record,
@@ -98,8 +99,10 @@ def _summary(record) -> CatalogueSpeciesSummary:
 
 @router.get("", response_model=CatalogueListResponse)
 def list_catalogue(
+    request: Request,
     q: str | None = Query(default=None, max_length=120),
 ) -> CatalogueListResponse:
+    rate_limiter.check("catalogue_read", client_address(request))
     dataset = load_approved_dataset()
     query = (q or "").strip().casefold()
     records = load_approved_species()
@@ -118,7 +121,8 @@ def list_catalogue(
 
 
 @router.get("/{species_id}", response_model=CatalogueSpeciesDetail)
-def catalogue_detail(species_id: str) -> CatalogueSpeciesDetail:
+def catalogue_detail(request: Request, species_id: str) -> CatalogueSpeciesDetail:
+    rate_limiter.check("catalogue_read", client_address(request))
     record = approved_species_record(species_id)
     if record is None:
         raise ApiProblem(404, "catalogue_species_not_found", "Not found")

@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import os
 import uuid
+from types import SimpleNamespace
 
 import pytest
 from sqlalchemy import func, select
@@ -13,6 +14,10 @@ from app.db.base import SessionLocal
 from app.db.models import MonitoredArea, Trail
 
 pytestmark = pytest.mark.integration
+
+
+def _rate_limit_request() -> SimpleNamespace:
+    return SimpleNamespace(client=SimpleNamespace(host="test"))
 
 if os.getenv("RUN_INVATRACE_SPATIAL_INTEGRATION") != "1":
     pytest.skip(
@@ -83,6 +88,7 @@ def test_place_map_uses_postgis_viewport_and_representative_points() -> None:
         )
         session.commit()
         result = place_map(
+            _rate_limit_request(),
             min_lon=100.999,
             min_lat=2.999,
             max_lon=101.011,
@@ -99,6 +105,7 @@ def test_place_map_uses_postgis_viewport_and_representative_points() -> None:
         assert by_id[trail_id].properties.place_type == "trail"
         assert all(feature.geometry["type"] == "Point" for feature in by_id.values())
         forest_only = place_map(
+            _rate_limit_request(),
             min_lon=100.999,
             min_lat=2.999,
             max_lon=101.011,
@@ -108,6 +115,7 @@ def test_place_map_uses_postgis_viewport_and_representative_points() -> None:
         )
         assert [feature.id for feature in forest_only.features] == [area_id]
         trail_only = place_map(
+            _rate_limit_request(),
             min_lon=100.999,
             min_lat=2.999,
             max_lon=101.011,

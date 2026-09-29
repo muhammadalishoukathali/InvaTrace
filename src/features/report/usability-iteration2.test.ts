@@ -66,6 +66,15 @@ describe('UT-04 recovery kit explains why the code matters', () => {
     // still holds.
     expect(page).toMatch(/moving devices or restoring access/i)
   })
+
+  it('explains why before the code is shown', () => {
+    const page = source('../private-access/pages/RecoveryKitSetupPage.tsx')
+    const why = page.indexOf('className="recovery-setup__why"')
+    const codeCard = page.indexOf('recovery-card--code')
+    expect(why).toBeGreaterThan(-1)
+    expect(codeCard).toBeGreaterThan(-1)
+    expect(why).toBeLessThan(codeCard)
+  })
 })
 
 describe('UT-07 native look-alike honest empty state', () => {

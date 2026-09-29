@@ -61,10 +61,15 @@ def test_closed_catalogue_is_exactly_the_approved_32() -> None:
     assert {"Salvinia molesta", "Urochloa mutica", "Pennisetum polystachyum"} <= names
 
 
+def _rate_limit_request() -> SimpleNamespace:
+    """Stub the parts of starlette.Request that rate_limit.client_address touches."""
+    return SimpleNamespace(client=SimpleNamespace(host="test"))
+
+
 def test_catalogue_search_and_honest_missing_copy() -> None:
-    result = list_catalogue(q="  GIANT SALVINIA  ")
+    result = list_catalogue(_rate_limit_request(), q="  GIANT SALVINIA  ")
     assert [item.species_id for item in result.items] == ["salvinia-molesta"]
-    detail = catalogue_detail("salvinia-molesta")
+    detail = catalogue_detail(_rate_limit_request(), "salvinia-molesta")
     assert detail.formal_severity_assessment == NO_SEVERITY
     assert detail.safe_response_guidance
     assert "Do not move or break plants" in detail.safe_response_guidance[0]
@@ -76,11 +81,11 @@ def test_catalogue_search_and_honest_missing_copy() -> None:
 
 
 def test_catalogue_has_one_reviewed_provenance_image_per_approved_species() -> None:
-    result = list_catalogue(q=None)
+    result = list_catalogue(_rate_limit_request(), q=None)
     assert len(result.items) == 32
     assert all(item.image is not None for item in result.items)
     assert len({item.image.url for item in result.items if item.image is not None}) == 32
-    image = catalogue_detail("mikania-micrantha").image
+    image = catalogue_detail(_rate_limit_request(), "mikania-micrantha").image
     assert image is not None
     assert image.url == "/reference-images/mikania_micrantha.jpg"
     assert image.creator
@@ -93,7 +98,7 @@ def test_catalogue_has_one_reviewed_provenance_image_per_approved_species() -> N
 def test_catalogue_api_has_complete_reviewed_detail_for_all_32() -> None:
     records = load_approved_species()
     for record in records:
-        detail = catalogue_detail(record.species_id)
+        detail = catalogue_detail(_rate_limit_request(), record.species_id)
         assert detail.scientific_name == record.scientific_name
         assert detail.malaysia_status == "Present"
         assert detail.image is not None

@@ -95,6 +95,11 @@ export function RecoveryKitSetupPage() {
         <header className="recovery-setup__head">
           <span className="recovery-setup__eyebrow">Keep private</span>
           <h1 ref={headingRef} tabIndex={-1}>Save your recovery kit</h1>
+          {/* UT-04: say why the kit matters before the codes appear. One quiet
+              line so the page stays uncluttered on mobile. */}
+          <p className="recovery-setup__why">
+            It is the only way back into this private profile. Only needed when moving devices or restoring access.
+          </p>
         </header>
 
         {syncMessage && (
@@ -194,9 +199,6 @@ export function RecoveryKitSetupPage() {
           </PrivateAccessNotice>
         )}
 
-        {/* Kept as a single quiet line so the page stays uncluttered but
-            UT-04 (users must be told why they are saving this) still passes. */}
-        <p className="recovery-setup__why">Only needed when moving devices or restoring access.</p>
 
         <div className="recovery-finish">
           <details className="recovery-name-toggle">
