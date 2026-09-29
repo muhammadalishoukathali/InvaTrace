@@ -10,14 +10,14 @@ import pytest
 from sqlalchemy import func, select
 
 from app.api.routers.places import SPATIAL_BOUNDARY_EPSILON_M, place_map
-
-
-def _rate_limit_request() -> SimpleNamespace:
-    return SimpleNamespace(client=SimpleNamespace(host="test"))
 from app.db.base import SessionLocal
 from app.db.models import MonitoredArea, Trail
 
 pytestmark = pytest.mark.integration
+
+
+def _rate_limit_request() -> SimpleNamespace:
+    return SimpleNamespace(client=SimpleNamespace(host="test"))
 
 if os.getenv("RUN_INVATRACE_SPATIAL_INTEGRATION") != "1":
     pytest.skip(
