@@ -284,7 +284,8 @@ def _place_detail_response(
 
 @router.get("", response_model=PlaceListResponse)
 def list_places(
-    request: Request, session: Session = Depends(get_session)
+    request: Request,
+    session: Session = Depends(get_session),
 ) -> PlaceListResponse:
     """Return searchable place metadata without expensive full geometries."""
     rate_limiter.check("places_read", client_address(request))
