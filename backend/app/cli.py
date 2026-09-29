@@ -13,8 +13,10 @@ from __future__ import annotations
 
 import argparse
 import json
+import os
+import socket
 import time
-from datetime import datetime
+from datetime import UTC, datetime
 from pathlib import Path
 
 import structlog
@@ -36,6 +38,45 @@ from app.workers.verification import run_worker
 ROLES = ["Detector", "Volunteer", "Expert", "Admin"]
 TRUST_LEVELS = ["New", "Trusted", "Steward"]
 log = structlog.get_logger("invatrace.cli")
+
+
+def authorize_import(command: str, arguments: dict) -> None:
+    """Reference-data imports run only when INVATRACE_IMPORTER names an
+    approved operator. The name plus the command and its resolved arguments
+    are written to the audit log so every import has a traceable operator,
+    host and timestamp. Refuses to run when the variable is missing or
+    blank so a compromised or misconfigured host cannot silently push data
+    into production PostGIS.
+    """
+    operator = (os.environ.get("INVATRACE_IMPORTER") or "").strip()
+    if not operator:
+        raise SystemExit(
+            "Refusing to run: INVATRACE_IMPORTER must name the operator "
+            "authorised to run reference-data imports."
+        )
+    host = socket.gethostname()
+    now = datetime.now(UTC)
+    with SessionLocal() as session:
+        session.add(
+            AuditEvent(
+                event_type=f"reference_data.import.{command}",
+                subject_type="reference_data",
+                subject_id=command,
+                metadata_json={
+                    "operator": operator,
+                    "host": host,
+                    "arguments": {k: str(v) for k, v in arguments.items()},
+                    "recorded_at": now.isoformat(),
+                },
+            )
+        )
+        session.commit()
+    log.info(
+        "reference_data.import.authorised",
+        command=command,
+        operator=operator,
+        host=host,
+    )
 
 
 def cleanup_uploads_once(limit: int) -> int:
@@ -317,6 +358,7 @@ def main() -> None:
     elif args.command == "set-profile-access":
         set_profile_access(args.profile_id, args.role, args.trust)
     elif args.command == "import-osm":
+        authorize_import("import-osm", {"path": args.path, "source_date": args.source_date})
         # Lazy import so the rest of the CLI (worker, seed, cleanup) does not
         # pull in the pyosmium native extension, which the API/worker images
         # do not need at runtime.
@@ -335,6 +377,10 @@ def main() -> None:
             f"Imported {imported.area_count} named areas and {imported.trail_count} named trails."
         )
     elif args.command == "import-occurrences":
+        authorize_import(
+            "import-occurrences",
+            {"path": args.path, "source": args.source, "version": args.processed_data_version},
+        )
         from app.occurrence_import import import_occurrence_json
 
         with SessionLocal() as session:
@@ -352,6 +398,10 @@ def main() -> None:
             f"Version: {result.processed_data_version}. Reasons: {result.exclusion_reasons}"
         )
     elif args.command == "import-protected-areas":
+        authorize_import(
+            "import-protected-areas",
+            {"path": args.path, "source": args.source, "version": args.version},
+        )
         from app.protected_area_import import import_protected_area_geojson
 
         with SessionLocal() as session:
@@ -371,6 +421,10 @@ def main() -> None:
             f"{result.feature_count} features. Existing: {result.already_present}."
         )
     elif args.command == "import-waterway-evidence":
+        authorize_import(
+            "import-waterway-evidence",
+            {"path": args.path, "data_version": args.data_version},
+        )
         from app.waterway_import import import_waterway_evidence_json
 
         with SessionLocal() as session:
@@ -385,6 +439,7 @@ def main() -> None:
             f"Version: {result.data_version}. Reasons: {result.exclusion_reasons}"
         )
     elif args.command == "import-place-association-data":
+        authorize_import("import-place-association-data", {"pack": args.pack})
         # Convenience wrapper for the bundled Direction-Aware Place Association
         # data pack. Reads build_manifest.json for the processed-data version
         # and hands each per-source occurrence JSON to import_occurrence_json,

@@ -5,9 +5,10 @@ from __future__ import annotations
 import json
 from pathlib import Path
 
-from fastapi import APIRouter, Response
+from fastapi import APIRouter, Request, Response
 
 from app.core.errors import ApiProblem
+from app.core.rate_limit import client_address, rate_limiter
 from app.domain.catalogue import CATALOGUE_ROOT, MANIFEST_PATH
 
 router = APIRouter(prefix="/api/v1/offline-pack", tags=["offline-pack"])
@@ -36,14 +37,16 @@ def _json_response(path: Path) -> Response:
 
 
 @router.get("/latest")
-def latest_offline_pack() -> Response:
+def latest_offline_pack(request: Request) -> Response:
     """Return the current integrity manifest without allowing stale caching."""
+    rate_limiter.check("offline_pack_read", client_address(request))
     return _json_response(MANIFEST_PATH)
 
 
 @router.get("/{version}/{file_name}")
-def offline_pack_file(version: str, file_name: str) -> Response:
+def offline_pack_file(request: Request, version: str, file_name: str) -> Response:
     """Serve only the allow-listed reviewed JSON payloads for the active version."""
+    rate_limiter.check("offline_pack_read", client_address(request))
     manifest = _manifest()
     if version != manifest.get("catalogue_version"):
         raise ApiProblem(404, "offline_pack_version_not_found", "Offline pack version not found.")

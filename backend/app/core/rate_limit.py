@@ -60,6 +60,12 @@ def _build_limits() -> dict[str, Limit]:
         # space to squat identifiers.
         "public_id_rename": Limit(5, 24 * 60 * 60),
         "upload_presign": Limit(30, 60),
+        "adopted_area_write": Limit(30, 60),
+        "adopted_area_read": Limit(120, 60),
+        "places_read": Limit(120, 60),
+        "catalogue_read": Limit(120, 60),
+        "location_context_read": Limit(60, 60),
+        "offline_pack_read": Limit(60, 60),
         # AC 2.3.3 - env-backed sliding submission limits.
         "report_create_burst": Limit(
             settings.report_create_burst_limit,

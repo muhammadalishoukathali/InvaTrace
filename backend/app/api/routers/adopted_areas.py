@@ -18,6 +18,7 @@ from app.api.schemas import ApiModel
 from app.core.errors import ApiProblem
 from app.core.idempotency import acquire_idempotency_lock
 from app.core.privacy import public_coordinates
+from app.core.rate_limit import rate_limiter
 from app.core.security import AuthContext, require_auth, utcnow
 from app.db.base import get_session
 from app.db.models import AdoptedArea, Sighting, SightingStatusEvent, Species
@@ -29,6 +30,12 @@ BOOKMARK_DISCLAIMER = (
     "This is a non-exclusive monitoring bookmark. It does not create ownership, "
     "management responsibility, access rights, or permission to remove plants."
 )
+
+# Caps the number of distinct places one pseudonymous profile may adopt. The
+# activity feed already scopes to a single place at a time; the cap limits the
+# aggregate place-based fingerprint a profile can accumulate over time, which is
+# the re-identification concern raised in the security plan (US 6.1-6.3).
+MAX_ADOPTIONS_PER_PROFILE = 25
 
 
 class AdoptAreaRequest(ApiModel):
@@ -178,6 +185,7 @@ def adopt_area(
     auth: AuthContext = Depends(require_auth),
     session: Session = Depends(get_session),
 ) -> AdoptAreaResponse:
+    rate_limiter.check("adopted_area_write", str(auth.profile.id))
     place, place_type = _place(session, body.place_id)
     _, _, geometry_version = _place_metadata(place)
     acquire_idempotency_lock(
@@ -197,6 +205,17 @@ def adopt_area(
             adoption_id=existing.id,
             place_id=existing.place_id,
             adopted_at=existing.adopted_at,
+        )
+    current_count = session.scalar(
+        select(func.count(AdoptedArea.id)).where(
+            AdoptedArea.profile_id == auth.profile.id,
+        )
+    ) or 0
+    if current_count >= MAX_ADOPTIONS_PER_PROFILE:
+        raise ApiProblem(
+            409,
+            "adoption_cap_reached",
+            f"Maximum of {MAX_ADOPTIONS_PER_PROFILE} adopted areas per profile.",
         )
     adoption = AdoptedArea(
         profile_id=auth.profile.id,
@@ -223,6 +242,7 @@ def list_adopted_areas(
     auth: AuthContext = Depends(require_auth),
     session: Session = Depends(get_session),
 ) -> AdoptedAreaListResponse:
+    rate_limiter.check("adopted_area_read", str(auth.profile.id))
     now = utcnow()
     cards: list[AdoptedAreaCard] = []
     adoptions = session.scalars(
@@ -262,6 +282,7 @@ def remove_adoption(
     auth: AuthContext = Depends(require_auth),
     session: Session = Depends(get_session),
 ) -> Response:
+    rate_limiter.check("adopted_area_write", str(auth.profile.id))
     adoption = _adoption(session, adoption_id, auth.profile.id)
     session.delete(adoption)
     session.commit()
@@ -346,6 +367,7 @@ def adopted_area_activity(
     auth: AuthContext = Depends(require_auth),
     session: Session = Depends(get_session),
 ) -> AdoptedAreaActivityResponse:
+    rate_limiter.check("adopted_area_read", str(auth.profile.id))
     adoption = _adoption(session, adoption_id, auth.profile.id)
     place, place_type = _place(session, adoption.place_id)
     rows = [
