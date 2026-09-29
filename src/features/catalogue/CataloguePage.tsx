@@ -140,7 +140,7 @@ export function CataloguePage() {
             Evidence-reviewed catalogue of {dataset.record_count} plants.
             Inclusion does not grant permission to remove a plant.
           </p>
-          <Link to="/places" className="catalogue-page__places-link">Browse parks, forests and trails</Link>
+          <Link to="/places" className="catalogue-page__places-link">Browse parks, forests and woodlands</Link>
         </div>
         <div className="catalogue-pack" aria-live="polite">
           <strong>Offline catalogue · v{dataset.catalogue_version}</strong>

@@ -1,7 +1,11 @@
-// Browse list of places (parks, reserves, trails) at /places. Deliberately thin:
-// it fetches the list once and filters client-side, because the list is small
-// and typing in a search box that round-trips to the server felt sluggish on
-// mobile data.
+// Browse list of places (parks, reserves, woodlands) at /places. Deliberately
+// thin: it fetches the list once and filters client-side, because the list is
+// small and typing in a search box that round-trips to the server felt
+// sluggish on mobile data.
+//
+// Trails are excluded from Browse for now (presentation-safe patch). They
+// still exist in the backend for stored sighting labels and pre-existing
+// adoptions; only the public browse surface is trimmed.
 //
 // Online-only on purpose - place data is not part of the offline pack, so
 // rather than show an empty list the page says so and points at the catalogue.
@@ -22,11 +26,17 @@ export function PlacesPage() {
     enabled: online,
   })
   const normalized = search.trim().toLocaleLowerCase()
-  const places = useMemo(() => (query.data?.items ?? []).filter((place) => (
+  // Presentation-safe filter: only parks, forests and woodlands surface in
+  // Browse. Applied before the search filter so trail rows never appear.
+  const publicItems = useMemo(
+    () => (query.data?.items ?? []).filter((place) => place.placeType !== 'trail'),
+    [query.data?.items],
+  )
+  const places = useMemo(() => publicItems.filter((place) => (
     !normalized
     || place.displayName.toLocaleLowerCase().includes(normalized)
     || place.placeType.toLocaleLowerCase().includes(normalized)
-  )), [normalized, query.data?.items])
+  )), [normalized, publicItems])
   if (!online) {
     return (
       <section className="places-page">
@@ -46,7 +56,7 @@ export function PlacesPage() {
     <section className="places-page">
       <header>
         <h2>Browse mapped places</h2>
-        <p>Select a named park, forest or trail to view historical occurrence associations.</p>
+        <p>Select a named park, forest or woodland to view historical occurrence associations.</p>
       </header>
       <label className="places-search">
         <span>Search places</span>
@@ -54,11 +64,11 @@ export function PlacesPage() {
           type="search"
           value={search}
           onChange={(event) => setSearch(event.target.value)}
-          placeholder="Search park, forest or trail"
+          placeholder="Search park, forest or woodland"
         />
         {search && <button type="button" onClick={() => setSearch('')}>Clear search</button>}
       </label>
-      {!query.data.items.length ? (
+      {!publicItems.length ? (
         <div className="places-state">No supported mapped places are available in this dataset.</div>
       ) : !places.length ? (
         <div className="places-state" role="status">

@@ -37,7 +37,7 @@ import { SightingDetailsSheet } from './SightingDetailsSheet'
 import { MapLegend } from './MapLegend'
 import { Icon } from '@/components/Icon'
 import { parseMapLocationTarget, type MapLocationTarget } from './map-location-link'
-import { PLACE_ICONS, PLACE_TYPES, formatPlaceType, loadSvgImage } from './place-icons'
+import { PLACE_ICONS, PLACE_TYPES, PUBLIC_PLACE_TYPES, formatPlaceType, loadSvgImage } from './place-icons'
 import { BASEMAP_ATTRIBUTION, BASEMAP_FONT, BASEMAP_STYLE } from './basemap'
 
 // Point MapLibre at its worker file ourselves. If we don't, it tries to
@@ -135,11 +135,27 @@ export function ThreatMapPage() {
         max_lon: Math.min(MY_BOUNDS[1][0], bounds.getEast()).toFixed(6),
         max_lat: Math.min(MY_BOUNDS[1][1], bounds.getNorth()).toFixed(6),
       })
+      // Presentation-safe: only ask for the public place types. Trails
+      // still exist in the backend for sighting labels and existing
+      // adoptions but must not surface as public map markers.
+      for (const placeType of PUBLIC_PLACE_TYPES) params.append('place_type', placeType)
       const sequence = ++placeRequestSequence.current
       setPlacesLoading(true)
       setPlacesError(false)
       void api<PlaceMapResponse>(`/api/v1/places/map?${params}`).then((response) => {
-        if (sequence === placeRequestSequence.current) setPlaceData(response)
+        if (sequence === placeRequestSequence.current) {
+          // Defensive filter: if an older backend or a mock ignores the
+          // query parameters, drop any trail features before they reach
+          // the map source.
+          const publicSet = new Set<string>(PUBLIC_PLACE_TYPES)
+          const filtered: PlaceMapResponse = {
+            ...response,
+            features: response.features.filter((feature) =>
+              publicSet.has(feature.properties.placeType),
+            ),
+          }
+          setPlaceData(filtered)
+        }
       }).catch(() => {
         if (sequence === placeRequestSequence.current) setPlacesError(true)
       }).finally(() => {
@@ -745,7 +761,7 @@ export function ThreatMapPage() {
                   // An empty result is not the same as a broken map. Say the
                   // area simply has no mapped evidence so it doesn't read as a
                   // failure (UT-08).
-                  : 'No mapped places in this view yet. Pan the map or zoom out to find nearby parks, forests and trails.'}
+                  : 'No mapped places in this view yet. Pan the map or zoom out to find nearby parks, forests and woodlands.'}
           </div>
         )}
         {selectedPlace && (
