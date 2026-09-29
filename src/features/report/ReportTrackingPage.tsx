@@ -210,6 +210,10 @@ export function ReportTrackingPage() {
 
         {(report.status === 'screened' || report.status === 'merged')
           && adoptionPlace.data?.place
+          // Presentation-safe: trails are no longer offered for new
+          // adoptions. Existing trail adoptions remain visible on the user's
+          // My Adopted Areas page — this only hides the prompt for a new one.
+          && adoptionPlace.data.place.placeType !== 'trail'
           && !adoptionDismissed && (
           <section className="report-tracking__adoption" aria-labelledby="report-adoption-heading">
             <h2 id="report-adoption-heading">Adopt this area for monitoring?</h2>
