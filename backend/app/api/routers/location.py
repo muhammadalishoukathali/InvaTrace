@@ -18,6 +18,7 @@ from sqlalchemy import cast, func, select
 from sqlalchemy.orm import Session
 
 from app.api.schemas import ApiModel
+from app.config import get_settings
 from app.core.rate_limit import client_address, rate_limiter
 from app.db.base import get_session
 from app.db.models import (
@@ -75,9 +76,17 @@ PERMISSION_DISCLAIMER = (
 )
 
 
+UNCERTAIN_ACCURACY = "GPS accuracy is too low to place this location against mapped boundaries."
+UNCERTAIN_NEAR_BOUNDARY = (
+    "A mapped protected-area boundary lies within this location's GPS accuracy radius."
+)
+UNCERTAIN_UNAVAILABLE = "Protected-area boundary data is unavailable for this location."
+
+
 def _uncertain_context(
     body: ProtectedLocationContextRequest,
     dataset: ProtectedAreaDataset | None = None,
+    reason: str = UNCERTAIN_UNAVAILABLE,
 ) -> ProtectedLocationContextResponse:
     return ProtectedLocationContextResponse(
         context_state="boundary_uncertain",
@@ -90,8 +99,8 @@ def _uncertain_context(
         action_eligible=False,
         permission_confirmation_required=True,
         disclaimer=(
-            "Mapped status is not removal permission. Protected-area status is unavailable or "
-            "uncertain. Observe and report only; "
+            f"{reason} Mapped status is not removal permission. Protected-area status is "
+            "unavailable or uncertain. Observe and report only; "
             "do not touch, collect, cut or remove the plant."
         ),
     )
@@ -111,8 +120,10 @@ def protected_location_context(
         .order_by(ProtectedAreaDataset.updated_at.desc())
         .limit(1)
     )
-    if body.accuracy_m > 250 or dataset is None:
+    if dataset is None:
         return _uncertain_context(body, dataset)
+    if body.accuracy_m > get_settings().screening_location_accuracy_max_m:
+        return _uncertain_context(body, dataset, UNCERTAIN_ACCURACY)
     try:
         point = func.ST_SetSRID(func.ST_MakePoint(body.longitude, body.latitude), 4326)
         covered = session.scalar(
@@ -136,6 +147,23 @@ def protected_location_context(
             )
             .limit(1)
         )
+        if area is None:
+            # The plant can be anywhere inside the accuracy radius, so a boundary
+            # within that radius means "outside" cannot be stated with confidence.
+            near_boundary = session.scalar(
+                select(ProtectedArea.id)
+                .where(
+                    ProtectedArea.dataset_id == dataset.id,
+                    func.ST_DWithin(
+                        ProtectedArea.geometry,
+                        cast(point, Geography(srid=4326)),
+                        body.accuracy_m,
+                    ),
+                )
+                .limit(1)
+            )
+            if near_boundary is not None:
+                return _uncertain_context(body, dataset, UNCERTAIN_NEAR_BOUNDARY)
     except Exception:
         return _uncertain_context(body, dataset)
 
