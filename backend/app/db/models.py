@@ -730,8 +730,8 @@ class SightingStatusEvent(Base):
     __tablename__ = "sighting_status_events"
     __table_args__ = (
         CheckConstraint("event_type IN ('removal_reported')", name="event_type"),
-        CheckConstraint("accuracy_m BETWEEN 0 AND 250", name="accuracy_range"),
-        CheckConstraint("distance_m BETWEEN 0 AND 250", name="distance_range"),
+        CheckConstraint("accuracy_m BETWEEN 0 AND 350", name="accuracy_range"),
+        CheckConstraint("distance_m BETWEEN 0 AND 350", name="distance_range"),
         CheckConstraint("latitude BETWEEN 0.8 AND 7.5", name="malaysia_latitude"),
         CheckConstraint("longitude BETWEEN 99.3 AND 119.5", name="malaysia_longitude"),
         UniqueConstraint("sighting_id", "event_type", name="uq_sighting_status_event"),

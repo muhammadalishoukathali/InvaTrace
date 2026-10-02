@@ -5,6 +5,7 @@ import { api, ApiError } from '@/services/api-client'
 import type { PlaceDetail, RemovalReportResponse, Report, ReportStatus, SightingDetail, WithdrawalReportResponse } from '@/types'
 import { usePrivateAccess } from '@/features/private-access/private-access-store'
 import { humanizeReason as humanize } from './rescan-reasons'
+import { REMOVAL_MAX_M } from './gps-policy'
 import './report-tracking.css'
 
 const COPY: Record<ReportStatus, { title: string; body: string }> = {
@@ -245,7 +246,7 @@ export function ReportTrackingPage() {
             <h2 id="removal-report-heading">Mark as removed</h2>
             <p>
               Use a fresh browser location at the plant. The server accepts a fix only when its
-              accuracy is 250 metres or better and it is within 250 metres of the original report.
+              accuracy is {REMOVAL_MAX_M} metres or better and it is within {REMOVAL_MAX_M} metres of the original report.
             </p>
             {removal.data ? (
               <p className="report-tracking__removal-success" role="status">
@@ -266,7 +267,7 @@ export function ReportTrackingPage() {
                   <div className="report-tracking__location-fix" role="status">
                     <strong>Fresh location accuracy: ±{removalFix.accuracyM} m</strong>
                     <span>Coordinates are captured by the browser and cannot be edited.</span>
-                    {removalFix.accuracyM <= 250 ? (
+                    {removalFix.accuracyM <= REMOVAL_MAX_M ? (
                       <button
                         type="button"
                         onClick={() => removal.mutate(removalFix)}
@@ -275,7 +276,7 @@ export function ReportTrackingPage() {
                         {removal.isPending ? 'Submitting…' : 'Confirm removal report'}
                       </button>
                     ) : (
-                      <span role="alert">Accuracy is above 250 m. Move closer and request a new fix.</span>
+                      <span role="alert">Accuracy is above {REMOVAL_MAX_M} m. Move closer and request a new fix.</span>
                     )}
                   </div>
                 )}
@@ -356,8 +357,8 @@ const formatSubmittedAt = (value: string) => new Intl.DateTimeFormat(undefined, 
 
 function removalErrorMessage(error: Error | null): string {
   if (error instanceof ApiError) {
-    if (error.code === 'removal_too_far') return 'You are more than 250 metres from the original report.'
-    if (error.code === 'removal_accuracy_too_low') return 'Location accuracy must be 250 metres or better.'
+    if (error.code === 'removal_too_far') return `You are more than ${REMOVAL_MAX_M} metres from the original report.`
+    if (error.code === 'removal_accuracy_too_low') return `Location accuracy must be ${REMOVAL_MAX_M} metres or better.`
     if (error.code === 'removal_location_stale') return 'The location fix expired. Request a fresh location.'
     if (error.code === 'removal_not_available') return 'This report can no longer be marked as removed.'
   }

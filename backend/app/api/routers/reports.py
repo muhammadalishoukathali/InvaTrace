@@ -97,8 +97,11 @@ class WithdrawalReportResponse(ApiModel):
     reason: str
 
 
+REMOVAL_MAX_M = 350
+
+
 def _distance_metres(lat1: float, lon1: float, lat2: float, lon2: float) -> float:
-    """Great-circle distance used for the 250 m server-side removal gate."""
+    """Great-circle distance used for the server-side removal gate."""
     radius_m = 6_371_008.8
     lat1r, lat2r = math.radians(lat1), math.radians(lat2)
     dlat = lat2r - lat1r
@@ -127,11 +130,11 @@ def _validate_removal_location(
             "removal_location_stale",
             "Use a fresh browser location before marking this plant as removed.",
         )
-    if accuracy_m > 250:
+    if accuracy_m > REMOVAL_MAX_M:
         raise ApiProblem(
             422,
             "removal_accuracy_too_low",
-            "Location accuracy must be 250 metres or better.",
+            f"Location accuracy must be {REMOVAL_MAX_M} metres or better.",
         )
     distance_m = calculated_distance_m
     if distance_m is None:
@@ -141,11 +144,11 @@ def _validate_removal_location(
             latitude,
             longitude,
         )
-    if distance_m > 250:
+    if distance_m > REMOVAL_MAX_M:
         raise ApiProblem(
             422,
             "removal_too_far",
-            "You must be within 250 metres of the reported plant.",
+            f"You must be within {REMOVAL_MAX_M} metres of the reported plant.",
         )
     return distance_m
 

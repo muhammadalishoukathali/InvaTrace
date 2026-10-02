@@ -12,3 +12,6 @@ export const LOCATION_ACCURACY_MAX_M = 350
  * same. */
 export const LOCATION_ACCURACY_INSUFFICIENT_MESSAGE =
   `Location accuracy must be within ${LOCATION_ACCURACY_MAX_M} metres.`
+
+/** Removal reports: max GPS accuracy and max distance from the marker. Mirrors REMOVAL_MAX_M in backend reports.py. */
+export const REMOVAL_MAX_M = 350
