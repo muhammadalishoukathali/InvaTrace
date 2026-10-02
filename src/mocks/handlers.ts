@@ -695,7 +695,7 @@ export const handlers = [
       || typeof body.accuracyM !== 'number' || body.accuracyM < 0) {
       return HttpResponse.json({ code: 'invalid_location', detail: 'Location context is invalid.' }, { status: 422 })
     }
-    const uncertain = body.accuracyM > 250
+    const uncertain = body.accuracyM > MSW_LOCATION_ACCURACY_MAX_M
     return HttpResponse.json({
       contextState: uncertain ? 'boundary_uncertain' : 'no_protected_area_intersection',
       insideProtectedArea: uncertain ? null : false,
@@ -707,7 +707,7 @@ export const handlers = [
       actionEligible: !uncertain,
       permissionConfirmationRequired: true,
       disclaimer: uncertain
-        ? 'Protected-area status is uncertain because GPS accuracy is greater than 250 m. Observe and report only; do not touch, collect, cut or remove the plant.'
+        ? 'GPS accuracy is too low to place this location against mapped boundaries. Mapped status is not removal permission. Protected-area status is unavailable or uncertain. Observe and report only; do not touch, collect, cut or remove the plant.'
         : 'No mapped protected-area intersection was found in the development boundary fixture. This does not establish ownership, access rights, or removal permission; confirm permission first.',
     })
   }),

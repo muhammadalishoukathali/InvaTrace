@@ -847,3 +847,13 @@ def test_openapi_exposes_iteration2_routes_and_safe_public_removal_shape() -> No
         "sourceUrlOrIdentifier",
         "reviewedAt",
     } <= set(catalogue_image_fields)
+
+
+def test_uncertain_context_explains_why() -> None:
+    from app.api.routers.location import UNCERTAIN_ACCURACY, UNCERTAIN_NEAR_BOUNDARY
+
+    request = ProtectedLocationContextRequest(latitude=3.14, longitude=101.69, accuracyM=400)
+    for reason in (UNCERTAIN_ACCURACY, UNCERTAIN_NEAR_BOUNDARY):
+        response = _uncertain_context(request, None, reason)
+        assert response.disclaimer.startswith(reason)
+        assert response.action_eligible is False
