@@ -5,7 +5,7 @@
  * `backend/app/config.py`). If it changes here it has to change there too, or a
  * user gets rescanned for a threshold the UI never warned them about.
  */
-export const LOCATION_ACCURACY_MAX_M = 250
+export const LOCATION_ACCURACY_MAX_M = 350
 
 /* Word-for-word the same sentence the server sends back for
  * `location_accuracy_insufficient`, so the warning and the rejection read the

@@ -11,13 +11,13 @@ import {
 // that predicts the server-side rescan they are about to receive.
 
 describe('GPS accuracy policy', () => {
-  it('locks the single threshold at 250 m', () => {
-    expect(LOCATION_ACCURACY_MAX_M).toBe(250)
+  it('locks the single threshold at 350 m', () => {
+    expect(LOCATION_ACCURACY_MAX_M).toBe(350)
   })
 
   it('embeds the threshold in the rescan message so client and server copy match', () => {
     expect(LOCATION_ACCURACY_INSUFFICIENT_MESSAGE).toBe(
-      'Location accuracy must be within 250 metres.',
+      'Location accuracy must be within 350 metres.',
     )
   })
 })

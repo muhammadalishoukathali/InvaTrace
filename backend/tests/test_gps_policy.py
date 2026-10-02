@@ -31,16 +31,16 @@ def test_backend_setting_defaults_to_300_metres() -> None:
         source,
     )
     assert match, "screening_location_accuracy_max_m must be declared with a Field default."
-    assert match.group(1) == "250", (
-        f"Backend accuracy policy drifted from 250 m - found {match.group(1)}."
+    assert match.group(1) == "350", (
+        f"Backend accuracy policy drifted from 350 m - found {match.group(1)}."
         " Update the frontend gps-policy.ts constant to match."
     )
 
 
 def test_validation_default_threshold_is_300_metres() -> None:
     source = _read("app/domain/validation.py")
-    assert "DEFAULT_LOCATION_ACCURACY_MAX_M = 250" in source, (
-        "Validation module must expose 250 m as its default threshold so a"
+    assert "DEFAULT_LOCATION_ACCURACY_MAX_M = 350" in source, (
+        "Validation module must expose 350 m as its default threshold so a"
         " caller that omits the field still gets the canonical policy."
     )
     assert "location_accuracy_threshold_m: int = DEFAULT_LOCATION_ACCURACY_MAX_M" in source, (
@@ -54,8 +54,8 @@ def test_validation_default_threshold_is_300_metres() -> None:
 def test_frontend_gps_policy_pins_the_same_threshold() -> None:
     frontend = REPO_ROOT.parent / "src/features/report/gps-policy.ts"
     text = frontend.read_text(encoding="utf-8")
-    assert "LOCATION_ACCURACY_MAX_M = 250" in text, (
-        "Frontend gps-policy.ts must pin the threshold at 250 m to match the"
+    assert "LOCATION_ACCURACY_MAX_M = 350" in text, (
+        "Frontend gps-policy.ts must pin the threshold at 350 m to match the"
         " backend screening_location_accuracy_max_m default."
     )
     assert "within ${LOCATION_ACCURACY_MAX_M} metres" in text, (

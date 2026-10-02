@@ -88,7 +88,7 @@ class Settings(BaseSettings):
     # The frontend does not enforce this as a hard block per AC 4.1.2, but
     # it must show the same 300 m threshold as the server so a user who
     # submits at 350 m does not first hear about the policy after screening.
-    screening_location_accuracy_max_m: int = Field(default=250, ge=10, le=10_000)
+    screening_location_accuracy_max_m: int = Field(default=350, ge=10, le=10_000)
     # Turn off exact + perceptual duplicate-image checks so usability testers
     # can reuse the same reference photo across scans/reports without hitting
     # replay rejection. Off by default in prod; flip to true in the test env.

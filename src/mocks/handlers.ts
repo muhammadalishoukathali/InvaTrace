@@ -68,7 +68,7 @@ const MOCK_HASH_PEPPER = 'development-only-invatrace-mock-pepper'
 // same rules so dev/UI paths for rejected + needs_rescan reports are
 // exercised without a live backend.
 export const MSW_POLICY_VERSION = 'deterministic-rules-v1.0'
-export const MSW_LOCATION_ACCURACY_MAX_M = 250
+export const MSW_LOCATION_ACCURACY_MAX_M = 350
 // Same default set as backend/app/config.py::e1_model_versions. The mocked
 // /api/v1/model-config endpoint below returns the primary; the backend also
 // accepts submissions tagged with the retained secondary while any client

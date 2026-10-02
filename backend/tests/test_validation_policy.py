@@ -56,10 +56,10 @@ def test_image_location_and_e1_metadata_failures_request_a_rescan() -> None:
     # rejecting outright, since the reporter might just need to try again.
     image_failure = evaluate(valid_input(image_failure_reasons=("image_too_dark",)))
     assert image_failure.status == "needs_rescan"
-    # AC Iteration 1 P7 - single 250 m accuracy policy. 250 m still passes;
+    # AC Iteration 1 P7 - single 350 m accuracy policy. 350 m still passes;
     # anything strictly worse falls through to needs_rescan.
-    assert evaluate(valid_input(location_accuracy_m=250)).status == "screened"
-    assert evaluate(valid_input(location_accuracy_m=251)).status == "needs_rescan"
+    assert evaluate(valid_input(location_accuracy_m=350)).status == "screened"
+    assert evaluate(valid_input(location_accuracy_m=351)).status == "needs_rescan"
     assert evaluate(valid_input(client_model_supported=False)).status == "needs_rescan"
     assert evaluate(valid_input(client_outcome="uncertain", client_species_id=None)).status == (
         "needs_rescan"

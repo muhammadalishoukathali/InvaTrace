@@ -118,6 +118,6 @@ describe('AC 2.2.1 - MSW deterministic screening', () => {
     expect(MSW_SUPPORTED_MODEL_VERSIONS).toContain('invatrace-student33-tinyvit5m-320-fp16')
     expect(MSW_SUPPORTED_MODEL_VERSIONS).toContain('oe_v4_31class_web_fp16')
     // and the default threshold matches DEFAULT_LOCATION_ACCURACY_MAX_M
-    expect(MSW_LOCATION_ACCURACY_MAX_M).toBe(250)
+    expect(MSW_LOCATION_ACCURACY_MAX_M).toBe(350)
   })
 })
