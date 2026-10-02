@@ -16,6 +16,7 @@ duplicates. And location columns are cast to Geography before any ST_* distance
 call - PostGIS would otherwise measure in degrees and silently give nonsense
 distances near the equator.
 """
+
 from __future__ import annotations
 
 import hashlib
@@ -223,6 +224,14 @@ def create_report(
         # Same key, different payload - someone (or some bug) is reusing an
         # Idempotency-Key for a different report, which isn't allowed.
         if existing.request_hash != digest:
+            if body.event_id is not None and existing.response_json.get("eventId") != str(
+                body.event_id
+            ):
+                raise ApiProblem(
+                    409,
+                    "event_report_already_linked",
+                    "This scan already belongs to an earlier report. View the original in My Records.",
+                )
             raise ApiProblem(
                 409,
                 "idempotency_conflict",
@@ -242,6 +251,18 @@ def create_report(
         .with_for_update()
     )
     now = utcnow()
+    if body.event_id is not None:
+        from app.services.events import validate_event_report
+
+        validate_event_report(
+            session,
+            event_id=body.event_id,
+            profile_id=auth.profile.id,
+            latitude=body.location.lat,
+            longitude=body.location.lng,
+            captured_at=body.captured_at,
+            now=now,
+        )
     if not grant:
         raise ApiProblem(400, "upload_not_issued", "The photo key is invalid.")
     if grant.expires_at <= now:
@@ -291,6 +312,12 @@ def create_report(
             .order_by(Report.created_at.asc(), Report.id.asc())
         )
         if duplicate is not None:
+            if body.event_id is not None and duplicate.event_id != body.event_id:
+                raise ApiProblem(
+                    409,
+                    "event_report_already_linked",
+                    "This photo already belongs to an earlier report. View the original in My Records.",
+                )
             response.status_code = 200
             # A completed report already has a public sighting link. Return
             # that link on content-level replay just as the detail endpoint
@@ -373,6 +400,8 @@ def create_report(
     storage.finalize_upload(grant.object_key, evidence_key, metadata)
 
     report = Report(
+        event_id=body.event_id,
+        captured_at=body.captured_at if body.event_id is not None else None,
         profile_id=auth.profile.id,
         species_id=body.species_id,
         status="processing",
@@ -555,7 +584,9 @@ def report_removal(
         Geography("POINT", srid=4326),
     )
     stored_distance_m = session.scalar(
-        select(func.ST_Distance(Sighting.location, submitted_point)).where(Sighting.id == sighting.id)
+        select(func.ST_Distance(Sighting.location, submitted_point)).where(
+            Sighting.id == sighting.id
+        )
     )
     if stored_distance_m is None:
         raise ApiProblem(503, "removal_location_unavailable", "Location validation is unavailable.")
@@ -580,6 +611,7 @@ def report_removal(
         distance_m=round(distance_m, 2),
     )
     sighting.status = "removal_reported"
+    sighting.follow_up_state = "needed"
     session.add(event)
     session.add(
         AuditEvent(
@@ -640,9 +672,7 @@ def report_withdrawal(
             "Only a published report can be withdrawn. "
             "Unsubmitted reports can be deleted directly.",
         )
-    sighting = session.scalar(
-        select(Sighting).where(Sighting.id == sighting_id).with_for_update()
-    )
+    sighting = session.scalar(select(Sighting).where(Sighting.id == sighting_id).with_for_update())
     if sighting is None:
         raise ApiProblem(
             409, "withdrawal_not_available", "This report is not linked to a public sighting."

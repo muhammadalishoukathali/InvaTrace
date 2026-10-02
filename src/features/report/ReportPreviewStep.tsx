@@ -4,6 +4,21 @@ import { useReportDraft } from '@/features/report/report-draft-store'
 import { submitReport } from '@/features/report/report-queue'
 import { ReportNextButton } from './components/ReportNextButton'
 import { LOCATION_ACCURACY_MAX_M } from './gps-policy'
+import { useEventContext } from '@/features/events/event-context'
+import { ApiError } from '@/services/api-client'
+
+const EVENT_REJECTION_MESSAGES: Record<string, string> = {
+  event_report_already_linked: 'This photo already belongs to an earlier report. View the original in My Records.',
+  event_not_taggable: 'This event is no longer accepting reports.',
+  checkin_required: 'Check in at this event before submitting an event report.',
+  captured_at_required: 'This scan has no capture time for an event report.',
+  captured_at_outside_event: 'This scan was captured outside the event time window.',
+  upload_grace_exceeded: 'The event’s 24-hour upload period has ended.',
+  event_budget_exceeded: 'You have reached this event’s report limit.',
+  outside_place: 'This scan’s location is outside the event place.',
+  place_geometry_changed: 'The event’s place boundary has changed. Check in again.',
+  event_geometry_stale: 'The event’s place boundary has changed. Contact the host before checking in again.',
+}
 
 const EXTENT_LABEL = {
   single: 'Single plant',
@@ -20,6 +35,8 @@ const EXTENT_LABEL = {
  * outcome comes back so ReportSubmissionResult.tsx can decide what to show.
  */
 export function ReportPreviewStep() {
+  const activeEvent = useEventContext()
+  const [eventRejected, setEventRejected] = useState(false)
   const [submitError, setSubmitError] = useState<string | null>(null)
   const {
     draft, imageBlob, imageUrl, submitting,
@@ -27,14 +44,22 @@ export function ReportPreviewStep() {
   } = useReportDraft()
   if (!draft) return null
 
-  const submit = async () => {
+  const captureTime = draft ? Date.parse(draft.observedAt) : NaN
+  const eventEligible = !!activeEvent
+    && captureTime >= Date.parse(activeEvent.startAt)
+    && captureTime <= Date.parse(activeEvent.endAt)
+    && Date.now() <= Date.parse(activeEvent.endAt) + 24 * 60 * 60 * 1000
+
+  const submit = async (toEvent = false) => {
     const submission = toSubmission()
     if (!submission || !imageBlob) return
 
     setSubmitting(true)
     setSubmitError(null)
     try {
-      const result = await submitReport(submission, imageBlob)
+      const result = await submitReport(toEvent && activeEvent
+        ? { ...submission, eventId: activeEvent.eventId, capturedAt: draft.observedAt }
+        : submission, imageBlob)
       if (result.status === 'submitted' && result.report) {
         setOutcome({ kind: 'submitted', report: result.report })
       } else {
@@ -45,6 +70,12 @@ export function ReportPreviewStep() {
         })
       }
     } catch (error) {
+      if (toEvent && error instanceof ApiError && error.code !== null && Object.hasOwn(EVENT_REJECTION_MESSAGES, error.code)) {
+        setEventRejected(true)
+
+        setSubmitError(`${EVENT_REJECTION_MESSAGES[error.code ?? ''] ?? error.message} Your scan is kept. You can submit it as an ordinary report.`)
+        return
+      }
       setSubmitError(error instanceof Error ? error.message : 'The report could not be submitted.')
     } finally {
       setSubmitting(false)
@@ -126,13 +157,15 @@ export function ReportPreviewStep() {
         </p>
       )}
 
+      {eventEligible && <p>Community-reported event evidence. Joining an event does not grant removal permission.</p>}
       <ReportNextButton
         disabled={!canSubmit}
         loading={submitting}
-        onClick={submit}
-        label={submitting ? 'Submitting…' : 'Submit report'}
+        onClick={() => submit(eventEligible && !eventRejected)}
+        label={submitting ? 'Submitting…' : eventEligible && !eventRejected ? 'Submit to this event' : eventRejected ? 'Submit as ordinary report' : 'Submit report'}
         variant="submit"
       />
+      {eventEligible && !eventRejected && <button type="button" disabled={!canSubmit || submitting} onClick={() => submit(false)}>Submit as ordinary report</button>}
       {submitError && <p role="alert" style={{ color: 'var(--red-text)', fontSize: 13 }}>{submitError}</p>}
     </div>
   )

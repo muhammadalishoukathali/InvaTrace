@@ -343,6 +343,7 @@ function ReportRow({ report }: { report: Report }) {
           </span>
           <span className="my-reports__ref">Ref {shortId(report.id)}</span>
         </div>
+        {report.eventId && <span className="my-reports__place">Community-reported event evidence</span>}
         {place && (
           <span className="my-reports__place">
             <Icon name="MapPin" size={13} />

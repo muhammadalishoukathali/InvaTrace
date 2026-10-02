@@ -25,10 +25,11 @@ export const NAV: NavItem[] = [
   { id: 'catalogue', path: '/catalogue', label: 'Plants', full: 'Plant catalogue', icon: 'BookOpen', iteration: 2 },
   { id: 'reports',  path: '/reports',  label: 'Records',  full: 'My records',   icon: 'ClipboardList', iteration: 1 },
   { id: 'areas', path: '/adopted-areas', label: 'Areas', full: 'Monitoring areas', icon: 'Map', iteration: 2 },
+  { id: 'events', path: '/events', label: 'Events', full: 'Community events', icon: 'CalendarDays', iteration: 3 },
 ]
 
 export const isEnabled = (item: NavItem, role: Role): boolean =>
-  item.iteration <= 2 && (!item.roles || item.roles.includes(role))
+  item.iteration <= 3 && (!item.roles || item.roles.includes(role))
 
 export const visibleNav = (role: Role): NavItem[] =>
   // filters out anything not ready yet so we don't show buttons that go nowhere

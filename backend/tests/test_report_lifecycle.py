@@ -32,7 +32,7 @@ def _read(rel: str) -> str:
 
 
 def test_report_status_check_constraint_covers_the_six_expected_states() -> None:
-    source = _read("app/db/models.py")
+    source = _read("app/db/models.py").split("class Report(Base):", 1)[1].split("class Sighting(Base):", 1)[0]
     # The CHECK constraint literal wraps across two string chunks; flatten
     # the concatenated pair before parsing.
     flat = re.sub(r'"\s*\n\s*"', "", source)

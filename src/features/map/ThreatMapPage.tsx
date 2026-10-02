@@ -104,7 +104,9 @@ export function ThreatMapPage() {
     [routeLocation.state],
   )
   targetSightingId.current = requestedSightingId
-  const { species, statuses, risks, search, select, clearFilters } = useMapStore()
+  const {
+    species, statuses, risks, search, followUpNeeded, resolvedSightings, select, clearFilters,
+  } = useMapStore()
   const [locationNotice, setLocationNotice] = useState<{
     tone: 'pending' | 'success' | 'error'
     text: string
@@ -273,15 +275,23 @@ export function ThreatMapPage() {
   }, [locationNotice])
 
   const { data, isLoading, isError, refetch } = useQuery({
-    queryKey: ['sightings', species, statuses, risks, search],
-    queryFn: () => {
+    queryKey: ['sightings', species, statuses, risks, search, followUpNeeded, resolvedSightings],
+    queryFn: async () => {
       const params = new URLSearchParams()
       species.forEach((value) => params.append('species', value))
       statuses.forEach((value) => params.append('status', value))
       risks.forEach((value) => params.append('risk', value))
       if (search.trim()) params.set('q', search.trim())
-      const query = params.toString()
-      return api<{ items: Sighting[] }>(`/api/v1/sightings${query ? `?${query}` : ''}`)
+      const fetchForFollowUp = (followUp: 'needed' | 'resolved' | 'any') => {
+        const next = new URLSearchParams(params)
+        next.set('follow_up', followUp)
+        return api<{ items: Sighting[] }>(`/api/v1/sightings?${next}`)
+      }
+      if (followUpNeeded && resolvedSightings) {
+        const [needed, resolved] = await Promise.all([fetchForFollowUp('needed'), fetchForFollowUp('resolved')])
+        return { items: [...needed.items, ...resolved.items] }
+      }
+      return fetchForFollowUp(followUpNeeded ? 'needed' : resolvedSightings ? 'resolved' : 'any')
     },
     staleTime: 60_000,
     refetchOnMount: 'always',
@@ -1024,9 +1034,7 @@ function ReportsSheet({
               {items.length > 0 && (
                 <ul className="map-reports-sheet__list">
                   {items.map((s) => {
-                    const statusLabel = s.status === 'screened'
-                      ? 'Community report - not expert validated'
-                      : s.status === 'removal_reported' ? 'Removal reported' : 'Removed'
+                    const statusLabel = sightingStatusLabel(s)
                     const statusDate = s.status === 'removal_reported'
                       ? ` on ${formatStatusDate(s.removalReportedAt ?? s.lastReportedAt)}`
                       : ''
@@ -1069,9 +1077,7 @@ function SrOnlySightingList({
       <ul>
         {items.map((s) => {
           const tierLabel = PIN_TIERS[pinTier(s)].label
-          const statusLabel = s.status === 'screened'
-            ? 'Community report - not expert validated'
-            : s.status === 'removal_reported' ? 'Removal reported' : 'Removed'
+          const statusLabel = sightingStatusLabel(s)
           return (
             <li key={s.id}>
               <button type="button" onClick={() => onSelect(s.id)}>
@@ -1122,20 +1128,30 @@ function AccessiblePlaceList({
 /** Tiny helper - we colour active markers by how many reports they've
  *  gathered (hotspot vs spreading vs isolated), and anything marked as
  *  removed goes grey so it visually fades into the background. */
-type PinTier = 'hotspot' | 'spreading' | 'isolated' | 'removed'
+type PinTier = 'hotspot' | 'spreading' | 'isolated' | 'removed' | 'followup-needed'
 
 export const PIN_TIERS: Record<PinTier, { fill: string; label: string }> = {
   hotspot: { fill: '#C2412D', label: 'Hotspot (5+ reports)' },
   spreading: { fill: '#D9880F', label: 'Spreading (2-4 reports)' },
   isolated: { fill: '#2E7D3F', label: 'Isolated (1 report)' },
   removed: { fill: '#8B978F', label: 'Removed' },
+  'followup-needed': { fill: '#66736D', label: 'Follow-up needed' },
 }
 
-export function pinTier(s: Pick<Sighting, 'status' | 'reportCount'>): PinTier {
-  if (s.status === 'removed' || s.status === 'removal_reported') return 'removed'
+export function pinTier(s: Pick<Sighting, 'status' | 'reportCount' | 'followUpState'>): PinTier {
+  if (s.followUpState === 'needed') return 'followup-needed'
+  if (s.followUpState === 'resolved' || s.status === 'resolved_after_follow_up' || s.status === 'removed' || s.status === 'removal_reported') return 'removed'
   if (s.reportCount >= 5) return 'hotspot'
   if (s.reportCount >= 2) return 'spreading'
   return 'isolated'
+}
+
+function sightingStatusLabel(s: Pick<Sighting, 'status' | 'followUpState'>): string {
+  if (s.followUpState === 'needed') return 'Removal reported - follow-up needed'
+  if (s.followUpState === 'resolved' || s.status === 'resolved_after_follow_up') return 'Resolved after follow-up'
+  if (s.followUpState === 'regrowth') return 'Regrowth reported'
+  if (s.status === 'screened') return 'Community report - not expert validated'
+  return s.status === 'removal_reported' ? 'Removal reported' : 'Removed'
 }
 
 /**
@@ -1147,9 +1163,7 @@ export function pinTier(s: Pick<Sighting, 'status' | 'reportCount'>): PinTier {
 function pinElement(s: Sighting): HTMLElement {
   const el = document.createElement('button')
   el.type = 'button'
-  const statusLabel = s.status === 'screened'
-    ? 'Community report - not expert validated'
-    : s.status === 'removal_reported' ? 'Removal reported' : 'Removed'
+  const statusLabel = sightingStatusLabel(s)
   const statusDate = s.status === 'removal_reported'
     ? ` on ${formatStatusDate(s.removalReportedAt ?? s.lastReportedAt)}`
     : ''
@@ -1161,7 +1175,7 @@ function pinElement(s: Sighting): HTMLElement {
   el.dataset.sightingId = s.id
   el.dataset.tier = tier
   el.className = 'map-pin'
-  const isRemoved = tier === 'removed'
+  const isRemoved = tier === 'removed' || tier === 'followup-needed'
   el.innerHTML = `
     <svg width="26" height="34" viewBox="0 0 26 34" xmlns="http://www.w3.org/2000/svg" style="display:block;filter:drop-shadow(0 2px 3px rgba(0,0,0,0.3));">
       <path d="M13 33 C 13 33 24 20 24 11 A 11 11 0 1 0 2 11 C 2 20 13 33 13 33 Z"

@@ -68,6 +68,7 @@ export function PlaceDetailPage() {
         Adding a bookmark is non-exclusive and does not create ownership, responsibility,
         access rights, or permission to remove plants.
       </p>
+      <p className="place-detail__notice"><Link to={`/events?placeId=${placeId}`}>See upcoming community events for this place</Link></p>
       <PlaceGeometryMap geometry={place.data.geometry} name={place.data.displayName} />
       {associations.data.truncated && (
         <p className="place-detail__notice" role="status">

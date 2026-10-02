@@ -48,6 +48,7 @@ export function AdoptedAreasPage() {
         <h2>No monitoring areas yet</h2>
         <p>Browse places to add a non-exclusive monitoring bookmark.</p>
         <Link to="/places">Browse places</Link>
+        <Link to="/events">Find community events</Link>
         <small>{query.data.disclaimer}</small>
       </section>
     )
@@ -67,6 +68,7 @@ export function AdoptedAreasPage() {
           </select>
         </label>
       </header>
+      <p><Link to="/events">Find community events</Link></p>
       <div className="areas-list">
         {query.data.items.map((area) => (
           <article key={area.adoptionId}>
@@ -103,6 +105,7 @@ export function AdoptedAreasPage() {
               />
             </dl>
             <Link to={`/adopted-areas/${area.adoptionId}/activity`}>Open activity map</Link>
+            {' '}<Link to={`/events?placeId=${area.placeId}`}>See events for this area</Link>
           </article>
         ))}
       </div>

@@ -198,6 +198,22 @@
   background: var(--border);
 }
 
+.pin-sheet__follow-up-link {
+  display: inline-flex;
+  min-height: 40px;
+  align-items: center;
+  padding: 0 14px;
+  border-radius: var(--r-button);
+  background: var(--green);
+  color: #fff;
+  font-weight: 650;
+  text-decoration: none;
+}
+
+.pin-sheet__history { display: grid; gap: 9px; margin: 12px 0 0; padding: 0; list-style: none; }
+.pin-sheet__history li { display: flex; justify-content: space-between; gap: 12px; color: var(--body); font-size: 13px; }
+.pin-sheet__history span { color: var(--muted); text-align: right; }
+
 .pin-sheet__recommendation {
   margin-top: 20px;
   padding: 17px 0;

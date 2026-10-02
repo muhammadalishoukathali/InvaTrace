@@ -69,7 +69,7 @@ export interface AccessOverview {
 }
 
 /** "screened" just means it passed the current deterministic rules, not that a human looked at it. */
-export type SightingStatus = 'screened' | 'removed' | 'removal_reported' | 'withdrawn'
+export type SightingStatus = 'screened' | 'removed' | 'removal_reported' | 'withdrawn' | 'resolved_after_follow_up'
 export type ReportStatus =
   | 'processing'
   | 'screened'
@@ -248,6 +248,8 @@ export interface ReportDraft {
 
 /** The actual wire format sent to the server for a submission. */
 export interface ReportSubmission {
+  eventId?: string | null
+  capturedAt?: string | null
   photoKey: string
   /** SHA-256 of the raw capture bytes, worked out once client-side and sent
    *  along with the submission. Lets the server catch exact duplicate
@@ -269,6 +271,8 @@ export interface ReportSubmission {
 }
 
 export interface Report {
+  eventId?: string | null
+  evidenceLabel?: 'community_reported' | null
   id: string
   status: ReportStatus
   createdAt: string
@@ -467,6 +471,7 @@ export interface QueuedReport {
   attempts: number
   retryable: boolean
   lastError: string | null
+  lastErrorCode?: string | null
   submission: ReportSubmission
   imageBlob: Blob      // kept around locally until both the upload and report creation actually succeed
 }
@@ -478,6 +483,8 @@ export interface QueuedReport {
  *  when it does, precisionReduced tells the UI to say the location shown is
  *  approximate rather than exact. */
 export interface Sighting {
+  followUpState?: 'needed' | 'resolved' | 'regrowth' | null
+  lastFollowupAt?: string | null
   id: string
   speciesId: string
   speciesName: string
@@ -504,6 +511,7 @@ export interface Sighting {
 }
 
 export interface SightingDetail extends Sighting {
+  followUpHistory?: Array<{ eventType: 'removal_reported' | 'followup_no_regrowth' | 'followup_regrowth' | 'followup_unable'; createdAt: string }>
   recommendedAction: string
   actionGuide: SeasonalActionGuide | null
   reporterTrust: TrustLevel  // newer profiles get stronger location privacy applied

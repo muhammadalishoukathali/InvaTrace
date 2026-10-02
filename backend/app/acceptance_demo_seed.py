@@ -26,6 +26,9 @@ from app.db.models import (
     AdoptedArea,
     AuditEvent,
     AutomatedValidationDecision,
+    Event,
+    EventCheckin,
+    EventParticipant,
     IdempotencyRecord,
     Installation,
     MonitoredArea,
@@ -51,6 +54,7 @@ from app.db.models import (
     WaterwayDataset,
     WaterwayEdge,
 )
+from app.domain.reporting import coordinate
 from app.featured_places_seed import seed_featured_places
 from app.seed import load_development_fixtures
 
@@ -196,7 +200,10 @@ def _seed_protected_area(session: Session) -> ProtectedAreaDataset:
         updated_at=_NOW - timedelta(days=7),
         coverage_note="Kuala Lumpur and Selangor federal parks and forest reserves.",
         coverage_geometry=func.ST_GeogFromText(f"SRID=4326;{_box_wkt(101.6412, 3.1497, 0.02)}"),
-        metadata_json={"licence": "CC-BY-4.0", "authority": "Department of Wildlife and National Parks"},
+        metadata_json={
+            "licence": "CC-BY-4.0",
+            "authority": "Department of Wildlife and National Parks",
+        },
         active=True,
     )
     session.add(dataset)
@@ -279,7 +286,10 @@ def _seed_occurrences(session: Session) -> list[uuid.UUID]:
                 longitude=Decimal(str(lng)),
                 coordinate_uncertainty_m=25,
                 observed_year=2024,
-                metadata_json={"basis_of_record": "HumanObservation", "recorded_by": "iNaturalist MY"},
+                metadata_json={
+                    "basis_of_record": "HumanObservation",
+                    "recorded_by": "iNaturalist MY",
+                },
                 processed_data_version=_DATA_VERSION,
             )
         )
@@ -439,16 +449,16 @@ _REPORT_COORDS = {
 }
 
 
-def _seed_reports_and_sightings(
-    session: Session, detector: Profile, volunteer: Profile
-) -> None:
+def _seed_reports_and_sightings(session: Session, detector: Profile, volunteer: Profile) -> None:
     now = _NOW
 
     scan_ids: dict[str, uuid.UUID] = {}
     report_ids: dict[str, uuid.UUID] = {}
 
     # First pass: scans + reports (deterministic ids, upsert-friendly).
-    for index, (status, species_id, outcome, capture_source, place_label, note) in enumerate(REPORT_SPECS):
+    for index, (status, species_id, outcome, capture_source, place_label, note) in enumerate(
+        REPORT_SPECS
+    ):
         report_lat, report_lng = _REPORT_COORDS.get(place_label, (3.1497, 101.6412))
         scan_id = _ac_uuid(f"scan:{status}")
         report_id = _ac_uuid(f"report:{status}")
@@ -623,7 +633,9 @@ def _seed_reports_and_sightings(
         ),
     )
     sighting_ids: dict[str, uuid.UUID] = {}
-    for index, (key, sighting_status, species_id, owner, place_label, action) in enumerate(sighting_specs):
+    for index, (key, sighting_status, species_id, owner, place_label, action) in enumerate(
+        sighting_specs
+    ):
         sighting_id = _ac_uuid(f"sighting:{key}")
         sighting_ids[key] = sighting_id
         if session.get(Sighting, sighting_id):
@@ -896,11 +908,10 @@ def load_acceptance_demo_fixtures(session: Session) -> None:
     _seed_place_sighting_evidence(session, sighting_ids, area, trail)
     _seed_notifications(session, profiles["nurul-aisyah"])
     _seed_osm_import(session)
+    _seed_iteration3(session, profiles["hafiz-rahman"], area)
 
     fallback_name = "Bukit Kiara · Ridge Marker"
-    if not session.scalar(
-        select(MonitoredPlace.id).where(MonitoredPlace.name == fallback_name)
-    ):
+    if not session.scalar(select(MonitoredPlace.id).where(MonitoredPlace.name == fallback_name)):
         session.add(
             MonitoredPlace(
                 name=fallback_name,
@@ -910,3 +921,171 @@ def load_acceptance_demo_fixtures(session: Session) -> None:
         )
 
     session.commit()
+
+
+def _seed_iteration3(session: Session, host: Profile, area: MonitoredArea) -> None:
+    """Local/demo-only, stable IDs; never publish fabricated production events."""
+    from app.api.routers.places import _place_metadata
+
+    now = datetime.now(UTC)
+    _, _, version = _place_metadata(area)
+    lat, lon = session.execute(
+        select(
+            func.ST_Y(func.ST_PointOnSurface(func.ST_GeomFromWKB(area.geometry))),
+            func.ST_X(func.ST_PointOnSurface(func.ST_GeomFromWKB(area.geometry))),
+        )
+    ).one()
+    event_specs = [
+        ("survey", "published", now - timedelta(minutes=10), now + timedelta(hours=2)),
+        ("monitoring", "published", now + timedelta(days=1), now + timedelta(days=1, hours=2)),
+        (
+            "completed",
+            "completed",
+            now - timedelta(days=2),
+            now - timedelta(days=2) + timedelta(hours=2),
+        ),
+    ]
+    for key, status, start_at, end_at in event_specs:
+        event_id = _ac_uuid(f"it3:event:{key}")
+        event = session.get(Event, event_id)
+        if event is None:
+            event = Event(
+                id=event_id,
+                host_profile_id=host.id,
+                place_id=area.id,
+                place_type="park",
+                geometry_version=version,
+                event_type="survey" if key == "completed" else key,
+                title=f"Demo community {key}",
+                purpose="Demo only: record community plant observations.",
+                target_species_ids=["mikania-micrantha"],
+                meeting_latitude=coordinate(lat),
+                meeting_longitude=coordinate(lon),
+                permission_context="unknown",
+                safety_notes="Joining does not grant removal permission. Follow site rules.",
+                status=status,
+                start_at=start_at,
+                end_at=end_at,
+            )
+            session.add(event)
+            session.flush()
+        if key != "completed":
+            continue
+        for index, species_id in enumerate(
+            ("mikania-micrantha", "chromolaena-odorata", "eichhornia-crassipes")
+        ):
+            report_id = _ac_uuid(f"it3:report:{index}")
+            if session.get(Report, report_id):
+                continue
+            capture_id = _ac_uuid(f"it3:capture:{index}")
+            scan = Scan(
+                id=_ac_uuid(f"it3:scan:{index}"),
+                profile_id=host.id,
+                capture_id=capture_id,
+                predicted_species_id=species_id,
+                outcome="target",
+                confidence=Decimal("0.85"),
+                model_version=_MODEL_VERSION,
+                image_sha256=_digest(f"it3:report:{index}"),
+                capture_source="camera",
+            )
+            session.add(scan)
+            session.flush()
+            session.add(
+                Report(
+                    id=report_id,
+                    profile_id=host.id,
+                    species_id=species_id,
+                    event_id=event.id,
+                    captured_at=event.start_at + timedelta(minutes=30 + index),
+                    photo_key=f"acceptance-demo/it3/report-{index}.jpg",
+                    status="screened",
+                    outcome="target",
+                    confidence=Decimal("0.85"),
+                    client_model_version=_MODEL_VERSION,
+                    observed_at=event.start_at + timedelta(minutes=30 + index),
+                    capture_id=capture_id,
+                    capture_source="camera",
+                    scan_id=scan.id,
+                    latitude=coordinate(lat),
+                    longitude=coordinate(lon),
+                    location_accuracy_m=8,
+                    extent="single",
+                    notes="Demo event evidence",
+                    consent_accurate=True,
+                    consent_no_pii=True,
+                    submitter_trust=host.trust_level,
+                    idempotency_key=f"it3-demo-{index}",
+                    validation_reasons=[],
+                )
+            )
+            session.flush()
+        participation_id = _ac_uuid("it3:participant")
+        if not session.get(EventParticipant, participation_id):
+            session.add(
+                EventParticipant(
+                    id=participation_id,
+                    event_id=event.id,
+                    profile_id=host.id,
+                    status="joined",
+                    joined_at=event.start_at,
+                )
+            )
+        checkin_id = _ac_uuid("it3:checkin")
+        if not session.get(EventCheckin, checkin_id):
+            session.add(
+                EventCheckin(
+                    id=checkin_id,
+                    event_id=event.id,
+                    profile_id=host.id,
+                    latitude=coordinate(lat),
+                    longitude=coordinate(lon),
+                    accuracy_m=8,
+                    checked_in_at=event.start_at,
+                )
+            )
+    for index, (state, status, attempt) in enumerate(
+        (
+            ("needed", "removal_reported", "followup_unable"),
+            ("resolved", "resolved_after_follow_up", "followup_no_regrowth"),
+            ("regrowth", "screened", "followup_regrowth"),
+        )
+    ):
+        sighting_id = _ac_uuid(f"it3:sighting:{state}")
+        if session.get(Sighting, sighting_id):
+            continue
+        sighting = Sighting(
+            id=sighting_id,
+            source_profile_id=host.id,
+            species_id="mikania-micrantha",
+            status=status,
+            follow_up_state=state,
+            last_followup_at=now - timedelta(hours=1),
+            risk="watch",
+            latitude=coordinate(lat + index * 0.0001),
+            longitude=coordinate(lon),
+            reporter_trust=host.trust_level,
+            recommended_action="Community monitoring only.",
+            area_id=area.id,
+            place_label=area.name,
+        )
+        session.add(sighting)
+        session.flush()
+        for kind, created_at in (
+            ("removal_reported", now - timedelta(days=7)),
+            (attempt, now - timedelta(hours=1)),
+        ):
+            session.add(
+                SightingStatusEvent(
+                    id=_ac_uuid(f"it3:history:{state}:{kind}"),
+                    sighting_id=sighting.id,
+                    acting_profile_id=host.id,
+                    report_id=_ac_uuid("it3:report:0"),
+                    event_type=kind,
+                    latitude=sighting.latitude,
+                    longitude=sighting.longitude,
+                    accuracy_m=8,
+                    distance_m=5,
+                    created_at=created_at,
+                )
+            )

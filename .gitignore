@@ -55,3 +55,10 @@ local-data/
 .production-data/
 data-import/raw/
 backend/data/local-boundary/
+
+# Local Python environment
+.venv/
+.ruff_cache/
+
+# Local screenshots from acceptance verification
+verification/

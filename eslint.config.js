@@ -15,6 +15,7 @@ export default tseslint.config(
       'test-results/**',
       'playwright-report/**',
       'backend/.venv/**',
+      '.venv/**',
       'backend/.pytest_cache/**',
       'public/mockServiceWorker.js',
     ],

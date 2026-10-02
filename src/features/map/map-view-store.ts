@@ -17,11 +17,15 @@ interface MapState {
   statuses: SightingStatus[]       // empty = every status shown
   risks: Risk[]                    // empty = every risk level shown
   search: string
+  followUpNeeded: boolean
+  resolvedSightings: boolean
   selectedId: string | null
 
   toggleSpecies: (id: string) => void
   toggleStatus: (s: SightingStatus) => void
   toggleRisk: (r: Risk) => void
+  toggleFollowUpNeeded: () => void
+  toggleResolvedSightings: () => void
   clearFilters: () => void
   setSearch: (q: string) => void
   select: (id: string | null) => void
@@ -32,6 +36,8 @@ export const useMapView = create<MapState>((set, get) => ({
   statuses: [],
   risks: [],
   search: '',
+  followUpNeeded: false,
+  resolvedSightings: false,
   selectedId: null,
 
   toggleSpecies: (id) => {
@@ -49,7 +55,10 @@ export const useMapView = create<MapState>((set, get) => ({
     set({ risks: cur.includes(r) ? cur.filter((x) => x !== r) : [...cur, r] })
   },
 
-  clearFilters: () => set({ species: [], statuses: [], risks: [], search: '' }),
+  toggleFollowUpNeeded: () => set((state) => ({ followUpNeeded: !state.followUpNeeded })),
+  toggleResolvedSightings: () => set((state) => ({ resolvedSightings: !state.resolvedSightings })),
+
+  clearFilters: () => set({ species: [], statuses: [], risks: [], search: '', followUpNeeded: false, resolvedSightings: false }),
 
   setSearch: (q) => set({ search: q }),
 

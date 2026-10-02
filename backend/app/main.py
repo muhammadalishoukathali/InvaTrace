@@ -24,6 +24,7 @@ from app.api.routers import (
     admin,
     adopted_areas,
     catalogue,
+    events,
     health,
     identify,
     identity,
@@ -100,6 +101,8 @@ async def _lifespan(app: FastAPI):
     tasks: list[asyncio.Task] = []
     if settings.run_workers_in_api:
         from app.cli import cleanup_uploads_once
+        from app.workers.event_auto_cancel import cancel_stale_hidden_events
+        from app.workers.event_completion import complete_elapsed_events
         from app.workers.verification import run_worker
 
         tasks.append(
@@ -108,6 +111,26 @@ async def _lifespan(app: FastAPI):
                     "verification", lambda: run_worker(once=True), settings.worker_poll_seconds
                 ),
                 name="invatrace.verification-worker",
+            )
+        )
+        tasks.append(
+            asyncio.create_task(
+                _run_worker_loop(
+                    "event-completion",
+                    complete_elapsed_events,
+                    settings.event_completion_interval_seconds,
+                ),
+                name="invatrace.event-completion-worker",
+            )
+        )
+        tasks.append(
+            asyncio.create_task(
+                _run_worker_loop(
+                    "event-auto-cancel",
+                    cancel_stale_hidden_events,
+                    settings.event_auto_cancel_interval_seconds,
+                ),
+                name="invatrace.event-auto-cancel-worker",
             )
         )
         tasks.append(
@@ -236,6 +259,8 @@ def create_app() -> FastAPI:
         offline_pack.router,
         places.router,
         adopted_areas.router,
+        events.router,
+        events.places_router,
         admin.router,
     ):
         app.include_router(router)

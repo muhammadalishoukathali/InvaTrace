@@ -101,6 +101,11 @@ const REUSABLE_UPLOAD_ERRORS = new Set([
  * upload-token codes), retrying won't change anything, it'll just be the
  * same rejection again, so we don't bother queueing those. */
 function shouldRetry(error: unknown): boolean {
+  if (error instanceof ApiError && error.code && new Set([
+    'event_not_taggable', 'checkin_required', 'captured_at_required',
+    'captured_at_outside_event', 'upload_grace_exceeded', 'event_budget_exceeded',
+    'event_geometry_stale', 'outside_place', 'event_report_already_linked',
+  ]).has(error.code)) return false
   if (typeof navigator !== 'undefined' && !navigator.onLine) return true
   if (error instanceof UploadError || error instanceof TypeError) return true
   if (!(error instanceof ApiError)) return false
@@ -178,6 +183,7 @@ export async function submitReport(
       attempts: 1,
       retryable: true,
       lastError: error instanceof Error ? error.message : String(error),
+      lastErrorCode: error instanceof ApiError ? error.code : null,
       submission: { ...submission, photoKey, imageSha256 },
       imageBlob,
     })
@@ -276,6 +282,7 @@ export async function flushQueue(): Promise<{ sent: number; failed: number; skip
       item.attempts++
       item.retryable = shouldRetry(error)
       item.lastError = error instanceof Error ? error.message : String(error)
+      item.lastErrorCode = error instanceof ApiError ? error.code : null
       await saveQueuedReport(item)
       failed++
     }
@@ -294,6 +301,41 @@ export async function discardQueuedReport(id: string): Promise<void> {
   const item = (await readQueuedReports()).find((candidate) => candidate.id === id)
   await deleteQueuedReport(id)
   if (item) updateScanHistorySubmission(item.submission.captureId, undefined)
+  notifyQueueChanged()
+}
+
+
+const ORDINARY_RECOVERY_CODES = new Set([
+  'event_not_taggable', 'checkin_required', 'captured_at_required',
+  'captured_at_outside_event', 'upload_grace_exceeded', 'event_budget_exceeded',
+  'event_geometry_stale', 'outside_place',
+])
+export function canSubmitQueuedAsOrdinary(item: QueuedReport): boolean {
+  return Boolean(item.submission.eventId) && item.retryable === false
+    && ORDINARY_RECOVERY_CODES.has(item.lastErrorCode ?? '')
+}
+/** Explicit recovery after an event gate rejects an offline report. Retains
+ * the original capture, photo, location and consent; never converts silently. */
+export async function submitQueuedAsOrdinary(id: string): Promise<void> {
+  const item = (await listQueuedReports()).find(candidate => candidate.id === id)
+  if (!item || !canSubmitQueuedAsOrdinary(item)) throw new Error('This event report cannot be recovered as an ordinary report.')
+  delete item.submission.eventId
+  delete item.submission.capturedAt
+  item.retryable = true
+  item.lastError = null
+  item.lastErrorCode = null
+  await saveQueuedReport(item)
+  try {
+    const report = await sendQueuedReport(item)
+    await deleteQueuedReport(item.id)
+    updateScanHistorySubmission(item.submission.captureId, { status: 'submitted', reportId: report.id })
+  } catch (error) {
+    item.attempts++
+    item.retryable = shouldRetry(error)
+    item.lastError = error instanceof Error ? error.message : String(error)
+    item.lastErrorCode = error instanceof ApiError ? error.code : null
+    await saveQueuedReport(item)
+  }
   notifyQueueChanged()
 }
 

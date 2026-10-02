@@ -79,6 +79,12 @@ def _build_limits() -> dict[str, Limit]:
         ),
         "report_create_daily": Limit(50, 24 * 60 * 60),
         "sightings_read": Limit(120, 60),
+        # Event discovery is IP-scoped; state-changing event actions are
+        # profile-scoped so a shared NAT does not block a whole survey group.
+        "events_read": Limit(120, 60),
+        "events_write": Limit(30, 60),
+        "check_in": Limit(20, 60),
+        "flag": Limit(10, 60),
     }
 
 

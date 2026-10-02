@@ -116,6 +116,39 @@ describe('reported sighting species labels', () => {
   })
 })
 
+describe('follow-up mock contract', () => {
+  it('keeps precise GPS private, supports a repeat unable attempt, and exposes the needed filter', async () => {
+    const { payload } = await start(installationToken('Z'))
+    const headers = { Authorization: `Bearer ${payload.accessToken}`, 'Content-Type': 'application/json' }
+    const detail = await (await fetch('http://localhost/api/v1/sightings/s-10')).json() as {
+      location: { lat: number; lng: number }
+    }
+    const response = await fetch('http://localhost/api/v1/sightings/s-10/follow-up', {
+      method: 'POST', headers,
+      body: JSON.stringify({
+        latitude: detail.location.lat, longitude: detail.location.lng, accuracyM: 8,
+        capturedAt: new Date().toISOString(), outcome: 'unable_to_confirm',
+      }),
+    })
+    const body = await response.json() as Record<string, unknown>
+    expect(response.status).toBe(201)
+    expect(body).toMatchObject({ outcome: 'unable_to_confirm', followUpState: 'needed' })
+    expect(body).not.toHaveProperty('latitude')
+    expect(body).not.toHaveProperty('longitude')
+
+    const needed = await (await fetch('http://localhost/api/v1/sightings?follow_up=needed')).json() as {
+      items: Array<{ id: string; followUpState?: string }>
+    }
+    expect(needed.items).toContainEqual(expect.objectContaining({ id: 's-10', followUpState: 'needed' }))
+    const history = await (await fetch('http://localhost/api/v1/sightings/s-10')).json() as {
+      followUpHistory: Array<{ eventType: string; createdAt: string }>
+    }
+    expect(history.followUpHistory.map((event) => event.eventType)).toEqual([
+      'removal_reported', 'followup_unable',
+    ])
+  })
+})
+
 describe('private access mock contract', () => {
   it('creates explicit Detector/New access, returns three 128-bit reusable codes, and persists only hashes', async () => {
     const { response, payload } = await start()

@@ -43,6 +43,10 @@ def test_report_limits_use_env_backed_defaults() -> None:
     assert _limit_for("profile_restore").requests == 5
     assert _limit_for("profile_restore").window_seconds == 15 * 60
     assert _limit_for("profile_restore_ip").algorithm == "sliding"
+    # Epic 9 routes must be registered before they are invoked; a missing
+    # scope otherwise becomes an unhandled KeyError with rate limiting enabled.
+    for scope in ("events_read", "events_write", "check_in", "flag"):
+        assert _limit_for(scope).requests > 0
 
 
 def test_production_rate_limit_dependency_fails_closed() -> None:

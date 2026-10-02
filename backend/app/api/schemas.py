@@ -9,6 +9,7 @@ coordinate ranges, the Idempotency-Key pattern, string length caps, and the
 enum literals for status and capture source. If a value is rejected here it
 never reaches a query.
 """
+
 from __future__ import annotations
 
 import re
@@ -22,6 +23,7 @@ from pydantic import (
     Field,
     StringConstraints,
     field_validator,
+    model_serializer,
     model_validator,
 )
 
@@ -70,7 +72,7 @@ ReportStatus = Literal[
     "rejected",
     "validation_unavailable",
 ]
-SightingStatus = Literal["screened", "removed", "removal_reported"]
+SightingStatus = Literal["screened", "removed", "removal_reported", "resolved_after_follow_up"]
 Risk = Literal["high", "watch"]
 
 # 43 chars = a base64url-encoded 256-bit random value generated client-side -
@@ -358,6 +360,8 @@ class Consent(ApiModel):
 
 
 class ReportSubmissionDetails(ApiModel):
+    event_id: uuid.UUID | None = None
+    captured_at: datetime | None = None
     photo_key: Annotated[str, StringConstraints(min_length=1, max_length=500)]
     species_id: Annotated[str, StringConstraints(max_length=80)] | None
     outcome: Outcome
@@ -371,6 +375,21 @@ class ReportSubmissionDetails(ApiModel):
     extent: Extent
     notes: Annotated[str, StringConstraints(max_length=280)] = ""
     consent: Consent
+
+    @field_validator("captured_at")
+    @classmethod
+    def event_capture_has_timezone(cls, value: datetime | None) -> datetime | None:
+        if value is not None and value.utcoffset() is None:
+            raise ValueError("captured_at must include a timezone")
+        return value
+
+    @model_serializer(mode="wrap")
+    def preserve_ordinary_submission(self, handler):
+        result = handler(self)
+        if self.event_id is None:
+            for key in ("event_id", "eventId", "captured_at", "capturedAt"):
+                result.pop(key, None)
+        return result
 
 
 class ReportSubmission(ReportSubmissionDetails):
@@ -418,6 +437,8 @@ class ReportValidation(ApiModel):
 
 
 class ReportResponse(ApiModel):
+    event_id: str | None = None
+    evidence_label: Literal["community_reported"] | None = None
     id: str
     status: ReportStatus
     created_at: datetime
@@ -428,6 +449,14 @@ class ReportResponse(ApiModel):
     # AC 2.3.2 - the retained report id when this row was merged into a
     # prior report; null otherwise. Serialises as ``retainedReportId``.
     retained_report_id: str | None = None
+
+    @model_serializer(mode="wrap")
+    def preserve_ordinary_response(self, handler):
+        result = handler(self)
+        if self.event_id is None:
+            for key in ("event_id", "eventId", "evidence_label", "evidenceLabel"):
+                result.pop(key, None)
+        return result
 
 
 class ReportListResponse(ApiModel):
@@ -443,6 +472,8 @@ class PlaceAssociation(ApiModel):
 
 
 class SightingResponse(ApiModel):
+    follow_up_state: Literal["needed", "resolved", "regrowth"] | None = None
+    last_followup_at: datetime | None = None
     id: str
     species_id: str
     species_name: str
@@ -468,7 +499,15 @@ class SightingResponse(ApiModel):
     screening_method: Literal["deterministic_rules"] = "deterministic_rules"
 
 
+class FollowUpHistoryEntry(ApiModel):
+    event_type: Literal[
+        "removal_reported", "followup_no_regrowth", "followup_regrowth", "followup_unable"
+    ]
+    created_at: datetime
+
+
 class SightingDetailResponse(SightingResponse):
+    follow_up_history: list[FollowUpHistoryEntry] = Field(default_factory=list)
     recommended_action: str
     action_guide: SeasonalActionGuide | None
     reporter_trust: TrustLevel

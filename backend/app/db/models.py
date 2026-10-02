@@ -537,6 +537,117 @@ class Scan(Base):
     )
 
 
+class Event(TimestampMixin, Base):
+    __tablename__ = "events"
+    __table_args__ = (
+        CheckConstraint(
+            "event_type IN ('survey','removal','monitoring','other')", name="event_type"
+        ),
+        CheckConstraint("status IN ('draft','published','cancelled','completed')", name="status"),
+        CheckConstraint(
+            "permission_context IN ('unknown','explicit_permission')", name="permission_context"
+        ),
+        CheckConstraint("end_at > start_at", name="time_range"),
+        CheckConstraint("meeting_latitude BETWEEN 0.8 AND 7.5", name="malaysia_latitude"),
+        CheckConstraint("meeting_longitude BETWEEN 99.3 AND 119.5", name="malaysia_longitude"),
+        CheckConstraint("capacity IS NULL OR capacity > 0", name="capacity"),
+        Index("ix_events_status_end_at", "status", "end_at"),
+        Index("ix_events_place_status", "place_id", "status"),
+    )
+    id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    host_profile_id: Mapped[uuid.UUID] = mapped_column(
+        ForeignKey("profiles.id", ondelete="RESTRICT"), index=True
+    )
+    # Places are a union of imported areas and trails, just like AdoptedArea.
+    # The write service validates the reference against that union.
+    place_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), nullable=False)
+    place_type: Mapped[str] = mapped_column(String(30), default="park", nullable=False)
+    event_type: Mapped[str] = mapped_column(String(20), nullable=False)
+    title: Mapped[str] = mapped_column(String(120), nullable=False)
+    purpose: Mapped[str] = mapped_column(Text, nullable=False)
+    target_species_ids: Mapped[list[str]] = mapped_column(JSON_TYPE, default=list, nullable=False)
+    meeting_latitude: Mapped[Decimal] = mapped_column(Numeric(8, 5), nullable=False)
+    meeting_longitude: Mapped[Decimal] = mapped_column(Numeric(8, 5), nullable=False)
+    meeting_location: Mapped[Any] = mapped_column(
+        Geography("POINT", srid=4326, spatial_index=False),
+        Computed(
+            "ST_SetSRID(ST_MakePoint(meeting_longitude, meeting_latitude), 4326)::geography",
+            persisted=True,
+        ),
+    )
+    meeting_note: Mapped[str | None] = mapped_column(String(500))
+    start_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
+    end_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
+    safety_notes: Mapped[str | None] = mapped_column(Text)
+    permission_context: Mapped[str] = mapped_column(String(20), default="unknown", nullable=False)
+    chat_link: Mapped[str | None] = mapped_column(String(500))
+    capacity: Mapped[int | None] = mapped_column(Integer)
+    hidden: Mapped[bool] = mapped_column(Boolean, default=False, nullable=False)
+    hidden_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    status: Mapped[str] = mapped_column(String(20), default="draft", nullable=False)
+    geometry_version: Mapped[str] = mapped_column(String(160), nullable=False)
+
+
+class EventParticipant(Base):
+    __tablename__ = "event_participants"
+    __table_args__ = (
+        UniqueConstraint("event_id", "profile_id", name="uq_event_participation"),
+        CheckConstraint("status IN ('joined','withdrawn')", name="status"),
+    )
+    id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    event_id: Mapped[uuid.UUID] = mapped_column(
+        ForeignKey("events.id", ondelete="CASCADE"), index=True
+    )
+    profile_id: Mapped[uuid.UUID] = mapped_column(
+        ForeignKey("profiles.id", ondelete="RESTRICT"), index=True
+    )
+    status: Mapped[str] = mapped_column(String(20), default="joined", nullable=False)
+    joined_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+    withdrawn_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+
+
+class EventCheckin(Base):
+    __tablename__ = "event_checkins"
+    __table_args__ = (
+        CheckConstraint("accuracy_m BETWEEN 0 AND 250", name="accuracy_range"),
+        CheckConstraint("latitude BETWEEN 0.8 AND 7.5", name="malaysia_latitude"),
+        CheckConstraint("longitude BETWEEN 99.3 AND 119.5", name="malaysia_longitude"),
+        Index("ix_event_checkins_event_profile", "event_id", "profile_id"),
+    )
+    id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    event_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("events.id", ondelete="CASCADE"))
+    profile_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("profiles.id", ondelete="RESTRICT"))
+    latitude: Mapped[Decimal] = mapped_column(Numeric(8, 5), nullable=False)
+    longitude: Mapped[Decimal] = mapped_column(Numeric(8, 5), nullable=False)
+    location: Mapped[Any] = mapped_column(
+        Geography("POINT", srid=4326, spatial_index=False),
+        Computed("ST_SetSRID(ST_MakePoint(longitude, latitude), 4326)::geography", persisted=True),
+    )
+    accuracy_m: Mapped[float] = mapped_column(Numeric(10, 3), nullable=False)
+    checked_in_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), server_default=func.now()
+    )
+
+
+class EventFlag(Base):
+    __tablename__ = "event_flags"
+    __table_args__ = (
+        UniqueConstraint("event_id", "reporter_profile_id", name="uq_event_flag_identity"),
+    )
+    id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    event_id: Mapped[uuid.UUID] = mapped_column(
+        ForeignKey("events.id", ondelete="CASCADE"), index=True
+    )
+    reporter_profile_id: Mapped[uuid.UUID] = mapped_column(
+        ForeignKey("profiles.id", ondelete="RESTRICT")
+    )
+    reason: Mapped[str] = mapped_column(String(500), nullable=False)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+
+
+Index("ix_events_meeting_location_gist", Event.meeting_location, postgresql_using="gist")
+
+
 class Report(Base):
     """A single submission from a profile: one photo, one location, one
     outcome. This is the "raw" record - it goes through the screening
@@ -572,6 +683,10 @@ class Report(Base):
     profile_id: Mapped[uuid.UUID] = mapped_column(
         ForeignKey("profiles.id", ondelete="RESTRICT"), index=True, nullable=False
     )
+    event_id: Mapped[uuid.UUID | None] = mapped_column(
+        ForeignKey("events.id", ondelete="SET NULL"), index=True
+    )
+    captured_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
     species_id: Mapped[str | None] = mapped_column(ForeignKey("species.id", ondelete="RESTRICT"))
     status: Mapped[str] = mapped_column(
         String(30), default="processing", index=True, nullable=False
@@ -640,7 +755,7 @@ class Sighting(Base):
     __tablename__ = "sightings"
     __table_args__ = (
         CheckConstraint(
-            "status IN ('candidate','screened','rejected','removed','removal_reported','merged','withdrawn')",
+            "status IN ('candidate','screened','rejected','removed','removal_reported','merged','withdrawn','resolved_after_follow_up')",
             name="status",
         ),
         CheckConstraint("reporter_trust IN ('New','Trusted','Steward')", name="reporter_trust"),
@@ -655,7 +770,9 @@ class Sighting(Base):
     source_profile_id: Mapped[uuid.UUID | None] = mapped_column(
         ForeignKey("profiles.id", ondelete="SET NULL"), index=True
     )
-    status: Mapped[str] = mapped_column(String(20), index=True, nullable=False)
+    status: Mapped[str] = mapped_column(String(30), index=True, nullable=False)
+    follow_up_state: Mapped[str | None] = mapped_column(String(30), index=True)
+    last_followup_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
     risk: Mapped[str] = mapped_column(String(20), nullable=False)
     latitude: Mapped[Decimal] = mapped_column(Numeric(8, 5), nullable=False)
     longitude: Mapped[Decimal] = mapped_column(Numeric(8, 5), nullable=False)
@@ -729,20 +846,26 @@ class SightingStatusEvent(Base):
 
     __tablename__ = "sighting_status_events"
     __table_args__ = (
-        CheckConstraint("event_type IN ('removal_reported')", name="event_type"),
+        CheckConstraint(
+            "event_type IN ('removal_reported','followup_no_regrowth','followup_regrowth','followup_unable')",
+            name="event_type",
+        ),
         CheckConstraint("accuracy_m BETWEEN 0 AND 350", name="accuracy_range"),
         CheckConstraint("distance_m BETWEEN 0 AND 350", name="distance_range"),
         CheckConstraint("latitude BETWEEN 0.8 AND 7.5", name="malaysia_latitude"),
         CheckConstraint("longitude BETWEEN 99.3 AND 119.5", name="malaysia_longitude"),
-        UniqueConstraint("sighting_id", "event_type", name="uq_sighting_status_event"),
+        CheckConstraint(
+            "event_type = 'removal_reported' OR (accuracy_m <= 250 AND distance_m <= 250)",
+            name="followup_location_range",
+        ),
     )
 
     id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
     sighting_id: Mapped[uuid.UUID] = mapped_column(
         ForeignKey("sightings.id", ondelete="CASCADE"), index=True, nullable=False
     )
-    report_id: Mapped[uuid.UUID] = mapped_column(
-        ForeignKey("reports.id", ondelete="RESTRICT"), index=True, nullable=False
+    report_id: Mapped[uuid.UUID | None] = mapped_column(
+        ForeignKey("reports.id", ondelete="RESTRICT"), index=True
     )
     acting_profile_id: Mapped[uuid.UUID | None] = mapped_column(
         ForeignKey("profiles.id", ondelete="SET NULL"), index=True
@@ -755,6 +878,19 @@ class SightingStatusEvent(Base):
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), server_default=func.now(), nullable=False
     )
+
+
+Index(
+    "ix_sighting_status_history",
+    SightingStatusEvent.sighting_id,
+    SightingStatusEvent.created_at.desc(),
+)
+Index(
+    "uq_sighting_removal_event",
+    SightingStatusEvent.sighting_id,
+    unique=True,
+    postgresql_where=SightingStatusEvent.event_type == "removal_reported",
+)
 
 
 class VerificationJob(Base):

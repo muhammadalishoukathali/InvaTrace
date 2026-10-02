@@ -56,6 +56,13 @@ class Settings(BaseSettings):
     upload_url_ttl_seconds: int = Field(default=900, ge=60, le=3600)
     upload_active_grants_per_profile: int = Field(default=10, ge=1, le=100)
     upload_cleanup_interval_seconds: int = Field(default=3600, ge=60, le=86_400)
+    event_checkin_grace_minutes: int = Field(default=30, ge=0, le=120)
+    event_host_cap: int = Field(default=3, ge=1, le=100)
+    event_report_budget_per_identity: int = Field(default=60, ge=1, le=10_000)
+    event_flag_hide_threshold: int = Field(default=3, ge=1, le=100)
+    event_hidden_auto_cancel_days: int = Field(default=14, ge=1, le=365)
+    event_completion_interval_seconds: int = Field(default=300, ge=60, le=3600)
+    event_auto_cancel_interval_seconds: int = Field(default=3600, ge=60, le=86_400)
 
     # Which on-device E1 classifier versions the server still trusts. If the
     # client reports something outside this list the screening worker treats

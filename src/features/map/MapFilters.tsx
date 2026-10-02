@@ -41,9 +41,10 @@ export function MapFilters() {
   const [sheetOpen, setSheetOpen] = useState(false)
   const {
     species, statuses, risks, search, setSearch,
-    toggleSpecies, toggleStatus, toggleRisk, clearFilters,
+    followUpNeeded, resolvedSightings, toggleSpecies, toggleStatus, toggleRisk,
+    toggleFollowUpNeeded, toggleResolvedSightings, clearFilters,
   } = useMapView()
-  const active = species.length + statuses.length + risks.length
+  const active = species.length + statuses.length + risks.length + Number(followUpNeeded) + Number(resolvedSightings)
 
   return (
     <div className="map-toolbar">
@@ -120,6 +121,11 @@ export function MapFilters() {
                     onClick={() => toggleStatus(s.id)} />
             ))}
           </div>
+          <Divider />
+          <div role="group" aria-label="Follow-up filters" style={{ display: 'contents' }}>
+            <Chip label="Follow-up needed" on={followUpNeeded} dot="#8B978F" onClick={toggleFollowUpNeeded} />
+            <Chip label="Resolved sightings" on={resolvedSightings} dot="#65736C" onClick={toggleResolvedSightings} />
+          </div>
           {active > 0 && (
             <button type="button" onClick={clearFilters} style={{
               marginLeft: 'auto', padding: '0 10px', height: 'var(--h-chip)',
@@ -144,6 +150,10 @@ export function MapFilters() {
           toggleSpecies={toggleSpecies}
           toggleStatus={toggleStatus}
           toggleRisk={toggleRisk}
+          followUpNeeded={followUpNeeded}
+          resolvedSightings={resolvedSightings}
+          toggleFollowUpNeeded={toggleFollowUpNeeded}
+          toggleResolvedSightings={toggleResolvedSightings}
           clearFilters={clearFilters}
           active={active}
         />
@@ -162,8 +172,8 @@ function Divider() {
 /** Mobile-only bottom sheet with the same filter controls, opened from the
  *  "Filters" button up top once the screen is too narrow for inline chips. */
 function FiltersSheet({
-  onClose, selectedSpecies, selectedStatuses, selectedRisks,
-  toggleSpecies, toggleStatus, toggleRisk, clearFilters, active,
+  onClose, selectedSpecies, selectedStatuses, selectedRisks, followUpNeeded, resolvedSightings,
+  toggleSpecies, toggleStatus, toggleRisk, toggleFollowUpNeeded, toggleResolvedSightings, clearFilters, active,
 }: {
   onClose: () => void
   selectedSpecies: readonly string[]
@@ -172,6 +182,10 @@ function FiltersSheet({
   toggleSpecies: (id: string) => void
   toggleStatus: (s: SightingStatus) => void
   toggleRisk: (r: Risk) => void
+  followUpNeeded: boolean
+  resolvedSightings: boolean
+  toggleFollowUpNeeded: () => void
+  toggleResolvedSightings: () => void
   clearFilters: () => void
   active: number
 }) {
@@ -223,6 +237,12 @@ function FiltersSheet({
                 <FilterOption key={s.id} label={s.label} on={selectedStatuses.includes(s.id)} dot={s.dot}
                               onClick={() => toggleStatus(s.id)} />
             ))}
+            </div>
+          </FilterGroup>
+          <FilterGroup title="Follow-up" description="Find removal reports that need monitoring, or review resolved sightings.">
+            <div className="filter-option-grid filter-option-grid--status">
+              <FilterOption label="Follow-up needed" on={followUpNeeded} dot="#8B978F" onClick={toggleFollowUpNeeded} />
+              <FilterOption label="Resolved sightings" on={resolvedSightings} dot="#65736C" onClick={toggleResolvedSightings} />
             </div>
           </FilterGroup>
         </div>

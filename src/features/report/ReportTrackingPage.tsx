@@ -186,6 +186,7 @@ export function ReportTrackingPage() {
           &larr; Back
         </button>
         <p className="report-tracking__reference">Report {report.id.slice(0, 8)}</p>
+        {report.eventId && <p>Community-reported event evidence. Automated screening is not expert validation.</p>}
         <h1>{copy.title}</h1>
         <p>{copy.body}</p>
 

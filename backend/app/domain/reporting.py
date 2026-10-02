@@ -37,6 +37,8 @@ def report_submission(report: Report) -> ReportSubmissionDetails:
     hang onto its own copy of the request.
     """
     return ReportSubmissionDetails(
+        event_id=report.event_id,
+        captured_at=report.captured_at,
         photo_key=report.photo_key,
         species_id=report.species_id,
         outcome=report.outcome,
@@ -68,6 +70,8 @@ def report_response(
     not on the Report itself.
     """
     return ReportResponse(
+        event_id=str(report.event_id) if report.event_id else None,
+        evidence_label="community_reported" if report.event_id else None,
         id=str(report.id),
         status=report.status,
         created_at=report.created_at,

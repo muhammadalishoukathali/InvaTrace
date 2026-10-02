@@ -1179,6 +1179,51 @@ export const handlers = [
     return HttpResponse.json(response)
   }),
 
+  // Follow-ups are recorded as a new observation, rather than exposing the
+  // precise browser fix in the public sighting data. Keep this development
+  // contract aligned with the router's stricter 250 m gate.
+  http.post(url('/api/v1/sightings/:id/follow-up'), async ({ params, request }) => {
+    const session = sessionForRequest(request)
+    if (!session) return sessionUnavailable()
+    const sighting = SIGHTINGS.find((item) => item.id === params.id)
+    if (!sighting) return HttpResponse.json({ detail: 'Not found' }, { status: 404 })
+    if (sighting.status !== 'removal_reported' && sighting.followUpState !== 'needed') {
+      return HttpResponse.json({ code: 'follow_up_not_available', detail: 'A follow-up is not available for this sighting.' }, { status: 409 })
+    }
+    const body = await request.json() as {
+      latitude?: number; longitude?: number; accuracyM?: number; capturedAt?: string; outcome?: string
+    }
+    const capturedAt = typeof body.capturedAt === 'string' ? new Date(body.capturedAt) : null
+    if (!capturedAt || Number.isNaN(capturedAt.getTime()) || Math.abs(Date.now() - capturedAt.getTime()) > 5 * 60 * 1000) {
+      return HttpResponse.json({ code: 'follow_up_location_stale', detail: 'Use a fresh browser location before recording a follow-up.' }, { status: 422 })
+    }
+    if (typeof body.latitude !== 'number' || typeof body.longitude !== 'number'
+      || typeof body.accuracyM !== 'number' || body.accuracyM < 0 || body.accuracyM > 250) {
+      return HttpResponse.json({ code: 'follow_up_accuracy_too_low', detail: 'Location accuracy must be 250 metres or better.' }, { status: 422 })
+    }
+    if (!['no_regrowth', 'regrowth_present', 'unable_to_confirm'].includes(body.outcome ?? '')) {
+      return HttpResponse.json({ code: 'invalid_outcome', detail: 'Choose one follow-up outcome.' }, { status: 422 })
+    }
+    if (haversineMetres({ lat: body.latitude, lng: body.longitude }, sighting.location) > 250) {
+      return HttpResponse.json({ code: 'follow_up_too_far', detail: 'You must be within 250 metres of the reported plant.' }, { status: 422 })
+    }
+    const now = new Date().toISOString()
+    const outcome = body.outcome as 'no_regrowth' | 'regrowth_present' | 'unable_to_confirm'
+    const next = outcome === 'no_regrowth'
+      ? { status: 'resolved_after_follow_up' as const, followUpState: 'resolved' as const, eventType: 'followup_no_regrowth' as const }
+      : outcome === 'regrowth_present'
+        ? { status: 'screened' as const, followUpState: 'regrowth' as const, eventType: 'followup_regrowth' as const }
+        : { status: sighting.status, followUpState: 'needed' as const, eventType: 'followup_unable' as const }
+    sighting.status = next.status
+    sighting.followUpState = next.followUpState
+    sighting.lastFollowupAt = now
+    mockFollowUpHistory.set(sighting.id, [
+      ...(mockFollowUpHistory.get(sighting.id) ?? []),
+      { eventType: next.eventType, createdAt: now },
+    ])
+    return HttpResponse.json({ sightingId: sighting.id, outcome, followUpState: next.followUpState, lastFollowupAt: now }, { status: 201 })
+  }),
+
   // UT-10: withdraw an accidental published report. The sighting is flagged
   // 'withdrawn' (so it drops off the public map) but the report row and its
   // history are preserved - nothing is silently deleted.
@@ -1450,9 +1495,14 @@ export const handlers = [
     const speciesFilter = params.getAll('species')
     const statusFilter = params.getAll('status')
     const riskFilter = params.getAll('risk')
+    const followUp = params.get('follow_up') ?? 'any'
     const search = params.get('q')?.trim().toLowerCase() ?? ''
     // Withdrawn sightings are kept for audit but never shown on the public map.
     let items = SIGHTINGS.filter((s) => s.status !== 'withdrawn')
+    if (followUp === 'needed') items = items.filter((s) => s.followUpState === 'needed' || s.status === 'removal_reported')
+    else if (followUp === 'resolved') items = items.filter((s) => s.followUpState === 'resolved' || s.status === 'resolved_after_follow_up')
+    else if (followUp === 'regrowth') items = items.filter((s) => s.followUpState === 'regrowth')
+    else items = items.filter((s) => s.status !== 'resolved_after_follow_up')
     if (speciesFilter.length) items = items.filter((s) => speciesFilter.includes(s.speciesId))
     if (statusFilter.length) items = items.filter((s) => statusFilter.includes(s.status))
     if (riskFilter.length) items = items.filter((s) => riskFilter.includes(s.risk))
@@ -1470,6 +1520,7 @@ export const handlers = [
       reporterTrust: 'Trusted',
       actionGuide: raw.speciesId === 'mikania-micrantha' ? MOCK_ACTION_GUIDE : null,
       removalReportId: raw.status === 'screened' ? removalReportIdForSighting(raw.id) : null,
+      followUpHistory: mockFollowUpHistory.get(raw.id) ?? [],
     }
     return HttpResponse.json(detail)
   }),
@@ -1862,7 +1913,7 @@ const SEED: Omit<
   { id: 's-07', speciesId: 'eichhornia-crassipes', speciesName: 'Water hyacinth', latinName: 'Eichhornia crassipes', status: 'screened', risk: 'high', reportCount: 2 },
   { id: 's-08', speciesId: 'leucaena-leucocephala', speciesName: 'Leucaena', latinName: 'Leucaena leucocephala', status: 'screened', risk: 'high', reportCount: 3 },
   { id: 's-09', speciesId: 'leucaena-leucocephala', speciesName: 'Leucaena', latinName: 'Leucaena leucocephala', status: 'screened', risk: 'high', reportCount: 1 },
-  { id: 's-10', speciesId: 'mikania-micrantha', speciesName: 'Mikania micrantha', latinName: 'Mikania micrantha', status: 'removed', risk: 'high', reportCount: 2 },
+  { id: 's-10', speciesId: 'mikania-micrantha', speciesName: 'Mikania micrantha', latinName: 'Mikania micrantha', status: 'removal_reported', risk: 'high', reportCount: 2, followUpState: 'needed' },
 ]
 
 /** Just angular offsets from the centre point so the pins fan out around Bukit Kiara instead of stacking. */
@@ -1906,6 +1957,10 @@ const SIGHTINGS: Sighting[] = SEED.map((sighting, index) => {
     lastReportedAt: new Date(Date.now() - (index + 1) * 3600 * 1000).toISOString(),
   }
 })
+
+const mockFollowUpHistory = new Map<string, SightingDetail['followUpHistory']>([
+  ['s-10', [{ eventType: 'removal_reported', createdAt: '2026-09-20T08:00:00.000Z' }]],
+])
 
 const SIGHTING_SPECIES: Record<string, Pick<Sighting, 'speciesName' | 'latinName' | 'risk'>> = Object.fromEntries(
   approvedSpeciesDataset.records.map((species) => [

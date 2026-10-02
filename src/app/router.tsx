@@ -38,6 +38,15 @@ const PlacesPage = lazy(() => import('@/features/places/PlacesPage')
   .then((module) => ({ default: module.PlacesPage })))
 const PlaceDetailPage = lazy(() => import('@/features/places/PlaceDetailPage')
   .then((module) => ({ default: module.PlaceDetailPage })))
+const FollowUpPage = lazy(() => import('@/features/follow-up/FollowUpPage')
+  .then((module) => ({ default: module.FollowUpPage })))
+const EventsDiscoveryPage = lazy(() => import('@/features/events/EventsDiscoveryPage').then((module) => ({ default: module.EventsDiscoveryPage })))
+const EventDetailPage = lazy(() => import('@/features/events/EventDetailPage').then((module) => ({ default: module.EventDetailPage })))
+const EventCheckInPage = lazy(() => import('@/features/events/EventCheckInPage').then((module) => ({ default: module.EventCheckInPage })))
+const EventTaskPage = lazy(() => import('@/features/events/EventTaskPage').then((module) => ({ default: module.EventTaskPage })))
+const EventSummaryPage = lazy(() => import('@/features/events/EventSummaryPage').then((module) => ({ default: module.EventSummaryPage })))
+const HostEventPage = lazy(() => import('@/features/events/HostEventPage').then((module) => ({ default: module.HostEventPage })))
+const MyHostedEventsPage = lazy(() => import('@/features/events/MyHostedEventsPage').then((module) => ({ default: module.MyHostedEventsPage })))
 
 // small helper so I don't have to wrap every single lazy route in its own
 // Suspense manually - also means one slow chunk loading doesn't block AppShell
@@ -93,6 +102,15 @@ export const router = createBrowserRouter([
       { path: 'adopted-areas/:adoptionId/activity', element: loadRoute(<AdoptedAreaActivityPage />) },
       { path: 'places', element: loadRoute(<PlacesPage />) },
       { path: 'places/:placeId', element: loadRoute(<PlaceDetailPage />) },
+      { path: 'sightings/:sightingId/follow-up/*', element: loadRoute(<FollowUpPage />) },
+      { path: 'events', element: loadRoute(<EventsDiscoveryPage />) },
+      { path: 'events/mine', element: loadRoute(<MyHostedEventsPage />) },
+      { path: 'events/host', element: loadRoute(<HostEventPage />) },
+      { path: 'events/:eventId', element: loadRoute(<EventDetailPage />) },
+      { path: 'events/:eventId/edit', element: loadRoute(<HostEventPage />) },
+      { path: 'events/:eventId/check-in', element: loadRoute(<EventCheckInPage />) },
+      { path: 'events/:eventId/tasks', element: loadRoute(<EventTaskPage />) },
+      { path: 'events/:eventId/summary', element: loadRoute(<EventSummaryPage />) },
       { path: '*', element: <Navigate to="/map" replace /> },
     ],
   },

@@ -1,7 +1,8 @@
-import { useRef } from 'react'
+import { useRef, useState } from 'react'
 import { createPortal } from 'react-dom'
 import { Icon } from '@/components/Icon'
 import { useDialogA11y } from '@/hooks/useDialogA11y'
+import { canSubmitQueuedAsOrdinary, submitQueuedAsOrdinary } from '../report-queue'
 import type { QueuedReport } from '@/types'
 
 interface Props {
@@ -26,6 +27,13 @@ export function ReportQueueDrawer({
   queue, onClose, onRetry, onDiscard, flushing, activeProfileId,
 }: Props) {
   const dialogRef = useRef<HTMLElement>(null)
+  const [recovering, setRecovering] = useState<string | null>(null)
+  const [recoveryError, setRecoveryError] = useState<string | null>(null)
+  const recover = async (id: string) => {
+    if (!window.confirm('Submit this saved photo as an ordinary report, without linking it to the event?')) return
+    setRecovering(id); setRecoveryError(null)
+    try { await submitQueuedAsOrdinary(id) } catch { setRecoveryError('The saved report could not be recovered. Try again.') } finally { setRecovering(null) }
+  }
   useDialogA11y(dialogRef, onClose)
 
   return createPortal(
@@ -104,7 +112,8 @@ export function ReportQueueDrawer({
                   This report needs correction and will not retry automatically.
                 </div>
               )}
-              <button type="button" onClick={() => onDiscard(q.id)} style={{
+              {canSubmitQueuedAsOrdinary(q) && q.ownerProfileId === activeProfileId && <button type="button" disabled={flushing || recovering !== null} onClick={() => void recover(q.id)} style={{ minHeight: 44, marginTop: 8, padding: '8px 12px' }}>{recovering === q.id ? 'Submitting…' : 'Submit as ordinary report'}</button>}
+              <button type="button" disabled={recovering !== null} onClick={() => onDiscard(q.id)} style={{
                 marginTop: 8, border: 'none', background: 'transparent', padding: 0,
                 color: 'var(--red-text)', fontSize: 11.5, cursor: 'pointer',
               }}>
@@ -114,6 +123,7 @@ export function ReportQueueDrawer({
           ))}
         </ul>
 
+        {recoveryError && <p role="alert">{recoveryError}</p>}
         {queue.some((item) => item.ownerProfileId === activeProfileId && item.retryable !== false) && (
           <footer style={{
             padding: '14px max(14px, env(safe-area-inset-right)) max(14px, env(safe-area-inset-bottom)) max(14px, env(safe-area-inset-left))',
