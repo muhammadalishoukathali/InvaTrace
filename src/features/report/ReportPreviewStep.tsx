@@ -3,6 +3,7 @@ import { Icon } from '@/components/Icon'
 import { useReportDraft } from '@/features/report/report-draft-store'
 import { submitReport } from '@/features/report/report-queue'
 import { ReportNextButton } from './components/ReportNextButton'
+import { LOCATION_ACCURACY_MAX_M } from './gps-policy'
 
 const EXTENT_LABEL = {
   single: 'Single plant',
@@ -114,6 +115,16 @@ export function ReportPreviewStep() {
       <p style={{ fontSize: 11.5, color: 'var(--muted)', lineHeight: 1.55, marginTop: 4 }}>
         InvaTrace model {draft.modelVersion}
       </p>
+
+      {draft.locationAccuracyM != null && draft.locationAccuracyM > LOCATION_ACCURACY_MAX_M && (
+        <p role="note" style={{
+          margin: 0, padding: '10px 12px', borderRadius: 'var(--r-card)',
+          border: '1px solid var(--border)', background: 'var(--hover)',
+          color: 'var(--amber-text)', fontSize: 13, lineHeight: 1.5,
+        }}>
+          GPS accuracy is ±{draft.locationAccuracyM} m. Reports above {LOCATION_ACCURACY_MAX_M} m are sent back for a rescan - go back to Location and re-locate outdoors first.
+        </p>
+      )}
 
       <ReportNextButton
         disabled={!canSubmit}

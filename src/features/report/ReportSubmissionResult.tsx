@@ -4,6 +4,7 @@ import { useReportDraft } from '@/features/report/report-draft-store'
 import { useScan } from '@/features/scan/scan-store'
 import { api } from '@/services/api-client'
 import type { Report } from '@/types'
+import { humanizeReason, onlyLocationFailed } from './rescan-reasons'
 import './report-submission-result.css'
 
 /**
@@ -44,6 +45,9 @@ export function ReportSubmissionResult() {
   const [retainedReportId, setRetainedReportId] = useState<string | null>(
     initialReport?.retainedReportId ?? null,
   )
+  const [reasonCodes, setReasonCodes] = useState<string[]>(
+    initialReport?.validation?.reasonCodes ?? [],
+  )
   const reportId = initialReport?.id ?? null
   useEffect(() => {
     if (!reportId) return
@@ -56,6 +60,7 @@ export function ReportSubmissionResult() {
         setStatus(latest.status)
         setSightingId(latest.sightingId ?? null)
         setRetainedReportId(latest.retainedReportId ?? null)
+        setReasonCodes(latest.validation?.reasonCodes ?? [])
       } catch {
         // If this one poll fails we just leave the "still checking" wording
         // up rather than showing an error - the next interval tick retries.
@@ -136,13 +141,30 @@ export function ReportSubmissionResult() {
   }
 
   if (submitted && status === 'needs_rescan') {
+    const gpsOnly = onlyLocationFailed(reasonCodes)
     return (
       <main className="report-submission-result">
         <section className="report-submission-result__body" aria-live="polite">
-          <h1>A new scan is needed</h1>
-          <p>Automated screening could not accept this evidence. Capture a fresh photo and try again.</p>
+          <h1>{gpsOnly ? 'A better GPS fix is needed' : 'A new scan is needed'}</h1>
+          {reasonCodes.length > 0 ? (
+            <ul className="report-submission-result__reasons">
+              {reasonCodes.map((reason) => <li key={reason}>{humanizeReason(reason)}</li>)}
+            </ul>
+          ) : (
+            <p>Automated screening could not accept this evidence.</p>
+          )}
+          <p>
+            {gpsOnly
+              ? 'Your photo was fine. Move outdoors with a clear view of the sky, wait for the GPS accuracy to settle, then scan and report again.'
+              : 'Fix the issue above, then scan and report again.'}
+          </p>
           <div className="report-submission-result__actions">
             <button type="button" onClick={() => done('/scan')}>Scan again</button>
+            {trackingDestination && (
+              <button type="button" className="report-submission-result__secondary" onClick={() => done(trackingDestination)}>
+                View report
+              </button>
+            )}
           </div>
         </section>
       </main>

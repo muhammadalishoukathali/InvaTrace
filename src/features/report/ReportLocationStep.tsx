@@ -58,6 +58,8 @@ export function ReportLocationStep() {
     if (scanLoc) {
       setLocation(scanLoc.point, scanLoc.accuracyM)
       setStatus('located')
+      // A coarse scan fix would be sent back by screening, so try once for a sharper one.
+      if (scanLoc.accuracyM == null || scanLoc.accuracyM > LOCATION_ACCURACY_MAX_M) requestGeolocation()
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [scanLoc])
@@ -91,10 +93,9 @@ export function ReportLocationStep() {
   // One of the ACs was clear that there's no hard accuracy cutoff for
   // submitting - we only require a real, non-negative accuracy number and a
   // coordinate that's actually inside Malaysia. The accuracy threshold from
-  // gps-policy.ts is only used as a soft warning below; we never block on it
-  // client-side. If the user submits anyway with a bad fix, the server will
-  // still bounce it back as needs_rescan with the same message, so nothing
-  // gets silently accepted.
+  // gps-policy.ts is only used as a warning below; we never block on it
+  // client-side. A fix above it will come back as needs_rescan, so the
+  // warning says so plainly rather than implying the report will publish.
   const hasFiniteAccuracy = accuracy !== null && Number.isFinite(accuracy) && accuracy >= 0
   const withinMalaysia = inMalaysia(loc)
   const canProceed = !!loc && hasFiniteAccuracy && withinMalaysia
@@ -155,8 +156,8 @@ export function ReportLocationStep() {
         {loc && accuracyWarning && (
           <div style={{ marginTop: 12 }}>
             <Row icon="AlertTriangle" tint="var(--amber)"
-                 title="Location fix is approximate"
-                 body={`Reported accuracy is above ${LOCATION_ACCURACY_MAX_M} m. You can still submit, but a fresh fix in an open area will give reviewers a more useful location.`} />
+                 title={`GPS accuracy is worse than ${LOCATION_ACCURACY_MAX_M} m`}
+                 body={`Automated screening sends reports with accuracy above ${LOCATION_ACCURACY_MAX_M} m back for a rescan. Move outdoors with a clear view of the sky, then tap "Re-locate me" until the accuracy is ${LOCATION_ACCURACY_MAX_M} m or better.`} />
           </div>
         )}
 
