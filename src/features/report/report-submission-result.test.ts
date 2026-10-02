@@ -42,3 +42,20 @@ describe('ReportSubmissionResult merged branch', () => {
     expect(branch).toContain('Community report - not expert validated')
   })
 })
+
+describe('ReportSubmissionResult needs_rescan branch', () => {
+  const branch = SOURCE.slice(
+    SOURCE.indexOf("status === 'needs_rescan'"),
+    SOURCE.indexOf("status === 'rejected'"),
+  )
+
+  it('shows the server reason codes instead of a generic message', () => {
+    expect(SOURCE).toContain('latest.validation?.reasonCodes')
+    expect(branch).toContain('humanizeReason(reason)')
+  })
+
+  it('does not blame the photo when only GPS accuracy failed', () => {
+    expect(branch).toContain('onlyLocationFailed(reasonCodes)')
+    expect(branch).toContain('Your photo was fine')
+  })
+})

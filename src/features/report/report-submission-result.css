@@ -76,3 +76,15 @@
 @media (prefers-reduced-motion: reduce) {
   .report-submission-result__actions button { transition: none; }
 }
+
+.report-submission-result__reasons {
+  margin: 16px 0 0;
+  padding: 12px 14px 12px 32px;
+  border: 1px solid var(--border);
+  border-radius: var(--r-card);
+  background: var(--hover);
+  color: var(--ink);
+  font-size: 14px;
+  font-weight: 600;
+  line-height: 1.55;
+}
