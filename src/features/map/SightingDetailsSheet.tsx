@@ -11,6 +11,7 @@ import { PlantGuidancePanel } from '@/features/scan/PlantGuidancePanel'
 import { findPlantGuidance } from '@/data/plant-guidance'
 import { findModelSpecies, modelReferenceImageUrl } from '@/data/model-species-catalogue'
 import { usePrivateAccess } from '@/features/private-access/private-access-store'
+import { REMOVAL_MAX_M } from '@/features/report/gps-policy'
 import type { RemovalReportResponse, SightingDetail } from '@/types'
 import './sighting-details.css'
 
@@ -221,7 +222,7 @@ export function SightingDetailsSheet() {
                       <h3 id="sighting-removal-heading">Confirm removal report</h3>
                       <p>
                         This is community-reported, not expert verification. The browser is requesting
-                        a fresh location. It must be accurate to 250 m or better and within 250 m of the marker.
+                        a fresh location. It must be accurate to {REMOVAL_MAX_M} m or better and within {REMOVAL_MAX_M} m of the marker.
                       </p>
                       {!removalFix && !removalLocationError && (
                         <p role="status">Requesting a fresh device location…</p>
@@ -229,7 +230,7 @@ export function SightingDetailsSheet() {
                       {removalFix && (
                         <div className="pin-sheet__removal-fix" role="status">
                           <strong>Measured accuracy: ±{removalFix.accuracyM} m</strong>
-                          {removalFix.accuracyM <= 250 ? (
+                          {removalFix.accuracyM <= REMOVAL_MAX_M ? (
                             <button
                               type="button"
                               onClick={() => removal.mutate(removalFix)}
@@ -239,7 +240,7 @@ export function SightingDetailsSheet() {
                             </button>
                           ) : (
                             <>
-                              <span role="alert">Accuracy is above 250 m. Request a new fix.</span>
+                              <span role="alert">Accuracy is above {REMOVAL_MAX_M} m. Request a new fix.</span>
                               <button type="button" onClick={captureRemovalLocation}>Request a new location</button>
                             </>
                           )}
@@ -411,11 +412,11 @@ function formatTime(iso: string): string {
 
 function publicRemovalError(error: Error | null): string {
   if (error instanceof ApiError) {
-    if (error.code === 'removal_too_far') return 'You are more than 250 metres from the marker.'
-    if (error.code === 'outside_removal_radius') return 'You are more than 250 metres from the marker.'
-    if (error.code === 'removal_accuracy_too_low') return 'Location accuracy must be 250 metres or better.'
+    if (error.code === 'removal_too_far') return `You are more than ${REMOVAL_MAX_M} metres from the marker.`
+    if (error.code === 'outside_removal_radius') return `You are more than ${REMOVAL_MAX_M} metres from the marker.`
+    if (error.code === 'removal_accuracy_too_low') return `Location accuracy must be ${REMOVAL_MAX_M} metres or better.`
     if (error.code === 'removal_location_stale') return 'The location fix expired. Request a fresh location.'
-    if (error.code === 'fresh_location_required') return 'Request a fresh location with accuracy of 250 metres or better.'
+    if (error.code === 'fresh_location_required') return `Request a fresh location with accuracy of ${REMOVAL_MAX_M} metres or better.`
     if (error.code === 'removal_not_available') return 'This sighting cannot be marked as removed.'
   }
   return 'The removal report could not be submitted. Check the connection and try again.'

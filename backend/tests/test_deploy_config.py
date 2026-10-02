@@ -16,7 +16,7 @@ deployment:
      collapses to one shared bucket across the platform.
   4. Duplicate detection stays on in prod - the dev-only kill switch
      must not silently follow a rebased branch to production.
-  5. The single 250 m GPS policy is pinned explicitly at the platform
+  5. The single 350 m GPS policy is pinned explicitly at the platform
      level so a config drift is visible in code review, not surfaced by
      a rescan whose threshold does not match anything in the UI.
   6. Static frontend headers: long-lived `Cache-Control` on hashed
@@ -60,8 +60,8 @@ def test_render_yaml_no_paid_predeploy_command_for_free_plan_backend() -> None:
 
 def test_render_yaml_declares_the_gps_and_dedup_policy_env_vars_explicitly() -> None:
     render = _read("render.yaml")
-    assert 'key: SCREENING_LOCATION_ACCURACY_MAX_M\n        value: "250"' in render, (
-        "The single 250 m GPS policy must be pinned explicitly at deploy time"
+    assert 'key: SCREENING_LOCATION_ACCURACY_MAX_M\n        value: "350"' in render, (
+        "The single 350 m GPS policy must be pinned explicitly at deploy time"
         " so a config drift is caught in review, not by a surprise rescan."
     )
     # The kill switch is normally forced off in prod (AC Iteration 1 P4). It is

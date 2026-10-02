@@ -26,7 +26,7 @@ ValidationStatus = Literal["screened", "merged", "needs_rescan", "rejected"]
 # constant so a caller that constructs ValidationInput without an explicit
 # threshold still gets the canonical policy, and the frontend can import the
 # same number via the settings endpoint without drifting.
-DEFAULT_LOCATION_ACCURACY_MAX_M = 250
+DEFAULT_LOCATION_ACCURACY_MAX_M = 350
 
 
 @dataclass(frozen=True)

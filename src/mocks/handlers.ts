@@ -10,6 +10,7 @@
 //
 // Kept in one file because the state is shared across endpoints and splitting it
 // meant passing the same maps around everywhere.
+import { REMOVAL_MAX_M } from '@/features/report/gps-policy'
 import { http, HttpResponse, passthrough, type JsonBodyType } from 'msw'
 import type {
   AppNotification, Report, ReportSubmission, Sighting,
@@ -68,7 +69,7 @@ const MOCK_HASH_PEPPER = 'development-only-invatrace-mock-pepper'
 // same rules so dev/UI paths for rejected + needs_rescan reports are
 // exercised without a live backend.
 export const MSW_POLICY_VERSION = 'deterministic-rules-v1.0'
-export const MSW_LOCATION_ACCURACY_MAX_M = 250
+export const MSW_LOCATION_ACCURACY_MAX_M = 350
 // Same default set as backend/app/config.py::e1_model_versions. The mocked
 // /api/v1/model-config endpoint below returns the primary; the backend also
 // accepts submissions tagged with the retained secondary while any client
@@ -1144,12 +1145,12 @@ export const handlers = [
     }
     const capturedAt = typeof body.capturedAt === 'string' ? new Date(body.capturedAt) : null
     if (typeof body.latitude !== 'number' || typeof body.longitude !== 'number'
-      || typeof body.accuracyM !== 'number' || body.accuracyM > 250 || body.accuracyM < 0
+      || typeof body.accuracyM !== 'number' || body.accuracyM > REMOVAL_MAX_M || body.accuracyM < 0
       || !capturedAt || Number.isNaN(capturedAt.getTime())
       || Math.abs(Date.now() - capturedAt.getTime()) > 5 * 60 * 1000) {
       return HttpResponse.json({
         code: 'fresh_location_required',
-        detail: 'Use a fresh location with accuracy of 250 m or better, then confirm the removal report.',
+        detail: `Use a fresh location with accuracy of ${REMOVAL_MAX_M} m or better, then confirm the removal report.`,
       }, { status: 422 })
     }
     const sighting = SIGHTINGS.find((item) => item.id === report.sightingId)
@@ -1158,10 +1159,10 @@ export const handlers = [
       { lat: body.latitude, lng: body.longitude },
       sighting.location,
     )
-    if (distanceM > 250) {
+    if (distanceM > REMOVAL_MAX_M) {
       return HttpResponse.json({
         code: 'outside_removal_radius',
-        detail: 'You must be within 250 m of the original sighting to report removal.',
+        detail: `You must be within ${REMOVAL_MAX_M} m of the original sighting to report removal.`,
       }, { status: 422 })
     }
     const response = {

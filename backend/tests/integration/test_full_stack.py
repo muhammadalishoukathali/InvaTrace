@@ -582,7 +582,7 @@ def test_scan_report_publish_sighting_end_to_end() -> None:
             )
         ).json()
         assert removal["status"] == "removal_reported"
-        assert removal["distanceM"] <= 250
+        assert removal["distanceM"] <= 350
 
         repeated = assert_ok(
             client.post(

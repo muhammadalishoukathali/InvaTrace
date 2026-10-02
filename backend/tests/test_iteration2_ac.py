@@ -129,12 +129,12 @@ def test_removal_distance_gate_uses_metres() -> None:
     assert outside > 250
 
 
-def test_removal_location_accepts_250_and_rejects_250_001_accuracy() -> None:
+def test_removal_location_accepts_350_and_rejects_350_001_accuracy() -> None:
     now = datetime(2026, 9, 13, 0, 0, tzinfo=UTC)
     assert (
         _validate_removal_location(
             captured_at=now - timedelta(minutes=5),
-            accuracy_m=250,
+            accuracy_m=350,
             latitude=3.14,
             longitude=101.69,
             sighting_latitude=3.14,
@@ -146,7 +146,7 @@ def test_removal_location_accepts_250_and_rejects_250_001_accuracy() -> None:
     with pytest.raises(ApiProblem) as raised:
         _validate_removal_location(
             captured_at=now,
-            accuracy_m=250.001,
+            accuracy_m=350.001,
             latitude=3.14,
             longitude=101.69,
             sighting_latitude=3.14,
@@ -156,20 +156,20 @@ def test_removal_location_accepts_250_and_rejects_250_001_accuracy() -> None:
     assert raised.value.code == "removal_accuracy_too_low"
 
 
-def test_removal_location_rejects_more_than_250m_without_rounding() -> None:
+def test_removal_location_rejects_more_than_350m_without_rounding() -> None:
     now = datetime(2026, 9, 13, 0, 0, tzinfo=UTC)
     radius_m = 6_371_008.8
-    longitude_delta = math.degrees(250 / (radius_m * math.cos(math.radians(3.14))))
+    longitude_delta = math.degrees(350 / (radius_m * math.cos(math.radians(3.14))))
     accepted = _validate_removal_location(
         captured_at=now,
         accuracy_m=10,
         latitude=3.14,
-        longitude=101.69 + longitude_delta,
+        longitude=101.69 + longitude_delta * (1 - 1e-9),
         sighting_latitude=3.14,
         sighting_longitude=101.69,
         now=now,
     )
-    assert math.isclose(accepted, 250, abs_tol=0.001)
+    assert math.isclose(accepted, 350, abs_tol=0.001)
     with pytest.raises(ApiProblem) as raised:
         _validate_removal_location(
             captured_at=now,

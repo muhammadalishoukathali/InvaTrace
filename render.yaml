@@ -101,7 +101,7 @@ services:
       # than surprising a reporter with a rescan whose threshold is not
       # documented in the app UI.
       - key: SCREENING_LOCATION_ACCURACY_MAX_M
-        value: "250"
+        value: "350"
       # AC Iteration 1 P4 - duplicate detection normally stays on in prod.
       # Explicit so an operator toggling it in a dev env cannot leak the
       # flag through a rebased branch.
