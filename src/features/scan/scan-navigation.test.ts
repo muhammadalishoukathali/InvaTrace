@@ -17,5 +17,15 @@ describe('scan navigation', () => {
     expect(scanStateFromPath('/map')).toEqual({ returnTo: '/map' })
     expect(scanReturnPath(null)).toBe('/map')
     expect(scanReturnPath({ returnTo: '/private-access' })).toBe('/map')
+    for (const returnTo of ['https://example.com', '//example.com', '/events/../profile', '/events/a?redirect=external', '/scan']) {
+      expect(scanReturnPath({ returnTo })).toBe('/map')
+    }
+  })
+
+  it('preserves catalogue, place, monitoring and event task origins', () => {
+    for (const pathname of ['/catalogue', '/catalogue/mikania-micrantha', '/places/place-1', '/adopted-areas/adoption-1/activity', '/events', '/events/event-1/tasks']) {
+      expect(scanStateFromPath(pathname)).toEqual({ returnTo: pathname })
+      expect(scanReturnPath({ returnTo: pathname })).toBe(pathname)
+    }
   })
 })

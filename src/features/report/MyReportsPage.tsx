@@ -1,3 +1,4 @@
+import { ENGLISH_LOCALE } from '@/utils/date-time'
 // The user's own report history at /reports. Unlike the map, this shows the
 // private view: reports that are still being screened, ones that were rejected,
 // and ones that got merged into an existing sighting.
@@ -36,7 +37,7 @@ function relativeDate(iso: string): string {
   if (days <= 0) return 'Today'
   if (days === 1) return 'Yesterday'
   if (days < 7) return `${days} days ago`
-  return new Intl.DateTimeFormat(undefined, { day: 'numeric', month: 'short', year: 'numeric' }).format(new Date(iso))
+  return new Intl.DateTimeFormat(ENGLISH_LOCALE, { day: 'numeric', month: 'short', year: 'numeric' }).format(new Date(iso))
 }
 
 function shortId(id: string): string {

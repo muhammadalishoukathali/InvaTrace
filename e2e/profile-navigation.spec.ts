@@ -3,6 +3,34 @@
 // management, which are easy to break silently during a routing refactor.
 import { expect, test } from '@playwright/test'
 
+test('a failed page download can be left and retried after reconnecting', async ({ page, context }) => {
+  await page.goto('/private-access')
+  await page.getByRole('button', { name: 'Start privately' }).click()
+  await page.getByRole('checkbox', { name: 'I have saved my recovery kit' }).check()
+  await page.getByRole('button', { name: 'Continue', exact: true }).click()
+  await expect(page).toHaveURL(/\/map$/)
+
+  let failDownload = true
+  // The mock service worker forwards module requests, so interception must
+  // cover the worker's request as well as the page's request.
+  await context.route('**/src/features/events/EventsDiscoveryPage.tsx*', route => {
+    if (failDownload) { failDownload = false; return route.abort('failed') }
+    return route.continue()
+  })
+  await page.getByRole('link', { name: 'Community events', exact: true }).click()
+  await expect(page.getByRole('alert')).toContainText('This page could not load')
+  await expect(page.getByRole('alert')).not.toContainText('dynamically imported module')
+
+  await page.getByRole('link', { name: 'Threat map', exact: true }).click()
+  await expect(page.locator('.map-controls-cluster')).toBeVisible()
+  await expect(page.getByRole('heading', { name: 'Something went wrong' })).toHaveCount(0)
+
+  await page.getByRole('link', { name: 'Community events', exact: true }).click()
+  await page.getByRole('button', { name: 'Try again', exact: true }).click()
+  await expect(page.locator('.event-filter')).toBeVisible()
+  await expect(page.getByRole('heading', { name: 'Something went wrong' })).toHaveCount(0)
+})
+
 // Regression test for a back-button trap: profile -> records -> back should
 // land somewhere other than profile, not just bounce the user in a loop.
 test('leaving profile for records does not trap Back between the two pages', async ({ page }) => {

@@ -6,6 +6,7 @@ import { usePrivateAccess } from '@/features/private-access/private-access-store
 import { eventContextStore, useEventContext } from './event-context'
 import { State } from './EventsDiscoveryPage'
 import { eventTypeGuidance } from './event-types'
+import { scanStateFromPath } from '@/features/scan/scan-navigation'
 
 export function EventTaskPage() {
   const { eventId = '' } = useParams()
@@ -25,5 +26,5 @@ export function EventTaskPage() {
   if (!event.data) return <State error text="This event is unavailable." />
   if (event.data.status !== 'published' || event.data.hidden || Date.now() > Date.parse(event.data.endAt)) return <section className="events-page event-work"><h1>This event has ended or is unavailable</h1><p>You can still submit previously captured scans within the upload window from your saved scan.</p><Link to={`/events/${eventId}`}>Back to event</Link></section>
   if (active?.eventId !== eventId && !event.data.lastCheckinAt) return <section className="events-page event-work"><h1>Check-in needed</h1><p>Check in with a fresh location before starting event tasks.</p><Link className="event-primary" to={`/events/${eventId}/check-in`}>Check in</Link></section>
-  return <section className="events-page event-work"><h1>{event.data.title}</h1><p>{eventTypeGuidance[event.data.eventType]}</p><section className="event-notice"><strong>Before you scan</strong><p>Record only what you observe. A scan stays on your device until you explicitly submit a report.</p></section><Link className="event-primary" to="/scan">Start scan</Link></section>
+  return <section className="events-page event-work"><Link className="back-link" to={`/events/${eventId}`}>Back to event</Link><h1>{event.data.title}</h1><p>{eventTypeGuidance[event.data.eventType]}</p><section className="event-notice"><strong>Before you scan</strong><p>Record only what you observe. A scan stays on your device until you explicitly submit a report.</p></section><Link className="event-primary" to="/scan" state={scanStateFromPath(`/events/${eventId}/tasks`)}>Start scan</Link></section>
 }

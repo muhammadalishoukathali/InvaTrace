@@ -1,3 +1,4 @@
+import { ENGLISH_LOCALE } from '@/utils/date-time'
 import { Link } from 'react-router-dom'
 import type { CommunityEvent } from '@/services/api/events'
 import { eventTypeLabels } from './event-types'
@@ -9,4 +10,4 @@ export function EventCard({ event }: { event: CommunityEvent }) {
     <Link to={`/events/${event.id}`}>View event</Link>
   </article>
 }
-export const formatTime = (value: string) => new Intl.DateTimeFormat(undefined, { dateStyle: 'medium', timeStyle: 'short' }).format(new Date(value))
+export const formatTime = (value: string) => new Intl.DateTimeFormat(ENGLISH_LOCALE, { dateStyle: 'medium', timeStyle: 'short' }).format(new Date(value))

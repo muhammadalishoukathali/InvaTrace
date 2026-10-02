@@ -1,3 +1,4 @@
+import { ENGLISH_LOCALE } from '@/utils/date-time'
 // The plant catalogue list at /catalogue. This is the one screen that has to
 // keep working with no signal at all, because the whole point of it is that a
 // volunteer out on a trail can still look up what a plant is. The species data
@@ -53,14 +54,14 @@ export function CataloguePage() {
   // a CDN re-encoding the reference images, which the detail line names.
   const [packError, setPackError] = useState<string | null>(null)
   const [serverManifest, setServerManifest] = useState<CatalogueManifest | null>(null)
-  const normalized = query.trim().toLocaleLowerCase()
+  const normalized = query.trim().toLowerCase()
   const availableManifest = serverManifest ?? catalogueManifest
   const latestVersion = availableManifest.catalogue_version
   const updateAvailable = Boolean(installed && isNewerVersion(latestVersion, installed.version))
   const records = useMemo(() => dataset.records.filter((record) => (
     !normalized
-    || record.scientific_name.toLocaleLowerCase().includes(normalized)
-    || record.common_names.some((name) => name.toLocaleLowerCase().includes(normalized))
+    || record.scientific_name.toLowerCase().includes(normalized)
+    || record.common_names.some((name) => name.toLowerCase().includes(normalized))
   )), [dataset.records, normalized])
 
   useEffect(() => {
@@ -236,7 +237,7 @@ export function CataloguePage() {
   )
 }
 
-const formatDate = (value: string) => new Intl.DateTimeFormat(undefined, { dateStyle: 'medium' })
+const formatDate = (value: string) => new Intl.DateTimeFormat(ENGLISH_LOCALE, { dateStyle: 'medium' })
   .format(new Date(`${value}T00:00:00Z`))
 
 function isNewerVersion(candidate: string, current: string): boolean {

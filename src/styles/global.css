@@ -59,6 +59,7 @@ input, textarea { caret-color: var(--green); }
 * { scrollbar-color: var(--control-border) var(--bg-alt); scrollbar-width: thin; }
 
 button, input, textarea, select { font: inherit; color: inherit; }
+input, textarea, select { min-width: 0; max-width: 100%; }
 button:disabled, input:disabled { opacity: 0.6; cursor: not-allowed; }
 
 :focus-visible {
@@ -261,10 +262,13 @@ a, button, [role='button'], [role='link'] {
 @media (prefers-reduced-motion: reduce) {
   /* Remove movement for users who enable reduced motion in their system settings. */
   *, *::before, *::after {
-    animation-duration: 0.01ms !important;
-    animation-iteration-count: 1 !important;
-    transition-duration: 0.01ms !important;
+    animation: none !important;
+    transition: none !important;
     scroll-behavior: auto !important;
   }
-  .invatrace-skeleton { animation-duration: 1.2s !important; }
+  button:not(:disabled):active, a[href]:active { transform: none; }
+}
+
+@media (max-width: 899.98px) and (max-height: 500px) {
+  :root { --mobile-nav-clearance: calc(82px + env(safe-area-inset-bottom)); }
 }

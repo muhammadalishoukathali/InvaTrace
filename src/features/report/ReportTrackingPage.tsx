@@ -1,5 +1,6 @@
+import { ENGLISH_LOCALE } from '@/utils/date-time'
 import { useState } from 'react'
-import { useMutation, useQuery } from '@tanstack/react-query'
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { Link, useNavigate, useParams } from 'react-router-dom'
 import { api, ApiError } from '@/services/api-client'
 import type { PlaceDetail, RemovalReportResponse, Report, ReportStatus, SightingDetail, WithdrawalReportResponse } from '@/types'
@@ -49,15 +50,10 @@ const COPY: Record<ReportStatus, { title: string; body: string }> = {
  * happens asynchronously on the backend.
  */
 export function ReportTrackingPage() {
+  const queryClient = useQueryClient()
   const { reportId } = useParams()
   const navigate = useNavigate()
-  const goBack = () => {
-    // If this page was opened straight from a notification, browser history
-    // might just be one entry deep, so navigate(-1) could bounce the user
-    // right out of the app. We fall back to the records list instead.
-    if (window.history.length > 1) navigate(-1)
-    else navigate('/reports')
-  }
+  const goBack = () => navigate('/reports')
   const profileId = usePrivateAccess((state) => state.profile?.id ?? null)
   const [removalFix, setRemovalFix] = useState<{
     latitude: number
@@ -93,7 +89,7 @@ export function ReportTrackingPage() {
         body: JSON.stringify(fix),
       },
     ),
-    onSuccess: () => void sighting.refetch(),
+    onSuccess: () => { void sighting.refetch(); void queryClient.invalidateQueries({ queryKey: ['sightings'] }) },
   })
   // UT-10: a controlled way to withdraw an accidental *published* report. It
   // removes the sighting from the public map but keeps the report and its audit
@@ -103,7 +99,7 @@ export function ReportTrackingPage() {
       `/api/v1/reports/${reportId}/withdrawal`,
       { method: 'POST', body: JSON.stringify({ reason }) },
     ),
-    onSuccess: () => { void sighting.refetch(); void query.refetch() },
+    onSuccess: () => { void sighting.refetch(); void query.refetch(); void queryClient.invalidateQueries({ queryKey: ['sightings'] }); void queryClient.invalidateQueries({ queryKey: ['my-reports'] }) },
   })
   const adoptionPlace = useQuery({
     queryKey: ['report-adoption-place', reportId, query.data?.submission.location],
@@ -121,6 +117,7 @@ export function ReportTrackingPage() {
       '/api/v1/adopted-areas',
       { method: 'POST', body: JSON.stringify({ placeId }) },
     ),
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ['adopted-areas'] }),
   })
 
   const captureRemovalLocation = () => {
@@ -351,7 +348,7 @@ export function ReportTrackingPage() {
   )
 }
 
-const formatSubmittedAt = (value: string) => new Intl.DateTimeFormat(undefined, {
+const formatSubmittedAt = (value: string) => new Intl.DateTimeFormat(ENGLISH_LOCALE, {
   dateStyle: 'medium',
   timeStyle: 'short',
 }).format(new Date(value))

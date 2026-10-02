@@ -235,7 +235,7 @@
 
 .recovery-setup { width: min(520px, 100%); margin: 0 auto; display: grid; gap: 16px; }
 .recovery-setup__head { display: grid; gap: 4px; margin-bottom: 4px; }
-.recovery-setup h1 { max-width: none; font-size: clamp(19px, 5.4vw, 22px); line-height: 1.15; letter-spacing: -0.01em; margin: 0; white-space: nowrap; text-wrap: nowrap; }
+.recovery-setup h1 { max-width: none; font-size: clamp(19px, 5.4vw, 22px); line-height: 1.15; letter-spacing: -0.01em; margin: 0; text-wrap: balance; }
 .recovery-setup__eyebrow {
   align-self: start;
   color: var(--muted);
@@ -285,7 +285,7 @@
 }
 .recovery-card__value--mono { font-size: 15px; line-height: 1.45; }
 .recovery-card__actions { display: flex; gap: 6px; flex-wrap: wrap; }
-.recovery-card__actions .access-button { min-height: 36px; padding: 6px 12px; font-size: 13px; }
+.recovery-card__actions .access-button { min-height: 44px; padding: 6px 12px; font-size: 13px; }
 .recovery-card__editor { display: grid; gap: 10px; padding-top: 4px; border-top: 1px dashed var(--border); }
 .recovery-card__editor-actions { display: flex; gap: 8px; }
 
@@ -399,7 +399,7 @@
 .access-name-edit {
   width: 36px;
   height: 36px;
-  flex: 0 0 36px;
+  flex: 0 0 44px;
   display: grid;
   place-items: center;
   border: 1px solid transparent;
@@ -560,7 +560,9 @@
   .access-profile-summary__avatar { width: 48px; height: 48px; border-radius: 14px; }
   .access-profile-summary__identity h2 { font-size: 21px; }
   .access-profile-summary > .access-link-button { grid-column: 1 / -1; grid-row: auto; justify-self: stretch; margin-top: 18px; }
-  .profile-id-row { align-items: flex-end; }
+  .profile-id-row { align-items: stretch; flex-wrap: wrap; gap: 10px; }
+  .profile-id-row > div { flex: 1 0 100%; }
+  .profile-id-row > .access-button { flex: 1; padding-inline: 10px; }
   .profile-id-row code { font-size: 12px; }
   .recovery-status-row { grid-template-columns: 28px minmax(0, 1fr); }
   .recovery-status-row .access-button { grid-column: 2; justify-self: start; }
@@ -585,3 +587,6 @@
 @media (prefers-reduced-motion: reduce) {
   .access-button, .access-link-button { transition: none; }
 }
+
+.profile-id-editor { display: grid; gap: 12px; margin-top: 16px; }
+.profile-id-editor__actions { display: flex; flex-wrap: wrap; gap: 8px; }

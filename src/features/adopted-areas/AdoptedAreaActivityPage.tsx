@@ -1,3 +1,4 @@
+import { ENGLISH_LOCALE } from '@/utils/date-time'
 // Activity feed for one adopted area: what has been reported inside it lately,
 // with a small map showing where.
 //
@@ -230,5 +231,5 @@ function geometryBounds(geometry: GeoJSON.Geometry): maplibregl.LngLatBounds | n
   return bounds
 }
 
-const formatDate = (value: string) => new Intl.DateTimeFormat(undefined, { dateStyle: 'medium' })
+const formatDate = (value: string) => new Intl.DateTimeFormat(ENGLISH_LOCALE, { dateStyle: 'medium' })
   .format(new Date(value))

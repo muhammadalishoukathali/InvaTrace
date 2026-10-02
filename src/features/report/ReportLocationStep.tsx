@@ -1,3 +1,4 @@
+import { ENGLISH_LOCALE } from '@/utils/date-time'
 import { useEffect, useState } from 'react'
 import { useQuery } from '@tanstack/react-query'
 import { useLocation, useNavigate } from 'react-router-dom'
@@ -241,7 +242,7 @@ function contextTitle(context: ProtectedLocationContext): string {
   return 'Boundary unavailable or uncertain'
 }
 
-const formatBoundaryDate = (value: string) => new Intl.DateTimeFormat(undefined, { dateStyle: 'medium' })
+const formatBoundaryDate = (value: string) => new Intl.DateTimeFormat(ENGLISH_LOCALE, { dateStyle: 'medium' })
   .format(new Date(value))
 
 function Row({ icon, tint, title, body }: { icon: string; tint: string; title: string; body: string }) {

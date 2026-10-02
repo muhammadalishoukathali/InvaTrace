@@ -25,7 +25,7 @@ export function PlacesPage() {
     queryFn: () => api<{ items: PlaceSummary[] }>('/api/v1/places'),
     enabled: online,
   })
-  const normalized = search.trim().toLocaleLowerCase()
+  const normalized = search.trim().toLowerCase()
   // Presentation-safe filter: only parks, forests and woodlands surface in
   // Browse. Applied before the search filter so trail rows never appear.
   const publicItems = useMemo(
@@ -34,8 +34,8 @@ export function PlacesPage() {
   )
   const places = useMemo(() => publicItems.filter((place) => (
     !normalized
-    || place.displayName.toLocaleLowerCase().includes(normalized)
-    || place.placeType.toLocaleLowerCase().includes(normalized)
+    || place.displayName.toLowerCase().includes(normalized)
+    || place.placeType.toLowerCase().includes(normalized)
   )), [normalized, publicItems])
   if (!online) {
     return (

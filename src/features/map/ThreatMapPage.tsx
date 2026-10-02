@@ -1,3 +1,4 @@
+import { ENGLISH_LOCALE } from '@/utils/date-time'
 /**
  * This is the main map screen at `/map`. After a user scans a plant (or if
  * they just want to browse), they end up here and can see every community
@@ -767,7 +768,7 @@ export function ThreatMapPage() {
               : placesError
                 ? 'Mapped places could not load for this view.'
                 : placeData.truncated
-                  ? `Showing the first ${placeData.maxResults.toLocaleString()} places in this view. Zoom in for complete results.`
+                  ? `Showing the first ${placeData.maxResults.toLocaleString(ENGLISH_LOCALE)} places in this view. Zoom in for complete results.`
                   // An empty result is not the same as a broken map. Say the
                   // area simply has no mapped evidence so it doesn't read as a
                   // failure (UT-08).
@@ -939,7 +940,7 @@ function SavedRecordFact({ label, value, mono = false }: {
 }
 
 function formatSavedRecordTime(iso: string): string {
-  return new Intl.DateTimeFormat(undefined, {
+  return new Intl.DateTimeFormat(ENGLISH_LOCALE, {
     dateStyle: 'medium',
     timeStyle: 'short',
   }).format(new Date(iso))
@@ -1191,5 +1192,5 @@ function pinElement(s: Sighting): HTMLElement {
 }
 
 function formatStatusDate(value: string): string {
-  return new Intl.DateTimeFormat(undefined, { dateStyle: 'medium' }).format(new Date(value))
+  return new Intl.DateTimeFormat(ENGLISH_LOCALE, { dateStyle: 'medium' }).format(new Date(value))
 }

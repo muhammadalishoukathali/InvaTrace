@@ -40,7 +40,7 @@
 .catalogue-offline-notice { margin-top: 18px; padding: 12px 14px; border: 1px solid var(--amber-border); border-radius: var(--r-card); background: var(--amber-light); display: grid; gap: 3px; color: var(--amber-text); font-size: 12.5px; }
 .catalogue-pack button,
 .catalogue-empty button {
-  min-height: 38px;
+  min-height: 44px;
   width: fit-content;
   margin-top: 6px;
   padding: 0 12px;
@@ -64,8 +64,8 @@
   gap: 10px;
 }
 .catalogue-search:focus-within { border-color: var(--green); box-shadow: 0 0 0 3px var(--green-light); }
-.catalogue-search input { flex: 1; min-width: 0; border: 0; outline: 0; background: transparent; }
-.catalogue-search button { border: 0; background: transparent; color: var(--green-dark); font-weight: 600; cursor: pointer; }
+.catalogue-search input { flex: 1; min-width: 0; min-height: 44px; border: 0; outline: 0; background: transparent; }
+.catalogue-search button { min-height: 44px; min-width: 44px; border: 0; background: transparent; color: var(--green-dark); font-weight: 600; cursor: pointer; }
 
 .catalogue-list {
   margin-top: 20px;

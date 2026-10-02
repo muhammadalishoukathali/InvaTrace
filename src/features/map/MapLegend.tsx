@@ -1,6 +1,7 @@
-import { useEffect, useRef, useState } from 'react'
+import { useRef, useState } from 'react'
 import { createPortal } from 'react-dom'
 import { Icon } from '@/components/Icon'
+import { useDialogA11y } from '@/hooks/useDialogA11y'
 import { PLACE_ICONS, PUBLIC_PLACE_TYPES } from './place-icons'
 import './map-controls.css'
 
@@ -14,22 +15,12 @@ import './map-controls.css'
 export function MapLegend() {
   const [open, setOpen] = useState(false)
   const toggleRef = useRef<HTMLButtonElement>(null)
-  const closeRef = useRef<HTMLButtonElement>(null)
-
-  useEffect(() => {
-    if (!open) return
-    closeRef.current?.focus()
-    const onKey = (event: KeyboardEvent) => {
-      if (event.key === 'Escape') close()
-    }
-    window.addEventListener('keydown', onKey)
-    return () => window.removeEventListener('keydown', onKey)
-  }, [open])
+  const dialogRef = useRef<HTMLDivElement>(null)
 
   const close = () => {
     setOpen(false)
-    window.requestAnimationFrame(() => toggleRef.current?.focus())
   }
+  useDialogA11y(dialogRef, close, { active: open, returnFocus: () => toggleRef.current })
 
   return (
     <>
@@ -55,9 +46,11 @@ export function MapLegend() {
             className="map-legend-scrim"
           />
           <div
+            ref={dialogRef}
+            tabIndex={-1}
             role="dialog"
             aria-label="Map legend"
-            aria-modal="false"
+            aria-modal="true"
             id="map-legend-card"
             className="map-legend-card map-legend-card--popover"
           >
@@ -65,7 +58,6 @@ export function MapLegend() {
               <span className="map-legend-card__title">Legend</span>
               <button
                 type="button"
-                ref={closeRef}
                 onClick={close}
                 aria-label="Hide legend"
                 className="map-legend-card__close"

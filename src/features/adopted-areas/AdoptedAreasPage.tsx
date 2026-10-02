@@ -1,3 +1,4 @@
+import { ENGLISH_LOCALE } from '@/utils/date-time'
 // The list of areas this user has adopted, at /adopted-areas. Adopting an area
 // means you want to be told when something is reported inside it, so the list
 // is sorted by recent activity by default rather than alphabetically.
@@ -117,5 +118,5 @@ function Metric({ label, value }: { label: string; value: number | string }) {
   return <div><dt>{label}</dt><dd>{value}</dd></div>
 }
 
-const formatDate = (value: string) => new Intl.DateTimeFormat(undefined, { dateStyle: 'medium' })
+const formatDate = (value: string) => new Intl.DateTimeFormat(ENGLISH_LOCALE, { dateStyle: 'medium' })
   .format(new Date(value))

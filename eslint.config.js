@@ -14,6 +14,8 @@ export default tseslint.config(
       'coverage/**',
       'test-results/**',
       'playwright-report/**',
+      'verification/**',
+      'e2e-harness/.scratch/**',
       'backend/.venv/**',
       '.venv/**',
       'backend/.pytest_cache/**',

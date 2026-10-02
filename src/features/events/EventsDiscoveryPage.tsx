@@ -1,3 +1,5 @@
+import { EnglishDateTimeField } from '@/components/EnglishDateTimeField'
+import { parseLocalDateTime } from '@/utils/date-time'
 import { useState } from 'react'
 import { keepPreviousData, useQuery } from '@tanstack/react-query'
 import { Link, useSearchParams } from 'react-router-dom'
@@ -14,14 +16,19 @@ export function EventsDiscoveryPage() {
   const [to, setTo] = useState('')
   const [species, setSpecies] = useState<string[]>([])
   const [bbox, setBbox] = useState<string>()
-  const invalidDates = Boolean(from && to && Date.parse(to) <= Date.parse(from))
-  const events = useQuery({ enabled: !invalidDates, queryKey: ['events', placeId, species, bbox, from, to], placeholderData: keepPreviousData, queryFn: () => eventsApi.list({ placeId, speciesId: species, bbox, from: from ? new Date(from).toISOString() : undefined, to: to ? new Date(to).toISOString() : undefined }) })
+  const fromDate = parseLocalDateTime(from)
+  const toDate = parseLocalDateTime(to)
+  const invalidFields = Boolean((from && !fromDate) || (to && !toDate))
+  const invalidOrder = Boolean(fromDate && toDate && toDate <= fromDate)
+  const invalidDates = invalidFields || invalidOrder
+  const events = useQuery({ enabled: !invalidDates, queryKey: ['events', placeId, species, bbox, from, to], placeholderData: keepPreviousData, queryFn: () => eventsApi.list({ placeId, speciesId: species, bbox, from: fromDate?.toISOString(), to: toDate?.toISOString() }) })
   return <section className="events-page"><header className="events-heading"><div><h1>Community events</h1><p>Find upcoming surveys and repeat monitoring at mapped places.</p></div><div className="event-heading-actions"><Link to="/events/mine">Your hosted events</Link><Link className="event-primary" to="/events/host">Host an event</Link></div></header>
     <label className="event-filter">Filter by target species<select multiple value={species} onChange={(e) => setSpecies(Array.from(e.currentTarget.selectedOptions, option => option.value))} aria-describedby="species-help">
       {approvedSpeciesDataset.records.map((item) => <option key={item.species_id} value={item.species_id}>{item.common_names[0] ?? item.scientific_name} — {item.scientific_name}</option>)}</select><small id="species-help">Choose one or more species. Leave blank to show all events.</small></label>
-    <div className="event-date-filters"><label>From<input type="datetime-local" value={from} onChange={e => setFrom(e.target.value)} /></label><label>Until<input type="datetime-local" value={to} onChange={e => setTo(e.target.value)} /></label></div>
+    <div className="event-date-filters"><EnglishDateTimeField label="From" value={from} onChange={setFrom} /><EnglishDateTimeField label="Until" value={to} onChange={setTo} /></div>
     {placeId && <p>Showing events for your selected mapped place. <Link to="/events">Show all places</Link></p>}
-    {invalidDates && <p role="alert">Until must be later than From. Adjust the dates to see matching events.</p>}
+    {invalidFields && <p role="alert">Enter valid filter dates using YYYY-MM-DD HH:mm, or use the date picker.</p>}
+    {invalidOrder && <p role="alert">Until must be later than From. Adjust the dates to see matching events.</p>}
     {!invalidDates && events.isFetching && !events.isLoading && <p role="status">Updating matching events…</p>}
     {!invalidDates && events.isLoading && <State text="Loading upcoming events…" />}
     {!invalidDates && events.isError && <State text="Upcoming events could not be loaded." retry={() => void events.refetch()} error />}

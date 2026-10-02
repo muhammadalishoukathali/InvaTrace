@@ -1,3 +1,4 @@
+import { ENGLISH_LOCALE } from '@/utils/date-time'
 import { useEffect, useMemo, useState } from 'react'
 import { useQuery } from '@tanstack/react-query'
 import { Icon } from '@/components/Icon'
@@ -583,7 +584,7 @@ function GuidanceLocationContext({
           <dl style={{ marginTop: 7, color: 'var(--muted)', fontSize: 11.5 }}>
             <div><dt style={{ display: 'inline' }}>Boundary source: </dt><dd style={{ display: 'inline' }}>{context?.boundarySource ?? 'Unavailable'}</dd></div>
             <div><dt style={{ display: 'inline' }}>Dataset version: </dt><dd style={{ display: 'inline' }}>{context?.boundaryVersion ?? 'Unavailable'}</dd></div>
-            <div><dt style={{ display: 'inline' }}>Update date: </dt><dd style={{ display: 'inline' }}>{context?.boundaryUpdatedAt ? new Intl.DateTimeFormat(undefined, { dateStyle: 'medium' }).format(new Date(context.boundaryUpdatedAt)) : 'Unavailable'}</dd></div>
+            <div><dt style={{ display: 'inline' }}>Update date: </dt><dd style={{ display: 'inline' }}>{context?.boundaryUpdatedAt ? new Intl.DateTimeFormat(ENGLISH_LOCALE, { dateStyle: 'medium' }).format(new Date(context.boundaryUpdatedAt)) : 'Unavailable'}</dd></div>
             <div><dt style={{ display: 'inline' }}>GPS accuracy: </dt><dd style={{ display: 'inline' }}>{context ? `±${context.accuracyM} m` : 'Unavailable'}</dd></div>
           </dl>
         </div>
@@ -592,7 +593,7 @@ function GuidanceLocationContext({
         type="button"
         onClick={onCheck}
         disabled={loading}
-        style={{ minHeight: 42, marginTop: 11, padding: '0 14px', border: '1px solid var(--control-border)', borderRadius: 'var(--r-button)', background: 'var(--surface)', color: 'var(--ink)', fontWeight: 650, cursor: 'pointer' }}
+        style={{ minHeight: 44, marginTop: 11, padding: '0 14px', border: '1px solid var(--control-border)', borderRadius: 'var(--r-button)', background: 'var(--surface)', color: 'var(--ink)', fontWeight: 650, cursor: 'pointer' }}
       >
         {loading ? 'Checking…' : context ? 'Check location again' : 'Check current location'}
       </button>

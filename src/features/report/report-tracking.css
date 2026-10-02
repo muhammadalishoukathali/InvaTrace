@@ -10,6 +10,8 @@
 }
 
 .report-tracking__back {
+  min-height: 44px;
+  min-width: 44px;
   display: inline-flex;
   align-items: center;
   gap: 4px;
@@ -159,7 +161,7 @@
 .report-tracking__adoption h2 { font-size: 17px; }
 .report-tracking__adoption > p { margin-top: 8px; color: var(--body); font-size: 13.5px; line-height: 1.55; }
 .report-tracking__adoption > div { margin-top: 14px; display: flex; flex-wrap: wrap; gap: 9px; }
-.report-tracking__adoption button { min-height: 42px; padding: 0 14px; border: 0; border-radius: var(--r-button); background: var(--green); color: white; font-weight: 650; cursor: pointer; }
+.report-tracking__adoption button { min-height: 44px; padding: 0 14px; border: 0; border-radius: var(--r-button); background: var(--green); color: white; font-weight: 650; cursor: pointer; }
 .report-tracking__adoption button + button { background: transparent; color: var(--body); }
 
 .report-tracking__actions {
@@ -223,7 +225,7 @@
 }
 
 @media (max-width: 560px) {
-  .report-tracking { padding: 36px 20px max(40px, env(safe-area-inset-bottom)); }
+  .report-tracking { padding: 8px 0 max(24px, env(safe-area-inset-bottom)); }
   .report-tracking__meta > div { grid-template-columns: 1fr; gap: 3px; }
   .report-tracking__actions { align-items: stretch; flex-direction: column; }
   .report-tracking__actions .report-tracking__secondary { min-height: 44px; }

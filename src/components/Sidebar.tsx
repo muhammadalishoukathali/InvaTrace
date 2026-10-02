@@ -59,6 +59,7 @@ export function Sidebar({ profile }: { profile: PseudonymousProfile }) {
       width: 'var(--sidebar-w)', flex: '0 0 var(--sidebar-w)', background: 'var(--surface)',
       borderRight: '1px solid var(--border)', padding: '22px 16px',
       display: 'flex', flexDirection: 'column', gap: 22,
+      overflowY: 'auto',
     }}>
       <div style={{ display: 'flex', alignItems: 'center', gap: 10, paddingLeft: 2 }}>
         <Logo size={36} />

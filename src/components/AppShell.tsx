@@ -12,7 +12,7 @@ import { profileReturnPath, profileStateFromPath } from '@/features/private-acce
 import './app-shell.css'
 
 const TITLES: Record<string, [string, string]> = {
-  '/map': ['Live threat map', 'Bukit Kiara · updated 2 hours ago'],
+  '/map': ['Live threat map', 'Community reports and mapped places'],
   '/profile': ['My profile', 'Identity, recovery and device access'],
   '/reports': ['My records', 'Your submitted field reports'],
   '/catalogue': ['Plant catalogue', '32 evidence-reviewed invasive plants'],
@@ -53,7 +53,11 @@ export function AppShell() {
         ? ['Community activity', 'Factual reports within your monitoring bookmark']
         : pathname.startsWith('/places/')
           ? ['Place details', 'Historical occurrence associations']
-        : TITLES[pathname] ?? [NAV.find((n) => n.path === pathname)?.full ?? 'InvaTrace', '']
+        : pathname.startsWith('/sightings/')
+          ? ['Follow-up', 'Revisit a community sighting']
+          : pathname.startsWith('/events/')
+            ? ['Community events', 'Surveys and repeat monitoring']
+            : TITLES[pathname] ?? [NAV.find((n) => n.path === pathname)?.full ?? 'InvaTrace', '']
   const pageFillsAvailableSpace = pathname === '/map'
   const showBottomTabs = !isDesktop
   const showProfileBack = !isDesktop && pathname === '/profile'
@@ -125,7 +129,7 @@ export function AppShell() {
               ? 26
               : showBottomTabs ? 'var(--mobile-nav-clearance)' : 24,
         }}>
-          <ErrorBoundary>
+          <ErrorBoundary resetKey={pathname}>
             <Outlet />
           </ErrorBoundary>
         </main>

@@ -17,6 +17,7 @@ async function startPrivateAccess(page: Page) {
 }
 
 async function chooseSyntheticGalleryPhoto(page: Page) {
+  await page.evaluate(() => localStorage.setItem('invatrace.development-model-species', 'mikania_micrantha'))
   await page.goto('/scan')
   await page.locator('input[aria-label="Choose photo from gallery"]')
     .setInputFiles(path.join(process.cwd(), 'public/reference-images/mikania_micrantha.jpg'))

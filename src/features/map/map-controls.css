@@ -665,8 +665,8 @@
 .map-legend-toggle:hover,
 .map-legend-toggle:focus-visible {
   background: var(--surface-raised);
-  outline: none;
 }
+.map-legend-toggle:focus-visible { outline: 2px solid var(--green); outline-offset: 2px; }
 @media (min-width: 900px) {
   .map-legend-toggle { left: 12px; bottom: 12px; }
 }
@@ -773,8 +773,8 @@
 .map-legend-card__close:hover,
 .map-legend-card__close:focus-visible {
   background: var(--hover);
-  outline: none;
 }
+.map-legend-card__close:focus-visible { outline: 2px solid var(--green); outline-offset: 2px; }
 
 .map-legend-card__row {
   display: flex;
@@ -842,9 +842,11 @@
   right: auto;
   top: auto;
   /* Sit above the scan FAB (68px) + its bottom offset + own gap. */
-  bottom: calc(env(safe-area-inset-bottom) + 96px);
+  bottom: var(--mobile-nav-clearance);
   z-index: 60;
   width: min(320px, calc(100vw - 32px));
+  max-height: calc(100dvh - var(--mobile-nav-clearance) - 24px);
+  overflow-y: auto;
   transform: translateX(-50%);
   padding: 14px 16px;
   border-radius: 18px;
@@ -989,9 +991,9 @@
   font-weight: 650;
 }
 .map-reports-sheet__close {
-  width: 36px;
-  height: 36px;
-  min-width: 36px;
+  width: 44px;
+  height: 44px;
+  min-width: 44px;
   border: 0;
   border-radius: 50%;
   background: transparent;
@@ -1004,8 +1006,8 @@
 .map-reports-sheet__close:focus-visible {
   background: var(--hover);
   color: var(--body);
-  outline: none;
 }
+.map-reports-sheet__close:focus-visible { outline: 2px solid var(--green); outline-offset: 2px; }
 .map-reports-sheet__body {
   flex: 1;
   overflow-y: auto;

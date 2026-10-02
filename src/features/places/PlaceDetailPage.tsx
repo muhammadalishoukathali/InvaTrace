@@ -1,3 +1,4 @@
+import { ENGLISH_LOCALE } from '@/utils/date-time'
 // One place page: what it is, its boundary on a small map, which invasive
 // plants have been recorded there, and the button to adopt it for monitoring.
 //
@@ -5,7 +6,7 @@
 // associations are the slower of the two (they join through sightings) and I
 // would rather the header and map render straight away than have the whole page
 // wait on them.
-import { useMutation, useQuery } from '@tanstack/react-query'
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { Link, useParams } from 'react-router-dom'
 import { BackLink } from '@/components/BackLink'
 import { useOnline } from '@/hooks/useOnline'
@@ -15,6 +16,7 @@ import { PlaceGeometryMap } from './PlaceGeometryMap'
 import './places.css'
 
 export function PlaceDetailPage() {
+  const queryClient = useQueryClient()
   const { placeId } = useParams()
   const online = useOnline()
   const place = useQuery({
@@ -32,6 +34,7 @@ export function PlaceDetailPage() {
       '/api/v1/adopted-areas',
       { method: 'POST', body: JSON.stringify({ placeId }) },
     ),
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ['adopted-areas'] }),
   })
 
   if (!online) return (
@@ -42,7 +45,7 @@ export function PlaceDetailPage() {
   )
   if (place.isLoading || associations.isLoading) return <div className="places-state" role="status">Loading place evidence…</div>
   if (place.isError || associations.isError || !place.data || !associations.data) {
-    return <div className="places-state" role="alert">This place or its occurrence data is unavailable.</div>
+    return <div className="places-state" role="alert"><p>This place or its occurrence data is unavailable.</p><button type="button" onClick={() => { void place.refetch(); void associations.refetch() }}>Try again</button><BackLink to="/places">Back to places</BackLink></div>
   }
   return (
     <section className="place-detail">
@@ -70,6 +73,7 @@ export function PlaceDetailPage() {
       </p>
       <p className="place-detail__notice"><Link to={`/events?placeId=${placeId}`}>See upcoming community events for this place</Link></p>
       <PlaceGeometryMap geometry={place.data.geometry} name={place.data.displayName} />
+      {adopt.isError && <p className="place-detail__notice" role="alert">This monitoring bookmark could not be saved. Check your connection and try again.</p>}
       {associations.data.truncated && (
         <p className="place-detail__notice" role="status">
           This result reached the 5,000-row processing limit. Counts shown below may be partial;
@@ -109,7 +113,7 @@ export function PlaceDetailPage() {
               <p className="place-associations__provenance">
                 Historical observations do not guarantee current presence.
                 {' '}Occurrence data updated {associations.data.occurrenceUpdatedAt
-                  ? new Intl.DateTimeFormat(undefined, { dateStyle: 'medium' }).format(new Date(associations.data.occurrenceUpdatedAt))
+                  ? new Intl.DateTimeFormat(ENGLISH_LOCALE, { dateStyle: 'medium' }).format(new Date(associations.data.occurrenceUpdatedAt))
                   : 'date unavailable'}.
               </p>
               <Link to={`/catalogue/${item.speciesId}`}>View catalogue entry</Link>
@@ -122,7 +126,7 @@ export function PlaceDetailPage() {
         <p>
           Occurrence data {associations.data.processedDataVersions.join(', ') || 'version unavailable'}
           {associations.data.occurrenceUpdatedAt
-            ? ` · updated ${new Intl.DateTimeFormat(undefined, { dateStyle: 'medium' }).format(new Date(associations.data.occurrenceUpdatedAt))}`
+            ? ` · updated ${new Intl.DateTimeFormat(ENGLISH_LOCALE, { dateStyle: 'medium' }).format(new Date(associations.data.occurrenceUpdatedAt))}`
             : ''}
         </p>
       </footer>

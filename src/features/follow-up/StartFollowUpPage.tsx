@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react'
-import { useNavigate, useParams } from 'react-router-dom'
+import { Link, useNavigate, useParams } from 'react-router-dom'
 import type { FollowUpLocation } from '@/services/api/followUp'
 import './follow-up.css'
 
@@ -53,8 +53,8 @@ export function StartFollowUpPage({ onLocation }: { onLocation: (location: Follo
   }
   const ready = location !== null && location.accuracyM <= MAX_ACCURACY_M
   return (
-    <main className="follow-up-page" aria-labelledby="follow-up-title">
-      <section className="follow-up-panel">
+    <section className="follow-up-page" aria-labelledby="follow-up-title">
+      <section className="follow-up-panel"><Link className="back-link" to="/map">Back to map</Link>
 
         <h1 id="follow-up-title">Confirm your current location</h1>
         <p>Use a fresh GPS reading while you are near the reported plant. Follow-up needs accuracy of 250 m or better.</p>
@@ -68,6 +68,6 @@ export function StartFollowUpPage({ onLocation }: { onLocation: (location: Follo
           Continue
         </button>
       </section>
-    </main>
+    </section>
   )
 }

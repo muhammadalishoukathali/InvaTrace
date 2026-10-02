@@ -1,3 +1,4 @@
+import { ENGLISH_LOCALE } from '@/utils/date-time'
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { createPortal } from 'react-dom'
 import { useNavigate } from 'react-router-dom'
@@ -27,7 +28,7 @@ function approximateDate(value: string): string {
   if (days <= 0) return 'Today'
   if (days === 1) return 'Yesterday'
   if (days < 7) return `${days} days ago`
-  return new Intl.DateTimeFormat(undefined, { month: 'short', year: 'numeric' }).format(date)
+  return new Intl.DateTimeFormat(ENGLISH_LOCALE, { month: 'short', year: 'numeric' }).format(date)
 }
 
 function installationLabel(item: AuthorizedInstallation): string {

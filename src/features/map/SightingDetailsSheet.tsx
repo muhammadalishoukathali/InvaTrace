@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'react'
 import { createPortal } from 'react-dom'
-import { useMutation, useQuery } from '@tanstack/react-query'
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { Link } from 'react-router-dom'
 import { Icon } from '@/components/Icon'
 import { api, ApiError } from '@/services/api-client'
@@ -33,6 +33,7 @@ const OSM_FEATURE_LABEL: Record<string, string> = {
  * by clicking a pin or picking a row from the accessible sighting list.
  */
 export function SightingDetailsSheet() {
+  const queryClient = useQueryClient()
   const { selectedId, select } = useMapView()
   const profileId = usePrivateAccess((state) => state.profile?.id ?? null)
   const dialogRef = useRef<HTMLElement>(null)
@@ -63,7 +64,14 @@ export function SightingDetailsSheet() {
       `/api/v1/reports/${data!.removalReportId}/removal`,
       { method: 'POST', body: JSON.stringify(fix) },
     ),
-    onSuccess: () => void refetch(),
+    onSuccess: async () => {
+      await Promise.all([
+        refetch(),
+        queryClient.invalidateQueries({ queryKey: ['sightings'] }),
+        queryClient.invalidateQueries({ queryKey: ['my-reports'] }),
+        queryClient.invalidateQueries({ queryKey: ['report', profileId, data?.removalReportId] }),
+      ])
+    },
   })
 
   useEffect(() => {

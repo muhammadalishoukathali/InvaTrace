@@ -5,12 +5,7 @@ import { scanStateFromPath } from '@/features/scan/scan-navigation'
 import type { Role } from '@/types'
 import './bottom-tabs.css'
 
-/**
- * Bottom bar for mobile with just the one big Scan button. AppShell only
- * mounts this on the map screen at narrow widths - I didn't want a full
- * tab bar since the map is meant to stay visible underneath, so it's really
- * just the single primary action rather than a proper tab set.
- */
+/** Shared mobile navigation with the scan action between the destinations. */
 export function BottomTabs({ role }: { role: Role }) {
   const location = useLocation()
   const items = visibleNav(role)
@@ -39,7 +34,7 @@ export function BottomTabs({ role }: { role: Role }) {
           </span>
           <span>Scan</span>
         </NavLink>
-        {permanentItems.slice(2, 4).map((item) => (
+        {permanentItems.slice(2).map((item) => (
           <NavLink key={item.id} to={item.path} className={({ isActive }) => `bottom-tab${isActive ? ' bottom-tab--active' : ''}`}>
             <span className="bottom-tab__icon"><Icon name={item.icon} size={20} color="currentColor" /></span>
             <span className="bottom-tab__label">{item.label}</span>

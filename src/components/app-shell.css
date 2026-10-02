@@ -120,10 +120,8 @@
   }
 
   .app-header__title {
-    overflow: hidden;
     font-size: 18px;
-    text-overflow: ellipsis;
-    white-space: nowrap;
+    overflow-wrap: anywhere;
   }
 
   .app-header__subtitle {

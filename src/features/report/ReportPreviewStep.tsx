@@ -165,7 +165,7 @@ export function ReportPreviewStep() {
         label={submitting ? 'Submitting…' : eventEligible && !eventRejected ? 'Submit to this event' : eventRejected ? 'Submit as ordinary report' : 'Submit report'}
         variant="submit"
       />
-      {eventEligible && !eventRejected && <button type="button" disabled={!canSubmit || submitting} onClick={() => submit(false)}>Submit as ordinary report</button>}
+      {eventEligible && !eventRejected && <button type="button" disabled={!canSubmit || submitting} onClick={() => submit(false)} style={{ minHeight: 44, padding: '10px 14px', border: '1px solid var(--control-border)', borderRadius: 'var(--r-button)', background: 'var(--surface)', cursor: 'pointer' }}>Submit as ordinary report</button>}
       {submitError && <p role="alert" style={{ color: 'var(--red-text)', fontSize: 13 }}>{submitError}</p>}
     </div>
   )

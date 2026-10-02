@@ -56,7 +56,7 @@ test.describe('Epic 9 events', () => {
     await page.goto('/events/host')
     await page.getByLabel('Title').fill('Morning survey'); await page.getByLabel('Purpose').fill('Record observations'); await page.getByRole('button', { name: 'Continue' }).click()
     await page.getByLabel('Mapped place').selectOption(event.place_id); await page.getByRole('button', { name: 'Continue' }).click()
-    await page.getByLabel('Starts').fill('2030-01-01T08:00'); await page.getByLabel('Ends').fill('2030-01-01T10:00'); await page.getByRole('button', { name: 'Continue' }).click()
+    await page.getByLabel('Starts', { exact: true }).fill('2030-01-01T08:00'); await page.getByLabel('Ends', { exact: true }).fill('2030-01-01T10:00'); await page.getByRole('button', { name: 'Continue' }).click()
     await page.getByRole('button', { name: 'Publish event' }).click()
     await expect.poll(() => requests.some((request) => request === 'POST /api/v1/events')).toBe(true)
     await expect.poll(() => requests.some((request) => request === 'PATCH /api/v1/events/event-1')).toBe(true)

@@ -1,8 +1,8 @@
 import { defineConfig, devices } from '@playwright/test'
 
-/** Runs complete browser journeys against the Vite development server. During
- *  local work, Playwright reuses an existing server; continuous integration
- *  starts a fresh one. The mock service worker handles API calls in the page. */
+/** Runs complete browser journeys against an isolated Vite development server.
+ *  Explicit mock flags prevent an existing real-API server from changing the
+ *  test environment. The mock service worker handles API calls in the page. */
 export default defineConfig({
   testDir: './e2e',
   testIgnore: ['real-backend.spec.ts', 'pwa.spec.ts'],
@@ -14,14 +14,15 @@ export default defineConfig({
   workers: 1,
   reporter: 'list',
   use: {
-    baseURL: 'http://localhost:5173',
+    baseURL: 'http://localhost:5176',
     trace: 'retain-on-failure',
     screenshot: 'only-on-failure',
   },
   webServer: {
-    command: 'npm run dev',
-    url: 'http://localhost:5173',
-    reuseExistingServer: !process.env.CI,
+    command: 'npm run dev -- --port 5176 --strictPort',
+    url: 'http://localhost:5176',
+    env: { VITE_ENABLE_MOCKS: 'true', VITE_ENABLE_FAKE_MODEL: 'true' },
+    reuseExistingServer: false,
     timeout: 60_000,
   },
   projects: [
@@ -32,6 +33,7 @@ export default defineConfig({
         '**/pwa.spec.ts',
         '**/mobile-robustness.spec.ts',
         '**/model-ui-failure.spec.ts',
+        '**/app-responsive.spec.ts',
       ],
       use: { ...devices['Desktop Chrome'] },
     },
