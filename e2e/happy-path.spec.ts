@@ -120,7 +120,7 @@ async function clearStoredIdentity(page: Page) {
 }
 
 async function startPrivateAccess(page: Page, acknowledge = true) {
-  await page.goto('/')
+  await page.goto('/private-access')
   await expect(page).toHaveURL(/\/private-access$/)
   const started = page.waitForResponse((response) => new URL(response.url()).pathname === START_PATH)
   await page.getByRole('button', { name: 'Start privately' }).click()
@@ -544,7 +544,7 @@ test('a first-ever offline launch explains the network requirement without creat
   await page.addInitScript(() => {
     Object.defineProperty(Navigator.prototype, 'onLine', { configurable: true, get: () => false })
   })
-  await page.goto('/')
+  await page.goto('/private-access')
   await expect(page).toHaveURL(/\/private-access$/)
   await expect(page.getByText('Connection needed')).toBeVisible()
   await expect(page.getByRole('button', { name: 'Start privately' })).toBeDisabled()

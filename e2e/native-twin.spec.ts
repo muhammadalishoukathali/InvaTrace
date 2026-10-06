@@ -6,7 +6,7 @@ import { test, expect, type Page } from '@playwright/test'
 import path from 'node:path'
 
 async function startPrivateAccess(page: Page) {
-  await page.goto('/')
+  await page.goto('/private-access')
   await expect(page).toHaveURL(/\/private-access$/)
   await page.getByRole('button', { name: 'Start privately' }).click()
   await expect(page.getByRole('heading', { name: 'Save your recovery kit' })).toBeVisible()

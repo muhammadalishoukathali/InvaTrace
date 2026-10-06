@@ -57,7 +57,7 @@ test('every route and workflow state fits the screen', async ({ page, context },
   page.on('pageerror', error => errors.push(error.message))
   await context.grantPermissions(['geolocation'])
   await context.setGeolocation({ latitude: 3.1483, longitude: 101.6404, accuracy: 8 })
-  await page.goto('/')
+  await page.goto('/private-access')
   await expect(page.getByRole('button', { name: 'Start privately' })).toBeVisible()
   await inspect(page, info, '01-private-access', findings)
   await page.getByRole('link', { name: 'Restore existing access' }).click()
@@ -214,7 +214,7 @@ test('every route and workflow state fits the screen', async ({ page, context },
 
 test('empty, failed, queued and offline states remain usable', async ({ page, context }, info) => {
   const findings: LayoutFinding[] = []
-  await page.goto('/')
+  await page.goto('/private-access')
   await page.getByRole('button', { name: 'Start privately' }).click()
   await page.getByRole('checkbox', { name: 'I have saved my recovery kit' }).check()
   await page.getByRole('button', { name: 'Continue', exact: true }).click()

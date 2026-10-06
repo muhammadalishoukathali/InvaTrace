@@ -1,7 +1,7 @@
 import { expect, test } from '@playwright/test'
 
 async function startPrivateAccess(page: import('@playwright/test').Page) {
-  await page.goto('/')
+  await page.goto('/private-access')
   await page.getByRole('button', { name: 'Start privately' }).click()
   await page.getByRole('checkbox', { name: 'I have saved my recovery kit' }).check()
   await page.getByRole('button', { name: 'Continue', exact: true }).click()
