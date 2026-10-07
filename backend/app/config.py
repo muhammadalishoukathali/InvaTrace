@@ -13,7 +13,7 @@ import json
 from functools import lru_cache
 from typing import Annotated, Literal
 
-from pydantic import Field, field_validator, model_validator
+from pydantic import Field, SecretStr, field_validator, model_validator
 from pydantic_settings import BaseSettings, NoDecode, SettingsConfigDict
 
 
@@ -22,6 +22,7 @@ class Settings(BaseSettings):
         env_file=(".env", "backend/.env"),
         env_file_encoding="utf-8",
         extra="ignore",
+        populate_by_name=True,
     )
 
     app_env: Literal["development", "test", "production"] = "development"
@@ -36,6 +37,21 @@ class Settings(BaseSettings):
     location_privacy_key: str = "development-only-location-key-change-me"
     access_token_ttl_minutes: int = Field(default=15, ge=1, le=60)
     rate_limit_enabled: bool = True
+    assistant_generation_key: SecretStr | None = Field(
+        default=None, validation_alias="GEMINI_API_KEY"
+    )
+    assistant_generation_model: str | None = None
+    assistant_generation_free_tier: bool = False
+    assistant_generation_enabled: bool = False
+    assistant_judge_enabled: bool = False
+    assistant_judge_model: str | None = None
+    assistant_judge_timeout_seconds: float = Field(default=6, ge=1, le=15)
+    assistant_request_timeout_seconds: float = Field(default=18, ge=1, le=22)
+    assistant_generation_timeout_seconds: float = Field(default=10, ge=1, le=20)
+    # Backend-only secondary; enable only after operator free-tier verification.
+    groq_api_key: SecretStr | None = None
+    groq_model: str | None = None
+    groq_fallback_enabled: bool = False
     # AC 2.3.3 - env-backed sliding submission rate limits.
     report_create_burst_limit: int = Field(default=10, ge=1, le=10_000)
     report_create_ip_burst_limit: int = Field(default=30, ge=1, le=10_000)

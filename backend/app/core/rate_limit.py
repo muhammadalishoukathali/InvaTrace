@@ -64,6 +64,7 @@ def _build_limits() -> dict[str, Limit]:
         "adopted_area_read": Limit(120, 60),
         "places_read": Limit(120, 60),
         "catalogue_read": Limit(120, 60),
+        "plant_assistant": Limit(15, 60),
         "location_context_read": Limit(60, 60),
         "offline_pack_read": Limit(60, 60),
         # AC 2.3.3 - env-backed sliding submission limits.

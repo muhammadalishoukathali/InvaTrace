@@ -194,5 +194,11 @@ export default defineConfig({
       },
     },
   },
-  server: { port: 5173 },
+  server: {
+    port: 5173,
+    // Existing development mocks remain active; only plant questions use this proxy.
+    proxy: {
+      '/api/v1/plant-assistant': process.env.VITE_API_BASE_URL ?? 'http://127.0.0.1:8000',
+    },
+  },
 })

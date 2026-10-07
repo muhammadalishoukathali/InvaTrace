@@ -4,6 +4,7 @@ import { Icon } from '@/components/Icon'
 import { useScan } from '@/features/scan/scan-store'
 import { useReportDraft } from '@/features/report/report-draft-store'
 import { PlantGuidancePanel } from '@/features/scan/PlantGuidancePanel'
+import { PlantAssistantPanel } from '@/features/scan/PlantAssistantPanel'
 import { resolveResultPathway, type ResultPathway } from '@/features/scan/malaysia-status'
 import { findPlantGuidance } from '@/data/plant-guidance'
 import { findModelSpecies, modelReferenceImageUrl } from '@/data/model-species-catalogue'
@@ -153,6 +154,8 @@ export function ScanResultPage() {
           </p>
         </div>
       )}
+
+      <PlantAssistantPanel key={`${captureId ?? 'scan'}:${result.speciesId ?? result.scientificName ?? 'unknown'}:${result.outcome}:${result.confidence}`} result={result} />
 
       {result.outcome !== 'uncertain' && !statusUncertain && (
         <PlantGuidancePanel
