@@ -167,6 +167,21 @@
   font-weight: 600;
   letter-spacing: 0.01em;
 }
+.welcome-hero__access {
+  margin-top: 14px;
+  color: rgba(255, 255, 255, 0.9);
+  font-size: 13.5px;
+  line-height: 1.5;
+}
+.welcome-hero__access a,
+.welcome-closing p a {
+  display: inline-block;
+  min-height: 44px;
+  padding: 12px 0;
+  color: #FFFFFF;
+  font-weight: 650;
+  text-underline-offset: 3px;
+}
 .welcome-hero__sdg-icon {
   width: 28px;
   height: 28px;

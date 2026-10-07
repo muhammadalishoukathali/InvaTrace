@@ -389,6 +389,10 @@ declare global {
       expireSession?: boolean
       /** One-shot server rejection for the next follow-up submission (e2e). */
       followUpRejection?: { status: number; code: string; detail: string }
+      /** One-shot server rejection for the next report submission (e2e). */
+      reportRejection?: { status: number; code: string; detail: string }
+      /** Event id (or null) of every report submission, in order (e2e). */
+      reportEventIds?: (string | null)[]
     }
   }
 }
@@ -955,6 +959,15 @@ export const handlers = [
     if (!hasActiveSession(request)) return sessionUnavailable()
     if (shouldInject('failReport')) {
       return HttpResponse.json({ detail: 'Server error' }, { status: 500 })
+    }
+    if (typeof window !== 'undefined' && window.__msw) {
+      const sent = (await request.clone().json().catch(() => ({}))) as { eventId?: string | null }
+      window.__msw.reportEventIds = [...(window.__msw.reportEventIds ?? []), sent.eventId ?? null]
+      const rejection = window.__msw.reportRejection
+      if (rejection) {
+        window.__msw.reportRejection = undefined
+        return HttpResponse.json({ code: rejection.code, detail: rejection.detail }, { status: rejection.status })
+      }
     }
     const session = sessionForRequest(request)!
     const idempotencyKey = request.headers.get('Idempotency-Key')

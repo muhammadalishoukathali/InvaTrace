@@ -29,24 +29,10 @@ async function reachReportPreview(page: Page) {
 test('event rejection keeps the scan and permits an ordinary report submission', async ({ page, context }) => {
   await context.grantPermissions(['geolocation'])
   await context.setGeolocation({ latitude: 3.1442, longitude: 101.6438, accuracy: 10 })
-  let reportPosts = 0
-  await page.route('**/api/v1/model-config', async (route) => route.fulfill({ contentType: 'application/json', body: JSON.stringify({ modelVersion: 'development-invatrace-student33-tinyvit5m-320-fp16', supportedVersions: ['development-invatrace-student33-tinyvit5m-320-fp16'], acceptanceThreshold: .5, thresholdVersion: 'test', configVersion: 'test' }) }))
-  await page.route('**/api/v1/scans', async (route) => route.fulfill({ status: 201, contentType: 'application/json', body: JSON.stringify({ id: 'scan-1', createdAt: new Date().toISOString() }) }))
-  await page.route('**/api/v1/uploads/presign', async (route) => {
-    await route.fulfill({ contentType: 'application/json', body: JSON.stringify({ uploadId: 'upload-1', uploadUrl: 'https://upload.test/photo', photoKey: 'photo-1', expiresAt: '2031-01-01T00:00:00Z' }) })
-  })
-  await page.route('https://upload.test/**', async (route) => route.fulfill({ status: 200 }))
-  await page.route('**/api/v1/reports', async (route) => {
-    reportPosts += 1
-    const body = route.request().postDataJSON() as { eventId?: string }
-    if (reportPosts === 1) {
-      expect(body.eventId).toBe('event-1')
-      await route.fulfill({ status: 422, contentType: 'application/json', body: JSON.stringify({ code: 'checkin_required', detail: 'Check-in required.' }) })
-      return
-    }
-    expect(body.eventId).toBeUndefined()
-    await route.fulfill({ contentType: 'application/json', body: JSON.stringify({ id: 'report-1', status: 'screened', createdAt: new Date().toISOString(), speciesId: 'mikania-micrantha', eventId: null }) })
-  })
+  // The dev mock service worker answers API calls before page.route can see
+  // them, so the rejection is injected through the mock's one-shot flag.
+  await page.addInitScript(() => { window.__msw = { reportRejection: { status: 422, code: 'checkin_required', detail: 'Check-in required.' } } })
+  const reportEventIds = () => page.evaluate(() => window.__msw?.reportEventIds ?? [])
 
   await startPrivateAccess(page)
   const profileId = await page.evaluate(async () => {
@@ -57,28 +43,19 @@ test('event rejection keeps the scan and permits an ordinary report submission',
   await page.evaluate(({ profileId, startAt, endAt }) => localStorage.setItem('invatrace.active-event.v1', JSON.stringify({ eventId: 'event-1', profileId, startAt, endAt, checkedInAt: new Date().toISOString() })), { profileId, startAt: new Date(now.getTime() - 60 * 60_000).toISOString(), endAt: new Date(now.getTime() + 60 * 60_000).toISOString() })
   await reachReportPreview(page)
   await expect(page.getByRole('button', { name: 'Submit to this event' })).toBeVisible()
-  expect(reportPosts).toBe(0)
+  expect(await reportEventIds()).toEqual([])
   await page.getByRole('button', { name: 'Submit to this event' }).click()
   await expect(page.getByText(/scan is kept/i)).toBeVisible()
   await expect(page.getByRole('button', { name: 'Submit as ordinary report' })).toBeVisible()
   await page.getByRole('button', { name: 'Submit as ordinary report' }).click()
   await expect(page.getByRole('heading', { name: 'Report published' })).toBeVisible()
-  expect(reportPosts).toBe(2)
+  expect(await reportEventIds()).toEqual(['event-1', null])
 })
 
 test('a non-event validation error keeps the event submission state intact', async ({ page, context }) => {
   await context.grantPermissions(['geolocation'])
   await context.setGeolocation({ latitude: 3.1442, longitude: 101.6438, accuracy: 10 })
-  let reportPosts = 0
-  await page.route('**/api/v1/model-config', async (route) => route.fulfill({ contentType: 'application/json', body: JSON.stringify({ modelVersion: 'development-invatrace-student33-tinyvit5m-320-fp16', supportedVersions: ['development-invatrace-student33-tinyvit5m-320-fp16'], acceptanceThreshold: .5, thresholdVersion: 'test', configVersion: 'test' }) }))
-  await page.route('**/api/v1/scans', async (route) => route.fulfill({ status: 201, contentType: 'application/json', body: JSON.stringify({ id: 'scan-1', createdAt: new Date().toISOString() }) }))
-  await page.route('**/api/v1/uploads/presign', async (route) => route.fulfill({ contentType: 'application/json', body: JSON.stringify({ uploadId: 'upload-1', uploadUrl: 'https://upload.test/photo', photoKey: 'photo-1', expiresAt: '2031-01-01T00:00:00Z' }) }))
-  await page.route('https://upload.test/**', async (route) => route.fulfill({ status: 200 }))
-  await page.route('**/api/v1/reports', async (route) => {
-    reportPosts += 1
-    expect((route.request().postDataJSON() as { eventId?: string }).eventId).toBe('event-1')
-    await route.fulfill({ status: 422, contentType: 'application/json', body: JSON.stringify({ code: 'species_not_reportable', detail: 'This species cannot be reported.' }) })
-  })
+  await page.addInitScript(() => { window.__msw = { reportRejection: { status: 422, code: 'species_not_reportable', detail: 'This species cannot be reported.' } } })
 
   await startPrivateAccess(page)
   const profileId = await page.evaluate(async () => {
@@ -94,5 +71,5 @@ test('a non-event validation error keeps the event submission state intact', asy
   await expect(page.getByRole('button', { name: 'Submit to this event' })).toBeVisible()
   await expect(page.getByText(/your scan is kept/i)).toHaveCount(0)
   await expect(page.getByText(/you can submit it as an ordinary report/i)).toHaveCount(0)
-  expect(reportPosts).toBe(1)
+  expect(await page.evaluate(() => window.__msw?.reportEventIds ?? [])).toEqual(['event-1'])
 })
