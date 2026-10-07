@@ -674,9 +674,11 @@
   .map-legend-toggle { right: 12px; bottom: calc(var(--mobile-nav-clearance) + 6px); }
 }
 
+/* Sits below the map-controls cluster so it never covers the report,
+   Places and Browse chips. */
 .map-location-notice {
   position: absolute;
-  top: max(12px, env(safe-area-inset-top));
+  top: 66px;
   left: 50%;
   z-index: 6;
   width: max-content;
@@ -904,7 +906,7 @@
   }
 
   .map-location-notice {
-    top: max(10px, env(safe-area-inset-top));
+    top: 74px;
     right: 64px;
     left: 12px;
     width: auto;

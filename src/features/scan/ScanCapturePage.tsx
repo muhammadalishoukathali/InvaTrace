@@ -516,6 +516,10 @@ export function ScanCapturePage() {
             <Icon name="Info" size={16} color="var(--green-dark)" />
             <p><strong>About gallery photos</strong> Cropped, compressed or older photos may return a lower-confidence result. Choosing from your gallery does not make a plant more likely to be marked high risk.</p>
           </div>
+          <div className="scan-capture__gallery-note" id="second-opinion-note">
+            <Icon name="Info" size={16} color="var(--green-dark)" />
+            <p><strong>About uncertain results</strong> The plant is identified on this device. If the result is uncertain, only the photo is sent to the PlantNet identification service for a second opinion. Your location and profile are not shared.</p>
+          </div>
         </section>
       ) : (
         <div className="scan-capture__preview">
