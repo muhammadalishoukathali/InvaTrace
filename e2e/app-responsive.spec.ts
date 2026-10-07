@@ -84,7 +84,9 @@ test('every route and workflow state fits the screen', async ({ page, context },
   await page.getByRole('button', { name: /Open reports list/ }).click()
   await inspect(page, info, '06-map-reports', findings)
   await page.getByRole('button', { name: 'Close community reports list' }).click()
-  await page.locator('.map-pin').first().click({ force: true })
+  // Dispatch on the marker itself: a forced click lands on whatever is drawn
+  // at the pin's position, which can be a map control depending on centring.
+  await page.locator('.map-pin').first().dispatchEvent('click')
   await expect(page.getByRole('button', { name: /Close sighting/ })).toBeVisible()
   await inspect(page, info, '07-sighting-details', findings)
   await page.keyboard.press('Escape')

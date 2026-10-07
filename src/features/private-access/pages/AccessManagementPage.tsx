@@ -192,7 +192,10 @@ export function AccessManagementPage() {
             <Icon name="Pencil" size={15} />
           </button>
         </div>
-        <PrivateAccessLink href="/reports" icon="ClipboardList" replace>View my records</PrivateAccessLink>
+        <div className="access-profile-summary__links">
+          <PrivateAccessLink href="/reports" icon="ClipboardList" replace>View my records</PrivateAccessLink>
+          <PrivateAccessLink href="/adopted-areas" icon="Map" replace>My adopted areas</PrivateAccessLink>
+        </div>
       </header>
 
       {!online && <PrivateAccessNotice tone="warning" title="You are offline">Reconnect to change recovery codes, your display name, or devices.</PrivateAccessNotice>}

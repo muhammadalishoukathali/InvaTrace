@@ -411,8 +411,8 @@
 .access-name-edit:hover { border-color: var(--border); background: var(--hover); color: var(--ink); }
 .access-name-edit:active { transform: scale(.96); }
 .access-name-edit:focus-visible { outline: 2px solid var(--green); outline-offset: 2px; }
-.access-profile-summary > .access-link-button {
-  grid-column: 3;
+.access-profile-summary__links { grid-column: 3; display: flex; flex-wrap: wrap; justify-content: flex-end; gap: 8px; }
+.access-profile-summary__links > .access-link-button {
   align-self: center;
   min-height: 46px;
 }
@@ -559,7 +559,8 @@
   .access-profile-summary { grid-template-columns: 48px minmax(0, 1fr); gap: 0 12px; }
   .access-profile-summary__avatar { width: 48px; height: 48px; border-radius: 14px; }
   .access-profile-summary__identity h2 { font-size: 21px; }
-  .access-profile-summary > .access-link-button { grid-column: 1 / -1; grid-row: auto; justify-self: stretch; margin-top: 18px; }
+  .access-profile-summary__links { grid-column: 1 / -1; display: grid; grid-template-columns: 1fr 1fr; margin-top: 18px; }
+  .access-profile-summary__links > .access-link-button { justify-content: center; }
   .profile-id-row { align-items: stretch; flex-wrap: wrap; gap: 10px; }
   .profile-id-row > div { flex: 1 0 100%; }
   .profile-id-row > .access-button { flex: 1; padding-inline: 10px; }
@@ -590,3 +591,7 @@
 
 .profile-id-editor { display: grid; gap: 12px; margin-top: 16px; }
 .profile-id-editor__actions { display: flex; flex-wrap: wrap; gap: 8px; }
+
+@media (max-width: 379.98px) {
+  .access-profile-summary__links { grid-template-columns: 1fr; }
+}

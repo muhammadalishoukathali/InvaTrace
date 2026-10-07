@@ -9,11 +9,10 @@ import './bottom-tabs.css'
 export function BottomTabs({ role }: { role: Role }) {
   const location = useLocation()
   const items = visibleNav(role)
-  // Places used to appear here as a floating "Browse places" pill; it now
-  // lives in the map controls cluster (and stays in the desktop sidebar),
-  // so bottom-tabs holds only the primary nav items and stops crowding the
-  // map's bottom edge.
-  const permanentItems = items.filter((item) => item.id !== 'places')
+  // Two destinations either side of Scan keeps the bar symmetric. Places lives
+  // in the map controls cluster, and adopted areas are reached from the
+  // profile and Places pages; both stay in the desktop sidebar.
+  const permanentItems = items.filter((item) => item.id !== 'places' && item.id !== 'areas')
   return (
     <div className="bottom-tabs-shell">
       <nav aria-label="Primary" className="bottom-tabs">
