@@ -1,0 +1,58 @@
+{
+  "schema_version": "invatrace.habitat-overlays.v1",
+  "created_utc": "2026-10-01T17:22:04.446837+00:00",
+  "build_mode": "all",
+  "place_catalogue_count": 1869,
+  "places_attempted": 1869,
+  "places_succeeded": 1869,
+  "places_failed": 0,
+  "output_bytes": 23385342,
+  "projected_national_bytes_from_pilot": null,
+  "osm_release": {
+    "source_timestamp": "2026-09-14T20:21:51Z",
+    "sha256": "16a3acf671de1c3d7e27d39616f8573d364fcc6421e083d8ee4762edc86b3b3f",
+    "byte_length": 250814575,
+    "licence": "Open Data Commons Open Database License 1.0",
+    "licence_url": "https://www.openstreetmap.org/copyright"
+  },
+  "boundary_release": {
+    "sha256": "20ffa28d8b7980060d43418a6a4a250ffdbcd805c514189accec9f799a181d77",
+    "upstream_version": "geoBoundaries repository commit 9469f09; boundary ID MYS-ADM0-87038898"
+  },
+  "protected_area_extract": {
+    "file": "osm-malaysia-protected-areas-2026-09-14.geojson",
+    "feature_count": 197,
+    "source_sha256": "16a3acf671de1c3d7e27d39616f8573d364fcc6421e083d8ee4762edc86b3b3f",
+    "source_timestamp": "2026-09-14T20:21:51Z"
+  },
+  "environmental_sources": [
+    "ESA WorldCover 2021 v200",
+    "JRC Global Surface Water v1.5 occurrence and seasonality 2024"
+  ],
+  "base_resolution_m": 50,
+  "adaptive_resolution_options_m": [
+    50,
+    75,
+    100,
+    150,
+    200
+  ],
+  "habitat_categories": {
+    "forest_interior": "Forest interior",
+    "forest_edge_opening": "Forest edge or opening",
+    "open_grassland": "Open grassland or shrubland",
+    "disturbed_built_edge": "Disturbed, bare or built edge",
+    "cropland": "Cropland",
+    "permanent_water": "Permanent water",
+    "seasonal_water_wetland": "Seasonal water or wetland",
+    "water_edge": "Water edge",
+    "mangrove": "Mangrove"
+  },
+  "limitations": [
+    "OSM place boundaries and tags may be incomplete or outdated.",
+    "WorldCover and JRC describe mapped environmental conditions, not confirmed invasive-plant presence.",
+    "Forest edge, water edge and disturbance are derived spatial proxies.",
+    "Protection and access context are informational and do not grant permission for removal.",
+    "Suggested habitats require Malaysian field and usability validation."
+  ]
+}

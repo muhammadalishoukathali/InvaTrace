@@ -18,6 +18,7 @@ const TITLES: Record<string, [string, string]> = {
   '/catalogue': ['Plant catalogue', '32 evidence-reviewed invasive plants'],
   '/adopted-areas': ['Monitoring areas', 'Your non-exclusive monitoring bookmarks'],
   '/places': ['Browse places', 'Mapped parks, forests and woodlands'],
+  '/events': ['Community events', 'Surveys, safe removals and repeat monitoring'],
 }
 
 /**
@@ -51,12 +52,14 @@ export function AppShell() {
       ? ['Plant details', 'Reviewed catalogue information and sources']
       : pathname.startsWith('/adopted-areas/')
         ? ['Community activity', 'Factual reports within your monitoring bookmark']
+        : /^\/places\/[^/]+\/mission/.test(pathname)
+          ? ['Guided mission', 'Habitat search guidance for this place']
         : pathname.startsWith('/places/')
           ? ['Place details', 'Historical occurrence associations']
         : pathname.startsWith('/sightings/')
           ? ['Follow-up', 'Revisit a community sighting']
           : pathname.startsWith('/events/')
-            ? ['Community events', 'Surveys and repeat monitoring']
+            ? ['Community events', 'Surveys, safe removals and repeat monitoring']
             : TITLES[pathname] ?? [NAV.find((n) => n.path === pathname)?.full ?? 'InvaTrace', '']
   const pageFillsAvailableSpace = pathname === '/map'
   const showBottomTabs = !isDesktop

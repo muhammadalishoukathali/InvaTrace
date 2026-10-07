@@ -25,6 +25,7 @@ from app.api.routers import (
     adopted_areas,
     catalogue,
     events,
+    guided_missions,
     health,
     identify,
     identity,
@@ -263,6 +264,7 @@ def create_app() -> FastAPI:
         adopted_areas.router,
         events.router,
         events.places_router,
+        guided_missions.router,
         admin.router,
     ):
         app.include_router(router)

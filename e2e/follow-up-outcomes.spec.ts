@@ -6,6 +6,9 @@ const now = '2026-10-02T08:00:00.000Z'
 test.skip(process.env.PLAYWRIGHT_EPIC9 !== '1', 'Epic 4 follow-up is gated until the iteration-3 integration environment is enabled.')
 
 async function installFollowUpFixture(page: Page, rejection?: { status: number; code: string; detail: string }) {
+  // The dev MSW service worker answers the follow-up POST before page.route can
+  // see it, so a server rejection is injected through MSW's one-shot test hook.
+  if (rejection) await page.addInitScript((value) => { window.__msw = { ...window.__msw, followUpRejection: value } }, rejection)
   let followUpState: 'needed' | 'resolved' | 'regrowth' = 'needed'
   let status: 'removal_reported' | 'resolved_after_follow_up' | 'screened' = 'removal_reported'
   let lastFollowupAt: string | null = null
@@ -84,7 +87,7 @@ async function reachConfirmation(page: Page, context: BrowserContext) {
 
   await page.goto(`/sightings/${SIGHTING_ID}/follow-up`)
   await page.getByRole('button', { name: /current location/i }).click()
-  await expect(page.getByText(/GPS accuracy: ±8 m/)).toBeVisible()
+  await expect(page.getByText('±8 m')).toBeVisible()
   await page.getByRole('button', { name: 'Continue' }).click()
   await expect(page.getByRole('heading', { name: 'What did you find?' })).toBeVisible()
 }
@@ -156,7 +159,7 @@ test('a stale-location rejection clears the fix and preserves the selected outco
   await page.getByRole('button', { name: 'Record follow-up' }).click()
   await expect(page.getByRole('heading', { name: 'Get a fresh location' })).toBeVisible()
   await page.getByRole('button', { name: 'Try location again' }).click()
-  await expect(page.getByText('No current location yet.')).toBeVisible()
+  await expect(page.getByText('Not measured yet').first()).toBeVisible()
   await expect(page.getByRole('button', { name: 'Continue' })).toBeDisabled()
 
   await page.goBack()

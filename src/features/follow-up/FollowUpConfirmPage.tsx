@@ -1,6 +1,7 @@
 import { useRef, useState } from 'react'
 import { useQueryClient } from '@tanstack/react-query'
 import { Link, useParams } from 'react-router-dom'
+import { BackLink } from '@/components/BackLink'
 import { ApiError } from '@/services/api-client'
 import { submitFollowUp, type FollowUpLocation, type FollowUpOutcome } from '@/services/api/followUp'
 import { OUTCOME_COPY } from './follow-up-copy'
@@ -50,6 +51,32 @@ export function FollowUpConfirmPage({
       setSubmitting(false)
     }
   }
-  if (done) return <section className="follow-up-page" aria-labelledby="follow-up-done-title"><section className="follow-up-panel follow-up-panel--success" role="status"><h1 id="follow-up-done-title">Follow-up recorded</h1><p>{copy.completed}</p><p className="follow-up-explainer">This records a community observation. It does not independently verify removal or treatment.</p><Link className="follow-up-button" to="/map">Return to map</Link></section></section>
-  return <section className="follow-up-page" aria-labelledby="follow-up-confirm-title"><section className="follow-up-panel"><Link className="back-link" to={`/sightings/${sightingId}/follow-up/outcome`}>Back to outcome</Link><h1 id="follow-up-confirm-title">{copy.label}</h1><p>{copy.description}</p><aside className="follow-up-preview"><strong>How the marker will change</strong><p>{copy.next}</p></aside><button type="button" className="follow-up-button" disabled={submitting} onClick={submit}>{submitting ? 'Recording follow-up…' : 'Record follow-up'}</button></section></section>
+  if (done) {
+    return (
+      <section className="follow-up-page" aria-labelledby="follow-up-done-title">
+        <section className="follow-up-panel follow-up-panel--success" role="status">
+          <h2 id="follow-up-done-title">Follow-up recorded</h2>
+          <aside className="follow-up-preview"><strong>What changed on the map</strong><p>{copy.completed}</p></aside>
+          <p className="follow-up-explainer">Saved as a community observation, not expert verification. The original report and its history are kept.</p>
+          <div className="follow-up-actions">
+            <Link className="follow-up-button follow-up-button--secondary" to={`/map?sighting=${encodeURIComponent(sightingId ?? '')}`}>View sighting history</Link>
+            <Link className="follow-up-button" to="/map">Return to map</Link>
+          </div>
+        </section>
+      </section>
+    )
+  }
+  return (
+    <section className="follow-up-page" aria-labelledby="follow-up-confirm-title">
+      <BackLink to={`/sightings/${sightingId}/follow-up/outcome`}>Back to outcome</BackLink>
+      <section className="follow-up-panel">
+        <p className="follow-up-kicker">Step 3 of 3 · Confirm</p>
+        <h2 id="follow-up-confirm-title">{copy.label}</h2>
+        <p>{copy.description}</p>
+        <aside className="follow-up-preview"><strong>How the marker will change</strong><p>{copy.next}</p></aside>
+        <p className="follow-up-explainer">Recorded at ±{Math.round(location.accuracyM)} m accuracy. Submitting saves this as a community observation.</p>
+        <button type="button" className="follow-up-button" disabled={submitting} onClick={submit}>{submitting ? 'Recording follow-up…' : 'Record follow-up'}</button>
+      </section>
+    </section>
+  )
 }

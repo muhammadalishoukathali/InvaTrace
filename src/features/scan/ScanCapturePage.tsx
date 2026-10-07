@@ -4,7 +4,10 @@ import { Icon } from '@/components/Icon'
 import { captureScanLocation, useScan } from '@/features/scan/scan-store'
 import { resizeImage } from '@/features/scan/image-processing'
 import { getAdapter } from '@/features/scan/plant-model-adapter'
-import { api } from '@/services/api-client'
+import { api, ApiError } from '@/services/api-client'
+import { missionIdForScan } from '@/features/guided-missions/mission-context'
+import { scanReturnPath } from '@/features/scan/scan-navigation'
+import { usePrivateAccess } from '@/features/private-access/private-access-store'
 import { applyServerAcceptance, fetchModelConfig } from '@/services/model-config'
 import type { SpeciesDetail } from '@/types'
 import './scan-capture.css'
@@ -349,18 +352,25 @@ export function ScanCapturePage() {
         void (async () => {
           try {
             const hashHex = await sha256HexOfBlob(imageBlob)
-            await api('/api/v1/scans', {
-              method: 'POST',
-              body: JSON.stringify({
-                captureId,
-                predictedSpeciesId: result.outcome === 'target' ? result.speciesId ?? null : null,
-                outcome: result.outcome,
-                confidence: result.confidence,
-                modelVersion: result.modelVersion,
-                imageSha256Hex: hashHex,
-                captureSource,
-              }),
-            })
+            const scanBody = {
+              captureId,
+              predictedSpeciesId: result.outcome === 'target' ? result.speciesId ?? null : null,
+              outcome: result.outcome,
+              confidence: result.confidence,
+              modelVersion: result.modelVersion,
+              imageSha256Hex: hashHex,
+              captureSource,
+            }
+            // Epic 7: a scan started from a guided mission is counted in that
+            // mission's summary. If the mission has since been finished, keep
+            // the scan as an ordinary one rather than losing it.
+            const missionId = missionIdForScan(scanReturnPath(location.state), usePrivateAccess.getState().profile?.id)
+            try {
+              await api('/api/v1/scans', { method: 'POST', body: JSON.stringify(missionId ? { ...scanBody, missionId } : scanBody) })
+            } catch (error) {
+              if (!(missionId && error instanceof ApiError && error.code === 'mission_invalid')) throw error
+              await api('/api/v1/scans', { method: 'POST', body: JSON.stringify(scanBody) })
+            }
             if (useScan.getState().captureId === captureId) setScanPersistStatus('ok')
           } catch {
             if (useScan.getState().captureId === captureId) setScanPersistStatus('failed')
@@ -480,7 +490,7 @@ export function ScanCapturePage() {
                   className="scan-capture__camera-fallback"
                 >
                   <Icon name="ImagePlus" size={16} color="var(--green)" />
-                  Choose from library
+                  Choose from gallery
                 </button>
               </div>
             </div>
@@ -497,14 +507,14 @@ export function ScanCapturePage() {
               <Icon name="ImagePlus" size={19} color="var(--green)" />
             </span>
             <span>
-              <strong>Choose from library</strong>
+              <strong>Choose from gallery</strong>
               <small>JPEG, PNG or WebP</small>
             </span>
             <Icon name="ChevronRight" size={18} color="var(--muted)" />
           </button>
           <div className="scan-capture__gallery-note" id="gallery-photo-note">
             <Icon name="Info" size={16} color="var(--green-dark)" />
-            <p><strong>About library photos</strong> Cropped, compressed or older photos may return a lower-confidence result. Choosing from your library does not make a plant more likely to be marked high risk.</p>
+            <p><strong>About gallery photos</strong> Cropped, compressed or older photos may return a lower-confidence result. Choosing from your gallery does not make a plant more likely to be marked high risk.</p>
           </div>
         </section>
       ) : (

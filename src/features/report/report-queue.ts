@@ -126,16 +126,27 @@ async function createReport(
   // tree-shakeable when report-queue.ts gets loaded on a page that never
   // actually submits anything, like the history view.
   const { catalogueVersion, plantStatusChecksum } = await import('@shared/catalogue')
-  return api<Report>('/api/v1/reports', {
+  const send = (body: ReportSubmission, key: string) => api<Report>('/api/v1/reports', {
     method: 'POST',
     headers: {
-      'Idempotency-Key': idempotencyKey,
+      'Idempotency-Key': key,
       'X-InvaTrace-Catalogue-Version': catalogueVersion(),
       'X-InvaTrace-Catalogue-Sha256': plantStatusChecksum(),
       ...(queuedRetry ? { 'X-InvaTrace-Queued': 'true' } : {}),
     },
-    body: JSON.stringify(submission),
+    body: JSON.stringify(body),
   })
+  try {
+    return await send(submission, idempotencyKey)
+  } catch (error) {
+    // Epic 7: a mission tag is bookkeeping, not evidence. If the mission was
+    // finished before this report arrived (e.g. it sat in the offline queue),
+    // keep the report as an ordinary one. The changed body gets its own
+    // idempotency key so it never collides with the rejected request.
+    if (!(submission.missionId && error instanceof ApiError && error.code === 'mission_invalid')) throw error
+    delete submission.missionId
+    return send(submission, `${idempotencyKey}-no-mission`)
+  }
 }
 
 interface SubmitOutcome {

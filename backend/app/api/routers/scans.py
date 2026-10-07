@@ -18,6 +18,7 @@ from app.core.security import AuthContext, require_auth
 from app.db.base import get_session
 from app.db.models import Scan, Species
 from app.domain.catalogue import is_approved_species
+from app.services.guided_missions import validate_mission_link
 
 router = APIRouter(prefix="/api/v1/scans", tags=["scans"])
 
@@ -47,6 +48,11 @@ def create_scan(
     if body.predicted_species_id and not session.get(Species, body.predicted_species_id):
         raise ApiProblem(422, "unknown_species", "The predicted species is not supported.")
 
+    # Epic 7 - an optional mission link must name an active mission owned by
+    # the caller; anything else is rejected before any write.
+    if body.mission_id is not None:
+        validate_mission_link(session, body.mission_id, auth.profile.id)
+
     # Same capture_id submitted twice (retry, double-tap) just returns the
     # scan we already recorded instead of creating a duplicate row.
     existing = session.scalar(
@@ -56,6 +62,12 @@ def create_scan(
         )
     )
     if existing:
+        # A retry that adds a mission link to an unlinked scan attaches it;
+        # an existing link is never moved to a different mission.
+        if body.mission_id is not None and existing.mission_id is None:
+            existing.mission_id = body.mission_id
+            session.commit()
+            session.refresh(existing)
         return _to_response(existing)
 
     image_hash = bytes.fromhex(body.image_sha256_hex) if body.image_sha256_hex else None
@@ -68,6 +80,7 @@ def create_scan(
         model_version=body.model_version,
         image_sha256=image_hash,
         capture_source=body.capture_source,
+        mission_id=body.mission_id,
     )
     session.add(scan)
     session.commit()
@@ -85,4 +98,5 @@ def _to_response(scan: Scan) -> ScanResponse:
         model_version=scan.model_version,
         capture_source=scan.capture_source,
         created_at=scan.created_at,
+        mission_id=str(scan.mission_id) if scan.mission_id else None,
     )

@@ -36,6 +36,7 @@ from sqlalchemy import (
     Text,
     UniqueConstraint,
     func,
+    text,
 )
 from sqlalchemy.dialects.postgresql import JSONB, UUID
 from sqlalchemy.orm import Mapped, mapped_column, relationship
@@ -532,6 +533,10 @@ class Scan(Base):
     # report's capture_source can be cross-checked against what the client
     # said at classification time.
     capture_source: Mapped[str | None] = mapped_column(String(20), nullable=True)
+    # Epic 7 - optional guided-mission link (counted in the mission summary).
+    mission_id: Mapped[uuid.UUID | None] = mapped_column(
+        ForeignKey("guided_missions.id", ondelete="SET NULL"), index=True
+    )
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), server_default=func.now(), nullable=False
     )
@@ -648,6 +653,71 @@ class EventFlag(Base):
 Index("ix_events_meeting_location_gist", Event.meeting_location, postgresql_using="gist")
 
 
+class GuidedMission(Base):
+    """Epic 7 - one profile's guided habitat search of a single place.
+
+    A mission is private to its profile. ``place_id`` references the
+    monitored-area/trail union (validated by the API, like Event/AdoptedArea).
+    At most one active mission may exist per (profile, place).
+    """
+
+    __tablename__ = "guided_missions"
+    __table_args__ = (
+        CheckConstraint("status IN ('active','completed')", name="status"),
+        CheckConstraint("(status = 'completed') = (completed_at IS NOT NULL)", name="completed_at"),
+        Index(
+            "uq_guided_missions_active_profile_place",
+            "profile_id",
+            "place_id",
+            unique=True,
+            postgresql_where=text("status = 'active'"),
+            sqlite_where=text("status = 'active'"),
+        ),
+    )
+
+    id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    profile_id: Mapped[uuid.UUID] = mapped_column(
+        ForeignKey("profiles.id", ondelete="CASCADE"), index=True, nullable=False
+    )
+    place_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), nullable=False)
+    status: Mapped[str] = mapped_column(String(20), default="active", nullable=False)
+    dataset_version: Mapped[str] = mapped_column(String(80), nullable=False)
+    selected_species_id: Mapped[str | None] = mapped_column(String(80))
+    started_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), server_default=func.now(), nullable=False
+    )
+    updated_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), server_default=func.now(), nullable=False
+    )
+    completed_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+
+
+class GuidedMissionPlantProgress(Base):
+    """Per-plant progress inside a guided mission (one row per watchlist species)."""
+
+    __tablename__ = "guided_mission_plant_progress"
+    __table_args__ = (
+        UniqueConstraint("mission_id", "species_id", name="uq_guided_mission_plant"),
+        CheckConstraint("state IN ('not_checked','looked_for','unable_to_check')", name="state"),
+        CheckConstraint(
+            "NOT no_target_found OR state = 'looked_for'", name="no_find_requires_looked_for"
+        ),
+    )
+
+    id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    mission_id: Mapped[uuid.UUID] = mapped_column(
+        ForeignKey("guided_missions.id", ondelete="CASCADE"), index=True, nullable=False
+    )
+    species_id: Mapped[str] = mapped_column(String(80), nullable=False)
+    # Preserves the client's watchlist order so the checklist renders stably.
+    position: Mapped[int] = mapped_column(Integer, default=0, nullable=False)
+    state: Mapped[str] = mapped_column(String(20), default="not_checked", nullable=False)
+    no_target_found: Mapped[bool] = mapped_column(Boolean, default=False, nullable=False)
+    updated_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), server_default=func.now(), nullable=False
+    )
+
+
 class Report(Base):
     """A single submission from a profile: one photo, one location, one
     outcome. This is the "raw" record - it goes through the screening
@@ -687,6 +757,10 @@ class Report(Base):
         ForeignKey("events.id", ondelete="SET NULL"), index=True
     )
     captured_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    # Epic 7 - optional guided-mission link; independent of event_id.
+    mission_id: Mapped[uuid.UUID | None] = mapped_column(
+        ForeignKey("guided_missions.id", ondelete="SET NULL"), index=True
+    )
     species_id: Mapped[str | None] = mapped_column(ForeignKey("species.id", ondelete="RESTRICT"))
     status: Mapped[str] = mapped_column(
         String(30), default="processing", index=True, nullable=False

@@ -6,7 +6,7 @@
 // installed pack's copy if there is one. The pack's images come out of the Cache
 // API as blob URLs, so releasePack() has to run on unmount or those URLs leak.
 import { useEffect, useRef, useState } from 'react'
-import { Link, useParams } from 'react-router-dom'
+import { Link, useParams, useSearchParams } from 'react-router-dom'
 import { Icon } from '@/components/Icon'
 import { BackLink } from '@/components/BackLink'
 import { useOnline } from '@/hooks/useOnline'
@@ -24,7 +24,14 @@ import './catalogue.css'
 
 export function CatalogueDetailPage() {
   const { speciesId = '' } = useParams()
+  const [searchParams] = useSearchParams()
   const online = useOnline()
+  // Epic 7 (AC 7.4.1): opened from a guided mission, Back returns to the
+  // mission. Carried in the URL so it survives a refresh.
+  const missionPlace = searchParams.get('from') === 'mission' ? searchParams.get('place') : null
+  const back = missionPlace && /^[a-zA-Z0-9-]+$/.test(missionPlace)
+    ? { to: `/places/${missionPlace}/mission`, label: 'Back to mission' }
+    : { to: '/catalogue', label: 'Back to catalogue' }
   const [dataset, setDataset] = useState<ApprovedSpeciesDataset>(approvedSpeciesDataset)
   const [details, setDetails] = useState<CatalogueDetailsDataset>(catalogueDetailsDataset)
   const [assetUrls, setAssetUrls] = useState<Record<string, string>>({})
@@ -90,7 +97,7 @@ export function CatalogueDetailPage() {
           <span>Last reviewed {dataset.reviewed_at}. Current map and place data need a connection.</span>
         </div>
       )}
-      <BackLink to="/catalogue">Back to catalogue</BackLink>
+      <BackLink to={back.to}>{back.label}</BackLink>
       <header className="catalogue-detail__header">
         <div className="catalogue-detail__media">
           {image ? (

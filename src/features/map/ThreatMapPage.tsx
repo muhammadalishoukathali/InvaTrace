@@ -85,6 +85,9 @@ export function ThreatMapPage() {
   const reportsHaveLoaded = useRef(false)
   const locationFailed = useRef(false)
   const initialViewApplied = useRef(false)
+  // ?sighting= is honoured once per id. The list refetches every 15 s, and
+  // re-selecting on each refetch would reopen a closed sheet and re-centre.
+  const handledRequestedSighting = useRef<string | null>(null)
   const targetSightingId = useRef<string | null>(null)
   const fitReportsFallback = useRef<(() => void) | null>(null)
   const placeRequestTimer = useRef<number | null>(null)
@@ -108,6 +111,14 @@ export function ThreatMapPage() {
   const {
     species, statuses, risks, search, followUpNeeded, resolvedSightings, select, clearFilters,
   } = useMapStore()
+  // Deep link for the Epic 9 monitoring task: /map?status=followup-needed opens
+  // the map already filtered to grey markers awaiting follow-up (AC 4.6.3).
+  const requestedStatus = searchParams.get('status')
+  useEffect(() => {
+    if (requestedStatus !== 'followup-needed') return
+    const state = useMapStore.getState()
+    if (!state.followUpNeeded) state.toggleFollowUpNeeded()
+  }, [requestedStatus])
   const [locationNotice, setLocationNotice] = useState<{
     tone: 'pending' | 'success' | 'error'
     text: string
@@ -275,7 +286,7 @@ export function ThreatMapPage() {
     return () => window.clearTimeout(timer)
   }, [locationNotice])
 
-  const { data, isLoading, isError, refetch } = useQuery({
+  const { data, isLoading, isError, isFetching, refetch } = useQuery({
     queryKey: ['sightings', species, statuses, risks, search, followUpNeeded, resolvedSightings],
     queryFn: async () => {
       const params = new URLSearchParams()
@@ -300,7 +311,10 @@ export function ThreatMapPage() {
   })
 
   useEffect(() => {
-    if (!requestedSightingId) return
+    if (!requestedSightingId) {
+      handledRequestedSighting.current = null
+      return
+    }
     clearFilters()
   }, [clearFilters, requestedSightingId])
 
@@ -647,9 +661,10 @@ export function ThreatMapPage() {
     // marker has to actually be on the map before we can select it and
     // fly the camera - that's why this bit lives at the end of the
     // rebuild, not up top.
-    if (requestedSightingId) {
+    if (requestedSightingId && handledRequestedSighting.current !== requestedSightingId) {
       const requested = filtered.find((sighting) => sighting.id === requestedSightingId)
       if (requested) {
+        handledRequestedSighting.current = requestedSightingId
         initialViewApplied.current = true
         select(requested.id)
         map.current.easeTo({
@@ -662,6 +677,18 @@ export function ThreatMapPage() {
 
     if (locationFailed.current) fitReportsFallback.current?.()
   }, [data, species, statuses, risks, search, select, requestedSightingId, isDesktop])
+
+  // A resolved sighting (AC 4.8.1) is absent from the default map, but its
+  // details and history stay public, so a ?sighting= link opens them directly
+  // once the unfiltered list has settled without it.
+  useEffect(() => {
+    if (!requestedSightingId || handledRequestedSighting.current === requestedSightingId) return
+    if (!data || isFetching) return
+    if (species.length || statuses.length || risks.length || search.trim() || followUpNeeded || resolvedSightings) return
+    if (data.items.some((sighting) => sighting.id === requestedSightingId)) return
+    handledRequestedSighting.current = requestedSightingId
+    select(requestedSightingId)
+  }, [data, isFetching, species, statuses, risks, search, followUpNeeded, resolvedSightings, select, requestedSightingId])
 
   const filtered = data
     ? data.items.filter((s) => {
@@ -679,6 +706,7 @@ export function ThreatMapPage() {
   // pilot testing someone read "3" and thought there were 3 reports when
   // it was actually the number of active filters. Confusing.
   const filtersActive = species.length + statuses.length + risks.length + (search.trim() ? 1 : 0)
+    + Number(followUpNeeded) + Number(resolvedSightings)
   const resultCountLabel = `Showing ${filtered.length} ${filtered.length === 1 ? 'report' : 'reports'}`
 
   return (
@@ -1036,9 +1064,7 @@ function ReportsSheet({
                 <ul className="map-reports-sheet__list">
                   {items.map((s) => {
                     const statusLabel = sightingStatusLabel(s)
-                    const statusDate = s.status === 'removal_reported'
-                      ? ` on ${formatStatusDate(s.removalReportedAt ?? s.lastReportedAt)}`
-                      : ''
+                    const statusDate = statusDateSuffix(s)
                     const tierLabel = PIN_TIERS[pinTier(s)].label
                     const placeName = s.place.source === 'fallback' || !s.place.displayName
                       ? 'No named trail, park or forest found nearby'
@@ -1082,7 +1108,7 @@ function SrOnlySightingList({
           return (
             <li key={s.id}>
               <button type="button" onClick={() => onSelect(s.id)}>
-                {s.speciesName} ({s.latinName}) - {tierLabel} - {statusLabel}
+                {s.speciesName} ({s.latinName}) - {tierLabel} - {statusLabel}{statusDateSuffix(s)}
               </button>
             </li>
           )
@@ -1148,7 +1174,8 @@ export function pinTier(s: Pick<Sighting, 'status' | 'reportCount' | 'followUpSt
 }
 
 function sightingStatusLabel(s: Pick<Sighting, 'status' | 'followUpState'>): string {
-  if (s.followUpState === 'needed') return 'Removal reported - follow-up needed'
+  // The tier label already reads "Follow-up needed" (AC 4.6.1).
+  if (s.followUpState === 'needed') return 'Removal reported'
   if (s.followUpState === 'resolved' || s.status === 'resolved_after_follow_up') return 'Resolved after follow-up'
   if (s.followUpState === 'regrowth') return 'Regrowth reported'
   if (s.status === 'screened') return 'Community report - not expert validated'
@@ -1165,9 +1192,7 @@ function pinElement(s: Sighting): HTMLElement {
   const el = document.createElement('button')
   el.type = 'button'
   const statusLabel = sightingStatusLabel(s)
-  const statusDate = s.status === 'removal_reported'
-    ? ` on ${formatStatusDate(s.removalReportedAt ?? s.lastReportedAt)}`
-    : ''
+  const statusDate = statusDateSuffix(s)
   const tier = pinTier(s)
   const tierInfo = PIN_TIERS[tier]
   const ariaLabel = `${s.speciesName} - ${tierInfo.label} - ${statusLabel}${statusDate}`
@@ -1189,6 +1214,18 @@ function pinElement(s: Sighting): HTMLElement {
     -webkit-tap-highlight-color: transparent;
   `
   return el
+}
+
+/** Date suffix for a marker's status: the latest follow-up attempt for a grey
+ *  marker (AC 4.8.3), the follow-up date for regrowth (AC 4.8.2), otherwise
+ *  the original removal date. */
+function statusDateSuffix(s: Sighting): string {
+  if (s.followUpState === 'needed' && s.lastFollowupAt) {
+    return ` on ${formatStatusDate(s.removalReportedAt ?? s.lastReportedAt)} · latest attempt ${formatStatusDate(s.lastFollowupAt)}`
+  }
+  if (s.followUpState === 'regrowth' && s.lastFollowupAt) return ` on ${formatStatusDate(s.lastFollowupAt)}`
+  if (s.status === 'removal_reported') return ` on ${formatStatusDate(s.removalReportedAt ?? s.lastReportedAt)}`
+  return ''
 }
 
 function formatStatusDate(value: string): string {

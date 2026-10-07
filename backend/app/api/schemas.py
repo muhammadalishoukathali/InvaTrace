@@ -319,6 +319,8 @@ class ScanCreateRequest(ApiModel):
     # AC 2.2.1 - capture source recorded at classification time so the later
     # report submission can be checked against it.
     capture_source: Literal["camera", "gallery"] | None = None
+    # Epic 7 - optional guided mission; must be an active mission of the caller.
+    mission_id: uuid.UUID | None = None
 
 
 class ScanResponse(ApiModel):
@@ -330,6 +332,15 @@ class ScanResponse(ApiModel):
     model_version: str
     capture_source: Literal["camera", "gallery"] | None = None
     created_at: datetime
+    mission_id: str | None = None
+
+    @model_serializer(mode="wrap")
+    def preserve_ordinary_scan(self, handler):
+        result = handler(self)
+        if self.mission_id is None:
+            for key in ("mission_id", "missionId"):
+                result.pop(key, None)
+        return result
 
 
 class PresignRequest(ApiModel):
@@ -362,6 +373,8 @@ class Consent(ApiModel):
 class ReportSubmissionDetails(ApiModel):
     event_id: uuid.UUID | None = None
     captured_at: datetime | None = None
+    # Epic 7 - optional guided-mission link, independent of event_id.
+    mission_id: uuid.UUID | None = None
     photo_key: Annotated[str, StringConstraints(min_length=1, max_length=500)]
     species_id: Annotated[str, StringConstraints(max_length=80)] | None
     outcome: Outcome
@@ -388,6 +401,9 @@ class ReportSubmissionDetails(ApiModel):
         result = handler(self)
         if self.event_id is None:
             for key in ("event_id", "eventId", "captured_at", "capturedAt"):
+                result.pop(key, None)
+        if self.mission_id is None:
+            for key in ("mission_id", "missionId"):
                 result.pop(key, None)
         return result
 
@@ -438,6 +454,7 @@ class ReportValidation(ApiModel):
 
 class ReportResponse(ApiModel):
     event_id: str | None = None
+    mission_id: str | None = None
     evidence_label: Literal["community_reported"] | None = None
     id: str
     status: ReportStatus
@@ -455,6 +472,9 @@ class ReportResponse(ApiModel):
         result = handler(self)
         if self.event_id is None:
             for key in ("event_id", "eventId", "evidence_label", "evidenceLabel"):
+                result.pop(key, None)
+        if self.mission_id is None:
+            for key in ("mission_id", "missionId"):
                 result.pop(key, None)
         return result
 
@@ -501,7 +521,11 @@ class SightingResponse(ApiModel):
 
 class FollowUpHistoryEntry(ApiModel):
     event_type: Literal[
-        "removal_reported", "followup_no_regrowth", "followup_regrowth", "followup_unable"
+        "reported",
+        "removal_reported",
+        "followup_no_regrowth",
+        "followup_regrowth",
+        "followup_unable",
     ]
     created_at: datetime
 

@@ -627,7 +627,7 @@ test('private detector can scan, analyse, and submit', async ({ page, context, b
   await page.getByRole('checkbox', { name: /accurate/i }).check()
   await page.getByRole('checkbox', { name: /personal information/i }).check()
   await page.getByRole('button', { name: 'Review submission' }).click()
-  await expect(page.getByText('Mikania-Micrantha')).toBeVisible()
+  await expect(page.getByText('Mile-a-minute weed')).toBeVisible()
   await page.evaluate(() => {
     window.__msw = { expireSession: true }
   })
