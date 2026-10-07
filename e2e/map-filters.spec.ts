@@ -14,7 +14,7 @@ test('the reports list filters by follow-up state and plant, and the count follo
   await page.getByRole('button', { name: /Open reports list/ }).click()
   const sheet = page.getByRole('dialog', { name: 'Community reports list' })
   const count = sheet.locator('.map-reports-sheet__count')
-  await expect(count).toContainText('match the current filters')
+  await expect(count).toContainText(/match(es)? the current filters/)
   const total = await sheet.locator('.map-reports-sheet__item').count()
 
   // AC 4.6.3: only grey sightings awaiting follow-up remain.

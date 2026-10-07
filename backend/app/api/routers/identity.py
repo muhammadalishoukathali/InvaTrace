@@ -2,8 +2,8 @@
 
 This is the only way an account comes into existence in InvaTrace - there is no
 signup form, no email, no password. /start creates a pseudonymous profile and
-hands back an installation token plus three reusable recovery codes; /restore
-takes one of those codes and re-links the profile on a new device without
+hands back an installation token plus one reusable recovery code; /restore
+takes that code and re-links the profile on a new device without
 consuming it, so the same code can be reused later on yet another device. The
 hashing and token issuing all live in app/core/security.py, this module is the
 HTTP shape around it plus the audit trail.

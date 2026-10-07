@@ -1060,7 +1060,7 @@ function ReportsSheet({
               <p className="map-reports-sheet__count">
                 {items.length === 0
                   ? 'No community reports match the current filters.'
-                  : `${items.length} community report${items.length === 1 ? '' : 's'} match the current filters.`}
+                  : `${items.length} community report${items.length === 1 ? ' matches' : 's match'} the current filters.`}
               </p>
               {items.length > 0 && (
                 <ul className="map-reports-sheet__list">
@@ -1141,7 +1141,7 @@ function SrOnlySightingList({
 }) {
   return (
     <section aria-label="Community reports list" className="sr-only">
-      <p>{items.length} community report{items.length === 1 ? '' : 's'} match the current filters.</p>
+      <p>{items.length} community report{items.length === 1 ? ' matches' : 's match'} the current filters.</p>
       <ul>
         {items.map((s) => {
           const tierLabel = PIN_TIERS[pinTier(s)].label
