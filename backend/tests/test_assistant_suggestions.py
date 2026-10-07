@@ -40,3 +40,21 @@ def test_every_offered_suggestion_is_supported_for_every_species(question: str) 
             continue
         state = r.classify(species_id, question, r.search(species_id, question)).state
         assert state == SupportState.DEMONSTRABLY_SUPPORTED, (species_id, question, state)
+
+
+def test_fallback_depth_uses_only_approved_wording() -> None:
+    from app.domain.plant_assistant import fallback_evidence
+
+    r = get_retriever()
+    species_id, question = "mikania-micrantha", "How does it spread?"
+    evidence = r.classify(species_id, question, r.search(species_id, question)).evidence
+    standard, _ = fallback_evidence(r, species_id, evidence, "standard")
+    simpler, _ = fallback_evidence(r, species_id, evidence, "simpler")
+    detailed, used = fallback_evidence(r, species_id, evidence, "detailed")
+    assert len(simpler) < len(standard) < len(detailed)
+    # Every part is approved text: whole paragraphs, or a paragraph's opening sentence.
+    contents = [c["content"] for c in r.chunks if c["species_id"] == species_id]
+    for part in simpler.split("\n\n"):
+        assert any(content.startswith(part) for content in contents)
+    assert {c["topic"] for c in used} >= {"safe_response"}
+    assert all(part in contents for part in detailed.split("\n\n"))

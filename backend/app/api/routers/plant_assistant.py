@@ -15,6 +15,7 @@ from app.domain.plant_assistant import (
     SAFETY_BOUNDARY,
     SupportState,
     contains_private_details,
+    fallback_evidence,
     get_retriever,
     protected_chunks,
     requested_hazard_aspect,
@@ -157,13 +158,17 @@ async def ask(
         evidence = validate_judgement(judgement, body.question, species, evidence)
         if not evidence:
             return insufficient()
-    if len(protected_chunks(evidence)) == len(evidence):
+    def fallback() -> AskResponse:
+        answer, used = fallback_evidence(retriever, species_id, evidence, body.depth)
         return AskResponse(
             status="fallback",
             answerability="answerable",
-            answer="\n\n".join(c["content"] for c in evidence),
-            sources=stored_sources(evidence),
+            answer=answer,
+            sources=stored_sources(used),
         )
+
+    if len(protected_chunks(evidence)) == len(evidence):
+        return fallback()
     # A judge failure never reaches this branch. Generation failure retains
     # only the support-approved set, rather than every related candidate.
     try:
@@ -218,9 +223,4 @@ async def ask(
                 answer=answer,
                 sources=stored_sources(used),
             )
-    return AskResponse(
-        status="fallback",
-        answerability="answerable",
-        answer="\n\n".join(c["content"] for c in evidence),
-        sources=stored_sources(evidence),
-    )
+    return fallback()

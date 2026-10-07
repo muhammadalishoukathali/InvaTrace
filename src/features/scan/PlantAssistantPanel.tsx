@@ -92,9 +92,7 @@ export function PlantAssistantPanel({ result }: { result: IdentifyResult }) {
       if (attempt.signal.aborted) return
       setResponse(next)
       setResponseQuestion(trimmed)
-      // Only generated answers can be re-explained at another depth; source
-      // fallbacks return the same reviewed text whatever depth is requested.
-      if (next.status === 'answer') answered.current.add(trimmed.toLowerCase())
+      if (next.answerability === 'answerable') answered.current.add(trimmed.toLowerCase())
     } catch (cause) {
       setError(cause instanceof ApiError && cause.status === 429
         ? 'You have asked several questions recently. Wait a minute, then try again.'
@@ -140,7 +138,7 @@ export function PlantAssistantPanel({ result }: { result: IdentifyResult }) {
           {repeat && <div className="plant-assistant__repeat" role="status">
             <p>I explained this question earlier in this conversation. Would you like a simpler or more detailed explanation?</p>
             <div className="plant-assistant__choices">
-              <button type="button" disabled={pending} onClick={() => void submitQuestion(repeat, 'simpler', false)}>Simpler explanation</button>
+              <button type="button" aria-label="Simpler explanation" disabled={pending} onClick={() => void submitQuestion(repeat, 'simpler', false)}>Simpler</button>
               <button type="button" disabled={pending} onClick={() => void submitQuestion(repeat, 'detailed', false)}>More detail</button>
             </div>
           </div>}
@@ -153,9 +151,9 @@ export function PlantAssistantPanel({ result }: { result: IdentifyResult }) {
             <p className="plant-assistant__answer">{response.answer}</p>
             {response.status === 'insufficient_evidence' && topicLabels.length > 0 &&
               <p className="plant-assistant__coverage">Available information for this species: {topicLabels.join(', ')}.</p>}
-            {response.status === 'answer' && <div className="plant-assistant__choices" role="group" aria-label="Explanation level">
-              <button type="button" onClick={() => void submitQuestion(responseQuestion, 'simpler', false)}>Simpler explanation</button>
-              <button type="button" onClick={() => void submitQuestion(responseQuestion, 'standard', false)}>Standard explanation</button>
+            {response.answerability === 'answerable' && <div className="plant-assistant__choices" role="group" aria-label="Explanation level">
+              <button type="button" aria-label="Simpler explanation" onClick={() => void submitQuestion(responseQuestion, 'simpler', false)}>Simpler</button>
+              <button type="button" aria-label="Standard explanation" onClick={() => void submitQuestion(responseQuestion, 'standard', false)}>Standard</button>
               <button type="button" onClick={() => void submitQuestion(responseQuestion, 'detailed', false)}>More detail</button>
             </div>}
             {sources.length > 0 && <>
