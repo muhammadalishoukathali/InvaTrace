@@ -657,6 +657,36 @@ def protected_chunks(evidence: list[dict]) -> list[dict]:
     ]
 
 
+def fallback_evidence(
+    retriever: EvidenceRetriever, species_id: str, evidence: list[dict], depth: str
+) -> tuple[str, list[dict]]:
+    """Source-text answer at the requested depth, using approved wording only.
+
+    Without generation, "simpler" keeps the first sentence of each botanical
+    paragraph and "detailed" adds the species' reviewed safe-response
+    paragraph. Safety paragraphs are never shortened.
+    """
+    used = list(evidence)
+    if depth == "detailed":
+        ids = {c["chunk_id"] for c in used}
+        used += [
+            c
+            for c in retriever.chunks
+            if c["species_id"] == species_id
+            and c["topic"] == "safe_response"
+            and c["chunk_id"] not in ids
+            and eligible_evidence(c)
+        ]
+    protected = {c["chunk_id"] for c in protected_chunks(used)}
+    parts = [
+        re.split(r"(?<=[.!?])\s+", c["content"].strip(), maxsplit=1)[0]
+        if depth == "simpler" and c["chunk_id"] not in protected
+        else c["content"]
+        for c in used
+    ]
+    return "\n\n".join(parts), used
+
+
 def validate_generated(
     payload: object, evidence: list[dict], species: str | None = None
 ) -> tuple[str, list[dict]] | None:

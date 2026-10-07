@@ -30,7 +30,9 @@
 .plant-assistant button.plant-assistant__primary:hover:not(:disabled) { background: var(--green-dark); }
 .plant-assistant__privacy, .plant-assistant__notice { font-size: 14px; }
 .plant-assistant__suggestions, .plant-assistant__choices { display: flex; flex-wrap: wrap; gap: 8px; margin-block: 16px; }
-.plant-assistant__suggestions button { font-size: 14px; }
+.plant-assistant__suggestions button { font-size: 14px; border-radius: 999px; padding-inline: 16px; }
+.plant-assistant__choices { flex-wrap: nowrap; }
+.plant-assistant__choices button { flex: 1 1 0; text-align: center; padding-inline: 8px; }
 .plant-assistant form { display: grid; gap: 10px; margin-block: 20px; }
 .plant-assistant label { color: var(--ink); font-weight: 600; }
 .plant-assistant textarea {
@@ -44,7 +46,6 @@
 .plant-assistant a { color: var(--green-dark); text-decoration: underline; text-underline-offset: 3px; }
 .plant-assistant__safety { padding-top: 16px; border-top: 1px solid var(--border); font-size: 14px; }
 .plant-assistant__repeat { padding-block: 12px; }
-@media (max-width: 420px) {
-  .plant-assistant__suggestions { display: grid; }
-  .plant-assistant__choices button { flex: 1 1 140px; }
+@media (max-width: 340px) {
+  .plant-assistant__choices { flex-wrap: wrap; }
 }
