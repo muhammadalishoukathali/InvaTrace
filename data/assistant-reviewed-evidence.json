@@ -1,0 +1,513 @@
+{
+  "schema_version": "1.0",
+  "spread": [
+    {
+      "species_id": "chromolaena-odorata",
+      "chunk_id": "CAT-chromolaena-odorata-spread",
+      "topic": "spread",
+      "content": "Seeds can spread by wind and water, attach to animals, and be moved by people.",
+      "sources": [
+        {
+          "source_id": "reviewed-siam-weed",
+          "title": "Siam weed",
+          "publisher": "Queensland Government",
+          "url": "https://www.business.qld.gov.au/industries/farms-fishing-forestry/agriculture/biosecurity/plants/invasive/restricted/siam-weed",
+          "accessed": "2026-10-05",
+          "license": "CC BY 4.0",
+          "license_url": "https://www.qld.gov.au/legal/copyright",
+          "copyright": "\u00a9 State of Queensland 2026",
+          "attribution": "\u00a9 State of Queensland 2026; Queensland Government. Adapted by the InvaTrace team from Siam weed; factual summary paraphrased; no endorsement.",
+          "reuse_status": "reviewed_short_paraphrase_cc_by_4_0"
+        }
+      ],
+      "jurisdiction": "Australian government botanical evidence; not Malaysian law, local presence or permission",
+      "reviewed_at": "2026-10-05",
+      "evidence_status": "reviewed",
+      "provenance": {
+        "source_section": "How it is spread",
+        "review_method": "Actual source body and official licence inspected; short factual paraphrase, no control/legal text or images. No relevant third-party text exception identified.",
+        "prior_material": "Official source inspected during completion",
+        "local_source_path": "/Users/zack/workspace/FIT5120-3/epic8_source_review_2026-10-05/siam-weed.html",
+        "source_sha256": "5ef2f377e897c7ea033f64007b3afe0aa5b00de3a0f90c17e8b955317054938c",
+        "verified_source_url": "https://www.business.qld.gov.au/industries/farms-fishing-forestry/agriculture/biosecurity/plants/invasive/restricted/siam-weed",
+        "verification_note": "Local source body and hash inspected"
+      }
+    },
+    {
+      "species_id": "cyperus-rotundus",
+      "chunk_id": "CAT-cyperus-rotundus-spread",
+      "topic": "spread",
+      "content": "Underground tubers can spread in soil and floodwater. The plant can also reproduce from seed.",
+      "sources": [
+        {
+          "source_id": "reviewed-weed-risk-analysis-of-a-proposed-importation-of-bulk-maize-from-the-usa-(march-1999)",
+          "title": "Weed Risk Analysis of a Proposed Importation of Bulk Maize from the USA (March 1999)",
+          "publisher": "Department of Agriculture, Fisheries and Forestry",
+          "url": "https://www.agriculture.gov.au/sites/default/files/sitecollectiondocuments/ba/memos/1999/plant/TWGP_4.pdf",
+          "accessed": "2026-10-05",
+          "license": "CC BY 4.0",
+          "license_url": "https://www.agriculture.gov.au/about/copyright",
+          "copyright": "\u00a9 Department of Agriculture, Fisheries and Forestry 2026",
+          "attribution": "\u00a9 Department of Agriculture, Fisheries and Forestry 2026; Department of Agriculture, Fisheries and Forestry. Department of Agriculture, Fisheries and Forestry. 2026. Weed Risk Analysis of a Proposed Importation of Bulk Maize from the USA (March 1999), Weed Technical Working Group. Short fact paraphrase by InvaTrace; authors credited above; source URL retained.",
+          "reuse_status": "reviewed_short_paraphrase_cc_by_4_0",
+          "authors": "Acharee Pheloung; John Swarbrick; Bill Roberts (chair), Weed Technical Working Group"
+        }
+      ],
+      "jurisdiction": "Australian government botanical evidence; not Malaysian law, local presence or permission",
+      "reviewed_at": "2026-10-05",
+      "evidence_status": "reviewed",
+      "provenance": {
+        "source_section": "Section 7.1.23, printed p.41 / PDF page 43, Biology",
+        "review_method": "Actual source body and official licence inspected; short factual paraphrase, no control/legal text or images. No relevant third-party text exception identified.",
+        "prior_material": "Official source inspected during completion",
+        "local_source_path": null,
+        "source_sha256": null,
+        "verified_source_url": "https://www.agriculture.gov.au/sites/default/files/sitecollectiondocuments/ba/memos/1999/plant/TWGP_4.pdf",
+        "verification_note": "PDF body and department licence inspected through web PDF/text tool; direct download timed out"
+      }
+    },
+    {
+      "species_id": "eichhornia-crassipes",
+      "chunk_id": "CAT-eichhornia-crassipes-spread",
+      "topic": "spread",
+      "content": "Seeds and stem fragments can spread with moving water.",
+      "sources": [
+        {
+          "source_id": "reviewed-water-hyacinth",
+          "title": "Water hyacinth",
+          "publisher": "Queensland Government",
+          "url": "https://www.business.qld.gov.au/industries/farms-fishing-forestry/agriculture/biosecurity/plants/invasive/restricted/water-hyacinth",
+          "accessed": "2026-10-05",
+          "license": "CC BY 4.0",
+          "license_url": "https://www.qld.gov.au/legal/copyright",
+          "copyright": "\u00a9 State of Queensland 2026",
+          "attribution": "\u00a9 State of Queensland 2026; Queensland Government. Adapted by the InvaTrace team from Water hyacinth; factual summary paraphrased; no endorsement.",
+          "reuse_status": "reviewed_short_paraphrase_cc_by_4_0"
+        }
+      ],
+      "jurisdiction": "Australian government botanical evidence; not Malaysian law, local presence or permission",
+      "reviewed_at": "2026-10-05",
+      "evidence_status": "reviewed",
+      "provenance": {
+        "source_section": "How it is spread",
+        "review_method": "Actual source body and official licence inspected; short factual paraphrase, no control/legal text or images. No relevant third-party text exception identified.",
+        "prior_material": "Existing saved research source reused",
+        "local_source_path": "/Users/zack/Desktop/invatrace/assistant_feasibility_v2_prep/raw_sources/eichhornia-qld.html",
+        "source_sha256": "148c2eacf955b06d67c567d8d145b8b51a0cd2b6a9459beec521453c85ce9b19",
+        "verified_source_url": "https://www.business.qld.gov.au/industries/farms-fishing-forestry/agriculture/biosecurity/plants/invasive/restricted/water-hyacinth",
+        "verification_note": "Local source body and hash inspected"
+      }
+    },
+    {
+      "species_id": "limnocharis-flava",
+      "chunk_id": "CAT-limnocharis-flava-spread",
+      "topic": "spread",
+      "content": "Seeds can spread in running water and on waterbirds or other animals. Plantlets can travel in mud on vehicles, machinery and footwear.",
+      "sources": [
+        {
+          "source_id": "reviewed-limnocharis",
+          "title": "Limnocharis",
+          "publisher": "Queensland Government",
+          "url": "https://www.business.qld.gov.au/industries/farms-fishing-forestry/agriculture/biosecurity/plants/invasive/restricted/limnocharis",
+          "accessed": "2026-10-05",
+          "license": "CC BY 4.0",
+          "license_url": "https://www.qld.gov.au/legal/copyright",
+          "copyright": "\u00a9 State of Queensland 2026",
+          "attribution": "\u00a9 State of Queensland 2026; Queensland Government. Adapted by the InvaTrace team from Limnocharis; factual summary paraphrased; no endorsement.",
+          "reuse_status": "reviewed_short_paraphrase_cc_by_4_0"
+        }
+      ],
+      "jurisdiction": "Australian government botanical evidence; not Malaysian law, local presence or permission",
+      "reviewed_at": "2026-10-05",
+      "evidence_status": "reviewed",
+      "provenance": {
+        "source_section": "How it is spread",
+        "review_method": "Actual source body and official licence inspected; short factual paraphrase, no control/legal text or images. No relevant third-party text exception identified.",
+        "prior_material": "Official source inspected during completion",
+        "local_source_path": "/Users/zack/workspace/FIT5120-3/epic8_source_review_2026-10-05/limnocharis.html",
+        "source_sha256": "bd720e5891d3f7416299ef782634abc86d5ca722a8163930abe339cee5555f8b",
+        "verified_source_url": "https://www.business.qld.gov.au/industries/farms-fishing-forestry/agriculture/biosecurity/plants/invasive/restricted/limnocharis",
+        "verification_note": "Local source body and hash inspected"
+      }
+    },
+    {
+      "species_id": "mikania-micrantha",
+      "chunk_id": "CAT-mikania-micrantha-spread",
+      "topic": "spread",
+      "content": "Seeds can spread by wind and water and be moved by machinery or animals. Stem fragments can move along watercourses and root in moist soil.",
+      "sources": [
+        {
+          "source_id": "reviewed-mikania-vine",
+          "title": "Mikania vine",
+          "publisher": "Queensland Government",
+          "url": "https://www.business.qld.gov.au/industries/farms-fishing-forestry/agriculture/biosecurity/plants/invasive/restricted/mikania-vine",
+          "accessed": "2026-10-05",
+          "license": "CC BY 4.0",
+          "license_url": "https://www.qld.gov.au/legal/copyright",
+          "copyright": "\u00a9 State of Queensland 2026",
+          "attribution": "\u00a9 State of Queensland 2026; Queensland Government. Adapted by the InvaTrace team from Mikania vine; factual summary paraphrased; no endorsement.",
+          "reuse_status": "reviewed_short_paraphrase_cc_by_4_0"
+        }
+      ],
+      "jurisdiction": "Australian government botanical evidence; not Malaysian law, local presence or permission",
+      "reviewed_at": "2026-10-05",
+      "evidence_status": "reviewed",
+      "provenance": {
+        "source_section": "How it is spread",
+        "review_method": "Actual source body and official licence inspected; short factual paraphrase, no control/legal text or images. No relevant third-party text exception identified.",
+        "prior_material": "Existing saved research source reused",
+        "local_source_path": "/Users/zack/Desktop/invatrace/assistant_feasibility_v2_prep/raw_sources/mikania-qld.html",
+        "source_sha256": "f1a9962a64a16fab35574a886d85904adca6229bae4c89e1409e14d0c07665d3",
+        "verified_source_url": "https://www.business.qld.gov.au/industries/farms-fishing-forestry/agriculture/biosecurity/plants/invasive/restricted/mikania-vine",
+        "verification_note": "Local source body and hash inspected"
+      }
+    },
+    {
+      "species_id": "mimosa-pigra",
+      "chunk_id": "CAT-mimosa-pigra-spread",
+      "topic": "spread",
+      "content": "Floodwater, tides, machinery, vehicles and boats can spread this plant. Seeds can attach to clothes, hair and animals.",
+      "sources": [
+        {
+          "source_id": "reviewed-mimosa-pigra",
+          "title": "Mimosa pigra",
+          "publisher": "Queensland Government",
+          "url": "https://www.business.qld.gov.au/industries/farms-fishing-forestry/agriculture/biosecurity/plants/invasive/restricted/mimosa-pigra",
+          "accessed": "2026-10-05",
+          "license": "CC BY 4.0",
+          "license_url": "https://www.qld.gov.au/legal/copyright",
+          "copyright": "\u00a9 State of Queensland 2026",
+          "attribution": "\u00a9 State of Queensland 2026; Queensland Government. Adapted by the InvaTrace team from Mimosa pigra; factual summary paraphrased; no endorsement.",
+          "reuse_status": "reviewed_short_paraphrase_cc_by_4_0"
+        }
+      ],
+      "jurisdiction": "Australian government botanical evidence; not Malaysian law, local presence or permission",
+      "reviewed_at": "2026-10-05",
+      "evidence_status": "reviewed",
+      "provenance": {
+        "source_section": "How it is spread",
+        "review_method": "Actual source body and official licence inspected; short factual paraphrase, no control/legal text or images. No relevant third-party text exception identified.",
+        "prior_material": "Official source inspected during completion",
+        "local_source_path": "/Users/zack/workspace/FIT5120-3/epic8_source_review_2026-10-05/mimosa-pigra.html",
+        "source_sha256": "1b5f3c2e26312a4e43d9944f362ee9bf31f35c4dd91f947719f2481fb3cdfea2",
+        "verified_source_url": "https://www.business.qld.gov.au/industries/farms-fishing-forestry/agriculture/biosecurity/plants/invasive/restricted/mimosa-pigra",
+        "verification_note": "Local source body and hash inspected"
+      }
+    },
+    {
+      "species_id": "parthenium-hysterophorus",
+      "chunk_id": "CAT-parthenium-hysterophorus-spread",
+      "topic": "spread",
+      "content": "Seeds can spread in water, on vehicles and machinery, and with animals, feed or seed.",
+      "sources": [
+        {
+          "source_id": "reviewed-parthenium",
+          "title": "Parthenium",
+          "publisher": "Queensland Government",
+          "url": "https://www.business.qld.gov.au/industries/farms-fishing-forestry/agriculture/biosecurity/plants/invasive/restricted/parthenium",
+          "accessed": "2026-10-05",
+          "license": "CC BY 4.0",
+          "license_url": "https://www.qld.gov.au/legal/copyright",
+          "copyright": "\u00a9 State of Queensland 2026",
+          "attribution": "\u00a9 State of Queensland 2026; Queensland Government. Adapted by the InvaTrace team from Parthenium; factual summary paraphrased; no endorsement.",
+          "reuse_status": "reviewed_short_paraphrase_cc_by_4_0"
+        }
+      ],
+      "jurisdiction": "Australian government botanical evidence; not Malaysian law, local presence or permission",
+      "reviewed_at": "2026-10-05",
+      "evidence_status": "reviewed",
+      "provenance": {
+        "source_section": "How it is spread",
+        "review_method": "Actual source body and official licence inspected; short factual paraphrase, no control/legal text or images. No relevant third-party text exception identified.",
+        "prior_material": "Existing saved research source reused",
+        "local_source_path": "/Users/zack/Desktop/invatrace/assistant_feasibility_v2_prep/raw_sources/parthenium-qld.html",
+        "source_sha256": "9d52ec6a3b24f2bd081571c052767f2462555e0555ae07bac32d4c6e7da51f55",
+        "verified_source_url": "https://www.business.qld.gov.au/industries/farms-fishing-forestry/agriculture/biosecurity/plants/invasive/restricted/parthenium",
+        "verification_note": "Local source body and hash inspected"
+      }
+    },
+    {
+      "species_id": "salvinia-molesta",
+      "chunk_id": "CAT-salvinia-molesta-spread",
+      "topic": "spread",
+      "content": "Water currents and contaminated fishing equipment or boat trailers can spread the plant. Emptying aquarium or pond material into waterways can also spread it.",
+      "sources": [
+        {
+          "source_id": "reviewed-salvinia",
+          "title": "Salvinia",
+          "publisher": "Queensland Government",
+          "url": "https://www.business.qld.gov.au/industries/farms-fishing-forestry/agriculture/biosecurity/plants/invasive/restricted/salvinia",
+          "accessed": "2026-10-05",
+          "license": "CC BY 4.0",
+          "license_url": "https://www.qld.gov.au/legal/copyright",
+          "copyright": "\u00a9 State of Queensland 2026",
+          "attribution": "\u00a9 State of Queensland 2026; Queensland Government. Adapted by the InvaTrace team from Salvinia; factual summary paraphrased; no endorsement.",
+          "reuse_status": "reviewed_short_paraphrase_cc_by_4_0"
+        }
+      ],
+      "jurisdiction": "Australian government botanical evidence; not Malaysian law, local presence or permission",
+      "reviewed_at": "2026-10-05",
+      "evidence_status": "reviewed",
+      "provenance": {
+        "source_section": "How it is spread",
+        "review_method": "Actual source body and official licence inspected; short factual paraphrase, no control/legal text or images. No relevant third-party text exception identified.",
+        "prior_material": "Official source inspected during completion",
+        "local_source_path": "/Users/zack/workspace/FIT5120-3/epic8_source_review_2026-10-05/salvinia.html",
+        "source_sha256": "c7511f326eb56f83dfab9e7e3ed78cdac52813ad995f8fd5875211cedff0abe7",
+        "verified_source_url": "https://www.business.qld.gov.au/industries/farms-fishing-forestry/agriculture/biosecurity/plants/invasive/restricted/salvinia",
+        "verification_note": "Local source body and hash inspected"
+      }
+    }
+  ],
+  "hazards": [
+    {
+      "species_id": "asclepias-curassavica",
+      "chunk_id": "CAT-asclepias-curassavica-hazard-contact",
+      "topic": "documented_hazards",
+      "content": "Milky sap can irritate skin.",
+      "hazard_scopes": [
+        "contact",
+        "handling"
+      ],
+      "sources": [
+        {
+          "source_id": "asclepias-nparks",
+          "title": "Asclepias curassavica",
+          "publisher": "National Parks Board Singapore",
+          "url": "https://www.nparks.gov.sg/florafaunaweb/flora/1/6/1693",
+          "accessed": "2026-09-13",
+          "reuse_status": "Linked regional authority reference; botanical and safety facts are paraphrased."
+        }
+      ],
+      "jurisdiction": "Malaysia project-reviewed summary",
+      "reviewed_at": "2026-10-05",
+      "evidence_status": "reviewed",
+      "reuse_status": "existing_project_owned_summary",
+      "provenance": {
+        "method": "Dedicated scope review of existing approved project-owned impact summary; no new source prose imported.",
+        "prior_chunk_id": "CAT-asclepias-curassavica-impact",
+        "prior_material": "tests/fixtures/epic8_original_knowledge.json",
+        "prior_hazard_wording": "It can self-seed beyond cultivation; milky sap can irritate skin and eyes and plant tissues are toxic if eaten.",
+        "source_check": "NParks page1693 Cultivation: sap skin irritant; ingestion poisonous. Original eyes wording not reverified and is excluded from this dedicated hazard."
+      }
+    },
+    {
+      "species_id": "asclepias-curassavica",
+      "chunk_id": "CAT-asclepias-curassavica-hazard-ingestion",
+      "topic": "documented_hazards",
+      "content": "Plant tissues are toxic if eaten.",
+      "hazard_scopes": [
+        "ingestion"
+      ],
+      "sources": [
+        {
+          "source_id": "asclepias-nparks",
+          "title": "Asclepias curassavica",
+          "publisher": "National Parks Board Singapore",
+          "url": "https://www.nparks.gov.sg/florafaunaweb/flora/1/6/1693",
+          "accessed": "2026-09-13",
+          "reuse_status": "Linked regional authority reference; botanical and safety facts are paraphrased."
+        }
+      ],
+      "jurisdiction": "Malaysia project-reviewed summary",
+      "reviewed_at": "2026-10-05",
+      "evidence_status": "reviewed",
+      "reuse_status": "existing_project_owned_summary",
+      "provenance": {
+        "method": "Dedicated scope review of existing approved project-owned impact summary; no new source prose imported.",
+        "prior_chunk_id": "CAT-asclepias-curassavica-impact",
+        "prior_material": "tests/fixtures/epic8_original_knowledge.json",
+        "prior_hazard_wording": "It can self-seed beyond cultivation; milky sap can irritate skin and eyes and plant tissues are toxic if eaten."
+      }
+    },
+    {
+      "species_id": "parthenium-hysterophorus",
+      "chunk_id": "CAT-parthenium-hysterophorus-hazard-exposure",
+      "topic": "documented_hazards",
+      "content": "Pollen allergens can cause dermatitis and hay fever.",
+      "hazard_scopes": [
+        "contact",
+        "handling",
+        "inhalation"
+      ],
+      "sources": [
+        {
+          "source_id": "reviewed-parthenium",
+          "title": "Parthenium",
+          "publisher": "Queensland Government",
+          "url": "https://www.business.qld.gov.au/industries/farms-fishing-forestry/agriculture/biosecurity/plants/invasive/restricted/parthenium",
+          "accessed": "2026-10-05",
+          "license": "CC BY 4.0",
+          "license_url": "https://www.qld.gov.au/legal/copyright",
+          "copyright": "\u00a9 State of Queensland 2026",
+          "attribution": "\u00a9 State of Queensland 2026; Queensland Government. Adapted by the InvaTrace team from Parthenium; factual summary paraphrased; no endorsement.",
+          "reuse_status": "reviewed_short_paraphrase_cc_by_4_0"
+        }
+      ],
+      "jurisdiction": "Malaysia project-reviewed summary",
+      "reviewed_at": "2026-10-05",
+      "evidence_status": "reviewed",
+      "reuse_status": "existing_project_owned_summary",
+      "provenance": {
+        "method": "Dedicated scope review of existing approved project-owned impact summary; no new source prose imported.",
+        "prior_chunk_id": "CAT-parthenium-hysterophorus-impact",
+        "prior_material": "tests/fixtures/epic8_original_knowledge.json",
+        "prior_hazard_wording": "It competes strongly with crops and pasture and can cause dermatitis, hay fever and respiratory reactions in exposed people.",
+        "source_check": "Saved, hash-verified Queensland Parthenium Social section: reactions such as dermatitis and hayfever due to potent allergens in pollen. Original general respiratory-reactions wording is excluded from this dedicated hazard."
+      }
+    },
+    {
+      "species_id": "rottboellia-cochinchinensis",
+      "chunk_id": "CAT-rottboellia-cochinchinensis-hazard-contact",
+      "topic": "documented_hazards",
+      "content": "Stiff hairs can irritate skin.",
+      "hazard_scopes": [
+        "contact",
+        "handling"
+      ],
+      "sources": [
+        {
+          "source_id": "rottboellia-fdacs",
+          "title": "Rottboellia cochinchinensis (Itchgrass)",
+          "publisher": "Florida Department of Agriculture and Consumer Services",
+          "url": "https://www.fdacs.gov/Agriculture-Industry/Pests-and-Diseases/Plant-Pests-and-Diseases/Noxious-Weeds/Rottboellia-cochinchinensis-Itchgrass",
+          "accessed": "2026-09-13",
+          "reuse_status": "Linked government reference; factual summaries are paraphrased."
+        }
+      ],
+      "jurisdiction": "Malaysia project-reviewed summary",
+      "reviewed_at": "2026-10-05",
+      "evidence_status": "reviewed",
+      "reuse_status": "existing_project_owned_summary",
+      "provenance": {
+        "method": "Dedicated scope review of existing approved project-owned impact summary; no new source prose imported.",
+        "prior_chunk_id": "CAT-rottboellia-cochinchinensis-impact",
+        "prior_material": "tests/fixtures/epic8_original_knowledge.json",
+        "prior_hazard_wording": "It is a serious competitive crop weed; rapid growth and abundant seed reduce yields, while stiff hairs can irritate skin.",
+        "source_check": "FDACS Distinguishing Characteristics: hairs break off on contact, penetrating and irritating skin."
+      }
+    }
+  ],
+  "direct_support": {
+    "CAT-chromolaena-odorata-spread": {
+      "spread_pathways": [
+        "water"
+      ],
+      "content_sha256": "da4245ecc7a66a597fefa9ff1654a2b080728fd4afa904245d63f2e6d25bcff7"
+    },
+    "CAT-cyperus-rotundus-spread": {
+      "spread_pathways": [
+        "water"
+      ],
+      "content_sha256": "44458ec6a733d9e2ce513d3387b22c306dd710cfae5e08e384364a7c932075ca"
+    },
+    "CAT-eichhornia-crassipes-spread": {
+      "spread_pathways": [
+        "water"
+      ],
+      "content_sha256": "ca1445bda353b8b90bc99a4a3d10aecae54835e7c3399d2e274bab4c6d1915be"
+    },
+    "CAT-limnocharis-flava-spread": {
+      "spread_pathways": [
+        "water"
+      ],
+      "content_sha256": "0b47f27c7c4088a8dde658e1b1440a215bb20cd7398150939495f8f915c67fd6"
+    },
+    "CAT-mikania-micrantha-spread": {
+      "spread_pathways": [
+        "water",
+        "wind"
+      ],
+      "content_sha256": "e2d64142fd13d86d38f7ba177313ceccafaeb498510144062d68aa1079ae2cf8"
+    },
+    "CAT-mimosa-pigra-spread": {
+      "spread_pathways": [
+        "water"
+      ],
+      "content_sha256": "57439da34d8d21e5ed044de96797375222fe0eb2ed3b82d33b562544a06bd75a"
+    },
+    "CAT-parthenium-hysterophorus-spread": {
+      "spread_pathways": [
+        "water"
+      ],
+      "content_sha256": "d3fb52bf45b88f323dcb7f3cec8e32e8d4977f54d12135a5df97d93ad5dec587"
+    },
+    "CAT-salvinia-molesta-spread": {
+      "spread_pathways": [
+        "water"
+      ],
+      "content_sha256": "8860033d8367f6de9a1500350b42199a81132359b3bee52cae0cc9b5a47665e1"
+    },
+    "CAT-mikania-micrantha-spread-impact": {
+      "spread_pathways": [
+        "wind"
+      ],
+      "content_sha256": "bb7ee06ecc9f3663c486870cadcd983d3c915c59349ce4ad0732d44310e22763"
+    },
+    "CAT-mikania-micrantha-habitat": {
+      "habitat_contexts": [
+        "river"
+      ],
+      "content_sha256": "b1efde353be5f85fd287b6140665edd746684d097eccea3c69e1889861c3bff7"
+    }
+  },
+  "runtime_revisions": [
+    {
+      "chunk_id": "CAT-asclepias-curassavica-impact",
+      "content": "Milky sap can irritate skin; plant tissues are toxic if eaten.",
+      "sources": [
+        {
+          "source_id": "asclepias-nparks",
+          "title": "Asclepias curassavica",
+          "publisher": "National Parks Board Singapore",
+          "url": "https://www.nparks.gov.sg/florafaunaweb/flora/1/6/1693",
+          "accessed": "2026-09-13",
+          "reuse_status": "Linked regional authority reference; botanical and safety facts are paraphrased."
+        }
+      ],
+      "jurisdiction": "Singapore botanical source; not Malaysian law, local presence or permission",
+      "reviewed_at": "2026-10-06",
+      "evidence_status": "reviewed",
+      "reuse_status": "narrowed_existing_project_owned_summary",
+      "provenance": {
+        "method": "Narrow existing project-owned summary to verified hazard facts; no new source prose imported.",
+        "prior_material": "tests/fixtures/epic8_original_knowledge.json",
+        "source_check": "NParks page1693 Cultivation supports sap skin irritation and ingestion toxicity. Eye irritation and self-seeding beyond cultivation were not verified and are excluded from answerable content. Seed propagation is not evidence of escape from cultivation.",
+        "source_checked_at": "2026-10-06",
+        "source_record_updated": "2025-11-18"
+      }
+    },
+    {
+      "chunk_id": "CAT-parthenium-hysterophorus-impact",
+      "content": "It invades pastures and competes with crops for nutrients and space. Allergens in its pollen can cause reactions such as dermatitis and hay fever.",
+      "sources": [
+        {
+          "source_id": "reviewed-parthenium",
+          "title": "Parthenium",
+          "publisher": "Queensland Government",
+          "url": "https://www.business.qld.gov.au/industries/farms-fishing-forestry/agriculture/biosecurity/plants/invasive/restricted/parthenium",
+          "accessed": "2026-10-05",
+          "license": "CC BY 4.0",
+          "license_url": "https://www.qld.gov.au/legal/copyright",
+          "copyright": "\u00a9 State of Queensland 2026",
+          "attribution": "\u00a9 State of Queensland 2026; Queensland Government. Adapted by the InvaTrace team from Parthenium; factual summary paraphrased; no endorsement.",
+          "reuse_status": "reviewed_short_paraphrase_cc_by_4_0"
+        }
+      ],
+      "jurisdiction": "Australian government botanical evidence; not Malaysian law, local presence or permission",
+      "reviewed_at": "2026-10-06",
+      "evidence_status": "reviewed",
+      "reuse_status": "reviewed_short_paraphrase_cc_by_4_0",
+      "provenance": {
+        "method": "Narrow and correct existing summary against government source; team-owned factual paraphrase with stored attribution.",
+        "prior_material": "tests/fixtures/epic8_original_knowledge.json",
+        "source_section": "Impacts / Social / Economic",
+        "source_check": "Original general respiratory-reactions claim is unverified. Source documents pollen allergens with dermatitis/hay fever, pasture invasion and crop competition for nutrients/space. Strong competition with pasture is not retained.",
+        "source_checked_at": "2026-10-06",
+        "saved_source_path": "/Users/zack/Desktop/invatrace/assistant_feasibility_v2_prep/raw_sources/parthenium-qld.html",
+        "saved_source_sha256": "9d52ec6a3b24f2bd081571c052767f2462555e0555ae07bac32d4c6e7da51f55",
+        "current_source_sha256": "5f69cdc6c5bc0ffa793d862abd53eefcbc6ef9f82170530f7a791cb8f32e4cbf"
+      }
+    }
+  ]
+}

@@ -20,6 +20,7 @@ import {
   findModelSpecies, modelReferenceImageUrl, modelSpeciesCatalogue,
 } from '@/data/model-species-catalogue'
 import { approvedSpeciesDataset, findApprovedSpecies } from '@shared/catalogue'
+import { createCommunityHandlers } from './community-handlers'
 
 const url = (p: string) => `*${p}`
 
@@ -50,6 +51,7 @@ interface MockScan {
   modelVersion: string
   imageSha256Hex: string | null
   captureSource: 'camera' | 'gallery' | null
+  missionId?: string | null
   createdAt: string
 }
 // this mirrors /api/v1/scans persistence for AC 2.2.1, so the browser mock
@@ -385,6 +387,8 @@ declare global {
       failPresign?: boolean
       failReport?: boolean
       expireSession?: boolean
+      /** One-shot server rejection for the next follow-up submission (e2e). */
+      followUpRejection?: { status: number; code: string; detail: string }
     }
   }
 }
@@ -395,6 +399,20 @@ const shouldInject = (kind: 'failPresign' | 'failReport' | 'expireSession') => {
 }
 
 export const handlers = [
+  ...createCommunityHandlers({
+    profileFor: profileForSession,
+    places: () => MOCK_PLACES,
+    placeContains: (placeId, point) => {
+      const place = MOCK_PLACES.find((item) => item.placeId === placeId)
+      return Boolean(place && mockPlaceContains(place, point))
+    },
+    reportsForMission: (missionId) => mockReports
+      .filter((report) => report.submission.missionId === missionId && report.status !== 'rejected')
+      .map((report) => ({ reportId: report.id, speciesId: report.submission.speciesId ?? null, status: report.status, submittedAt: report.createdAt })),
+    scansForMission: (missionId) => mockScans.filter((scan) => scan.missionId === missionId).length,
+  }),
+  // Plant questions use real local retrieval even in development mock mode.
+  http.post(url('/api/v1/plant-assistant/ask'), () => passthrough()),
   // these all need to pass through untouched - map tiles, fonts, sample
   // images, dev files. if MSW intercepts these MapLibre and Vite just break
   http.all('http://localhost:5173/node_modules/*', () => passthrough()),
@@ -883,6 +901,7 @@ export const handlers = [
       modelVersion: string
       imageSha256Hex?: string | null
       captureSource?: 'camera' | 'gallery' | null
+      missionId?: string | null
     }
     if (body.outcome === 'target' && !body.predictedSpeciesId) {
       return HttpResponse.json({ code: 'scan_missing_species', detail: 'Target scans must include predictedSpeciesId.' }, { status: 422 })
@@ -915,6 +934,7 @@ export const handlers = [
       modelVersion: body.modelVersion,
       imageSha256Hex: body.imageSha256Hex ?? null,
       captureSource: body.captureSource ?? null,
+      missionId: body.missionId ?? null,
       createdAt: new Date().toISOString(),
     }
     mockScans.push(scan)
@@ -1185,6 +1205,11 @@ export const handlers = [
   http.post(url('/api/v1/sightings/:id/follow-up'), async ({ params, request }) => {
     const session = sessionForRequest(request)
     if (!session) return sessionUnavailable()
+    const rejection = typeof window !== 'undefined' ? window.__msw?.followUpRejection : undefined
+    if (rejection) {
+      window.__msw!.followUpRejection = undefined
+      return HttpResponse.json({ code: rejection.code, detail: rejection.detail }, { status: rejection.status })
+    }
     const sighting = SIGHTINGS.find((item) => item.id === params.id)
     if (!sighting) return HttpResponse.json({ detail: 'Not found' }, { status: 404 })
     if (sighting.status !== 'removal_reported' && sighting.followUpState !== 'needed') {
@@ -1520,7 +1545,14 @@ export const handlers = [
       reporterTrust: 'Trusted',
       actionGuide: raw.speciesId === 'mikania-micrantha' ? MOCK_ACTION_GUIDE : null,
       removalReportId: raw.status === 'screened' ? removalReportIdForSighting(raw.id) : null,
-      followUpHistory: mockFollowUpHistory.get(raw.id) ?? [],
+      // Mirrors the API: the original report leads once a status event exists.
+      followUpHistory: (() => {
+        const events = mockFollowUpHistory.get(raw.id) ?? []
+        if (!events.length) return []
+        // Fixture report times are relative to now; keep the original report before the removal.
+        const reportedAt = new Date(Math.min(Date.parse(raw.lastReportedAt), Date.parse(events[0].createdAt) - 2 * 86_400_000)).toISOString()
+        return [{ eventType: 'reported' as const, createdAt: reportedAt }, ...events]
+      })(),
     }
     return HttpResponse.json(detail)
   }),
@@ -1621,6 +1653,20 @@ const MOCK_PLACES = [
       coordinates: [[[101.653, 3.126], [101.663, 3.126], [101.663, 3.135], [101.653, 3.135], [101.653, 3.126]]],
     },
   },
+  {
+    // Real OSM-derived id (uuid5 of way/487114579) so the Epic 7 habitat
+    // overlay in public/data/habitat-zones resolves for this place in dev.
+    placeId: 'e56ae54c-ca04-5fbf-b2c2-01b6e7fbdf46',
+    name: 'Taman Tasik Titiwangsa',
+    type: 'park' as const,
+    geometryStatus: 'available',
+    source: 'OpenStreetMap development extract',
+    geometryVersion: 'mock-osm-2026-09-01',
+    geometry: {
+      type: 'Polygon' as const,
+      coordinates: [[[101.7028, 3.1746], [101.7111, 3.1746], [101.7111, 3.1811], [101.7028, 3.1811], [101.7028, 3.1746]]],
+    },
+  },
 ]
 
 const MOCK_PLACE_CENTRES = [
@@ -1628,6 +1674,7 @@ const MOCK_PLACE_CENTRES = [
   { placeId: MOCK_PLACES[1].placeId, latitude: 3.1510, longitude: 101.6680 },
   { placeId: MOCK_PLACES[2].placeId, latitude: 3.1700, longitude: 101.5900 },
   { placeId: MOCK_PLACES[3].placeId, latitude: 3.1305, longitude: 101.6580 },
+  { placeId: MOCK_PLACES[4].placeId, latitude: 3.1778, longitude: 101.7069 },
 ]
 
 function mockPlaceResponse(place: typeof MOCK_PLACES[number]) {
@@ -1736,7 +1783,7 @@ function mockConcentrations(markers: Array<{
 
 const MOCK_ASSOCIATIONS = [
   {
-    placeIds: [MOCK_PLACES[0].placeId, MOCK_PLACES[1].placeId],
+    placeIds: [MOCK_PLACES[0].placeId, MOCK_PLACES[1].placeId, MOCK_PLACES[4].placeId],
     speciesId: 'mikania-micrantha',
     scientificName: 'Mikania micrantha',
     commonNames: ['Mile-a-minute weed'],
@@ -1760,7 +1807,7 @@ const MOCK_ASSOCIATIONS = [
     catalogueUrl: '/catalogue/mikania-micrantha',
   },
   {
-    placeIds: [MOCK_PLACES[0].placeId],
+    placeIds: [MOCK_PLACES[0].placeId, MOCK_PLACES[4].placeId],
     speciesId: 'chromolaena-odorata',
     scientificName: 'Chromolaena odorata',
     commonNames: ['Siam weed'],
@@ -1782,6 +1829,30 @@ const MOCK_ASSOCIATIONS = [
       rankScore: 4.2,
     },
     catalogueUrl: '/catalogue/chromolaena-odorata',
+  },
+  {
+    placeIds: [MOCK_PLACES[4].placeId],
+    speciesId: 'eichhornia-crassipes',
+    scientificName: 'Eichhornia crassipes',
+    commonNames: ['Water hyacinth'],
+    malaysiaStatus: 'Present' as const,
+    imageUrl: null,
+    occurrenceCount: 3,
+    mostRecentYear: 2025,
+    evidence: {
+      types: ['inside_boundary'] as const,
+      insideCount: 3,
+      nearbyCount: 0,
+      trailCount: 0,
+      upstreamCount: 0,
+      nearestDistanceM: 0,
+      insideComponent: 4,
+      proximityComponent: 0,
+      recordCountComponent: 0.3,
+      upstreamComponent: 0,
+      rankScore: 4.3,
+    },
+    catalogueUrl: '/catalogue/eichhornia-crassipes',
   },
 ]
 

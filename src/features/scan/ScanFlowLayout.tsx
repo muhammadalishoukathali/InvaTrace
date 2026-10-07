@@ -2,6 +2,7 @@ import { Outlet, useLocation, useNavigate } from 'react-router-dom'
 import { Icon } from '@/components/Icon'
 import { useScan } from '@/features/scan/scan-store'
 import { scanReturnPath } from '@/features/scan/scan-navigation'
+import { MISSION_PATH } from '@/features/guided-missions/mission-context'
 import './scan-flow.css'
 
 /**
@@ -34,6 +35,15 @@ export function ScanFlowLayout() {
             <Icon name="ChevronLeft" size={18} color="var(--body)" />
           </button>
           <h1>Scan a plant</h1>
+          {MISSION_PATH.test(scanReturnPath(location.state)) && (
+            <button
+              type="button"
+              className="scan-flow__mission-return"
+              onClick={() => { reset(); navigate(scanReturnPath(location.state), { replace: true }) }}
+            >
+              Return to mission
+            </button>
+          )}
         </div>
       </header>
 

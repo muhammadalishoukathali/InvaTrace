@@ -13,7 +13,7 @@ export function FollowUpLocationErrorPage({
     return (
       <section className="follow-up-page" aria-labelledby="follow-up-error-title">
         <section className="follow-up-panel follow-up-panel--error" role="alert">
-          <h1 id="follow-up-error-title">This follow-up has already been recorded</h1>
+          <h2 id="follow-up-error-title">This follow-up has already been recorded</h2>
           <p>The sighting changed while this check was open. Return to the map to review its current status.</p>
           <Link className="follow-up-button" to="/map">Return to map</Link>
         </section>
@@ -28,8 +28,9 @@ export function FollowUpLocationErrorPage({
   return (
     <section className="follow-up-page" aria-labelledby="follow-up-error-title">
       <section className="follow-up-panel follow-up-panel--error" role="alert">
-        <h1 id="follow-up-error-title">{copy.title}</h1>
+        <h2 id="follow-up-error-title">{copy.title}</h2>
         <p>{copy.body}</p>
+        <p className="follow-up-explainer">Nothing was submitted and the marker is unchanged.</p>
         <button type="button" className="follow-up-button" onClick={onTryAgain}>{isLocationError ? 'Try location again' : 'Start again'}</button>
       </section>
     </section>

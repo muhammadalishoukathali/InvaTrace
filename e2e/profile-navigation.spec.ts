@@ -27,7 +27,7 @@ test('a failed page download can be left and retried after reconnecting', async 
 
   await page.getByRole('link', { name: 'Community events', exact: true }).click()
   await page.getByRole('button', { name: 'Try again', exact: true }).click()
-  await expect(page.locator('.event-filter')).toBeVisible()
+  await expect(page.locator('.events-filters')).toBeVisible()
   await expect(page.getByRole('heading', { name: 'Something went wrong' })).toHaveCount(0)
 })
 

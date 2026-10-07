@@ -52,3 +52,19 @@
 @media (hover: hover) and (pointer: fine) {
   .scan-flow__back:hover { background: var(--hover); }
 }
+
+/* Epic 7: visible way back to the guided mission from the scanner. */
+.scan-flow__mission-return {
+  margin-left: auto;
+  min-height: 40px;
+  padding: 8px 12px;
+  border: 1px solid var(--green-border);
+  border-radius: var(--r-button);
+  background: var(--green-light);
+  color: var(--green-dark);
+  font: inherit;
+  font-size: 13px;
+  font-weight: 650;
+  white-space: nowrap;
+  cursor: pointer;
+}

@@ -85,6 +85,18 @@ export default defineConfig({
             },
           },
           {
+            // Epic 7 habitat overlays. The data root is versioned, so a cached
+            // response never goes stale under the same URL. Only the overlays a
+            // user actually opens are cached - never all 1,869 places up front.
+            urlPattern: ({ url }) => url.pathname.startsWith('/data/habitat-zones/'),
+            handler: 'CacheFirst',
+            options: {
+              cacheName: 'invatrace-habitat-zones-v1',
+              expiration: { maxEntries: 80, maxAgeSeconds: 180 * 24 * 60 * 60 },
+              cacheableResponse: { statuses: [200] },
+            },
+          },
+          {
             // The hashed runtime is large, so cache it after first inference
             // instead of slowing service-worker installation with a precache.
             urlPattern: ({ url }) => /\/assets\/ort-wasm-.+\.wasm$/.test(url.pathname),
@@ -194,5 +206,11 @@ export default defineConfig({
       },
     },
   },
-  server: { port: 5173 },
+  server: {
+    port: 5173,
+    // Existing development mocks remain active; only plant questions use this proxy.
+    proxy: {
+      '/api/v1/plant-assistant': process.env.VITE_API_BASE_URL ?? 'http://127.0.0.1:8000',
+    },
+  },
 })

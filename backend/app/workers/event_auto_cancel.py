@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from datetime import UTC, datetime, timedelta
 
-from sqlalchemy import select
+from sqlalchemy import func, select
 
 from app.config import get_settings
 from app.db.base import SessionLocal
@@ -17,7 +17,14 @@ def cancel_stale_hidden_events(now: datetime | None = None) -> int:
     with SessionLocal() as session:
         events = session.scalars(
             select(Event)
-            .where(Event.status == "published", Event.hidden.is_(True), Event.updated_at < cutoff)
+            # Measure the 14-day window from when the event was hidden, not
+            # from its last edit: a host editing the title must not keep a
+            # hidden event in limbo indefinitely.
+            .where(
+                Event.status == "published",
+                Event.hidden.is_(True),
+                func.coalesce(Event.hidden_at, Event.updated_at) < cutoff,
+            )
             .with_for_update(skip_locked=True)
         ).all()
         for event in events:

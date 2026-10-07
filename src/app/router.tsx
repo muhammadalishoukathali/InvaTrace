@@ -7,6 +7,8 @@ import { PrivateAccessRouteGuard } from '@/features/private-access/components/Pr
 import { PrivateAccessLandingPage } from '@/features/private-access/pages/PrivateAccessLandingPage'
 import { RestorePrivateAccessPage } from '@/features/private-access/pages/RestorePrivateAccessPage'
 import { RecoveryKitSetupPage } from '@/features/private-access/pages/RecoveryKitSetupPage'
+import { WelcomePage } from '@/features/welcome/WelcomePage'
+import { WelcomeRoute } from '@/features/welcome/WelcomeRoute'
 
 // I lazy load these because MapLibre especially is a pretty big chunk, and
 // bundling it into the main entry meant the private-access screen (which is
@@ -38,6 +40,8 @@ const PlacesPage = lazy(() => import('@/features/places/PlacesPage')
   .then((module) => ({ default: module.PlacesPage })))
 const PlaceDetailPage = lazy(() => import('@/features/places/PlaceDetailPage')
   .then((module) => ({ default: module.PlaceDetailPage })))
+const GuidedMissionPage = lazy(() => import('@/features/guided-missions/GuidedMissionPage')
+  .then((module) => ({ default: module.GuidedMissionPage })))
 const FollowUpPage = lazy(() => import('@/features/follow-up/FollowUpPage')
   .then((module) => ({ default: module.FollowUpPage })))
 const EventsDiscoveryPage = lazy(() => import('@/features/events/EventsDiscoveryPage').then((module) => ({ default: module.EventsDiscoveryPage })))
@@ -64,7 +68,11 @@ function RouteLoadingState() {
   )
 }
 
-// Route tree ended up in three groups, roughly matching the three states a
+// The public welcome page comes first: "/" is readable without any identity
+// (WelcomeRoute sends an existing profile on to /map), and /welcome always
+// shows it. Neither sits inside RequirePrivateAccess.
+//
+// The rest of the tree is three groups, roughly matching the three states a
 // user can be in. First is the /private-access flow for anyone without a
 // profile yet - PrivateAccessRouteGuard redirects away from it once a
 // profile exists so people can't land back on the setup screen. Second is
@@ -73,6 +81,8 @@ function RouteLoadingState() {
 // skip AppShell on purpose - for those I wanted a focused screen with no
 // sidebar or tabs getting in the way while someone's mid-scan.
 export const router = createBrowserRouter([
+  { path: '/', element: <WelcomeRoute /> },
+  { path: '/welcome', element: <WelcomePage /> },
   {
     path: '/auth/*',
     element: <Navigate to="/private-access" replace />,
@@ -87,10 +97,10 @@ export const router = createBrowserRouter([
     ],
   },
   {
-    path: '/',
+    // Pathless layout: the children keep their URLs (/map, /profile, ...)
+    // but "/" itself now belongs to the welcome page above.
     element: <RequirePrivateAccess><AppShell /></RequirePrivateAccess>,
     children: [
-      { index: true, element: <Navigate to="/map" replace /> },
       { path: 'map', element: loadRoute(<ThreatMapPage />) },
       { path: 'profile', element: loadRoute(<AccessManagementPage />) },
       { path: 'access', element: <Navigate to="/profile" replace /> },
@@ -102,6 +112,7 @@ export const router = createBrowserRouter([
       { path: 'adopted-areas/:adoptionId/activity', element: loadRoute(<AdoptedAreaActivityPage />) },
       { path: 'places', element: loadRoute(<PlacesPage />) },
       { path: 'places/:placeId', element: loadRoute(<PlaceDetailPage />) },
+      { path: 'places/:placeId/mission', element: loadRoute(<GuidedMissionPage />) },
       { path: 'sightings/:sightingId/follow-up/*', element: loadRoute(<FollowUpPage />) },
       { path: 'events', element: loadRoute(<EventsDiscoveryPage />) },
       { path: 'events/mine', element: loadRoute(<MyHostedEventsPage />) },

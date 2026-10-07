@@ -13,7 +13,7 @@ test('private access starts and bootstraps against the real API', async ({ page,
   expect(health.status()).toBe(200)
   expect(await health.json()).toEqual({ status: 'ok' })
 
-  await page.goto('/')
+  await page.goto('/private-access')
   await expect(page).toHaveURL(/\/private-access$/)
   const started = page.waitForResponse((response) =>
     new URL(response.url()).pathname === '/api/v1/profiles/start')
@@ -93,7 +93,7 @@ test('real geospatial data is discoverable from the main map', async ({ page, re
   expect(readiness.geospatialData.protectedAreas).toBeGreaterThan(0)
   expect(readiness.geospatialData.waterwayEdges).toBeGreaterThan(0)
 
-  await page.goto('/')
+  await page.goto('/private-access')
   await page.getByRole('button', { name: 'Start privately' }).click()
   await page.getByRole('checkbox', { name: 'I have saved my recovery kit' }).check()
   const mapPlaces = page.waitForResponse((response) =>

@@ -144,7 +144,7 @@ describe('follow-up mock contract', () => {
       followUpHistory: Array<{ eventType: string; createdAt: string }>
     }
     expect(history.followUpHistory.map((event) => event.eventType)).toEqual([
-      'removal_reported', 'followup_unable',
+      'reported', 'removal_reported', 'followup_unable',
     ])
   })
 })

@@ -25,6 +25,7 @@ from app.api.routers import (
     adopted_areas,
     catalogue,
     events,
+    guided_missions,
     health,
     identify,
     identity,
@@ -32,6 +33,7 @@ from app.api.routers import (
     notifications,
     offline_pack,
     places,
+    plant_assistant,
     reports,
     scans,
     sightings,
@@ -252,6 +254,7 @@ def create_app() -> FastAPI:
         uploads.router,
         scans.router,
         identify.router,
+        plant_assistant.router,
         reports.router,
         sightings.router,
         location.router,
@@ -261,6 +264,7 @@ def create_app() -> FastAPI:
         adopted_areas.router,
         events.router,
         events.places_router,
+        guided_missions.router,
         admin.router,
     ):
         app.include_router(router)

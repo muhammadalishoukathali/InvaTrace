@@ -78,7 +78,7 @@ export function Sidebar({ profile }: { profile: PseudonymousProfile }) {
         </span>
         <span>
           <strong>Scan a plant</strong>
-          <small>Camera or library</small>
+          <small>Camera or gallery</small>
         </span>
         <Icon name="ChevronRight" size={17} color="rgba(255,255,255,.76)" />
       </button>

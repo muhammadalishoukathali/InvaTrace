@@ -4,7 +4,7 @@ import path from 'node:path'
 test.skip(process.env.RUN_INVATRACE_IT3_E2E !== '1' && process.env.PLAYWRIGHT_EPIC9 !== '1', 'Set RUN_INVATRACE_IT3_E2E=1 or PLAYWRIGHT_EPIC9=1 for iteration-3 browser coverage.')
 
 async function startPrivateAccess(page: Page) {
-  await page.goto('/')
+  await page.goto('/private-access')
   await page.getByRole('button', { name: 'Start privately' }).click()
   await page.getByRole('checkbox', { name: 'I have saved my recovery kit' }).check()
   await page.getByRole('button', { name: 'Continue', exact: true }).click()

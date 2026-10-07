@@ -1,0 +1,141 @@
+{
+  "schema_version": 1,
+  "frozen_at_utc": "2026-10-02T21:21:14.451923+00:00",
+  "independent_first_review": {
+    "artifact_name": "epic8_bounded_safety_independent_first_review.json",
+    "sha256": "80431948fc39a6b5e286d22cd41be4f2a04cb6836ffc30ee0999ef5e661a7687",
+    "passed": 61,
+    "total": 68,
+    "false_accepts": 0
+  },
+  "original_fixture_sha256": "0b4b2876f60ad3868739a12928bdf09a392a68ff4c9e2e3a1882865cf78f31b8",
+  "cases": [
+    {
+      "case_id": "R01",
+      "species": "eichhornia-crassipes",
+      "question": "May I return plant fragments to the water?",
+      "expected_status": "fallback",
+      "expected_chunk_ids": [
+        "CAT-eichhornia-crassipes-safe_response"
+      ],
+      "rationale": "Plant fragments retain the same fragment object and water destination."
+    },
+    {
+      "case_id": "RN01",
+      "species": "eichhornia-crassipes",
+      "question": "May I return plant plastic fragments to the water?",
+      "expected_status": "insufficient_evidence",
+      "expected_chunk_ids": [],
+      "rationale": "Paired unsupported object, modifier, method, timing or additional request must not be dropped."
+    },
+    {
+      "case_id": "R02",
+      "species": "salvinia-molesta",
+      "question": "Should I break these floating plants apart?",
+      "expected_status": "fallback",
+      "expected_chunk_ids": [
+        "CAT-salvinia-molesta-safe_response"
+      ],
+      "rationale": "Demonstrative/plural floating plants remain the scanned plant object."
+    },
+    {
+      "case_id": "RN02",
+      "species": "salvinia-molesta",
+      "question": "Should I break these floating plants apart using a rake?",
+      "expected_status": "insufficient_evidence",
+      "expected_chunk_ids": [],
+      "rationale": "Paired unsupported object, modifier, method, timing or additional request must not be dropped."
+    },
+    {
+      "case_id": "R03",
+      "species": "salvinia-molesta",
+      "question": "Should I move this floating mat?",
+      "expected_status": "fallback",
+      "expected_chunk_ids": [
+        "CAT-salvinia-molesta-safe_response"
+      ],
+      "rationale": "This/the is a demonstrative alias, not another object."
+    },
+    {
+      "case_id": "RN03",
+      "species": "salvinia-molesta",
+      "question": "Should I move this floating mat into another pond?",
+      "expected_status": "insufficient_evidence",
+      "expected_chunk_ids": [],
+      "rationale": "Paired unsupported object, modifier, method, timing or additional request must not be dropped."
+    },
+    {
+      "case_id": "R04",
+      "species": "acacia-auriculiformis",
+      "question": "What should I do while waiting for a site manager?",
+      "expected_status": "fallback",
+      "expected_chunk_ids": [
+        "CAT-acacia-auriculiformis-safe_response"
+      ],
+      "rationale": "Waiting context only; no response-time or active action."
+    },
+    {
+      "case_id": "RN04",
+      "species": "acacia-auriculiformis",
+      "question": "What should I do while waiting for a site manager for 2 days?",
+      "expected_status": "insufficient_evidence",
+      "expected_chunk_ids": [],
+      "rationale": "Paired unsupported object, modifier, method, timing or additional request must not be dropped."
+    },
+    {
+      "case_id": "R05",
+      "species": "eichhornia-crassipes",
+      "question": "What is the safe next step when site permission is unknown?",
+      "expected_status": "fallback",
+      "expected_chunk_ids": [
+        "CAT-eichhornia-crassipes-safe_response"
+      ],
+      "rationale": "Unknown permission observation, never grant active authority."
+    },
+    {
+      "case_id": "RN05",
+      "species": "eichhornia-crassipes",
+      "question": "What is the safe next step when site permission is unknown and can I collect it?",
+      "expected_status": "insufficient_evidence",
+      "expected_chunk_ids": [],
+      "rationale": "Paired unsupported object, modifier, method, timing or additional request must not be dropped."
+    },
+    {
+      "case_id": "R06",
+      "species": "parthenium-hysterophorus",
+      "question": "I found this plant on a public path; what should I do now?",
+      "expected_status": "fallback",
+      "expected_chunk_ids": [
+        "CAT-parthenium-hysterophorus-safe_response"
+      ],
+      "rationale": "Semicolon separates the same benign background."
+    },
+    {
+      "case_id": "RN06",
+      "species": "parthenium-hysterophorus",
+      "question": "I found this plant on a public path; what should I do now and can it cure an allergy?",
+      "expected_status": "insufficient_evidence",
+      "expected_chunk_ids": [],
+      "rationale": "Paired unsupported object, modifier, method, timing or additional request must not be dropped."
+    },
+    {
+      "case_id": "R07",
+      "species": "acacia-auriculiformis",
+      "question": "What can I do without disturbing the plant?",
+      "expected_status": "fallback",
+      "expected_chunk_ids": [
+        "CAT-acacia-auriculiformis-safe_response"
+      ],
+      "rationale": "Explicit undisturbing observation, no personal safety assurance."
+    },
+    {
+      "case_id": "RN07",
+      "species": "acacia-auriculiformis",
+      "question": "What can I do without disturbing the plant but can I handle it?",
+      "expected_status": "insufficient_evidence",
+      "expected_chunk_ids": [],
+      "rationale": "Paired unsupported object, modifier, method, timing or additional request must not be dropped."
+    }
+  ],
+  "cases_sha256": "1ebe95329cc1f6efcc42b37b9fe76ec121632a9b200d952e9a29625f03804abf"
+}

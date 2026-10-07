@@ -11,7 +11,7 @@ export interface ScanNavigationState {
   returnTo: string
 }
 
-const RETURN_PATH = /^\/(?:map|reports|profile|catalogue(?:\/[a-z0-9-]+)?|places(?:\/[a-zA-Z0-9-]+)?|adopted-areas(?:\/[a-zA-Z0-9-]+\/activity)?|events(?:\/mine|\/[a-zA-Z0-9-]+(?:\/tasks)?)?)$/
+const RETURN_PATH = /^\/(?:map|reports|profile|catalogue(?:\/[a-z0-9-]+)?|places(?:\/[a-zA-Z0-9-]+(?:\/mission)?)?|adopted-areas(?:\/[a-zA-Z0-9-]+\/activity)?|events(?:\/mine|\/[a-zA-Z0-9-]+(?:\/tasks)?)?)$/
 
 export function scanReturnPath(state: unknown): ScanNavigationState['returnTo'] {
   if (!state || typeof state !== 'object' || !('returnTo' in state)) return '/map'

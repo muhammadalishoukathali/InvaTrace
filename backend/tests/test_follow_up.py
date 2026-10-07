@@ -16,6 +16,7 @@ import pytest
 from app.api.routers.sightings import (
     FOLLOW_UP_MAX_M,
     FollowUpRequest,
+    _status_history,
     _validate_follow_up_location,
     record_follow_up,
 )
@@ -108,3 +109,18 @@ def test_status_history_does_not_duplicate_public_report_counts_or_removal_date(
     # A later follow-up must not overwrite the date labelled as the original
     # removal report in either list or detail serializers.
     assert source.count('SightingStatusEvent.event_type == "removal_reported"') >= 2
+
+
+def test_status_history_opens_with_original_report_in_date_order() -> None:
+    reported = datetime(2026, 9, 1, tzinfo=UTC)
+    removed = datetime(2026, 9, 5, tzinfo=UTC)
+    resolved = datetime(2026, 10, 2, tzinfo=UTC)
+    history = _status_history(
+        first_reported_at=reported,
+        events=[("removal_reported", removed), ("followup_no_regrowth", resolved)],
+    )
+    assert [entry["event_type"] for entry in history] == [
+        "reported", "removal_reported", "followup_no_regrowth",
+    ]
+    # An ordinary active sighting has no status history to show.
+    assert _status_history(first_reported_at=reported, events=[]) == []

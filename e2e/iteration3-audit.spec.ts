@@ -1,9 +1,13 @@
 import { expect, test, type Page } from '@playwright/test'
 
 test.skip(process.env.PLAYWRIGHT_EPIC9 !== '1', 'Requires the local iteration-3 API.')
+// Event stubs use context.route() and the dev MSW event mocks are switched off,
+// so these also run under the default mocked config (where page.route() cannot
+// see requests answered by the MSW service worker).
+test.beforeEach(async ({ page }) => { await page.addInitScript(() => localStorage.setItem('invatrace.mock.community', 'off')) })
 
 async function access(page: Page) {
-  await page.goto('/')
+  await page.goto('/private-access')
   await page.getByRole('button', { name: 'Start privately' }).click()
   await page.getByRole('checkbox', { name: 'I have saved my recovery kit' }).check()
   await page.getByRole('button', { name: 'Continue', exact: true }).click()
@@ -20,7 +24,7 @@ const item = {
 for (const width of [390, 1440]) {
   test(`event details and safety dialog fit ${width}px and isolate keyboard focus`, async ({ page }) => {
     await page.setViewportSize({ width, height: 844 })
-    await page.route('**/api/v1/events/audit-event', route => route.fulfill({ json: item }))
+    await page.context().route('**/api/v1/events/audit-event', route => route.fulfill({ json: item }))
     await access(page)
     await page.goto('/events/audit-event')
     await expect(page.getByRole('heading', { name: item.title })).toBeVisible()
@@ -29,15 +33,18 @@ for (const width of [390, 1440]) {
     await opener.click()
     const dialog = page.getByRole('dialog', { name: 'Report this event' })
     await expect(dialog).toBeVisible()
-    await expect(page.getByLabel('What is the concern?')).toBeFocused()
+    const firstReason = dialog.getByRole('radio').first()
+    await expect(firstReason).toBeFocused()
     expect(await page.locator('#root').evaluate(node => node.inert)).toBe(true)
     const box = await dialog.boundingBox()
     expect(box!.x).toBeGreaterThanOrEqual(0)
     expect(box!.x + box!.width).toBeLessThanOrEqual(width)
     await page.keyboard.press('Shift+Tab')
+    await expect(dialog.getByRole('button', { name: 'Close' })).toBeFocused()
+    await page.keyboard.press('Shift+Tab')
     await expect(dialog.getByRole('button', { name: 'Cancel' })).toBeFocused()
     await page.keyboard.press('Tab')
-    await expect(page.getByLabel('What is the concern?')).toBeFocused()
+    await expect(dialog.getByRole('button', { name: 'Close' })).toBeFocused()
     await page.keyboard.press('Escape')
     await expect(dialog).not.toBeVisible()
     await expect(opener).toBeFocused()
@@ -47,32 +54,33 @@ for (const width of [390, 1440]) {
 
 test('join confirmation can be declined without creating participation', async ({ page }) => {
   let joined = false
-  await page.route('**/api/v1/events/audit-event', route => route.fulfill({ json: item }))
-  await page.route('**/api/v1/events/audit-event/participants', route => {
+  await page.context().route('**/api/v1/events/audit-event', route => route.fulfill({ json: item }))
+  await page.context().route('**/api/v1/events/audit-event/participants', route => {
     joined = true
     return route.fulfill({ status: 201, json: { participation_id: 'participant' } })
   })
   await access(page)
   await page.goto('/events/audit-event')
-  page.once('dialog', async dialog => {
-    expect(dialog.message()).toContain('does not grant removal permission')
-    await dialog.dismiss()
-  })
-  await page.getByRole('button', { name: 'Join event', exact: true }).click()
+  await page.getByRole('button', { name: 'Join this event', exact: true }).click()
+  const confirm = page.getByRole('dialog', { name: /Join/ })
+  await expect(confirm).toContainText('is not permission to remove any plant')
+  await confirm.getByRole('button', { name: 'Not now' }).click()
+  await expect(confirm).toHaveCount(0)
   expect(joined).toBe(false)
-  await expect(page.getByRole('button', { name: 'Join event', exact: true })).toBeVisible()
+  await expect(page.getByRole('button', { name: 'Join this event', exact: true })).toBeVisible()
 })
 
 test('discovery labels the host and explains an invalid date range', async ({ page }) => {
   const queries: string[] = []
-  await page.route('**/api/v1/events?**', route => {
+  await page.context().route('**/api/v1/events?**', route => {
     queries.push(route.request().url())
     return route.fulfill({ json: { items: [item] } })
   })
-  await page.route('**/api/v1/events', route => route.fulfill({ json: { items: [item] } }))
+  await page.context().route('**/api/v1/events', route => route.fulfill({ json: { items: [item] } }))
   await access(page)
   await page.goto('/events')
   await expect(page.getByText('Hosted by Community host')).toBeVisible()
+  await page.getByRole('button', { name: 'Custom dates' }).click()
   await page.getByLabel('From', { exact: true }).fill('2030-01-02T08:00')
   await page.getByLabel('Until', { exact: true }).fill('2030-01-01T08:00')
   await expect(page.getByRole('alert')).toContainText('Until must be later than From')
@@ -142,11 +150,13 @@ test('a rejected offline event report keeps its photo and offers explicit ordina
     })
   }, { captureId, queueId })
   let body: Record<string, unknown> | null = null
-  await page.route('**/api/v1/scans', route => route.fulfill({ json: {} }))
-  await page.route('**/api/v1/reports', route => {
-    body = route.request().postDataJSON()
-    return route.fulfill({ status: 201, json: { id: 'recovered-ordinary' } })
+  // A request listener sees the page's body even when the dev MSW worker,
+  // rather than the network, answers it; routes cannot intercept that case.
+  page.on('request', request => {
+    if (request.method() === 'POST' && new URL(request.url()).pathname === '/api/v1/reports') body = request.postDataJSON()
   })
+  await page.context().route('**/api/v1/scans', route => route.fulfill({ json: {} }))
+  await page.context().route('**/api/v1/reports', route => route.fulfill({ status: 201, json: { id: 'recovered-ordinary' } }))
   await page.reload()
   await page.getByRole('button', { name: 'View queue', exact: true }).click()
   const dialog = page.getByRole('dialog', { name: 'Queued reports' })
@@ -163,7 +173,7 @@ test('a rejected offline event report keeps its photo and offers explicit ordina
 })
 
 test('host management offers restoration only for eligible hidden events', async ({ page }) => {
-  await page.route('**/api/v1/events/mine', route => route.fulfill({ json: { items: [
+  await page.context().route('**/api/v1/events/mine', route => route.fulfill({ json: { items: [
     { ...item, event_id: 'automatic-cancel', title: 'Automatic cancellation', hidden: true, status: 'cancelled', can_restore: true },
     { ...item, event_id: 'manual-cancel', title: 'Intentional cancellation', hidden: true, status: 'cancelled', can_restore: false },
   ] } }))

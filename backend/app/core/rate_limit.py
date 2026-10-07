@@ -64,6 +64,7 @@ def _build_limits() -> dict[str, Limit]:
         "adopted_area_read": Limit(120, 60),
         "places_read": Limit(120, 60),
         "catalogue_read": Limit(120, 60),
+        "plant_assistant": Limit(15, 60),
         "location_context_read": Limit(60, 60),
         "offline_pack_read": Limit(60, 60),
         # AC 2.3.3 - env-backed sliding submission limits.
@@ -85,6 +86,11 @@ def _build_limits() -> dict[str, Limit]:
         "events_write": Limit(30, 60),
         "check_in": Limit(20, 60),
         "flag": Limit(10, 60),
+        # Epic 7 - guided missions are private per-profile state. Plant
+        # progress taps are frequent during a field search, so the write budget
+        # is more generous than event writes.
+        "guided_mission_read": Limit(120, 60),
+        "guided_mission_write": Limit(120, 60),
     }
 
 

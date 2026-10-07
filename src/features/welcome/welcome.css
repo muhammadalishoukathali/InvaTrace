@@ -1,0 +1,422 @@
+/* Public welcome page. Every rule is scoped under .welcome so nothing here
+   can leak into the app shell, map or private-access screens. Colours, fonts
+   and radii come from src/styles/tokens.css. */
+
+.welcome {
+  --welcome-gutter: clamp(20px, 5vw, 56px);
+  --welcome-max: 1120px;
+  --welcome-forest: #0B2A1D;
+  min-height: 100%;
+  background: var(--surface);
+  color: var(--ink);
+}
+
+.welcome h1,
+.welcome h2 {
+  font-weight: 650;
+  letter-spacing: -0.04em;
+  line-height: 1.05;
+}
+
+.welcome h2 { font-size: clamp(28px, 3.6vw, 42px); }
+.welcome h2[tabindex='-1']:focus { outline: none; }
+
+.welcome-skip {
+  position: absolute;
+  left: 12px;
+  top: -60px;
+  z-index: 5;
+  padding: 10px 14px;
+  border-radius: var(--r-button);
+  background: var(--surface);
+  color: var(--deep);
+  font-size: 14px;
+  font-weight: 600;
+}
+.welcome-skip:focus { top: 12px; }
+
+/* ---------- Buttons ---------- */
+
+.welcome-btn {
+  min-height: 50px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0 24px;
+  border: 1px solid transparent;
+  border-radius: var(--r-button);
+  font-size: 15px;
+  font-weight: 650;
+  line-height: 1.2;
+  text-decoration: none;
+  white-space: nowrap;
+}
+
+/* Green on light backgrounds, white on the photo and the dark closing band. */
+.welcome-btn--green { background: var(--green); border-color: var(--green); color: var(--on-accent); }
+.welcome-btn--green:hover { background: var(--green-hover); border-color: var(--green-hover); }
+.welcome-btn--light { background: var(--surface); border-color: var(--surface); color: var(--deep); }
+.welcome-btn--light:hover { background: var(--green-light); border-color: var(--green-light); }
+.welcome-btn--ghost { border-color: rgba(255, 255, 255, 0.55); color: #FFFFFF; }
+.welcome-btn--ghost:hover { background: rgba(255, 255, 255, 0.14); }
+.welcome-btn--outline {
+  min-height: 44px;
+  padding: 0 18px;
+  border-color: rgba(255, 255, 255, 0.55);
+  color: #FFFFFF;
+  font-size: 14px;
+}
+.welcome-btn--outline:hover { background: rgba(255, 255, 255, 0.14); }
+
+/* ---------- Hero ---------- */
+
+.welcome-hero {
+  position: relative;
+  z-index: 1;
+  isolation: isolate;
+  display: flex;
+  flex-direction: column;
+  background: var(--welcome-forest);
+  color: #FFFFFF;
+}
+
+.welcome-hero__photo {
+  position: absolute;
+  inset: 0;
+  z-index: -2;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  object-position: 42% 50%;
+}
+
+/* Portrait photo: keep the canopy visible, darken behind the logo and text. */
+.welcome-hero::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  z-index: -1;
+  background: linear-gradient(
+    180deg,
+    rgba(8, 30, 21, 0.66) 0%,
+    rgba(8, 30, 21, 0.1) 16%,
+    rgba(8, 30, 21, 0.34) 28%,
+    rgba(8, 30, 21, 0.88) 46%,
+    rgba(8, 30, 21, 0.96) 100%
+  );
+}
+
+.welcome-hero :focus-visible,
+.welcome-closing :focus-visible { outline-color: var(--nav-glass-focus); }
+
+.welcome-nav {
+  width: 100%;
+  max-width: calc(var(--welcome-max) + 2 * var(--welcome-gutter));
+  margin: 0 auto;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  padding: max(16px, env(safe-area-inset-top)) var(--welcome-gutter) 16px;
+}
+.welcome-nav .brand-lockup { color: #FFFFFF; }
+.welcome-nav .brand-mark { border-color: transparent; }
+.welcome-nav__links { display: none; align-items: center; gap: 26px; }
+.welcome-nav__links > a:not(.welcome-btn) {
+  color: #FFFFFF;
+  font-size: 14px;
+  font-weight: 600;
+  text-decoration: none;
+}
+.welcome-nav__links > a:not(.welcome-btn):hover { text-decoration: underline; text-underline-offset: 5px; }
+
+.welcome-hero__content {
+  width: 100%;
+  max-width: calc(var(--welcome-max) + 2 * var(--welcome-gutter));
+  margin: clamp(120px, 24vh, 220px) auto 0;
+  padding: 0 var(--welcome-gutter);
+  display: grid;
+  gap: 30px;
+}
+
+/* Result card. On phones it straddles the bottom edge of the photo, so its
+   top shows on the first screen and invites a scroll. */
+.welcome-example {
+  --welcome-example-overlap: 150px;
+  display: block;
+  width: 100%;
+  max-width: 420px;
+  height: auto;
+  margin-bottom: calc(-1 * var(--welcome-example-overlap));
+  border-radius: 18px;
+  background: var(--bg);
+  box-shadow: 0 14px 34px rgba(4, 18, 12, 0.22), 0 2px 6px rgba(4, 18, 12, 0.14);
+}
+.welcome-hero + main > .welcome-why { padding-top: calc(150px + clamp(48px, 8vw, 72px)); }
+
+.welcome-hero__sdg {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  margin-top: 22px;
+  color: #FFFFFF;
+  font-size: 13.5px;
+  font-weight: 600;
+  letter-spacing: 0.01em;
+}
+.welcome-hero__sdg-icon {
+  width: 28px;
+  height: 28px;
+  display: grid;
+  place-items: center;
+  flex-shrink: 0;
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.16);
+  color: var(--nav-glass-accent);
+}
+
+.welcome-eyebrow {
+  margin-bottom: 16px;
+  color: var(--nav-glass-accent);
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+}
+.welcome-eyebrow--green { color: var(--green-dark); }
+.welcome h2.welcome-eyebrow { font-size: 12px; font-weight: 700; letter-spacing: 0.14em; line-height: 1.5; }
+
+.welcome-hero h1 {
+  max-width: 15ch;
+  font-size: clamp(36px, 10.4vw, 72px);
+  line-height: 1;
+  letter-spacing: -0.05em;
+}
+
+.welcome-hero__lede {
+  max-width: 50ch;
+  text-shadow: 0 1px 12px rgba(4, 18, 12, 0.5);
+  margin-top: 18px;
+  color: rgba(255, 255, 255, 0.88);
+  font-size: 16px;
+  line-height: 1.55;
+}
+
+.welcome-actions {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 10px;
+  margin-top: 26px;
+}
+.welcome-actions .welcome-btn { padding: 0 12px; }
+
+/* ---------- Why it matters ---------- */
+
+.welcome-section {
+  max-width: calc(var(--welcome-max) + 2 * var(--welcome-gutter));
+  margin: 0 auto;
+  padding: clamp(56px, 9vw, 104px) var(--welcome-gutter);
+}
+
+.welcome-why { display: grid; gap: 32px; }
+.welcome-why__intro p {
+  max-width: 46ch;
+  margin-top: 18px;
+  color: var(--body);
+  font-size: 17px;
+  line-height: 1.6;
+}
+
+.welcome-impacts { list-style: none; border-top: 1px solid var(--border); }
+.welcome-impacts li { padding: 20px 0; border-bottom: 1px solid var(--border); }
+.welcome-impacts h3 { color: var(--deep); font-size: 17px; font-weight: 650; letter-spacing: -0.015em; }
+.welcome-impacts p { margin-top: 4px; color: var(--body); font-size: 15px; line-height: 1.55; }
+
+.welcome-sources { margin-top: 16px; color: var(--muted); font-size: 13px; line-height: 1.6; }
+.welcome-sources a { color: var(--green-dark); text-underline-offset: 3px; }
+
+/* ---------- SDG statement ---------- */
+
+.welcome-goal {
+  max-width: var(--welcome-max);
+  margin: 0 var(--welcome-gutter) clamp(56px, 9vw, 104px);
+  padding: 28px 0;
+  border-top: 1px solid var(--border);
+  border-bottom: 1px solid var(--border);
+  display: grid;
+  gap: 4px;
+}
+.welcome-goal p { max-width: 58ch; color: var(--ink); font-size: clamp(17px, 1.6vw, 20px); line-height: 1.5; letter-spacing: -0.01em; }
+.welcome-goal a { display: inline-block; margin-top: 10px; color: var(--green-dark); font-size: 14px; font-weight: 600; text-underline-offset: 4px; }
+
+/* ---------- Feature rows ---------- */
+
+.welcome-features {
+  max-width: calc(var(--welcome-max) + 2 * var(--welcome-gutter));
+  margin: 0 auto;
+  padding: 0 var(--welcome-gutter) clamp(56px, 9vw, 104px);
+  display: grid;
+  gap: clamp(44px, 7vw, 88px);
+}
+
+.welcome-feature { display: grid; gap: 22px; align-items: center; }
+.welcome-feature__text p {
+  max-width: 42ch;
+  margin-top: 14px;
+  color: var(--body);
+  font-size: 17px;
+  line-height: 1.6;
+}
+
+/* Tinted stage the screenshot sits on. The screenshot is anchored to the top
+   and runs off the bottom edge, so each row stays compact. */
+.welcome-feature__stage {
+  height: 500px;
+  display: flex;
+  justify-content: center;
+  align-items: flex-start;
+  padding: clamp(24px, 6vw, 44px) clamp(20px, 6vw, 44px) 0;
+  border-radius: 24px;
+  background: var(--green-light);
+  overflow: hidden;
+}
+.welcome-feature__stage img {
+  display: block;
+  height: auto;
+  border: 1px solid var(--green-border);
+  border-bottom: 0;
+  background: var(--surface);
+  box-shadow: 0 18px 40px rgba(18, 64, 44, 0.16);
+}
+.welcome-feature__stage img { width: min(100%, 270px); border-radius: 24px 24px 0 0; }
+
+/* ---------- Five steps ---------- */
+
+.welcome-how { background: var(--bg); }
+.welcome-how__inner {
+  max-width: calc(var(--welcome-max) + 2 * var(--welcome-gutter));
+  margin: 0 auto;
+  padding: clamp(56px, 9vw, 104px) var(--welcome-gutter);
+}
+.welcome-how h2 { scroll-margin-top: 72px; }
+
+.welcome-steps {
+  list-style: none;
+  display: grid;
+  gap: 0;
+  margin-top: 36px;
+}
+.welcome-steps li {
+  position: relative;
+  display: grid;
+  grid-template-columns: 44px 1fr;
+  column-gap: 16px;
+  padding-bottom: 26px;
+}
+/* Connector between consecutive steps. */
+.welcome-steps li:not(:last-child)::before {
+  content: '';
+  position: absolute;
+  left: 21px;
+  top: 48px;
+  bottom: 4px;
+  width: 2px;
+  background: var(--green-border);
+}
+.welcome-steps__icon {
+  grid-row: span 2;
+  width: 44px;
+  height: 44px;
+  display: grid;
+  place-items: center;
+  border-radius: 50%;
+  background: var(--green);
+  color: var(--on-accent);
+}
+.welcome-steps h3 { align-self: end; color: var(--ink); font-size: 17px; font-weight: 650; letter-spacing: -0.015em; }
+.welcome-steps p { color: var(--body); font-size: 15px; line-height: 1.5; }
+
+/* ---------- Closing band and footer ---------- */
+
+.welcome-closing {
+  padding: clamp(64px, 10vw, 112px) var(--welcome-gutter);
+  background: var(--deep);
+  color: #FFFFFF;
+  text-align: center;
+}
+.welcome-closing h2 { max-width: 16ch; margin: 0 auto 28px; }
+.welcome-closing p { margin-top: 14px; color: var(--nav-glass-muted); font-size: 14px; }
+
+.welcome-footer a { color: inherit; text-underline-offset: 3px; }
+.welcome-footer {
+  padding: 22px var(--welcome-gutter) max(26px, env(safe-area-inset-bottom));
+  background: var(--welcome-forest);
+  color: var(--nav-glass-muted);
+  font-size: 12.5px;
+  line-height: 1.6;
+  text-align: center;
+}
+
+/* ---------- Tablet and desktop ---------- */
+
+@media (min-width: 720px) {
+  .welcome-hero__photo { object-position: 50% 45%; }
+  /* Landscape photo: darken the left, where the headline sits. */
+  .welcome-hero::after {
+    background:
+      linear-gradient(180deg, rgba(8, 30, 21, 0.55) 0%, rgba(8, 30, 21, 0) 26%),
+      linear-gradient(90deg, rgba(8, 30, 21, 0.8) 0%, rgba(8, 30, 21, 0.56) 36%, rgba(8, 30, 21, 0.06) 62%, rgba(8, 30, 21, 0.1) 100%);
+  }
+  .welcome-nav__links { display: flex; }
+  .welcome-hero__lede { font-size: 18px; margin-top: 22px; }
+  .welcome-actions { display: flex; gap: 12px; margin-top: 32px; }
+  .welcome-actions .welcome-btn { padding: 0 26px; }
+
+  .welcome-why {
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+    grid-template-rows: auto 1fr;
+    gap: 26px clamp(40px, 7vw, 96px);
+    align-items: start;
+  }
+  .welcome-why__facts { grid-column: 2; grid-row: 1 / span 2; }
+  .welcome-why__action { grid-column: 1; grid-row: 2; }
+
+  .welcome-feature { grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: clamp(32px, 6vw, 88px); }
+  .welcome-feature:nth-child(even) .welcome-feature__text { order: 2; }
+  .welcome-feature__stage { height: 520px; }
+
+  .welcome-footer { display: flex; justify-content: space-between; gap: 24px; text-align: left; }
+}
+
+@media (min-width: 960px) {
+  /* Hero: headline on the left, result card on the right, both inside the photo. */
+  .welcome-hero { min-height: min(92vh, 820px); }
+  .welcome-hero__content {
+    margin: auto;
+    padding-top: 32px;
+    padding-bottom: 72px;
+    grid-template-columns: minmax(0, 1fr) minmax(0, 400px);
+    gap: clamp(40px, 6vw, 96px);
+    align-items: center;
+  }
+  .welcome-example { margin-bottom: 0; justify-self: end; box-shadow: 0 28px 70px rgba(4, 18, 12, 0.45), 0 2px 8px rgba(4, 18, 12, 0.25); }
+  .welcome-hero + main > .welcome-why { padding-top: clamp(56px, 9vw, 104px); }
+  .welcome-goal { grid-template-columns: 240px minmax(0, 1fr); gap: 40px; padding: 36px 0; margin-left: auto; margin-right: auto; }
+  .welcome-goal p { font-size: 22px; line-height: 1.45; }
+}
+
+@media (min-width: 900px) {
+  /* Steps become one horizontal row with a line running through the icons. */
+  .welcome-steps { grid-template-columns: repeat(5, minmax(0, 1fr)); gap: 24px; margin-top: 48px; }
+  .welcome-steps li { display: block; padding-bottom: 0; }
+  .welcome-steps li:not(:last-child)::before {
+    left: 56px;
+    right: -12px;
+    top: 21px;
+    bottom: auto;
+    width: auto;
+    height: 2px;
+  }
+  .welcome-steps h3 { margin-top: 18px; }
+  .welcome-steps p { margin-top: 6px; }
+}

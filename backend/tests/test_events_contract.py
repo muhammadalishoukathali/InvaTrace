@@ -107,4 +107,44 @@ def test_workers_are_idempotent_and_only_auto_cancel_hidden_published_events() -
     assert 'event.status = "completed"' in completion
     assert 'Event.status == "published"' in cancellation
     assert "Event.hidden.is_(True)" in cancellation
-    assert "Event.updated_at < cutoff" in cancellation
+    assert "func.coalesce(Event.hidden_at, Event.updated_at) < cutoff" in cancellation
+
+
+def test_unchanged_locked_values_are_not_treated_as_edits() -> None:
+    from decimal import Decimal
+
+    from app.api.routers.events import _same_value
+
+    start = datetime(2030, 1, 1, 8, tzinfo=UTC)
+    place = uuid.uuid4()
+    assert _same_value(Decimal("3.13900"), 3.139)
+    assert not _same_value(Decimal("3.13900"), 3.14)
+    assert _same_value(start, start.astimezone(UTC))
+    assert not _same_value(start, start + timedelta(minutes=1))
+    assert _same_value(place, place)
+    assert _same_value("survey", "survey")
+    assert not _same_value("survey", "removal")
+
+
+def test_explicit_permission_needs_a_stated_basis() -> None:
+    from app.api.routers.events import _assert_permission_basis
+
+    _assert_permission_basis("unknown", None)
+    _assert_permission_basis("explicit_permission", "Permission from the park office, 2 Oct.")
+    with pytest.raises(ApiProblem) as error:
+        _assert_permission_basis("explicit_permission", "   ")
+    assert error.value.code == "permission_basis_required"
+
+
+def test_router_guards_terminal_edits_flags_and_join_contract() -> None:
+    source = (Path(__file__).parents[1] / "app/api/routers/events.py").read_text()
+    patch = source.split("def patch_event", 1)[1].split("def cancel_event", 1)[0]
+    assert '"Only draft or published events can be edited."' in patch
+    assert '"event_already_ended"' in patch
+    join = source.split("def join_event", 1)[1].split("def withdraw_event", 1)[0]
+    assert '"event_id": event.id' in join and '"joined_at"' in join
+    flag = source.split("def flag_event", 1)[1].split("def event_summary", 1)[0]
+    assert '"event_not_flaggable"' in flag
+    assert 'kind="system"' in flag
+    cap = source.split("def _host_cap", 1)[1].split("def _can_restore", 1)[0]
+    assert "Event.end_at > utcnow()" in cap
