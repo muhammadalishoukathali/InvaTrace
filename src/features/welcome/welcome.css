@@ -123,6 +123,9 @@
 .welcome-nav .brand-mark { border-color: transparent; }
 .welcome-nav__links { display: none; align-items: center; gap: 26px; }
 .welcome-nav__links > a:not(.welcome-btn) {
+  display: inline-flex;
+  align-items: center;
+  min-height: 44px;
   color: #FFFFFF;
   font-size: 14px;
   font-weight: 600;
@@ -247,7 +250,7 @@
   gap: 4px;
 }
 .welcome-goal p { max-width: 58ch; color: var(--ink); font-size: clamp(17px, 1.6vw, 20px); line-height: 1.5; letter-spacing: -0.01em; }
-.welcome-goal a { display: inline-block; margin-top: 10px; color: var(--green-dark); font-size: 14px; font-weight: 600; text-underline-offset: 4px; }
+.welcome-goal a { display: inline-flex; align-items: center; min-height: 44px; margin-top: 10px; color: var(--green-dark); font-size: 14px; font-weight: 600; text-underline-offset: 4px; }
 
 /* ---------- Feature rows ---------- */
 
@@ -386,6 +389,16 @@
   .welcome-feature__stage { height: 520px; }
 
   .welcome-footer { display: flex; justify-content: space-between; gap: 24px; text-align: left; }
+}
+
+@media (min-width: 720px) and (max-width: 959px) {
+  /* Single-column hero on tablets: the lede runs across the bright path in the
+     photo, so carry the dark wash further right. */
+  .welcome-hero::after {
+    background:
+      linear-gradient(180deg, rgba(8, 30, 21, 0.55) 0%, rgba(8, 30, 21, 0) 26%),
+      linear-gradient(90deg, rgba(8, 30, 21, 0.82) 0%, rgba(8, 30, 21, 0.66) 55%, rgba(8, 30, 21, 0.3) 85%, rgba(8, 30, 21, 0.2) 100%);
+  }
 }
 
 @media (min-width: 960px) {

@@ -12,7 +12,7 @@ test('a first-time visitor can read the welcome page without an identity', async
   for (const impact of ['Native vegetation', 'Native habitats', 'Shared natural spaces']) {
     await expect(page.getByRole('heading', { name: impact })).toBeVisible()
   }
-  for (const step of ['Discover', 'Identify', 'Follow safe guidance', 'Report', 'Monitor']) {
+  for (const step of ['Discover what to look for', 'Identify a plant', 'Follow safe guidance', 'Report a sighting', 'Monitor places over time']) {
     await expect(page.getByRole('heading', { level: 3, name: step, exact: true })).toBeVisible()
   }
   await expect(page.getByRole('link', { name: /MyIAS/ })).toHaveAttribute('href', 'https://www.mybis.gov.my/ias/')
@@ -21,7 +21,7 @@ test('a first-time visitor can read the welcome page without an identity', async
 test('How it works moves to the five steps', async ({ page }) => {
   await page.goto('/')
   await page.getByRole('link', { name: 'How it works' }).first().click()
-  await expect(page.getByRole('heading', { name: 'From curiosity to action' })).toBeInViewport()
+  await expect(page.getByRole('heading', { name: 'How InvaTrace helps' })).toBeInViewport()
   await expect(page).toHaveURL(/#how-it-works$/)
 })
 

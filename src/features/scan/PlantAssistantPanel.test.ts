@@ -1,7 +1,7 @@
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import type { IdentifyResult } from '@/types'
 import * as catalogue from '@shared/catalogue'
-import { assistantSpeciesForScan } from './PlantAssistantPanel'
+import { assistantSpeciesForScan, suggestionsFor } from './PlantAssistantPanel'
 
 vi.mock('@/services/api-client', () => ({ api: vi.fn(), ApiError: class extends Error {} }))
 
@@ -25,5 +25,13 @@ describe('assistant scan eligibility', () => {
 
   it('keeps an unknown target name unavailable', () => {
     expect(assistantSpeciesForScan({ ...accepted, speciesId: 'unknown', scientificName: 'Unknown' })).toBeNull()
+  })
+})
+
+describe('suggested questions', () => {
+  it('offers the spread question only where spread pathways are documented', () => {
+    expect(suggestionsFor('mikania-micrantha')).toContain('How does it spread?')
+    expect(suggestionsFor('asclepias-curassavica')).not.toContain('How does it spread?')
+    expect(suggestionsFor('asclepias-curassavica')).toHaveLength(4)
   })
 })

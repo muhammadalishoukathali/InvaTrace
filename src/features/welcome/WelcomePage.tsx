@@ -55,6 +55,9 @@ export function WelcomePage() {
             width={HERO_IMAGE.landscape.width}
             height={HERO_IMAGE.landscape.height}
             alt={HERO_IMAGE.alt}
+            // Largest image on the first screen. React 18 only passes the
+            // attribute through in lower case.
+            {...{ fetchpriority: 'high' }}
           />
         </picture>
 
@@ -71,7 +74,7 @@ export function WelcomePage() {
             <p className="welcome-eyebrow">For Malaysia’s parks and trails</p>
             <h1>Spot invasive plants. Care for the places you love.</h1>
             <p className="welcome-hero__lede">
-              An unfamiliar plant could be changing the place you love. InvaTrace helps you recognise
+              An unfamiliar plant could be changing a park or trail you love in Malaysia. InvaTrace helps you recognise
               invasive plants, record what you find and return to see what changes.
             </p>
             <div className="welcome-actions">
@@ -132,7 +135,7 @@ export function WelcomePage() {
 
         <section className="welcome-goal" aria-labelledby="welcome-goal-title">
           <h2 id="welcome-goal-title" className="welcome-eyebrow welcome-eyebrow--green">
-            SDG 15 · Life on Land
+            {SDG.target}
           </h2>
           <div>
             <p>{SDG.statement}</p>
@@ -164,7 +167,7 @@ export function WelcomePage() {
         <section className="welcome-how" id={HOW_ID} aria-labelledby={`${HOW_ID}-title`}>
           <div className="welcome-how__inner">
             <p className="welcome-eyebrow welcome-eyebrow--green">How it works</p>
-            <h2 id={`${HOW_ID}-title`} tabIndex={-1}>From curiosity to action</h2>
+            <h2 id={`${HOW_ID}-title`} tabIndex={-1}>How InvaTrace helps</h2>
             <ol className="welcome-steps">
               {STEPS.map((step) => (
                 <li key={step.title}>

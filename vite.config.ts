@@ -97,6 +97,17 @@ export default defineConfig({
             },
           },
           {
+            // Welcome page photography (.webp is not precached). Cache what a
+            // visitor has seen so "/welcome" still renders offline.
+            urlPattern: ({ url }) => url.pathname.startsWith('/welcome/'),
+            handler: 'CacheFirst',
+            options: {
+              cacheName: 'invatrace-welcome-v1',
+              expiration: { maxEntries: 12, maxAgeSeconds: 90 * 24 * 60 * 60 },
+              cacheableResponse: { statuses: [200] },
+            },
+          },
+          {
             // The hashed runtime is large, so cache it after first inference
             // instead of slowing service-worker installation with a precache.
             urlPattern: ({ url }) => /\/assets\/ort-wasm-.+\.wasm$/.test(url.pathname),

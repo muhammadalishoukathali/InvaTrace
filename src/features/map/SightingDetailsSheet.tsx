@@ -168,7 +168,7 @@ export function SightingDetailsSheet() {
 
               <header className="pin-sheet__heading">
                 <h2 tabIndex={-1} data-dialog-initial>{data.speciesName}</h2>
-                <p className="pin-sheet__latin">{data.latinName}</p>
+                {data.latinName !== data.speciesName && <p className="pin-sheet__latin">{data.latinName}</p>}
                 <div className="pin-sheet__summary" aria-label={sightingSummaryLabel(data)}>
                   <span className={`pin-sheet__risk pin-sheet__risk--${tier}`}>
                     <span aria-hidden className="pin-sheet__risk-dot" style={{ background: tierInfo.fill }} />
@@ -220,7 +220,7 @@ export function SightingDetailsSheet() {
                 </section>
               )}
 
-              {data.followUpState && media}
+              {data.followUpState && <div className="pin-sheet__media-inset">{media}</div>}
 
               <section className="pin-sheet__record" aria-labelledby="sighting-record-heading">
                 <h3 id="sighting-record-heading">Report information</h3>
