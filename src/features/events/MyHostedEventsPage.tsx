@@ -36,7 +36,7 @@ export function MyHostedEventsPage() {
       <header className="events-intro">
         <div>
           <h2>Your hosted events</h2>
-          <p>Drafts stay private until you publish them. If an event is hidden after community reports, review it and restore it or cancel it — hidden events left unchanged are cancelled after 14 days.</p>
+          <p>Drafts stay private until published. A hidden event is cancelled after 14 days unless you restore or cancel it.</p>
         </div>
         <div className="events-intro__actions">
           <Link className="event-button event-button--primary" to="/events/host"><Icon name="CalendarDays" size={17} />Host an event</Link>
@@ -77,7 +77,7 @@ export function MyHostedEventsPage() {
         <CancelDialog
           event={cancelling}
           pending={cancel.isPending}
-          error={cancel.error ? 'The event could not be cancelled. Try again.' : null}
+          error={cancel.error ? (cancel.error instanceof ApiError && cancel.error.status === 409 ? cancel.error.message : 'The event could not be cancelled. Try again.') : null}
           onClose={() => { cancel.reset(); setCancelling(null) }}
           onConfirm={() => cancel.mutate(cancelling.id)}
         />

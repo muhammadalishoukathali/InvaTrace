@@ -11,6 +11,11 @@ import './follow-up.css'
 // Same limits the server enforces (backend sightings router FOLLOW_UP_MAX_M).
 const MAX_ACCURACY_M = 250
 const MAX_DISTANCE_M = 250
+// Public coordinates of an unvetted report are displaced by 100 m
+// (backend app/core/privacy.py). The server measures against the exact point,
+// so the pre-check widens by that offset rather than wrongly blocking a user
+// who is standing at the plant.
+const PRIVACY_OFFSET_M = 100
 
 /**
  * AC 4.7.1: show the measured accuracy and allow the follow-up only within
@@ -60,9 +65,9 @@ export function StartFollowUpPage({ onLocation }: { onLocation: (location: Follo
         })
         setLocating(false)
       },
-      () => {
+      (error) => {
         if (!mounted.current || requestId !== requestSequence.current) return
-        setMessage('Location access was not available. Allow location for InvaTrace and try again.')
+        setMessage(geolocationErrorMessage(error))
         setLocating(false)
       },
       { enableHighAccuracy: true, maximumAge: 0, timeout: 10_000 },
@@ -72,9 +77,14 @@ export function StartFollowUpPage({ onLocation }: { onLocation: (location: Follo
   const marker = sighting.data?.location
   const distanceM = location && marker ? Math.round(haversineMetres(location, marker)) : null
   const accuracyOk = location !== null && Number.isFinite(location.accuracyM) && location.accuracyM <= MAX_ACCURACY_M
+  const distanceLimit = MAX_DISTANCE_M + (sighting.data?.precisionReduced ? PRIVACY_OFFSET_M : 0)
   // If the marker could not be loaded, let the server make the distance call.
-  const distanceOk = distanceM === null ? !marker : distanceM <= MAX_DISTANCE_M
-  const ready = accuracyOk && distanceOk
+  // While it is still loading, wait rather than skipping the check.
+  const distanceOk = distanceM === null ? sighting.isError : distanceM <= distanceLimit
+  // A sighting that no longer awaits follow-up (resolved, regrowth, or already
+  // changed by someone else) cannot take one; the server would reject it.
+  const followUpOpen = !sighting.data || sighting.data.followUpState === 'needed'
+  const ready = accuracyOk && distanceOk && followUpOpen
   const backTo = sightingId ? `/map?sighting=${encodeURIComponent(sightingId)}` : '/map'
 
   return (
@@ -97,11 +107,14 @@ export function StartFollowUpPage({ onLocation }: { onLocation: (location: Follo
           <div className={`follow-up-check${distanceM !== null ? (distanceOk ? ' is-ok' : ' is-bad') : ''}`}>
             <span>Distance to marker</span>
             <strong>{distanceM !== null ? formatDistance(distanceM) : '—'}</strong>
-            <small>{distanceM !== null ? (distanceOk ? 'Close enough' : `Move within ${MAX_DISTANCE_M} m`) : sighting.isError ? 'Checked when you submit' : 'Not measured yet'}</small>
+            <small>{distanceM !== null ? (distanceOk ? 'Close enough' : `Move within ${MAX_DISTANCE_M} m`) : sighting.isError ? 'Checked when you submit' : location ? 'Loading marker…' : 'Not measured yet'}</small>
           </div>
         </div>
+        {!followUpOpen && (
+          <p className="follow-up-alert" role="alert">This sighting no longer needs a follow-up. Return to the map to see its current status.</p>
+        )}
         {message && <p className="follow-up-alert" role="alert">{message}</p>}
-        {location && !ready && (
+        {location && followUpOpen && (!accuracyOk || (distanceM !== null && !distanceOk)) && (
           <p className="follow-up-alert" role="alert">
             {!accuracyOk
               ? 'Your location is not accurate enough yet. Move into the open and refresh.'
@@ -120,6 +133,12 @@ export function StartFollowUpPage({ onLocation }: { onLocation: (location: Follo
       </div>
     </section>
   )
+}
+
+function geolocationErrorMessage(error: GeolocationPositionError) {
+  if (error.code === error.PERMISSION_DENIED) return 'Location permission is blocked. Allow location for InvaTrace in your browser settings, then try again.'
+  if (error.code === error.TIMEOUT) return 'Finding your location took too long. Move into the open and try again.'
+  return 'Your device could not provide a location right now. Try again in a moment.'
 }
 
 const formatDistance = (metres: number) => (metres >= 1000 ? `${(metres / 1000).toFixed(1)} km` : `${metres} m`)

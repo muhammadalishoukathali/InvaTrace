@@ -148,10 +148,12 @@ def test_follow_up_outcomes_filters_history_and_rejections_are_atomic(
         assert detail.status_code == 200
         history = detail.json()["followUpHistory"]
         assert [entry["eventType"] for entry in history] == [
-            "removal_reported", "followup_unable", "followup_unable"
+            "reported", "removal_reported", "followup_unable", "followup_unable"
         ]
         assert all(set(entry) == {"eventType", "createdAt"} for entry in history)
-        assert [entry["createdAt"] for entry in history] == sorted(entry["createdAt"] for entry in history)
+        # The original report leads; the status events after it are in date order.
+        status_dates = [entry["createdAt"] for entry in history[1:]]
+        assert status_dates == sorted(status_dates)
 
         for index, bad_payload, code in (
             (3, payload(3, "unable_to_confirm", capturedAt=(now - timedelta(minutes=6)).isoformat()), "follow_up_location_stale"),

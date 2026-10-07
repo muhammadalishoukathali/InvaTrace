@@ -150,11 +150,13 @@ test('a rejected offline event report keeps its photo and offers explicit ordina
     })
   }, { captureId, queueId })
   let body: Record<string, unknown> | null = null
-  await page.route('**/api/v1/scans', route => route.fulfill({ json: {} }))
-  await page.route('**/api/v1/reports', route => {
-    body = route.request().postDataJSON()
-    return route.fulfill({ status: 201, json: { id: 'recovered-ordinary' } })
+  // A request listener sees the page's body even when the dev MSW worker,
+  // rather than the network, answers it; routes cannot intercept that case.
+  page.on('request', request => {
+    if (request.method() === 'POST' && new URL(request.url()).pathname === '/api/v1/reports') body = request.postDataJSON()
   })
+  await page.context().route('**/api/v1/scans', route => route.fulfill({ json: {} }))
+  await page.context().route('**/api/v1/reports', route => route.fulfill({ status: 201, json: { id: 'recovered-ordinary' } }))
   await page.reload()
   await page.getByRole('button', { name: 'View queue', exact: true }).click()
   const dialog = page.getByRole('dialog', { name: 'Queued reports' })

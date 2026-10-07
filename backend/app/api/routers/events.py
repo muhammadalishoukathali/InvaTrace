@@ -29,6 +29,7 @@ from app.db.models import (
     EventCheckin,
     EventFlag,
     EventParticipant,
+    Notification,
     Profile,
     Report,
     Species,
@@ -154,6 +155,38 @@ def _assert_species(session: Session, ids: list[str]) -> None:
         raise ApiProblem(422, "invalid_target_species", "One or more target species are invalid.")
 
 
+def _write_place(session: Session, place_id: uuid.UUID):
+    """Resolve an event place for a write; an unknown place is a field error (422)."""
+    try:
+        return event_place(session, place_id)
+    except ApiProblem as error:
+        if error.status_code == 404:
+            raise ApiProblem(
+                422, "invalid_place", "Choose a supported mapped place for the event."
+            ) from error
+        raise
+
+
+def _assert_permission_basis(permission_context: str, safety_notes: str | None) -> None:
+    # AC 9.6.5 - explicit_permission may be set only with a stated basis.
+    if permission_context == "explicit_permission" and not (safety_notes or "").strip():
+        raise ApiProblem(
+            422,
+            "permission_basis_required",
+            "State who gave permission, and any conditions, in the safety notes.",
+        )
+
+
+def _same_value(current, new) -> bool:
+    if current is None or new is None:
+        return current is new
+    if isinstance(current, datetime) and isinstance(new, datetime):
+        return current == new
+    if isinstance(new, float):
+        return round(float(current), 5) == round(new, 5)
+    return str(current) == str(new)
+
+
 def _activity_locked(session: Session, event: Event) -> bool:
     return bool(
         session.scalar(select(EventCheckin.id).where(EventCheckin.event_id == event.id).limit(1))
@@ -165,13 +198,23 @@ def _host_cap(session: Session, profile_id: uuid.UUID, excluding: uuid.UUID | No
     # A lock on the profile serialises competing create/publish attempts from
     # one identity, avoiding a cap race under concurrent requests.
     session.scalar(select(Profile.id).where(Profile.id == profile_id).with_for_update())
+    # Only live events count: a draft or published event whose end time has
+    # passed (and is waiting for the completion worker) no longer blocks the host.
     statement = select(func.count(Event.id)).where(
-        Event.host_profile_id == profile_id, Event.status.in_({"draft", "published"})
+        Event.host_profile_id == profile_id,
+        Event.status.in_({"draft", "published"}),
+        Event.end_at > utcnow(),
     )
     if excluding:
         statement = statement.where(Event.id != excluding)
-    if (session.scalar(statement) or 0) >= get_settings().event_host_cap:
-        raise ApiProblem(429, "event_host_cap_exceeded", "Maximum active hosted events reached.")
+    cap = get_settings().event_host_cap
+    if (session.scalar(statement) or 0) >= cap:
+        raise ApiProblem(
+            429,
+            "event_host_cap_exceeded",
+            f"You already have {cap} upcoming hosted events. Cancel one or wait for one to "
+            "finish before adding another. Your existing events are unchanged.",
+        )
 
 
 def _can_restore(session: Session, event: Event) -> bool:
@@ -295,7 +338,8 @@ def create_event(
             "removal_permission_required",
             "Removal events require explicit removal permission.",
         )
-    place, place_type, version = event_place(session, body.place_id)
+    _assert_permission_basis(body.permission_context, body.safety_notes)
+    place, place_type, version = _write_place(session, body.place_id)
     if not point_within_event_place(
         session, place, place_type, body.meeting_latitude, body.meeting_longitude
     ):
@@ -328,6 +372,12 @@ def patch_event(
     if event.host_profile_id != auth.profile.id:
         raise ApiProblem(403, "forbidden", "Forbidden")
     changes = body.model_dump(exclude_unset=True)
+    if event.status not in {"draft", "published"} and not body.restore:
+        # Cancelled and completed events are terminal; only an eligible hidden
+        # (auto-cancelled) event can come back, through the restore path below.
+        raise ApiProblem(
+            409, "invalid_status_transition", "Only draft or published events can be edited."
+        )
     locked = {
         "place_id",
         "meeting_latitude",
@@ -336,7 +386,14 @@ def patch_event(
         "end_at",
         "event_type",
     }
-    if _activity_locked(session, event) and locked.intersection(changes):
+    # Re-sending an unchanged value is not a change; only a real edit of a
+    # locked field after the first check-in or event report is refused.
+    changed_locked = {
+        name
+        for name in locked.intersection(changes)
+        if not _same_value(getattr(event, name), changes[name])
+    }
+    if changed_locked and _activity_locked(session, event):
         raise ApiProblem(409, "event_fields_locked", "Event fields are locked after activity.")
     if body.restore:
         # Only a moderation-hidden event has a flag tally to clear.  Letting a
@@ -371,14 +428,18 @@ def patch_event(
             "removal_permission_required",
             "Removal events require explicit removal permission.",
         )
-    nullable = {"meeting_note", "safety_notes", "chat_link"}
+    _assert_permission_basis(
+        changes.get("permission_context", event.permission_context),
+        changes.get("safety_notes", event.safety_notes),
+    )
+    nullable = {"meeting_note", "safety_notes", "chat_link", "capacity"}
     for name, value in changes.items():
         if name not in {"restore", "status"}:
             if value is None and name not in nullable:
                 continue
             setattr(event, name, value)
     if changes.get("place_id") is not None:
-        place, place_type, version = event_place(session, event.place_id)
+        place, place_type, version = _write_place(session, event.place_id)
         event.place_type = place_type
         event.geometry_version = version
     else:
@@ -404,8 +465,12 @@ def patch_event(
                 "invalid_status_transition",
                 "Only active draft or published events can be published.",
             )
+        if event.end_at <= utcnow():
+            raise ApiProblem(
+                422, "event_already_ended", "Set an end time in the future before publishing."
+            )
         _host_cap(session, auth.profile.id, excluding=event.id)
-        place, place_type, version = event_place(session, event.place_id)
+        place, place_type, version = _write_place(session, event.place_id)
         if not point_within_event_place(
             session, place, place_type, event.meeting_latitude, event.meeting_longitude
         ):
@@ -577,7 +642,12 @@ def join_event(
         participant.withdrawn_at = None
     session.commit()
     session.refresh(participant)
-    return {"participation_id": participant.id, "status": participant.status}
+    return {
+        "participation_id": participant.id,
+        "event_id": event.id,
+        "joined_at": participant.joined_at,
+        "status": participant.status,
+    }
 
 
 @router.delete("/{event_id}/participants/{participation_id}", status_code=204)
@@ -662,6 +732,10 @@ def flag_event(
     event = _event_or_404(session, event_id, lock=True)
     if event.host_profile_id == auth.profile.id:
         raise ApiProblem(403, "self_flag_forbidden", "Hosts cannot flag their own event.")
+    if event.status == "draft":
+        raise ApiProblem(404, "event_not_found", "Not found")
+    if event.status != "published":
+        raise ApiProblem(409, "event_not_flaggable", "Only a published event can be reported.")
     flag = session.scalar(
         select(EventFlag).where(
             EventFlag.event_id == event.id, EventFlag.reporter_profile_id == auth.profile.id
@@ -678,6 +752,22 @@ def flag_event(
     if count >= get_settings().event_flag_hide_threshold and not event.hidden:
         event.hidden = True
         event.hidden_at = utcnow()
+        # AC 9.7.5 - there is no admin role, so tell the host their event was
+        # hidden and that they can review and restore it (or cancel it).
+        session.add(
+            Notification(
+                profile_id=event.host_profile_id,
+                kind="system",
+                title="Your event is hidden for review",
+                body=(
+                    f"“{event.title[:80]}” was reported by several people and is hidden from "
+                    "discovery. Review it in your hosted events to restore or cancel it; "
+                    "hidden events are cancelled after "
+                    f"{get_settings().event_hidden_auto_cancel_days} days."
+                ),
+                link_to="/events/mine",
+            )
+        )
     session.commit()
     return {"flagged": True, "hidden": event.hidden}
 
@@ -689,7 +779,7 @@ def event_summary(
     session: Session = Depends(get_session),
 ):
     event = _event_or_404(session, event_id)
-    if event.hidden and event.host_profile_id != auth.profile.id:
+    if (event.hidden or event.status == "draft") and event.host_profile_id != auth.profile.id:
         raise ApiProblem(404, "event_not_found", "Not found")
     if event.status != "completed":
         raise ApiProblem(409, "event_not_completed", "Summary is available after completion.")

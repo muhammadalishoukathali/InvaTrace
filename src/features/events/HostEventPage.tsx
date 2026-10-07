@@ -69,7 +69,8 @@ export function HostEventPage() {
 
   const save = useMutation({
     mutationFn: async (publish: boolean) => {
-      const wire = { ...draft, startAt: new Date(draft.startAt).toISOString(), endAt: new Date(draft.endAt).toISOString() }
+      // validate() has already confirmed both values parse as local date-times.
+      const wire = { ...draft, startAt: parseLocalDateTime(draft.startAt)!.toISOString(), endAt: parseLocalDateTime(draft.endAt)!.toISOString() }
       if (edit) {
         const patch: Partial<EventDraft> = existing.data?.status === 'draft' && publish ? { ...wire, status: 'published' } : wire
         if (existing.data?.activityLocked) {
@@ -131,8 +132,12 @@ export function HostEventPage() {
       if (!validMeeting(draft)) next.meeting = 'Tap the map inside the place to set a meeting point in Malaysia.'
     }
     if (upTo >= 3) {
-      if (!parseLocalDateTime(draft.startAt) || !parseLocalDateTime(draft.endAt) || new Date(draft.endAt) <= new Date(draft.startAt)) {
+      const start = parseLocalDateTime(draft.startAt)
+      const end = parseLocalDateTime(draft.endAt)
+      if (!start || !end || end <= start) {
         next.times = 'Enter a start time and an end time after it.'
+      } else if (!existing.data?.activityLocked && end.getTime() <= Date.now()) {
+        next.times = 'The end time must be in the future.'
       }
       if (draft.eventType === 'removal' && draft.permissionContext !== 'explicit_permission') {
         next.permissionContext = 'A removal event needs confirmed permission from the land manager before it can be published.'
@@ -150,6 +155,7 @@ export function HostEventPage() {
   if (edit && existing.isLoading) return <EventState text="Loading event editor…" />
   if (edit && (existing.isError || !existing.data)) return <EventState error text="This event cannot be edited." />
   if (edit && !existing.data!.isHost) return <EventState error text="Only the event host can edit this event." />
+  if (edit && !['draft', 'published'].includes(existing.data!.status)) return <EventState error text="Cancelled and completed events can no longer be edited." />
   const locked = Boolean(existing.data?.activityLocked)
   const next = () => { const result = validate(step); if (result.ok) setStep(step + 1); else setStep(Math.min(step, result.firstInvalidStep)) }
   const submit = (publish: boolean) => { const result = validate(4); if (result.ok) save.mutate(publish); else setStep(result.firstInvalidStep) }
@@ -161,7 +167,7 @@ export function HostEventPage() {
       <BackLink to={edit ? `/events/${eventId}` : '/events'}>{edit ? 'Back to event' : 'Back to events'}</BackLink>
       <header className="event-detail__header">
         <h2>{edit ? 'Edit event' : 'Host a community event'}</h2>
-        <p className="event-detail__host">No account needed. Your event stays a private draft until you publish it.</p>
+        {!edit && <p className="event-detail__host">No account needed. It stays a private draft until you publish it.</p>}
       </header>
 
       <ol className="host-stepper" aria-label="Progress">
@@ -306,7 +312,7 @@ export function HostEventPage() {
               <dl>
                 <div><dt>Event</dt><dd>{draft.title || '—'} · {eventTypeLabels[draft.eventType]}</dd></div>
                 <div><dt>Place</dt><dd>{placeName ?? '—'}</dd></div>
-                <div><dt>When</dt><dd>{parseLocalDateTime(draft.startAt) && parseLocalDateTime(draft.endAt) ? formatEventWindow(new Date(draft.startAt).toISOString(), new Date(draft.endAt).toISOString()) : '—'}</dd></div>
+                <div><dt>When</dt><dd>{parseLocalDateTime(draft.startAt) && parseLocalDateTime(draft.endAt) ? formatEventWindow(parseLocalDateTime(draft.startAt)!.toISOString(), parseLocalDateTime(draft.endAt)!.toISOString()) : '—'}</dd></div>
                 <div><dt>Plants</dt><dd>{draft.targetSpeciesIds.length ? draft.targetSpeciesIds.map(speciesName).join(', ') : 'Any supported invasive plant'}</dd></div>
                 <div><dt>Permission</dt><dd>{draft.permissionContext === 'explicit_permission' ? 'Confirmed by host' : 'Not confirmed — observe and report'}</dd></div>
               </dl>

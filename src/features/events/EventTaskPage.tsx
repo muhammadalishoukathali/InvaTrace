@@ -85,12 +85,12 @@ export function EventTaskPage() {
         <Link className="event-button event-button--primary event-button--block event-task__scan" to="/scan" state={scanState}>
           <Icon name="ScanLine" size={18} />Start a scan
         </Link>
-        <p className="event-muted">Use the camera or choose a photo from your gallery. A scan stays on your device — nothing is reported until you choose <strong>Submit to this event</strong> on the report screen.</p>
+        <p className="event-muted">A scan stays on your device. Nothing is reported until you choose <strong>Submit to this event</strong>.</p>
       </section>
 
       <section className="event-uncertainty">
         <h3><Icon name="HelpCircle" size={17} />Identification is a prediction</h3>
-        <p>A scan result is the model’s best guess, not a confirmed identification. Check the reference photos before submitting, and choose “not sure” when you are unsure.</p>
+        <p>A scan result is the model’s best guess, not a confirmed identification. Check the reference photos, and choose “not sure” when you are unsure.</p>
       </section>
       <EventSafetyNotice event={item} compact />
     </section>
@@ -105,8 +105,7 @@ function TaskSteps({ event }: { event: CommunityEvent }) {
         <ol className="event-task__list">
           <li>Scan each plant before touching it.</li>
           <li>Open the safe-response guidance in the scan result. It checks the protected-area boundary and asks whether the land manager has given you permission.</li>
-          <li>Removal steps appear only after those checks pass, for you, at that spot. If they do not pass, observe and report only.</li>
-          <li>Bag fragments and follow the disposal steps so the plant does not spread.</li>
+          <li>Removal and disposal steps appear there only after those checks pass, for you, at that spot. If they do not pass, observe and report only.</li>
         </ol>
         <TargetPlants event={event} />
       </>

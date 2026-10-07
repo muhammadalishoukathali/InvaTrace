@@ -100,11 +100,11 @@ test('every route and workflow state fits the screen', async ({ page, context },
     ['15-monitoring-empty', '/adopted-areas', '.areas-state'],
     ['16-events', '/events', '.events-list'],
     ['17-hosted-events', '/events/mine', '.events-list'],
-    ['18-event-details', '/events/layout-event', '.event-facts'],
-    ['19-event-check-in', '/events/layout-event/check-in', '.event-work'],
-    ['20-event-tasks', '/events/layout-event/tasks', '.event-work'],
-    ['21-event-summary', '/events/layout-event/summary', '.event-facts'],
-    ['22-event-edit', '/events/layout-event/edit', '.host-event fieldset'],
+    ['18-event-details', '/events/layout-event', '.event-action-card'],
+    ['19-event-check-in', '/events/layout-event/check-in', '.event-steps'],
+    ['20-event-tasks', '/events/layout-event/tasks', '.event-task'],
+    ['21-event-summary', '/events/layout-event/summary', '.event-stats'],
+    ['22-event-edit', '/events/layout-event/edit', '.event-field'],
     ['23-scan', '/scan', '.scan-capture'],
   ]) {
     await navigate(page, route)
@@ -138,12 +138,27 @@ test('every route and workflow state fits the screen', async ({ page, context },
   await expect(page.locator('.activity-facts')).toBeVisible()
   await inspect(page, info, '27-area-activity', findings)
 
+  // Epic 7 guided mission: place entry, preview and the active mission map.
+  const missionPlace = 'e56ae54c-ca04-5fbf-b2c2-01b6e7fbdf46'
+  await page.evaluate(() => localStorage.removeItem('invatrace-mock-missions-v1'))
+  await navigate(page, `/places/${missionPlace}`)
+  await expect(page.getByRole('link', { name: 'Start guided mission' })).toBeVisible()
+  await inspect(page, info, '27a-mission-entry', findings)
+  await navigate(page, `/places/${missionPlace}/mission`)
+  await expect(page.getByRole('button', { name: 'Start guided mission' })).toBeVisible()
+  await inspect(page, info, '27b-mission-preview', findings)
+  await page.getByRole('button', { name: 'Start guided mission' }).click()
+  await expect(page.getByLabel('Map legend')).toBeVisible()
+  await inspect(page, info, '27c-mission-active', findings)
+  await page.getByLabel('Habitats on the map').getByRole('button').first().click()
+  await inspect(page, info, '27d-mission-habitat', findings)
+
   await navigate(page, '/events/host')
   for (let step = 1; step <= 4; step++) {
-    await expect(page.getByText(`Step ${step} of 4`, { exact: true })).toBeVisible()
+    await expect(page.getByRole('heading', { name: new RegExp(`^Step ${step} of 4`) })).toBeVisible()
     await inspect(page, info, `28-host-step-${step}`, findings)
-    if (step === 1) { await page.getByLabel('Title', { exact: true }).fill('Community survey'); await page.getByLabel('Purpose', { exact: true }).fill('Record field observations.') }
-    if (step === 2) await page.getByRole('combobox', { name: 'Mapped place', exact: true }).selectOption('10000000-0000-4000-8000-000000000001')
+    if (step === 1) { await page.getByLabel('Event title').fill('Community survey'); await page.getByRole('textbox', { name: /^Purpose/ }).fill('Record field observations.') }
+    if (step === 2) { await page.getByLabel('Mapped place').fill('Bukit'); await page.getByRole('button', { name: /Bukit Kiara/ }).click() }
     if (step === 3) { await page.getByLabel('Starts', { exact: true }).fill('2030-01-01T08:00'); await page.getByLabel('Ends', { exact: true }).fill('2030-01-01T10:00') }
     if (step < 4) await page.getByRole('button', { name: 'Continue', exact: true }).click()
   }

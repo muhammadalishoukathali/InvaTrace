@@ -71,7 +71,7 @@ export function EventsDiscoveryPage() {
   const filterSummary = [
     species.length ? `${species.length} species` : 'all species',
     RANGE_LABELS[preset].toLowerCase(),
-    placeId ? (place.data?.displayName ?? 'selected place') : 'in the map area',
+    placeId ? (place.data?.displayName ?? 'selected place') : scopedBbox ? 'in the map area' : 'all places',
   ].join(' · ')
   const showList = isDesktop || view === 'list'
   const showMap = isDesktop || view === 'map'
@@ -81,7 +81,7 @@ export function EventsDiscoveryPage() {
       <header className="events-intro">
         <div>
           <h2>{placeId && place.data ? `Events at ${place.data.displayName}` : 'Upcoming community events'}</h2>
-          <p>Organised by community members at mapped parks, forests and woodlands. Volunteer activities — not official or government operations.</p>
+          <p>Volunteer outings hosted by community members — not official or government operations.</p>
         </div>
         <div className="events-intro__actions">
           <Link className="event-button event-button--primary" to="/events/host">
@@ -153,13 +153,12 @@ export function EventsDiscoveryPage() {
                 <section className="events-empty">
                   <span className="events-empty__icon" aria-hidden><Icon name="CalendarDays" size={26} /></span>
                   <h3>No upcoming survey events found here</h3>
-                  <p>That does not mean the area is free of invasive plants — nobody has published an event for these filters yet.</p>
+                  <p>This does not mean the area is free of invasive plants.</p>
                   <div className="events-empty__actions">
                     <Link className="event-button" to="/catalogue">Browse the plant catalogue</Link>
                     {placeId
                       ? <Link className="event-button" to={`/places/${placeId}`}>Adopt this area</Link>
                       : <Link className="event-button" to="/places">Adopt an area</Link>}
-                    <Link className="event-button event-button--primary" to="/events/host">Host an event</Link>
                   </div>
                 </section>
               )}
@@ -178,7 +177,7 @@ export function EventsDiscoveryPage() {
                 selectedId={selectedId}
                 label={`Map of ${items.length} upcoming events. The list shows the same events.`}
               />
-              <p className="event-map__legend"><span className="event-marker-swatch" aria-hidden />Community event meeting point · tap a marker to find it in the list</p>
+              <p className="event-map__legend"><span className="event-marker-swatch" aria-hidden />Community event meeting point</p>
             </div>
           )}
         </div>

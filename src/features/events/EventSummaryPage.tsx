@@ -25,7 +25,12 @@ export function EventSummaryPage() {
     onSuccess: () => cache.invalidateQueries({ queryKey: ['adopted-areas'] }),
   })
   if (summary.isLoading) return <EventState text="Loading event summary…" />
-  if (!summary.data) return <EventState error text="This event summary is unavailable." retry={() => void summary.refetch()} />
+  if (!summary.data) {
+    const status = summary.error instanceof ApiError ? summary.error.status : null
+    if (status === 409) return <EventState error text="The summary is available once the event has ended." />
+    if (status === 404) return <EventState error text="This event is not available." />
+    return <EventState error text="This event summary is unavailable." retry={() => void summary.refetch()} />
+  }
   const item = summary.data
   const alreadyAdopted = follow.isSuccess
     || adoptions.data?.items.some((adoption) => adoption.placeId === item.placeId)
@@ -45,13 +50,12 @@ export function EventSummaryPage() {
         <div><dt>Different species recorded</dt><dd>{item.distinctSpeciesCount}</dd></div>
       </dl>
       <p className="event-muted">
-        Counts come from community reports tagged to this event and captured during it, excluding rejected or deleted reports.
-        They describe activity on the day only — they are not expert-verified and do not measure how healthy the place is, how dense the invasion is, or whether it has been removed.
+        Counts of community reports captured during the event, excluding rejected or deleted ones. They describe activity only — not expert-verified, and not a measure of the place’s health, invasion density or removal.
       </p>
 
       <section className="event-section event-follow">
         <h3>Keep watching {item.placeName}</h3>
-        <p>Following the area adds it to your monitoring areas so you see new reports and events there. It is a shared bookmark — it gives no ownership or removal permission.</p>
+        <p>Adds it to your monitoring areas. A shared bookmark — no ownership or removal permission.</p>
         <button type="button" className="event-button event-button--primary" disabled={follow.isPending || alreadyAdopted} onClick={() => follow.mutate()}>
           {alreadyAdopted ? <><Icon name="CircleCheck" size={17} />Adopted</> : follow.isPending ? 'Adding…' : 'Follow this area for monitoring'}
         </button>

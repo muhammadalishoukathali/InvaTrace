@@ -55,10 +55,9 @@ export function FollowUpConfirmPage({
     return (
       <section className="follow-up-page" aria-labelledby="follow-up-done-title">
         <section className="follow-up-panel follow-up-panel--success" role="status">
-          <p className="follow-up-kicker">Follow-up saved</p>
           <h2 id="follow-up-done-title">Follow-up recorded</h2>
           <aside className="follow-up-preview"><strong>What changed on the map</strong><p>{copy.completed}</p></aside>
-          <p className="follow-up-explainer">This records a community observation. It does not independently verify removal or treatment. The original report and its history are kept.</p>
+          <p className="follow-up-explainer">Saved as a community observation, not expert verification. The original report and its history are kept.</p>
           <div className="follow-up-actions">
             <Link className="follow-up-button follow-up-button--secondary" to={`/map?sighting=${encodeURIComponent(sightingId ?? '')}`}>View sighting history</Link>
             <Link className="follow-up-button" to="/map">Return to map</Link>

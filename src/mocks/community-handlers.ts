@@ -105,6 +105,9 @@ export function createCommunityHandlers(deps: Deps) {
   const placeOf = (placeId: string) => deps.places().find((place) => place.placeId === placeId)
   const joinedCount = (event: MockEvent) => [...event.participants.values()].filter((item) => item.status === 'joined').length
   const isLive = (event: MockEvent) => event.status === 'published' && !event.hidden && Date.parse(event.endAt) > Date.now()
+  // Same rule as backend _host_cap: draft or published events that have not ended.
+  const countsTowardCap = (event: MockEvent) => (event.status === 'draft' || event.status === 'published') && Date.parse(event.endAt) > Date.now()
+  const capProblem = () => problem(429, 'event_host_cap_exceeded', `You already have ${MAX_LIVE_EVENTS} upcoming hosted events. Cancel one or wait for one to finish before adding another. Your existing events are unchanged.`)
   const completeExpired = () => events.forEach((event) => { if (event.status === 'published' && Date.parse(event.endAt) <= Date.now()) event.status = 'completed' })
 
   const serialize = (event: MockEvent, viewer: string | null, detail: boolean) => {
@@ -129,6 +132,20 @@ export function createCommunityHandlers(deps: Deps) {
     }
   }
 
+  const draftProblem = (errors: string[]) => errors.includes('placeId')
+    ? problem(422, 'invalid_place', 'Choose a supported mapped place for the event.')
+    : errors.includes('meetingLatitude')
+      ? problem(422, 'meeting_point_outside_place', 'Meeting point is outside the event place.')
+      : problem(422, 'invalid_event_time', 'End time must be after start time.')
+  const permissionProblem = (body: Record<string, unknown>) => {
+    if (body.eventType === 'removal' && body.permissionContext !== 'explicit_permission') return problem(422, 'removal_permission_required', 'Removal events require explicit removal permission.')
+    if (body.permissionContext === 'explicit_permission' && !String(body.safetyNotes ?? '').trim()) return problem(422, 'permission_basis_required', 'State who gave permission, and any conditions, in the safety notes.')
+    return null
+  }
+  const validChatLink = (value: unknown) => {
+    if (value === undefined || value === null || String(value).trim() === '') return true
+    try { const link = new URL(String(value)); return link.protocol === 'https:' && Boolean(link.hostname) && !link.username } catch { return false }
+  }
   const validateDraft = (body: Record<string, unknown>, partial: boolean) => {
     const errors: string[] = []
     const has = (key: string) => body[key] !== undefined
@@ -152,7 +169,9 @@ export function createCommunityHandlers(deps: Deps) {
       lookedForCount: mission.plants.filter((plant) => plant.state === 'looked_for').length,
       unableToCheckCount: mission.plants.filter((plant) => plant.state === 'unable_to_check').length,
       notCheckedCount: mission.plants.filter((plant) => plant.state === 'not_checked').length,
-      noTargetFoundCount: mission.plants.filter((plant) => plant.state === 'looked_for' && plant.noTargetFound).length,
+      // As on the server, a plant with a submitted sighting is never also a no-find outcome.
+      noTargetFoundCount: mission.plants.filter((plant) => plant.state === 'looked_for' && plant.noTargetFound
+        && !reports.some((report) => report.speciesId === plant.speciesId)).length,
       scansCount: deps.scansForMission(mission.missionId),
       reportsSubmittedCount: reports.length,
       reports,
@@ -187,7 +206,7 @@ export function createCommunityHandlers(deps: Deps) {
       const profile = deps.profileFor(request)
       if (!profile) return problem(401, 'session_required', 'Sign in again.')
       const items = [...events.values()].filter((event) => event.hostProfileId === profile.id)
-        .sort((a, b) => Date.parse(a.startAt) - Date.parse(b.startAt))
+        .sort((a, b) => Date.parse(b.startAt) - Date.parse(a.startAt))
         .map((event) => serialize(event, profile.id, true))
       return HttpResponse.json({ items })
     }),
@@ -195,10 +214,12 @@ export function createCommunityHandlers(deps: Deps) {
       seed(); completeExpired()
       const params = new URL(request.url).searchParams
       const bbox = params.get('bbox')
-      if (bbox && bbox.split(',').map(Number).some((value) => !Number.isFinite(value))) return problem(400, 'invalid_bbox', 'Invalid bbox.')
       const [west, south, east, north] = bbox ? bbox.split(',').map(Number) : [-180, -90, 180, 90]
+      if (bbox && (bbox.split(',').length !== 4 || [west, south, east, north].some((value) => !Number.isFinite(value))
+        || !(west >= 99.3 && west <= east && east <= 119.5 && south >= 0.8 && south <= north && north <= 7.5))) return problem(400, 'invalid_bbox', 'The bounding box is invalid.')
       const from = params.get('from') ? Date.parse(params.get('from')!) : null
       const to = params.get('to') ? Date.parse(params.get('to')!) : null
+      if ((from !== null && Number.isNaN(from)) || (to !== null && Number.isNaN(to)) || (from !== null && to !== null && to < from)) return problem(422, 'invalid_event_time', 'Use timezone-aware dates with Until after From.')
       const species = params.getAll('species_id')
       const items = [...events.values()].filter((event) => isLive(event)
         && event.meetingLongitude >= west && event.meetingLongitude <= east && event.meetingLatitude >= south && event.meetingLatitude <= north
@@ -210,6 +231,7 @@ export function createCommunityHandlers(deps: Deps) {
     }),
     http.get(url('/api/v1/places/:placeId/events'), ({ params }) => {
       seed(); completeExpired()
+      if (!placeOf(String(params.placeId))) return problem(404, 'place_not_found', 'Not found')
       const items = [...events.values()].filter((event) => isLive(event) && event.placeId === params.placeId)
         .sort((a, b) => Date.parse(a.startAt) - Date.parse(b.startAt))
         .map((event) => serialize(event, null, false))
@@ -220,8 +242,12 @@ export function createCommunityHandlers(deps: Deps) {
       const profile = deps.profileFor(request)
       if (!profile) return problem(401, 'session_required', 'Sign in again.')
       const body = await request.json() as Record<string, unknown>
+      if (!validChatLink(body.chatLink)) return problem(422, 'validation_error', 'chat_link must use https')
+      if ([...events.values()].filter((item) => item.hostProfileId === profile.id && countsTowardCap(item)).length >= MAX_LIVE_EVENTS) return capProblem()
+      const permission = permissionProblem(body)
+      if (permission) return permission
       const errors = validateDraft(body, false)
-      if (errors.length) return problem(422, 'validation_failed', errors.includes('meetingLatitude') ? 'The meeting point must be inside the mapped place.' : 'Check the place and times.')
+      if (errors.length) return draftProblem(errors)
       const id = `evt-${crypto.randomUUID().slice(0, 8)}`
       events.set(id, {
         id, hostProfileId: profile.id, hostDisplayName: profile.displayName ?? null, status: 'draft', hidden: false, flags: new Set(),
@@ -235,10 +261,12 @@ export function createCommunityHandlers(deps: Deps) {
       })
       return HttpResponse.json({ event_id: id, status: 'draft' }, { status: 201 })
     }),
-    http.get(url('/api/v1/events/:id/summary'), ({ params }) => {
+    http.get(url('/api/v1/events/:id/summary'), ({ params, request }) => {
       seed(); completeExpired()
       const event = events.get(String(params.id))
-      if (!event) return problem(404, 'event_not_found', 'Event not found.')
+      const viewer = deps.profileFor(request)?.id ?? null
+      if (!event || ((event.hidden || event.status === 'draft') && event.hostProfileId !== viewer)) return problem(404, 'event_not_found', 'Not found')
+      if (event.status !== 'completed') return problem(409, 'event_not_completed', 'Summary is available after completion.')
       const next = [...events.values()].filter((item) => item.id !== event.id && item.placeId === event.placeId && isLive(item) && Date.parse(item.startAt) > Date.now())
         .sort((a, b) => Date.parse(a.startAt) - Date.parse(b.startAt))[0]
       return HttpResponse.json({
@@ -250,7 +278,7 @@ export function createCommunityHandlers(deps: Deps) {
       seed(); completeExpired()
       const event = events.get(String(params.id))
       const viewer = deps.profileFor(request)?.id ?? null
-      if (!event || (event.status === 'draft' && event.hostProfileId !== viewer)) return problem(404, 'event_not_found', 'Event not found.')
+      if (!event || ((event.status === 'draft' || event.hidden) && event.hostProfileId !== viewer)) return problem(404, 'event_not_found', 'Not found')
       return HttpResponse.json(serialize(event, viewer, true))
     }),
     http.patch(url('/api/v1/events/:id'), async ({ params, request }) => {
@@ -258,19 +286,37 @@ export function createCommunityHandlers(deps: Deps) {
       if (!profile) return problem(401, 'session_required', 'Sign in again.')
       const event = events.get(String(params.id))
       if (!event) return problem(404, 'event_not_found', 'Event not found.')
-      if (event.hostProfileId !== profile.id) return problem(403, 'not_event_host', 'Only the host can change this event.')
+      if (event.hostProfileId !== profile.id) return problem(403, 'forbidden', 'Forbidden')
       const body = await request.json() as Record<string, unknown>
-      if (body.restore) { event.hidden = false; event.flags.clear(); return HttpResponse.json(serialize(event, profile.id, true)) }
-      const locked = ['placeId', 'meetingLatitude', 'meetingLongitude', 'startAt', 'endAt', 'eventType']
-      if (event.checkins.size && locked.some((key) => body[key] !== undefined && body[key] !== event[key as keyof MockEvent])) return problem(409, 'event_locked', 'This field is locked after check-ins began.')
-      const merged = { ...event, ...body } as Record<string, unknown>
-      const errors = validateDraft(merged, false)
-      if (errors.length) return problem(422, 'validation_failed', errors.includes('meetingLatitude') ? 'The meeting point must be inside the mapped place.' : 'Check the place and times.')
-      if (body.status === 'published' && event.status === 'draft') {
-        if ((merged.eventType === 'removal') && merged.permissionContext !== 'explicit_permission') return problem(422, 'removal_requires_permission', 'A removal event needs confirmed permission before publishing.')
-        const live = [...events.values()].filter((item) => item.hostProfileId === profile.id && isLive(item)).length
-        if (live >= MAX_LIVE_EVENTS) return problem(429, 'live_event_limit', `You can have up to ${MAX_LIVE_EVENTS} live events at once. Cancel or finish one first.`)
+      if (body.restore) {
+        // Mirrors the backend: only a hidden event has a flag tally to clear.
+        if (!event.hidden) return problem(409, 'event_not_hidden', 'This event is not hidden.')
+        if (event.status === 'cancelled') return problem(409, 'invalid_status_transition', 'A manually cancelled event cannot be restored.')
+        event.hidden = false; event.flags.clear()
+        return HttpResponse.json(serialize(event, profile.id, true))
       }
+      if (event.status !== 'draft' && event.status !== 'published') return problem(409, 'invalid_status_transition', 'Only draft or published events can be edited.')
+      if (body.status !== undefined && body.status !== 'draft' && body.status !== 'published') return problem(422, 'invalid_status_transition', 'Use cancel or the lifecycle worker for this status.')
+      if (!validChatLink(body.chatLink)) return problem(422, 'validation_error', 'chat_link must use https')
+      const locked = ['placeId', 'meetingLatitude', 'meetingLongitude', 'startAt', 'endAt', 'eventType']
+      const changed = (key: string) => {
+        const next = body[key]
+        const current = event[key as keyof MockEvent]
+        if (next === undefined) return false
+        if (key === 'startAt' || key === 'endAt') return Date.parse(String(next)) !== Date.parse(String(current))
+        return next !== current
+      }
+      if (event.checkins.size && locked.some(changed)) return problem(409, 'event_fields_locked', 'Event fields are locked after activity.')
+      const merged = { ...event, ...body } as Record<string, unknown>
+      const permission = permissionProblem(merged)
+      if (permission) return permission
+      const errors = validateDraft(merged, false)
+      if (errors.length) return draftProblem(errors)
+      if (body.status === 'published') {
+        if (Date.parse(String(merged.endAt)) <= Date.now()) return problem(422, 'event_already_ended', 'Set an end time in the future before publishing.')
+        if ([...events.values()].filter((item) => item.id !== event.id && item.hostProfileId === profile.id && countsTowardCap(item)).length >= MAX_LIVE_EVENTS) return capProblem()
+      }
+      if (body.status === 'draft' && event.checkins.size) return problem(409, 'invalid_status_transition', 'An event with activity cannot return to draft.')
       Object.assign(event, Object.fromEntries(Object.entries(body).filter(([key]) => key !== 'restore' && key !== 'id')))
       return HttpResponse.json(serialize(event, profile.id, true))
     }),
@@ -278,7 +324,10 @@ export function createCommunityHandlers(deps: Deps) {
       const profile = deps.profileFor(request)
       const event = events.get(String(params.id))
       if (!event) return problem(404, 'event_not_found', 'Event not found.')
-      if (event.hostProfileId !== profile?.id) return problem(403, 'not_event_host', 'Only the host can cancel this event.')
+      if (!profile) return problem(401, 'session_required', 'Sign in again.')
+      if (event.hostProfileId !== profile.id) return problem(403, 'forbidden', 'Forbidden')
+      completeExpired()
+      if (event.status === 'completed') return problem(409, 'invalid_status_transition', 'Only draft or published events can be cancelled.')
       event.status = 'cancelled'
       return new HttpResponse(null, { status: 204 })
     }),
@@ -288,17 +337,23 @@ export function createCommunityHandlers(deps: Deps) {
       const event = events.get(String(params.id))
       if (!event) return problem(404, 'event_not_found', 'Event not found.')
       if (event.status !== 'published' || event.hidden) return problem(409, 'event_not_joinable', 'This event is not open for joining.')
+      // Backend: one row per (event, identity); a repeat join returns it, and a
+      // withdrawn participation is re-activated rather than duplicated.
       const existing = event.participants.get(profile.id)
-      if (existing?.status === 'joined') return HttpResponse.json({ participation_id: existing.id, event_id: event.id, joined_at: existing.joinedAt })
-      const participation = { id: crypto.randomUUID(), status: 'joined' as const, joinedAt: new Date().toISOString() }
+      const participation = existing
+        ? { ...existing, status: 'joined' as const }
+        : { id: crypto.randomUUID(), status: 'joined' as const, joinedAt: new Date().toISOString() }
       event.participants.set(profile.id, participation)
-      return HttpResponse.json({ participation_id: participation.id, event_id: event.id, joined_at: participation.joinedAt }, { status: 201 })
+      return HttpResponse.json({ participation_id: participation.id, event_id: event.id, joined_at: participation.joinedAt, status: 'joined' }, { status: 201 })
     }),
     http.delete(url('/api/v1/events/:id/participants/:participationId'), ({ params, request }) => {
       const profile = deps.profileFor(request)
       const event = events.get(String(params.id))
-      const participation = profile ? event?.participants.get(profile.id) : undefined
-      if (!participation || participation.id !== params.participationId) return problem(404, 'participation_not_found', 'Participation not found.')
+      if (!profile) return problem(401, 'session_required', 'Sign in again.')
+      const owned = event ? [...event.participants.entries()].find(([, item]) => item.id === params.participationId) : undefined
+      if (!owned) return problem(404, 'participation_not_found', 'Not found')
+      if (owned[0] !== profile.id) return problem(403, 'forbidden', 'Forbidden')
+      const participation = owned[1]
       participation.status = 'withdrawn'
       return new HttpResponse(null, { status: 204 })
     }),
@@ -307,11 +362,13 @@ export function createCommunityHandlers(deps: Deps) {
       if (!profile) return problem(401, 'session_required', 'Sign in again.')
       const event = events.get(String(params.id))
       if (!event) return problem(404, 'event_not_found', 'Event not found.')
-      const body = await request.json() as { latitude: number; longitude: number; accuracyM: number }
-      if (event.status !== 'published' || event.hidden) return problem(422, 'event_not_published', 'Not open for check-in.')
+      const body = await request.json() as { latitude: number; longitude: number; accuracyM: number; capturedAt?: string }
       const now = Date.now()
-      if (now < Date.parse(event.startAt) - CHECKIN_GRACE_MS || now > Date.parse(event.endAt)) return problem(422, 'outside_time_window', 'Outside the event window.')
-      if (!(body.accuracyM <= 250)) return problem(422, 'accuracy_too_low', 'Accuracy too low.')
+      const fix = body.capturedAt ? Date.parse(body.capturedAt) : Number.NaN
+      if (!Number.isFinite(fix) || fix < now - 5 * 60_000 || fix > now + 60_000) return problem(422, 'fresh_location_required', 'Get a fresh location fix and try again.')
+      if (event.status !== 'published' || event.hidden) return problem(422, 'event_not_published', 'Event is not published.')
+      if (!(body.accuracyM <= 250)) return problem(422, 'accuracy_too_low', 'GPS accuracy must be 250m or better.')
+      if (now < Date.parse(event.startAt) - CHECKIN_GRACE_MS || now > Date.parse(event.endAt)) return problem(422, 'outside_time_window', 'Outside the event time window.')
       if (!deps.placeContains(event.placeId, { lat: body.latitude, lng: body.longitude })) return problem(422, 'outside_place', 'Outside the event place.')
       const at = new Date().toISOString()
       event.checkins.set(profile.id, at)
@@ -324,7 +381,10 @@ export function createCommunityHandlers(deps: Deps) {
       const profile = deps.profileFor(request)
       if (!profile) return problem(401, 'session_required', 'Sign in again.')
       const event = events.get(String(params.id))
-      if (!event) return problem(404, 'event_not_found', 'Event not found.')
+      if (!event) return problem(404, 'event_not_found', 'Not found')
+      if (event.hostProfileId === profile.id) return problem(403, 'self_flag_forbidden', 'Hosts cannot flag their own event.')
+      if (event.status === 'draft') return problem(404, 'event_not_found', 'Not found')
+      if (event.status !== 'published') return problem(409, 'event_not_flaggable', 'Only a published event can be reported.')
       event.flags.add(profile.id)
       if (event.flags.size >= HIDE_THRESHOLD) event.hidden = true
       return HttpResponse.json({ flagged: true, hidden: event.hidden })
@@ -387,6 +447,9 @@ export function createCommunityHandlers(deps: Deps) {
       if (!plant) return problem(404, 'species_not_in_mission', 'That plant is not in this mission.')
       const body = await request.json() as { state: MockMission['plants'][number]['state']; noTargetFound?: boolean }
       if (body.noTargetFound && body.state !== 'looked_for') return problem(422, 'no_find_requires_looked_for', 'Mark the plant as looked for first.')
+      if (body.noTargetFound && deps.reportsForMission(mission.missionId).some((report) => report.speciesId === plant.speciesId)) {
+        return problem(409, 'sighting_already_submitted', 'A sighting of this plant was submitted during this mission.')
+      }
       plant.noTargetFound = body.state === 'looked_for' ? (body.noTargetFound ?? (plant.state === 'looked_for' && plant.noTargetFound)) : false
       plant.state = body.state
       plant.updatedAt = mission.updatedAt = new Date().toISOString()

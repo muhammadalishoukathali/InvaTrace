@@ -233,6 +233,16 @@ def _serialize(session: Session, mission: GuidedMission) -> GuidedMissionRespons
     )
 
 
+def _no_find_count(plants: list[GuidedMissionPlantProgress], reports: list[MissionReport]) -> int:
+    # AC 7.5.2/7.5.3 - a no-find outcome only stands for a plant with no
+    # submitted sighting in this mission; the two are never double counted.
+    reported = {report.species_id for report in reports if report.species_id}
+    return sum(
+        plant.state == "looked_for" and plant.no_target_found and plant.species_id not in reported
+        for plant in plants
+    )
+
+
 def _summary(session: Session, mission: GuidedMission) -> GuidedMissionSummary:
     plants = _plants(session, mission.id)
     reports = _reports(session, mission.id)
@@ -245,9 +255,7 @@ def _summary(session: Session, mission: GuidedMission) -> GuidedMissionSummary:
         looked_for_count=sum(plant.state == "looked_for" for plant in plants),
         unable_to_check_count=sum(plant.state == "unable_to_check" for plant in plants),
         not_checked_count=sum(plant.state == "not_checked" for plant in plants),
-        no_target_found_count=sum(
-            plant.state == "looked_for" and plant.no_target_found for plant in plants
-        ),
+        no_target_found_count=_no_find_count(plants, reports),
         scans_count=_scans_count(session, mission.id),
         reports_submitted_count=len(reports),
         reports=reports,
@@ -384,6 +392,14 @@ def put_plant_progress(
             422,
             "no_find_requires_looked_for",
             "No target found can only be recorded after looking for the plant.",
+        )
+    if body.no_target_found and any(
+        report.species_id == species_id for report in _reports(session, mission.id)
+    ):
+        raise ApiProblem(
+            409,
+            "sighting_already_submitted",
+            "A sighting of this plant was submitted during this mission.",
         )
     if body.state != "looked_for":
         no_target_found = False

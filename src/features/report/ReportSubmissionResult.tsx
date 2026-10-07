@@ -218,7 +218,7 @@ export function ReportSubmissionResult() {
         )}
 
         <div className="report-submission-result__actions">
-            {missionButton}
+          {missionButton}
           {trackingDestination && (
             <button type="button" onClick={() => done(trackingDestination)}>
               View report

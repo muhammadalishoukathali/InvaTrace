@@ -1545,7 +1545,14 @@ export const handlers = [
       reporterTrust: 'Trusted',
       actionGuide: raw.speciesId === 'mikania-micrantha' ? MOCK_ACTION_GUIDE : null,
       removalReportId: raw.status === 'screened' ? removalReportIdForSighting(raw.id) : null,
-      followUpHistory: mockFollowUpHistory.get(raw.id) ?? [],
+      // Mirrors the API: the original report leads once a status event exists.
+      followUpHistory: (() => {
+        const events = mockFollowUpHistory.get(raw.id) ?? []
+        if (!events.length) return []
+        // Fixture report times are relative to now; keep the original report before the removal.
+        const reportedAt = new Date(Math.min(Date.parse(raw.lastReportedAt), Date.parse(events[0].createdAt) - 2 * 86_400_000)).toISOString()
+        return [{ eventType: 'reported' as const, createdAt: reportedAt }, ...events]
+      })(),
     }
     return HttpResponse.json(detail)
   }),

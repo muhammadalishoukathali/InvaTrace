@@ -453,6 +453,33 @@ def test_summary_counts(client, identities, db, place_id):
     }
 
 
+def test_no_find_stays_separate_from_submitted_sightings(client, identities, db, place_id):
+    mission_id = _create(client, place_id).json()["missionId"]
+    url = f"/api/v1/guided-missions/{mission_id}"
+    # Recorded first, then a sighting of the same plant arrives: the no-find
+    # outcome no longer counts, so the two are never double counted.
+    client.put(f"{url}/plants/{SPECIES[0]}", json={"state": "looked_for", "noTargetFound": True})
+    with db() as session:
+        _add_report(
+            session,
+            uuid.UUID(mission_id),
+            identities.owner,
+            SPECIES[0],
+            "processing",
+            datetime.now(UTC),
+        )
+        session.commit()
+    summary = client.get(f"{url}/summary").json()
+    assert (summary["noTargetFoundCount"], summary["reportsSubmittedCount"]) == (0, 1)
+    # Once a sighting exists, no-find cannot be recorded for that plant.
+    client.put(f"{url}/plants/{SPECIES[0]}", json={"state": "looked_for", "noTargetFound": False})
+    rejected = client.put(
+        f"{url}/plants/{SPECIES[0]}", json={"state": "looked_for", "noTargetFound": True}
+    )
+    assert rejected.status_code == 409
+    assert rejected.json()["code"] == "sighting_already_submitted"
+
+
 def test_database_enforces_one_active_mission_and_no_find_rule(db, place_id):
     profile = uuid.uuid4()
     with db() as session:

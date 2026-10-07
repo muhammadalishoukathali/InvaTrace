@@ -29,6 +29,8 @@ export function EventDetailPage() {
   const join = useMutation({
     mutationFn: () => eventsApi.join(eventId),
     onSuccess: () => { setConfirmOpen(false); return cache.invalidateQueries({ queryKey: ['event', eventId] }) },
+    // A 409 means the event was cancelled, completed or hidden meanwhile; refresh so the page says so.
+    onError: () => cache.invalidateQueries({ queryKey: ['event', eventId] }),
   })
   const withdraw = useMutation({
     mutationFn: () => eventsApi.withdraw(eventId, event.data!.participationId!),
@@ -39,11 +41,17 @@ export function EventDetailPage() {
   })
 
   if (event.isLoading) return <EventState text="Loading event details…" />
+  if (event.error instanceof ApiError && event.error.status === 404) {
+    return <EventState error text="This event is not available. It may be a private draft or hidden for review." />
+  }
   if (event.isError || !event.data) return <EventState error text="This event could not be loaded." retry={() => void event.refetch()} />
   const item = event.data
   const species = targetSpeciesNames(item)
   const open = item.status === 'published' && !item.hidden
   const ended = Date.now() > Date.parse(item.endAt)
+  // AC 9.2.6: the host and joined participants see the chat link, never once
+  // the event is hidden or cancelled (the API also withholds it).
+  const showChat = Boolean(item.chatLink) && (item.isJoined || item.isHost) && item.status !== 'cancelled' && !item.hidden
 
   return (
     <section className="events-page event-detail">
@@ -112,7 +120,7 @@ export function EventDetailPage() {
           {open && !ended && (item.isJoined ? (
             <div className="event-joined">
               <p className="event-joined__state" role="status"><Icon name="CircleCheck" size={18} />Joined</p>
-              <p className="event-muted">Check in when you arrive on the day. Your device location is used — you never type it.</p>
+              <p className="event-muted">Check in when you arrive on the day.</p>
               <Link className="event-button event-button--primary event-button--block" to={`/events/${item.id}/check-in`}>
                 <Icon name="Crosshair" size={17} />Check in at the event
               </Link>
@@ -125,14 +133,14 @@ export function EventDetailPage() {
               <button type="button" className="event-button event-button--primary event-button--block" onClick={() => setConfirmOpen(true)} disabled={join.isPending}>
                 Join this event
               </button>
-              <p className="event-muted">No name, email or password needed — you join with your private InvaTrace identity.</p>
+              <p className="event-muted">No name, email or password needed.</p>
             </div>
           ))}
           {open && ended && <p className="event-muted">This event has finished.</p>}
 
-          {item.chatLink && open && (item.isJoined || item.isHost) && (
+          {showChat && (
             <div className="event-chat">
-              <a href={item.chatLink} target="_blank" rel="noopener noreferrer" className="event-button event-button--block">
+              <a href={item.chatLink!} target="_blank" rel="noopener noreferrer" className="event-button event-button--block">
                 <Icon name="ExternalLink" size={16} />Open the group chat
               </a>
               <p className="event-muted">Opens outside InvaTrace. The chat is run by the host, not by InvaTrace.</p>

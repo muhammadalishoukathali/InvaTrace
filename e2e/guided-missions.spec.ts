@@ -41,10 +41,10 @@ test('preview, filter, habitat details, progress, resume and careful summary (US
 
   // AC 7.1.2 preview: place, plants with reference images, limitation text.
   await expect(page.getByRole('heading', { name: 'Taman Tasik Titiwangsa' })).toBeVisible()
-  await expect(page.getByText('Compatible habitat is search guidance, not a confirmed plant location.')).toBeVisible()
+  await expect(page.getByText('Highlights show compatible habitat to search, not confirmed plant locations.')).toBeVisible()
   await expect(page.getByRole('img', { name: /Reference view of Eichhornia crassipes/ })).toBeVisible()
   // AC 7.3.3 access and safety notice.
-  await expect(page.getByText(/Highlights are not walking routes and access has not been verified/)).toBeVisible()
+  await expect(page.getByText(/not walking routes, access has not been verified, and local signs, closures and restrictions take priority/)).toBeVisible()
   await page.getByRole('button', { name: 'Start guided mission' }).click()
 
   // AC 7.2.1/7.2.2: the legend lists only the visible compatible categories.

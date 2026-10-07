@@ -158,6 +158,48 @@ export function legendFor(overlay: HabitatOverlay): Array<{ habitat: HabitatCate
     .map((habitat) => ({ habitat, label: seen.get(habitat)!, colour: HABITAT_COLOURS[habitat] }))
 }
 
+const normaliseName = (name: string) => name.toLowerCase().replace(/[^a-z0-9]+/g, ' ').trim()
+
+function geometryCentre(geometry: GeoJSON.Geometry): [number, number] | null {
+  let minLon = Infinity, minLat = Infinity, maxLon = -Infinity, maxLat = -Infinity
+  const visit = (value: unknown): void => {
+    if (!Array.isArray(value)) return
+    if (typeof value[0] === 'number' && typeof value[1] === 'number') {
+      minLon = Math.min(minLon, value[0]); maxLon = Math.max(maxLon, value[0])
+      minLat = Math.min(minLat, value[1]); maxLat = Math.max(maxLat, value[1])
+      return
+    }
+    value.forEach(visit)
+  }
+  if (geometry.type === 'GeometryCollection') geometry.geometries.forEach((part) => visit('coordinates' in part ? part.coordinates : null))
+  else visit(geometry.coordinates)
+  return Number.isFinite(minLon) ? [(minLon + maxLon) / 2, (minLat + maxLat) / 2] : null
+}
+
+/**
+ * The overlay entry for a place. Overlays are keyed by the OSM-derived place
+ * id; curated featured places carry their own ids, so they fall back to the
+ * OSM place with the same name whose bbox contains the featured centre.
+ */
+export function resolveHabitatEntry(
+  byId: Map<string, HabitatPlaceEntry>,
+  placeId: string,
+  place?: { displayName: string; geometry: GeoJSON.Geometry } | null,
+): HabitatPlaceEntry | null {
+  const direct = byId.get(placeId)
+  if (direct || !place?.geometry) return direct ?? null
+  const centre = geometryCentre(place.geometry)
+  if (!centre) return null
+  const name = normaliseName(place.displayName)
+  const pad = 0.005 // about 500 m, as curated centres are approximate
+  for (const entry of byId.values()) {
+    if (normaliseName(entry.name) !== name) continue
+    const [minLon, minLat, maxLon, maxLat] = entry.bbox
+    if (centre[0] >= minLon - pad && centre[0] <= maxLon + pad && centre[1] >= minLat - pad && centre[1] <= maxLat + pad) return entry
+  }
+  return null
+}
+
 /** MapLibre bounds from an index bbox. The bbox is [minLon, minLat, maxLon, maxLat]; never swap it. */
 export function bboxToBounds(bbox: HabitatPlaceEntry['bbox']): [[number, number], [number, number]] | null {
   const [minLon, minLat, maxLon, maxLat] = bbox

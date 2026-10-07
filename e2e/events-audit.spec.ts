@@ -16,6 +16,7 @@ async function access(page: Page) {
 
 async function hostFixture(page: Page, event = future) {
   await page.context().route('**/api/v1/places', route => route.fulfill({ contentType: 'application/json', body: JSON.stringify({ items: [place] }) }))
+  await page.context().route(`**/api/v1/places/${place.placeId}`, route => route.fulfill({ json: { ...place, geometry: { type: 'Polygon', coordinates: [[[101.63, 3.14], [101.65, 3.14], [101.65, 3.16], [101.63, 3.16], [101.63, 3.14]]] } } }))
   await page.context().route('**/api/v1/events/event-1', route => route.fulfill({ contentType: 'application/json', body: JSON.stringify(event) }))
 }
 
@@ -67,7 +68,7 @@ test('failed fresh GPS request clears the prior check-in fix and disables confir
   await context.setGeolocation({ latitude: 3.14, longitude: 101.69, accuracy: 8 })
   await page.context().route('**/api/v1/events/event-1', route => route.fulfill({ contentType: 'application/json', body: JSON.stringify({ ...future, status: 'published', is_host: false }) }))
   await access(page); await page.goto('/events/event-1/check-in')
-  await page.getByRole('button', { name: 'Use my current location' }).click()
+  // Opening the screen requests a fresh location (AC 9.3.1); no tap needed.
   await expect(page.getByText('±8 m')).toBeVisible()
   await expect(page.getByRole('button', { name: 'Confirm check-in' })).toBeEnabled()
   await context.clearPermissions()
@@ -92,7 +93,7 @@ test('direct check-in auto-join refreshes cached participation before returning 
   })
   await access(page)
   await page.goto('/events/event-1/check-in')
-  await page.getByRole('button', { name: 'Use my current location' }).click()
+  await expect(page.getByRole('button', { name: 'Confirm check-in' })).toBeEnabled()
   await page.getByRole('button', { name: 'Confirm check-in' }).click()
   await expect(page).toHaveURL(/\/tasks$/)
   await page.goBack()

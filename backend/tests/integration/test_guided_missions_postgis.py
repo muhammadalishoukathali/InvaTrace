@@ -235,10 +235,17 @@ def test_guided_mission_links_reports_and_scans(monkeypatch: pytest.MonkeyPatch)
             )
             session.commit()
 
-        client.put(
+        # A plant with a submitted sighting cannot also record a no-find.
+        no_find = client.put(
             f"/api/v1/guided-missions/{mission_id}/plants/{SPECIES}",
             json={"state": "looked_for", "noTargetFound": True},
         )
+        assert no_find.status_code == 409 and no_find.json()["code"] == "sighting_already_submitted"
+        looked = client.put(
+            f"/api/v1/guided-missions/{mission_id}/plants/{SPECIES}",
+            json={"state": "looked_for", "noTargetFound": False},
+        )
+        assert looked.status_code == 200, looked.text
         summary = client.post(f"/api/v1/guided-missions/{mission_id}/complete")
         assert summary.status_code == 200, summary.text
         data = summary.json()
@@ -246,7 +253,7 @@ def test_guided_mission_links_reports_and_scans(monkeypatch: pytest.MonkeyPatch)
         assert data["reportsSubmittedCount"] == 1
         assert [item["reportId"] for item in data["reports"]] == [str(report_id)]
         assert data["scansCount"] == 1
-        assert (data["lookedForCount"], data["noTargetFoundCount"]) == (1, 1)
+        assert (data["lookedForCount"], data["noTargetFoundCount"]) == (1, 0)
 
         # Completed missions accept no new links.
         late = submission(owner_id, "late", missionId=mission_id)

@@ -197,8 +197,14 @@ def create_report(
         ) from exc
     # Burst + daily limits per profile, plus a per-IP burst check to slow down
     # someone spinning up fresh profiles to dodge the per-profile limit.
-    rate_limiter.check("report_create_burst", str(auth.profile.id))
-    rate_limiter.check("report_create_daily", str(auth.profile.id))
+    #
+    # AC 9.4.6 - an event-tagged report uses the per-identity event budget
+    # (validate_event_report: check-in required, default 60 per identity per
+    # event) instead of the default per-profile throttle, so a participant is
+    # not blocked mid-session. The IP-level burst limit always applies.
+    if body.event_id is None:
+        rate_limiter.check("report_create_burst", str(auth.profile.id))
+        rate_limiter.check("report_create_daily", str(auth.profile.id))
     rate_limiter.check("report_create_ip_burst", client_address(request))
     if not IDEMPOTENCY_PATTERN.fullmatch(idempotency_key):
         raise ApiProblem(400, "invalid_idempotency_key", "A valid Idempotency-Key is required.")

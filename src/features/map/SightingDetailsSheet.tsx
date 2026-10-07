@@ -179,19 +179,18 @@ export function SightingDetailsSheet() {
                     {formatReportCount(data.reportCount)} at this location
                   </span>
                 </div>
-                <p className="pin-sheet__status-note">
-                  {data.followUpState === 'needed'
-                    ? `Removal reported / Follow-up needed${data.lastFollowupAt ? ` · latest attempt ${formatTime(data.lastFollowupAt)}` : ''}`
-                    : data.followUpState === 'resolved'
-                      ? 'Resolved after follow-up · hidden from the default map'
-                      : data.followUpState === 'regrowth'
-                        ? `Regrowth reported ${formatTime(data.lastFollowupAt ?? data.lastReportedAt)} · active marker returned to the map`
-                    : data.status === 'removal_reported'
-                    ? `Removal reported ${formatTime(data.removalReportedAt ?? data.lastReportedAt)} · retained for follow-up`
-                    : data.status === 'removed'
-                      ? 'Marked removed · retained for follow-up'
-                      : 'Community report - not expert validated'}
-                </p>
+                {/* Follow-up states get their own card below, and an evidence
+                    photo already carries the not-validated caption, so the
+                    note would only repeat them. */}
+                {!data.followUpState && !(data.thumbnailUrl && data.status !== 'removal_reported' && data.status !== 'removed') && (
+                  <p className="pin-sheet__status-note">
+                    {data.status === 'removal_reported'
+                      ? `Removal reported ${formatDate(data.removalReportedAt ?? data.lastReportedAt)} · retained for follow-up`
+                      : data.status === 'removed'
+                        ? 'Marked removed · retained for follow-up'
+                        : 'Community report - not expert validated'}
+                  </p>
+                )}
               </header>
 
               {data.followUpState === 'needed' && data.status === 'removal_reported' && (
@@ -210,14 +209,14 @@ export function SightingDetailsSheet() {
               {data.followUpState === 'resolved' && (
                 <section className="pin-sheet__removal" aria-label="Follow-up resolution">
                   <strong>Resolved after follow-up</strong>
-                  <p>A community observer reported no regrowth. This is not expert verification.</p>
+                  <p>{data.lastFollowupAt ? `No regrowth found on ${formatDate(data.lastFollowupAt)}. ` : ''}Hidden from the default map. Community observation, not expert verification.</p>
                 </section>
               )}
 
               {data.followUpState === 'regrowth' && (
                 <section className="pin-sheet__removal" aria-label="Regrowth report">
                   <strong>Regrowth reported</strong>
-                  <p>{data.lastFollowupAt ? `Latest follow-up: ${formatTime(data.lastFollowupAt)}.` : 'The marker is active again.'}</p>
+                  <p>{data.lastFollowupAt ? `Follow-up on ${formatDate(data.lastFollowupAt)}. ` : ''}The marker is active on the map again.</p>
                 </section>
               )}
 
@@ -248,7 +247,10 @@ export function SightingDetailsSheet() {
                 </dl>
               </section>
 
-              {profileId && data.status === 'screened' && data.removalReportId && (
+              {/* After regrowth the backend replays the original removal (one
+                  removal event per sighting), so offering it again would show a
+                  false success. */}
+              {profileId && data.status === 'screened' && !data.followUpState && data.removalReportId && (
                 <section className="pin-sheet__removal" aria-labelledby="sighting-removal-heading">
                   {!removalOpen ? (
                     <>
@@ -309,14 +311,16 @@ export function SightingDetailsSheet() {
                 </section>
               )}
 
-              {(data.followUpHistory?.length ?? 0) > 0 && (
+              {/* AC 4.8.4: original report, removal report and follow-up
+                  outcomes, oldest first. */}
+              {data.followUpHistory?.some((event) => event.eventType !== 'reported') && (
                 <section className="pin-sheet__record" aria-labelledby="follow-up-history-heading">
-                  <h3 id="follow-up-history-heading">Follow-up history</h3>
+                  <h3 id="follow-up-history-heading">Status history</h3>
                   <ol className="pin-sheet__history">
-                    {data.followUpHistory!.map((event, index) => (
+                    {sortedHistory(data.followUpHistory).map((event, index) => (
                       <li key={`${event.eventType}-${event.createdAt}-${index}`}>
                         <strong>{followUpHistoryLabel(event.eventType)}</strong>
-                        <span>{formatTime(event.createdAt)}</span>
+                        <span>{formatDate(event.createdAt)}</span>
                       </li>
                     ))}
                   </ol>
@@ -349,10 +353,17 @@ export function SightingDetailsSheet() {
   )
 }
 
+function sortedHistory(history: NonNullable<SightingDetail['followUpHistory']>) {
+  // The API already orders events; a stable sort keeps that tie-break while
+  // guaranteeing date order if an older payload omits it.
+  return [...history].sort((a, b) => new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime())
+}
+
 function followUpHistoryLabel(eventType: string): string {
   return ({
+    reported: 'Original report',
     removal_reported: 'Removal reported',
-    followup_no_regrowth: 'No regrowth found',
+    followup_no_regrowth: 'No regrowth found · Resolved after follow-up',
     followup_regrowth: 'Regrowth reported',
     followup_unable: 'Unable to confirm',
   } as Record<string, string>)[eventType] ?? 'Follow-up recorded'

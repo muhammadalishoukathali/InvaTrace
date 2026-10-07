@@ -7,6 +7,7 @@ import { LOCATION_ACCURACY_MAX_M } from './gps-policy'
 import { useEventContext } from '@/features/events/event-context'
 import { ApiError } from '@/services/api-client'
 import { useLocation } from 'react-router-dom'
+import { useQueryClient } from '@tanstack/react-query'
 import { missionIdForScan } from '@/features/guided-missions/mission-context'
 import { scanReturnPath } from '@/features/scan/scan-navigation'
 import { usePrivateAccess } from '@/features/private-access/private-access-store'
@@ -45,6 +46,7 @@ export function ReportPreviewStep() {
   const profileId = usePrivateAccess((state) => state.profile?.id)
   // Epic 7: reports from a guided-mission scan are linked to that mission.
   const missionId = missionIdForScan(scanReturnPath(location.state), profileId)
+  const queryClient = useQueryClient()
   const [eventRejected, setEventRejected] = useState(false)
   const [submitError, setSubmitError] = useState<string | null>(null)
   const {
@@ -71,6 +73,8 @@ export function ReportPreviewStep() {
         ? { ...tagged, eventId: activeEvent.eventId, capturedAt: draft.observedAt }
         : tagged, imageBlob)
       if (result.status === 'submitted' && result.report) {
+        // AC 7.4.3: the mission progress must show this report on return.
+        if (missionId) void queryClient.invalidateQueries({ queryKey: ['guided-mission'] })
         setOutcome({ kind: 'submitted', report: result.report })
       } else {
         setOutcome({

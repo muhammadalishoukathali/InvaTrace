@@ -521,7 +521,11 @@ class SightingResponse(ApiModel):
 
 class FollowUpHistoryEntry(ApiModel):
     event_type: Literal[
-        "removal_reported", "followup_no_regrowth", "followup_regrowth", "followup_unable"
+        "reported",
+        "removal_reported",
+        "followup_no_regrowth",
+        "followup_regrowth",
+        "followup_unable",
     ]
     created_at: datetime
 

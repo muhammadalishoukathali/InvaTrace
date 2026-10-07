@@ -38,7 +38,8 @@ export function EventMap({ events = [], point, boundary, onPointChange, onBounds
         container: container.current, style: BASEMAP_STYLE,
         center: initial && validPoint(initial) ? [initial.longitude, initial.latitude]
           : single ? [single.meetingLongitude, single.meetingLatitude] : [101.6412, 3.1497],
-        zoom: 11, minZoom: 4, maxZoom: 19, maxBounds: [[99.3, .8], [119.5, 7.5]],
+        // One meeting point needs street-level detail to be findable on the day.
+        zoom: initial || single ? 15 : 11, minZoom: 4, maxZoom: 19, maxBounds: [[99.3, .8], [119.5, 7.5]],
         // Same small attribution chip as the threat map; MapLibre's own
         // control auto-expands over the map on phones.
         attributionControl: false,
@@ -73,7 +74,7 @@ export function EventMap({ events = [], point, boundary, onPointChange, onBounds
       if (!latest.current.point && located.length) {
         const bounds = new maplibregl.LngLatBounds()
         located.forEach(event => bounds.extend([event.meetingLongitude, event.meetingLatitude]))
-        instance.fitBounds(bounds, { padding: 40, maxZoom: 12, duration: 0 })
+        instance.fitBounds(bounds, { padding: 40, maxZoom: located.length === 1 ? 15 : 12, duration: 0 })
       }
       const publishBounds = () => {
         const bounds = instance.getBounds()

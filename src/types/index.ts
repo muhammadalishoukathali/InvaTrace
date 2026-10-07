@@ -514,7 +514,7 @@ export interface Sighting {
 }
 
 export interface SightingDetail extends Sighting {
-  followUpHistory?: Array<{ eventType: 'removal_reported' | 'followup_no_regrowth' | 'followup_regrowth' | 'followup_unable'; createdAt: string }>
+  followUpHistory?: Array<{ eventType: 'reported' | 'removal_reported' | 'followup_no_regrowth' | 'followup_regrowth' | 'followup_unable'; createdAt: string }>
   recommendedAction: string
   actionGuide: SeasonalActionGuide | null
   reporterTrust: TrustLevel  // newer profiles get stronger location privacy applied

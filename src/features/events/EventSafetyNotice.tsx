@@ -1,3 +1,4 @@
+import { useId } from 'react'
 import { Link } from 'react-router-dom'
 import { Icon } from '@/components/Icon'
 import type { CommunityEvent } from '@/services/api/events'
@@ -13,9 +14,11 @@ export function EventSafetyNotice({ event, compact = false }: {
   event: Pick<CommunityEvent, 'eventType' | 'permissionContext' | 'safetyNotes' | 'targetSpeciesIds'>
   compact?: boolean
 }) {
+  // The detail page and its join dialog both render this notice; keep ids unique.
+  const titleId = useId()
   return (
-    <section className="event-safety" aria-labelledby="event-safety-title">
-      <h3 id="event-safety-title"><Icon name="ShieldAlert" size={18} />Permission and safety</h3>
+    <section className="event-safety" aria-labelledby={titleId}>
+      <h3 id={titleId}><Icon name="ShieldAlert" size={18} />Permission and safety</h3>
       <p>
         <strong>Joining {event.eventType === 'removal' ? 'this removal event' : 'an event'} is not permission to remove any plant or to enter restricted land.</strong>
         {' '}Any removal still depends on the InvaTrace permission and protected-area checks, which run for each person at each location on the day.

@@ -20,7 +20,7 @@
 .event-button--primary { border-color: var(--green); background: var(--green); color: var(--on-accent); }
 .event-button--primary:hover:not(:disabled) { background: var(--green-hover); }
 .event-button--block { width: 100%; }
-.event-button--small { min-height: 38px; padding: 7px 12px; font-size: 13px; }
+.event-button--small { min-height: 44px; padding: 8px 14px; font-size: 13px; }
 .event-button--danger { color: var(--red-text); border-color: var(--red-border); }
 .event-button--danger:hover:not(:disabled) { background: var(--red-light); }
 .event-button--danger-solid { border-color: var(--red); background: var(--red); color: #fff; }
@@ -37,12 +37,11 @@
 .events-range { border: 0; padding: 0; margin: 0; min-width: 0; display: grid; gap: 8px; }
 .events-range legend, .species-picker__label { margin-bottom: 8px; color: var(--ink); font-size: 13px; font-weight: 650; }
 .events-range__custom { display: grid; gap: 12px; margin-top: 4px; }
-.event-segmented { display: flex; gap: 6px; overflow-x: auto; scrollbar-width: none; -webkit-overflow-scrolling: touch; }
-.event-segmented::-webkit-scrollbar { display: none; }
-.event-segmented button { min-height: 40px; padding: 8px 13px; flex: none; display: inline-flex; align-items: center; gap: 6px; border: 1px solid var(--border); border-radius: var(--r-chip); background: var(--surface); color: var(--body); font: inherit; font-size: 13px; font-weight: 600; cursor: pointer; white-space: nowrap; }
+.event-segmented { display: flex; flex-wrap: wrap; gap: 6px; }
+.event-segmented button { min-height: 44px; padding: 8px 13px; flex: none; display: inline-flex; align-items: center; gap: 6px; border: 1px solid var(--border); border-radius: var(--r-chip); background: var(--surface); color: var(--body); font: inherit; font-size: 13px; font-weight: 600; cursor: pointer; white-space: nowrap; }
 .event-segmented button[aria-pressed="true"] { border-color: var(--green); background: var(--green); color: var(--on-accent); }
-.event-segmented--compact { flex: none; padding: 3px; gap: 2px; border-radius: var(--r-chip); background: var(--bg-alt); }
-.event-segmented--compact button { min-height: 36px; border: 0; background: transparent; }
+.event-segmented--compact { flex: none; flex-wrap: nowrap; padding: 3px; gap: 2px; border-radius: var(--r-chip); background: var(--bg-alt); }
+.event-segmented--compact button { min-height: 44px; border: 0; background: transparent; }
 .event-segmented--compact button[aria-pressed="true"] { background: var(--surface); color: var(--ink); box-shadow: var(--shadow-sm); }
 
 /* Species picker */

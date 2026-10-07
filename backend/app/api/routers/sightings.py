@@ -14,8 +14,9 @@ see app/core/privacy.py for where the blurring happens.
 from __future__ import annotations
 
 import uuid
+from collections.abc import Sequence
 from datetime import UTC, datetime, timedelta
-from typing import Annotated, Literal
+from typing import Annotated, Any, Literal
 
 from fastapi import APIRouter, Depends, Query, Request
 from geoalchemy2 import Geography
@@ -115,6 +116,26 @@ def _validate_follow_up_location(
             422, "follow_up_too_far", "You must be within 250 metres of the reported plant."
         )
     return distance_m
+
+
+def _status_history(
+    *, first_reported_at: datetime | None, events: Sequence[Any]
+) -> list[dict[str, Any]]:
+    """AC 4.8.4: original report, removal report and follow-ups in date order.
+
+    The original report is only listed once a status event exists, so an
+    ordinary active sighting keeps an empty history.
+    """
+    # Stable sort keeps the database's created_at/id tie-break order.
+    history = sorted(
+        ({"event_type": event_type, "created_at": created_at} for event_type, created_at in events),
+        key=lambda entry: entry["created_at"],
+    )
+    # The original report always leads: its observed_at is device-supplied and
+    # may trail the server-stamped status events.
+    if history and first_reported_at is not None:
+        history.insert(0, {"event_type": "reported", "created_at": first_reported_at})
+    return history
 
 
 # Turns a raw Sighting + joined Species/place data into the public API shape.
@@ -352,6 +373,8 @@ def sighting_detail(
             func.max(SightingStatusEvent.created_at).filter(
                 SightingStatusEvent.event_type == "removal_reported"
             ),
+            # AC 4.8.4 - the original report opens the public status history.
+            func.min(Report.observed_at).filter(ReportSightingLink.active.is_(True)),
         )
         .join(Species, Species.id == Sighting.species_id)
         .outerjoin(MonitoredArea, MonitoredArea.id == Sighting.area_id)
@@ -402,10 +425,10 @@ def sighting_detail(
         action_guide=current_action_guide(row[1]),
         reporter_trust=row[0].reporter_trust,
         removal_report_id=str(removal_report_id) if removal_report_id else None,
-        follow_up_history=[
-            {"event_type": event_type, "created_at": created_at}
-            for event_type, created_at in follow_up_history
-        ],
+        follow_up_history=_status_history(
+            first_reported_at=row[8] or row[0].created_at,
+            events=follow_up_history,
+        ),
     )
 
 

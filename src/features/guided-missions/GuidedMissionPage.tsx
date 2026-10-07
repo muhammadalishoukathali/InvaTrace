@@ -1,11 +1,12 @@
-import { useMemo, useRef, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { createPortal } from 'react-dom'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { Link, useNavigate, useParams } from 'react-router-dom'
-import { approvedCatalogueAssetForSpecies } from '@shared/catalogue'
+import { approvedCatalogueAssetForSpecies, findApprovedSpecies } from '@shared/catalogue'
 import { BackLink } from '@/components/BackLink'
 import { Icon } from '@/components/Icon'
 import { useDialogA11y } from '@/hooks/useDialogA11y'
+import { useOnline } from '@/hooks/useOnline'
 import { usePrivateAccess } from '@/features/private-access/private-access-store'
 import { api, ApiError } from '@/services/api-client'
 import { guidedMissionsApi, type GuidedMission, type MissionPlantState, type MissionSummary } from '@/services/api/guided-missions'
@@ -14,10 +15,11 @@ import { ENGLISH_LOCALE } from '@/utils/date-time'
 import { GuidedMissionMap } from './GuidedMissionMap'
 import {
   HABITAT_COLOURS, HABITAT_DATASET_VERSION, bboxToBounds, compatibleHabitats, legendFor, plantsForHabitat,
-  useHabitatIndex, useHabitatLookup, useHabitatOverlay, useHabitatRelease, visibleFeatures,
+  resolveHabitatEntry, useHabitatIndex, useHabitatLookup, useHabitatOverlay, useHabitatRelease, visibleFeatures,
   type HabitatCategory, type HabitatOverlay,
 } from './habitat-data'
 import { missionContextStore, missionPath } from './mission-context'
+import { isRetryable, pendingCount, pendingMissionStore, usePendingMissionChanges, withPending } from './mission-offline'
 import './guided-missions.css'
 
 const SEARCH_GUIDANCE = 'Suggested area to search - plant presence is not confirmed.'
@@ -44,7 +46,7 @@ export function GuidedMissionPage() {
     queryFn: () => api<PlacePlantAssociationsResponse>(`/api/v1/places/${placeId}/plant-associations`),
     enabled: Boolean(placeId),
   })
-  const entry = index.data?.byId.get(placeId) ?? null
+  const entry = index.data ? resolveHabitatEntry(index.data.byId, placeId, place.data) : null
   const overlay = useHabitatOverlay(entry)
   const mission = useQuery({
     queryKey: ['guided-mission', placeId],
@@ -55,21 +57,47 @@ export function GuidedMissionPage() {
       }
     },
     enabled: Boolean(placeId && entry),
+    // Always refetch on return from the scan/report flow so a report or scan
+    // made there shows in the progress straight away (AC 7.4.3).
+    staleTime: 0,
+    refetchOnMount: 'always',
   })
+  const online = useOnline()
+  const missionId = mission.data?.missionId ?? null
+  const pending = usePendingMissionChanges(missionId)
+  const unsent = pendingCount(pending)
   const [summary, setSummary] = useState<MissionSummary | null>(null)
   const [selectedHabitat, setSelectedHabitat] = useState<HabitatCategory | null>(null)
   const [finishOpen, setFinishOpen] = useState(false)
   const [aboutOpen, setAboutOpen] = useState(false)
 
-  const watchlist: WatchlistPlant[] = useMemo(() => (associations.data?.items ?? []).map((item) => ({
-    speciesId: item.speciesId,
-    name: item.commonNames[0] ?? item.scientificName,
-    scientificName: item.scientificName,
-    image: approvedCatalogueAssetForSpecies(item.speciesId)?.url ?? item.imageUrl ?? null,
-    habitats: lookup.data?.get(item.speciesId) ?? [],
-  })), [associations.data, lookup.data])
+  // An active mission keeps the checklist it was started with, even if the
+  // place watchlist changes later; the preview uses the current watchlist.
+  const missionPlantIds = mission.data?.plants.map((plant) => plant.speciesId)
+  const watchlist: WatchlistPlant[] = useMemo(() => {
+    const items = associations.data?.items ?? []
+    const byId = new Map(items.map((item) => [item.speciesId, item]))
+    const ids = missionPlantIds ?? items.map((item) => item.speciesId)
+    return ids.map((speciesId) => {
+      const item = byId.get(speciesId)
+      const record = item ? null : findApprovedSpecies({ speciesId })
+      return {
+        speciesId,
+        name: item?.commonNames[0] ?? item?.scientificName ?? record?.common_names[0] ?? record?.scientific_name ?? speciesId,
+        scientificName: item?.scientificName ?? record?.scientific_name ?? '',
+        image: approvedCatalogueAssetForSpecies(speciesId)?.url ?? item?.imageUrl ?? null,
+        habitats: lookup.data?.get(speciesId) ?? [],
+      }
+    })
+    // missionPlantIds is derived; join it so the memo tracks its contents.
+  }, [associations.data, lookup.data, missionPlantIds?.join('|')]) // eslint-disable-line react-hooks/exhaustive-deps
   const watchlistIds = useMemo(() => watchlist.map((plant) => plant.speciesId), [watchlist])
-  const selectedSpecies = mission.data?.selectedSpeciesId ?? null
+  const view = useMemo(() => (mission.data ? withPending(mission.data, pending) : null), [mission.data, pending])
+  // A saved filter for a plant that is no longer on the checklist (or has no
+  // habitat profile) falls back to all plants rather than an orphaned map.
+  const savedSelection = view?.selectedSpeciesId ?? null
+  const selectedSpecies = savedSelection && watchlist.some((plant) => plant.speciesId === savedSelection && plant.habitats.length)
+    ? savedSelection : null
   const filterIds = useMemo(() => (selectedSpecies ? [selectedSpecies] : watchlistIds), [selectedSpecies, watchlistIds])
   const habitats = useMemo(
     () => (lookup.data && entry ? compatibleHabitats(filterIds, lookup.data, entry.available_habitats) : new Set<HabitatCategory>()),
@@ -82,21 +110,75 @@ export function GuidedMissionPage() {
   const shown: HabitatOverlay | null = useMemo(() => (overlay.data ? visibleFeatures(overlay.data, habitats) : null), [overlay.data, habitats])
   const legend = useMemo(() => (shown ? legendFor(shown) : []), [shown])
 
-  const setMission = (value: GuidedMission) => cache.setQueryData(['guided-mission', placeId], value)
+  const setMission = useCallback((value: GuidedMission) => cache.setQueryData(['guided-mission', placeId], value), [cache, placeId])
   const start = useMutation({
     mutationFn: () => guidedMissionsApi.start({ placeId, watchlistSpeciesIds: watchlistIds, datasetVersion: HABITAT_DATASET_VERSION }),
     onSuccess: (value) => { setSummary(null); setMission(value) },
   })
+  // Filter and progress changes show at once. If the backend cannot be
+  // reached they are kept on this device and sent when the connection
+  // returns (see mission-offline.ts); a definite rejection is reported.
   const select = useMutation({
-    mutationFn: (speciesId: string | null) => guidedMissionsApi.selectSpecies(mission.data!.missionId, speciesId),
-    onMutate: (speciesId) => { if (mission.data) setMission({ ...mission.data, selectedSpeciesId: speciesId }); setSelectedHabitat(null) },
-    onSuccess: setMission,
+    mutationFn: async (speciesId: string | null) => {
+      setSelectedHabitat(null)
+      pendingMissionStore.queueSelected(missionId!, speciesId)
+      if (!online) return
+      const value = await guidedMissionsApi.selectSpecies(missionId!, speciesId)
+      pendingMissionStore.dropSelected(missionId!)
+      setMission(value)
+    },
+    onError: (error) => {
+      if (isRetryable(error)) return
+      pendingMissionStore.dropSelected(missionId!)
+      void mission.refetch()
+    },
   })
   const progress = useMutation({
-    mutationFn: (input: { speciesId: string; state: MissionPlantState; noTargetFound?: boolean }) =>
-      guidedMissionsApi.setPlant(mission.data!.missionId, input.speciesId, { state: input.state, noTargetFound: input.noTargetFound }),
-    onSuccess: setMission,
+    mutationFn: async (input: { speciesId: string; state: MissionPlantState; noTargetFound?: boolean }) => {
+      const change = { state: input.state, noTargetFound: input.noTargetFound }
+      pendingMissionStore.queuePlant(missionId!, input.speciesId, change)
+      if (!online) return
+      const value = await guidedMissionsApi.setPlant(missionId!, input.speciesId, change)
+      pendingMissionStore.dropPlant(missionId!, input.speciesId)
+      setMission(value)
+    },
+    onError: (error, input) => {
+      if (isRetryable(error)) return
+      pendingMissionStore.dropPlant(missionId!, input.speciesId)
+      void mission.refetch()
+    },
   })
+  const syncing = useRef(false)
+  const sync = useCallback(async () => {
+    if (!missionId || syncing.current) return
+    syncing.current = true
+    try {
+      const queued = pendingMissionStore.get(missionId)
+      if (queued.selected) {
+        try {
+          setMission(await guidedMissionsApi.selectSpecies(missionId, queued.selected.value))
+          pendingMissionStore.dropSelected(missionId)
+        } catch (error) {
+          if (isRetryable(error)) return
+          pendingMissionStore.dropSelected(missionId)
+        }
+      }
+      for (const [speciesId, change] of Object.entries(queued.plants)) {
+        try {
+          setMission(await guidedMissionsApi.setPlant(missionId, speciesId, change))
+          pendingMissionStore.dropPlant(missionId, speciesId)
+        } catch (error) {
+          if (isRetryable(error)) return
+          pendingMissionStore.dropPlant(missionId, speciesId)
+        }
+      }
+    } finally {
+      syncing.current = false
+    }
+  }, [missionId, setMission])
+  useEffect(() => {
+    if (online && unsent && !progress.isPending && !select.isPending) void sync()
+  }, [online, unsent, sync, progress.isPending, select.isPending])
   const finish = useMutation({
     mutationFn: () => guidedMissionsApi.complete(mission.data!.missionId),
     onSuccess: (value) => {
@@ -108,8 +190,8 @@ export function GuidedMissionPage() {
   })
 
   const scan = () => {
-    if (!mission.data || !profileId) return
-    missionContextStore.set({ missionId: mission.data.missionId, placeId, profileId })
+    if (!missionId) return
+    if (profileId) missionContextStore.set({ missionId, placeId, profileId })
     navigate('/scan', { state: { returnTo: missionPath(placeId) } })
   }
 
@@ -132,7 +214,8 @@ export function GuidedMissionPage() {
       </section>
     )
   }
-  if (!watchlist.length) {
+  if (mission.isLoading) return <MissionState text="Loading guided mission…" />
+  if (!watchlist.length && !summary) {
     return (
       <section className="mission-page mission-page--narrow">
         {backToPlace}
@@ -148,7 +231,7 @@ export function GuidedMissionPage() {
 
   const bounds = bboxToBounds(entry.bbox)
   const reportsBySpecies = new Map<string, number>()
-  mission.data?.reports.forEach((report) => { if (report.speciesId) reportsBySpecies.set(report.speciesId, (reportsBySpecies.get(report.speciesId) ?? 0) + 1) })
+  view?.reports.forEach((report) => { if (report.speciesId) reportsBySpecies.set(report.speciesId, (reportsBySpecies.get(report.speciesId) ?? 0) + 1) })
   const noOverlap = allCompatible.size === 0
   const habitatPanel = selectedHabitat && lookup.data && (
     <HabitatDetails
@@ -167,20 +250,22 @@ export function GuidedMissionPage() {
   if (overlay.isError) return <MissionState error text="The habitat map for this place could not be loaded." retry={() => void overlay.refetch()} back={backToPlace} />
   if (mission.isError) return <MissionState error text="Your mission progress could not be loaded." retry={() => void mission.refetch()} back={backToPlace} />
 
-  const active = mission.data ?? null
+  const active = view
   const counts = active ? {
     looked: active.plants.filter((plant) => plant.state === 'looked_for').length,
     unable: active.plants.filter((plant) => plant.state === 'unable_to_check').length,
     notChecked: active.plants.filter((plant) => plant.state === 'not_checked').length,
-    noFind: active.plants.filter((plant) => plant.state === 'looked_for' && plant.noTargetFound).length,
+    // A plant with a submitted sighting is never also a no-find outcome.
+    noFind: active.plants.filter((plant) => plant.state === 'looked_for' && plant.noTargetFound && !reportsBySpecies.has(plant.speciesId)).length,
   } : null
+  const guidedPlants = watchlist.filter((plant) => plant.habitats.length)
 
   return (
     <section className="mission-page">
       {backToPlace}
       <header className="mission-header">
         <div>
-          <p className="mission-eyebrow"><Icon name="Route" size={15} />{active ? 'Guided mission in progress' : 'Guided mission preview'}</p>
+          {!active && <p className="mission-eyebrow">Mission preview</p>}
           <h2>{placeName}</h2>
           <p className="mission-muted">
             {entry.place_type[0].toUpperCase() + entry.place_type.slice(1)} · {watchlist.length} watchlist {watchlist.length === 1 ? 'plant' : 'plants'}
@@ -197,15 +282,26 @@ export function GuidedMissionPage() {
 
       <p className="mission-guidance-banner">
         <Icon name="Info" size={17} />
-        <span><strong>Compatible habitat is search guidance, not a confirmed plant location.</strong> Highlights are not walking routes and access has not been verified. Local signs, closures and restrictions take priority.</span>
+        <span><strong>Highlights show compatible habitat to search, not confirmed plant locations.</strong> They are not walking routes, access has not been verified, and local signs, closures and restrictions take priority.</span>
       </p>
+      {active && (!online || unsent > 0) && (
+        <p className="mission-sync" role="status">
+          <Icon name={online ? 'RefreshCw' : 'WifiOff'} size={16} />
+          <span>
+            {online
+              ? `${unsent} ${unsent === 1 ? 'change' : 'changes'} not yet saved to your account.`
+              : 'You are offline. Progress is kept on this device and saved when you reconnect.'}
+          </span>
+          {online && <button type="button" className="mission-text-button" onClick={() => void sync()}>Try again</button>}
+        </p>
+      )}
 
       <div className="mission-layout">
         <div className="mission-layout__map">
           {noOverlap ? (
             <div className="mission-empty mission-empty--map">
               <h3>No compatible mapped habitat here</h3>
-              <p>The habitats mapped in {placeName} do not match the habitat profiles of its watchlist plants, so nothing is highlighted. Plants can still grow outside these categories.</p>
+              <p>The habitats mapped in {placeName} do not match its watchlist plants, so nothing is highlighted. The plants can still grow elsewhere in the place.</p>
             </div>
           ) : (
             <>
@@ -239,8 +335,8 @@ export function GuidedMissionPage() {
         <div className="mission-layout__panel">
           {!active ? (
             <section className="mission-card">
-              <h3>Before you start</h3>
-              <p>This mission highlights the mapped habitat types where the plants on this place’s watchlist tend to grow — water edges, open grassland, forest edges and so on. Use them to focus your search. A highlight does not mean a plant is there.</p>
+              <h3>Watchlist plants</h3>
+              <p>The map highlights habitat types where these plants tend to grow. Use it to focus your search.</p>
               <ul className="mission-preview-plants">
                 {watchlist.map((plant) => <PlantThumb key={plant.speciesId} plant={plant} placeId={placeId} />)}
               </ul>
@@ -252,17 +348,20 @@ export function GuidedMissionPage() {
           ) : (
             <>
               <section className="mission-card" aria-labelledby="filter-title">
-                <h3 id="filter-title">Show habitat for</h3>
-                <div className="mission-filter" role="group" aria-label="Filter habitat by plant">
-                  <button type="button" aria-pressed={!selectedSpecies} onClick={() => select.mutate(null)}>All plants</button>
-                  {watchlist.map((plant) => (
-                    <button key={plant.speciesId} type="button" aria-pressed={selectedSpecies === plant.speciesId} disabled={!plant.habitats.length}
-                      onClick={() => select.mutate(plant.speciesId)} title={plant.habitats.length ? undefined : 'Habitat guidance unavailable for this plant'}>
-                      {plant.name}
-                    </button>
-                  ))}
-                </div>
-                {selectedSpecies && <button type="button" className="mission-text-button" onClick={() => select.mutate(null)}>Clear filter</button>}
+                <h3 id="filter-title">Where to search</h3>
+                {guidedPlants.length > 1 && (
+                  <>
+                    <div className="mission-filter" role="group" aria-label="Show habitat for one plant">
+                      {guidedPlants.map((plant) => (
+                        <button key={plant.speciesId} type="button" aria-pressed={selectedSpecies === plant.speciesId}
+                          onClick={() => select.mutate(selectedSpecies === plant.speciesId ? null : plant.speciesId)}>
+                          {plant.name}
+                        </button>
+                      ))}
+                    </div>
+                    {selectedSpecies && <button type="button" className="mission-text-button" onClick={() => select.mutate(null)}>Clear filter</button>}
+                  </>
+                )}
                 <HabitatList
                   legend={legend}
                   watchlist={watchlist}
@@ -305,7 +404,9 @@ export function GuidedMissionPage() {
                     )
                   })}
                 </ul>
-                {progress.error && <p className="mission-alert" role="alert">That change could not be saved. Try again.</p>}
+                {(progress.error || select.error) && !isRetryable(progress.error ?? select.error) && (
+                  <p className="mission-alert" role="alert">That change could not be saved. Try again.</p>
+                )}
               </section>
 
               <section className="mission-card" aria-labelledby="reports-title">
@@ -316,14 +417,13 @@ export function GuidedMissionPage() {
                       <li key={report.reportId}>
                         <Link to={`/reports/${report.reportId}`}>
                           <strong>{watchlist.find((plant) => plant.speciesId === report.speciesId)?.name ?? 'Plant report'}</strong>
-                          <span>{formatDateTime(report.submittedAt)} · community report, not expert-verified</span>
+                          <span>{formatDateTime(report.submittedAt)} · community report</span>
                         </Link>
                       </li>
                     ))}
                   </ul>
-                ) : <p className="mission-muted">None yet. Scan a plant to identify it and submit a sighting — you will come back here afterwards.</p>}
+                ) : <p className="mission-muted">None yet. Scan a plant with the camera or a gallery photo, then submit a sighting.</p>}
                 <button type="button" className="mission-button mission-button--primary mission-button--block" onClick={scan}><Icon name="ScanLine" size={17} />Scan a plant</button>
-                <p className="mission-muted">Use the camera or a photo from your gallery. A scan result is a prediction until you complete the normal report steps.</p>
               </section>
             </>
           )}
@@ -334,6 +434,7 @@ export function GuidedMissionPage() {
         <FinishDialog
           counts={counts}
           reports={active.reports.length}
+          unsent={unsent}
           pending={finish.isPending}
           failed={Boolean(finish.error)}
           onClose={() => { finish.reset(); setFinishOpen(false) }}
@@ -420,7 +521,7 @@ function HabitatDetails({ habitat, label, plants, placeId, onClose }: {
         <button type="button" className="mission-icon-button" onClick={onClose} aria-label="Close habitat details"><Icon name="X" size={18} /></button>
       </header>
       <p className="mission-habitat-sheet__notice">{SEARCH_GUIDANCE}</p>
-      <p className="mission-muted">Watchlist plants whose habitat profile includes this habitat:</p>
+      <p className="mission-muted">Matching watchlist plants:</p>
       <ul className="mission-habitat-sheet__plants">
         {plants.map((plant) => (
           <li key={plant.speciesId}><Link to={catalogueLink(plant.speciesId, placeId)}>{plant.name}<i>{plant.scientificName}</i></Link></li>
@@ -467,14 +568,15 @@ function PlantProgress({ plant, placeId, state, noTargetFound, reports, busy, on
           <button type="button" className="mission-button mission-button--small" disabled={busy} onClick={() => onChange('looked_for', true)}>No target plant found</button>
         )
       )}
-      {!plant.habitats.length && <p className="mission-muted">Habitat guidance is unavailable for this plant, so it is not used in the map filter.</p>}
+      {!plant.habitats.length && <p className="mission-muted">Habitat guidance unavailable for this plant.</p>}
     </li>
   )
 }
 
-function FinishDialog({ counts, reports, pending, failed, onClose, onConfirm }: {
+function FinishDialog({ counts, reports, unsent, pending, failed, onClose, onConfirm }: {
   counts: { looked: number; unable: number; notChecked: number; noFind: number }
   reports: number
+  unsent: number
   pending: boolean
   failed: boolean
   onClose: () => void
@@ -488,11 +590,13 @@ function FinishDialog({ counts, reports, pending, failed, onClose, onConfirm }: 
       <div ref={ref} className="mission-sheet__panel" role="dialog" aria-modal="true" aria-labelledby="finish-title" tabIndex={-1}>
         <h2 id="finish-title">Finish this mission?</h2>
         <p>{counts.looked} looked for · {counts.unable} unable to check · {counts.notChecked} not checked · {reports} {reports === 1 ? 'sighting' : 'sightings'} submitted.</p>
-        <p className="mission-muted">If you leave without finishing, your progress is saved and you can resume it later.</p>
+        {unsent > 0
+          ? <p className="mission-alert" role="status">Some progress is not saved to your account yet. Reconnect before finishing.</p>
+          : <p className="mission-muted">If you leave without finishing, your progress is saved and you can resume it later.</p>}
         {failed && <p className="mission-alert" role="alert">The mission could not be finished. Try again.</p>}
         <footer>
           <button type="button" data-dialog-initial className="mission-button" onClick={onClose}>Keep going</button>
-          <button type="button" className="mission-button mission-button--primary" disabled={pending} onClick={onConfirm}>{pending ? 'Finishing…' : 'Finish mission'}</button>
+          <button type="button" className="mission-button mission-button--primary" disabled={pending || unsent > 0} onClick={onConfirm}>{pending ? 'Finishing…' : 'Finish mission'}</button>
         </footer>
       </div>
     </div>,
@@ -512,7 +616,7 @@ function MissionSummaryView({ summary, placeName, placeId, watchlist, onRestart 
       <BackLink to={`/places/${placeId}`}>Back to place</BackLink>
       <header className="mission-header">
         <div>
-          <p className="mission-eyebrow"><Icon name="CircleCheck" size={15} />Mission finished</p>
+          <p className="mission-eyebrow">Mission finished</p>
           <h2>{placeName}</h2>
           <p className="mission-muted">{formatDateTime(summary.startedAt)}{summary.completedAt && ` – ${formatDateTime(summary.completedAt)}`}</p>
         </div>
@@ -531,20 +635,20 @@ function MissionSummaryView({ summary, placeName, placeId, watchlist, onRestart 
           <div><dt>No target plant found</dt><dd>{summary.noTargetFoundCount}</dd></div>
         </dl>
         {summary.reportsSubmittedCount === 0 ? (
-          <p className="mission-summary-note">No target plants reported during this mission. This only describes this visit — not finding a plant does not show it is absent.</p>
+          <p className="mission-summary-note">No target plants reported during this mission. This describes this visit only, not whether the plants are present in the place.</p>
         ) : (
           <ul className="mission-reports">
             {summary.reports.map((report) => (
               <li key={report.reportId}>
                 <Link to={`/reports/${report.reportId}`}>
                   <strong>{watchlist.find((plant) => plant.speciesId === report.speciesId)?.name ?? 'Plant report'}</strong>
-                  <span>{formatDateTime(report.submittedAt)} · community report, not expert-verified</span>
+                  <span>{formatDateTime(report.submittedAt)} · community report</span>
                 </Link>
               </li>
             ))}
           </ul>
         )}
-        {summary.noTargetFoundCount > 0 && <p className="mission-muted">“No target plant found” records what you looked for on this visit. It does not confirm a plant is absent.</p>}
+        {summary.noTargetFoundCount > 0 && <p className="mission-muted">A “No target plant found” outcome does not confirm the plant is absent from the place.</p>}
       </section>
       <div className="mission-summary-actions">
         <Link className="mission-button mission-button--primary" to={`/places/${placeId}`}>Back to {placeName}</Link>
@@ -558,7 +662,7 @@ function AboutGuidance() {
   const release = useHabitatRelease(true)
   return (
     <section className="mission-about">
-      <p>Habitat highlights come from mapped land cover and water data matched to each plant’s known habitat types. They are not predictions, scores or sightings.</p>
+      <p>Highlights come from mapped land cover and water data, matched to the habitat types each plant is known to use. They describe compatibility only, not sightings.</p>
       {release.data && (
         <>
           <ul>{release.data.limitations.map((item) => <li key={item}>{item}</li>)}</ul>
