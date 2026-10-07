@@ -1,5 +1,6 @@
-import type { MouseEvent } from 'react'
-import { Link } from 'react-router-dom'
+import { useState, type MouseEvent } from 'react'
+import { Link, useNavigate } from 'react-router-dom'
+import { usePrivateAccess } from '@/features/private-access/private-access-store'
 import { Icon } from '@/components/Icon'
 import { LogoWordmark } from '@/components/Logo'
 import {
@@ -9,14 +10,60 @@ import './welcome.css'
 
 const HOW_ID = 'how-it-works'
 
-/** The one call to action on this page. It is a plain link to the existing
- *  private-access flow: that flow decides whether to create an identity,
- *  resume recovery setup, or send an existing profile straight to the map. */
-function StartLink({ tone }: { tone: 'green' | 'light' }) {
+/** The one call to action on this page. It creates the private profile
+ *  straight away and opens the recovery-kit step, so a visitor does not land
+ *  on a second page with another Start privately button. It stays a real link
+ *  to the private-access page: if starting is not possible here (offline,
+ *  blocked storage, an error), or scripts have not loaded, that page explains
+ *  why and offers the retry. */
+function StartLink({ tone, className }: { tone: 'green' | 'light' | 'outline'; className?: string }) {
+  const navigate = useNavigate()
+  const status = usePrivateAccess((state) => state.status)
+  const startPrivate = usePrivateAccess((state) => state.startPrivate)
+  // /welcome stays readable after sign-up; never replace an existing profile.
+  const hasProfile = usePrivateAccess((state) => state.profile !== null || state.installation !== null)
+  const [busy, setBusy] = useState(false)
+  const starting = busy || status === 'starting'
+
+  const start = async (event: MouseEvent<HTMLAnchorElement>) => {
+    if (event.metaKey || event.ctrlKey || event.shiftKey || event.altKey || event.button !== 0) return
+    event.preventDefault()
+    if (starting) return
+    if (hasProfile || status !== 'needs-access' || !navigator.onLine) {
+      navigate(START_PATH)
+      return
+    }
+    setBusy(true)
+    try {
+      await startPrivate()
+      navigate('/private-access/recovery', { replace: true })
+    } catch {
+      navigate(START_PATH)
+    } finally {
+      setBusy(false)
+    }
+  }
+
   return (
-    <Link className={`welcome-btn welcome-btn--${tone}`} to={START_PATH}>
-      Start privately
+    <Link
+      className={`welcome-btn welcome-btn--${tone}${className ? ` ${className}` : ''}`}
+      to={START_PATH}
+      onClick={(event) => void start(event)}
+      aria-busy={starting || undefined}
+    >
+      {starting ? 'Starting…' : 'Start privately'}
     </Link>
+  )
+}
+
+/** Privacy promise and the way back in for existing users, shown beside the
+ *  first Start privately button (moved here from the private-access page). */
+function AccessNote() {
+  return (
+    <p className="welcome-hero__access">
+      No email, phone number or name needed.{' '}
+      <Link to="/private-access/restore">Already use InvaTrace? Restore access</Link>
+    </p>
   )
 }
 
@@ -65,7 +112,7 @@ export function WelcomePage() {
           <LogoWordmark />
           <div className="welcome-nav__links">
             <a href={`#${HOW_ID}`} onClick={goToHowItWorks}>How it works</a>
-            <Link className="welcome-btn welcome-btn--outline" to={START_PATH}>Start privately</Link>
+            <StartLink tone="outline" />
           </div>
         </nav>
 
@@ -83,6 +130,7 @@ export function WelcomePage() {
                 How it works
               </a>
             </div>
+            <AccessNote />
             <p className="welcome-hero__sdg">
               <span className="welcome-hero__sdg-icon"><Icon name="Trees" size={16} /></span>
               {SDG.badge}
@@ -183,7 +231,7 @@ export function WelcomePage() {
         <section className="welcome-closing" aria-labelledby="welcome-closing-title">
           <h2 id="welcome-closing-title">Take your next walk with InvaTrace.</h2>
           <StartLink tone="light" />
-          <p>No email or password required.</p>
+          <p>No email or password required. <Link to="/private-access/restore">Restore an existing profile</Link></p>
         </section>
       </main>
 

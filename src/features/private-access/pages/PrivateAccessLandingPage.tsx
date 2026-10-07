@@ -9,7 +9,7 @@ import { usePageHeadingFocus } from '@/hooks/usePageHeadingFocus'
 const PRIVATE_STEPS = [
   ['No personal account', 'We do not ask for your email, phone number, or legal name.'],
   ['One field identity', 'Reports and verification history stay connected through a public profile ID.'],
-  ['Recovery stays with you', 'One-time recovery codes let you bring that profile to another device.'],
+  ['Recovery stays with you', 'Your recovery code lets you bring that profile to another device.'],
 ] as const
 
 /** First screen a new or logged-out installation sees: explains the
