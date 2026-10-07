@@ -38,24 +38,24 @@ export const SCREENS = {
   },
   mission: {
     src: '/welcome/screen-field-mission.webp',
-    width: 567,
-    height: 1219,
-    alt: 'Concept screen with example data: choose a mapped place, review its plant watchlist and start a field mission',
-    placeholder: true,
+    width: 585,
+    height: 1140,
+    alt: 'InvaTrace guided mission preview for Taman Tasik Titiwangsa: compatible habitat highlighted on the map for 3 watchlist plants',
+    placeholder: false,
   },
   events: {
     src: '/welcome/screen-events.webp',
-    width: 290,
-    height: 530,
-    alt: 'Concept screen with example data: discover a community survey event at a mapped place',
-    placeholder: true,
+    width: 585,
+    height: 1110,
+    alt: 'InvaTrace community events: find surveys by species and date, or host your own',
+    placeholder: false,
   },
   followUp: {
     src: '/welcome/screen-follow-up.webp',
-    width: 563,
-    height: 1218,
-    alt: 'Concept screen with example data: Follow-up needed. Grey map markers show reported removals awaiting an on-site check',
-    placeholder: true,
+    width: 585,
+    height: 1195,
+    alt: 'InvaTrace sighting marked Follow-up needed after a reported removal, with a Start follow-up button',
+    placeholder: false,
   },
 } satisfies Record<string, WelcomeImage>
 
@@ -112,16 +112,16 @@ export const FEATURES = [
   {
     id: 'changes',
     title: 'See what changes',
-    detail: 'Follow places you care about. Revisit recorded sightings, check for regrowth and add a new observation.',
+    detail: 'Adopt places you care about. Revisit recorded sightings, check for regrowth and add a new observation.',
     screen: SCREENS.followUp,
   },
 ] as const
 
 // Icon names must exist in src/components/Icon.tsx.
 export const STEPS = [
-  { title: 'Discover', detail: 'Explore mapped places and the plants recorded there.', icon: 'MapPinned' },
-  { title: 'Identify', detail: 'Photograph a plant to get a suggested identification.', icon: 'Camera' },
+  { title: 'Discover what to look for', detail: 'Explore mapped places and the plants recorded there.', icon: 'MapPinned' },
+  { title: 'Identify a plant', detail: 'Photograph a plant to get a suggested identification.', icon: 'Camera' },
   { title: 'Follow safe guidance', detail: 'Read the safety guidance before you touch anything.', icon: 'ShieldCheck' },
-  { title: 'Report', detail: 'Record what you saw and where you saw it.', icon: 'Send' },
-  { title: 'Monitor', detail: 'Return later to check the same spot for regrowth.', icon: 'RefreshCw' },
+  { title: 'Report a sighting', detail: 'Record what you saw and where you saw it.', icon: 'Send' },
+  { title: 'Monitor places over time', detail: 'Return later to check the same spot for regrowth.', icon: 'RefreshCw' },
 ] as const

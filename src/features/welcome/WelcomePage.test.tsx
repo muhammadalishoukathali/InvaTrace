@@ -36,7 +36,7 @@ describe('public welcome page', () => {
     expect(positions.every((position) => position > -1)).toBe(true)
     expect([...positions].sort((a, b) => a - b)).toEqual(positions)
     expect(STEPS.map((step) => step.title)).toEqual(
-      ['Discover', 'Identify', 'Follow safe guidance', 'Report', 'Monitor'],
+      ['Discover what to look for', 'Identify a plant', 'Follow safe guidance', 'Report a sighting', 'Monitor places over time'],
     )
   })
 

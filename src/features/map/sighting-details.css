@@ -81,6 +81,19 @@
   background: var(--bg-alt);
 }
 
+/* Below a follow-up card the photos sit inside the content column instead of
+   bleeding to the sheet edges as they do at the top of the sheet. */
+.pin-sheet__media-inset {
+  display: grid;
+  gap: 10px;
+  margin-top: 16px;
+}
+.pin-sheet__media-inset .pin-sheet__reference {
+  width: 100%;
+  margin: 0;
+  border-radius: 14px;
+}
+
 .pin-sheet__photo {
   width: 100%;
   height: clamp(170px, 24vh, 210px);

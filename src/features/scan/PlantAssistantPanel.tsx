@@ -21,13 +21,26 @@ const TOPIC_LABELS: Record<string, string> = {
 }
 
 type Depth = 'standard' | 'simpler' | 'detailed'
+const SPREAD_QUESTION = 'How does it spread?'
 const SUGGESTIONS = [
   'What does this plant look like?',
   'Where does it grow?',
-  'Why is it invasive?',
-  'How does it spread?',
+  'What are its impacts?',
+  SPREAD_QUESTION,
   'How should I respond safely?',
 ]
+// Species whose reviewed knowledge pack documents spread pathways. Kept in step
+// with the backend by backend/tests/test_assistant_suggestions.py.
+export const SPREAD_DOCUMENTED_SPECIES = new Set([
+  'bidens-pilosa', 'chromolaena-odorata', 'cynodon-dactylon', 'cyperus-rotundus',
+  'eichhornia-crassipes', 'eleusine-indica', 'impatiens-balsamina', 'limnocharis-flava',
+  'mikania-micrantha', 'mimosa-diplotricha', 'mimosa-pigra', 'oxalis-corniculata',
+  'parthenium-hysterophorus', 'psidium-guajava', 'ruellia-blechum', 'salvinia-molesta', 'sida-acuta',
+])
+
+export function suggestionsFor(speciesId: string) {
+  return SUGGESTIONS.filter(text => text !== SPREAD_QUESTION || SPREAD_DOCUMENTED_SPECIES.has(speciesId))
+}
 
 export function assistantSpeciesForScan(result: IdentifyResult) {
   if (result.outcome === 'other_plant' || result.outcome === 'uncertain') return null
@@ -79,7 +92,9 @@ export function PlantAssistantPanel({ result }: { result: IdentifyResult }) {
       if (attempt.signal.aborted) return
       setResponse(next)
       setResponseQuestion(trimmed)
-      if (next.answerability === 'answerable') answered.current.add(trimmed.toLowerCase())
+      // Only generated answers can be re-explained at another depth; source
+      // fallbacks return the same reviewed text whatever depth is requested.
+      if (next.status === 'answer') answered.current.add(trimmed.toLowerCase())
     } catch (cause) {
       setError(cause instanceof ApiError && cause.status === 429
         ? 'You have asked several questions recently. Wait a minute, then try again.'
@@ -112,7 +127,7 @@ export function PlantAssistantPanel({ result }: { result: IdentifyResult }) {
           <p>Questions about <strong>{species!.scientific_name}</strong>, based on your scan and approved sources. The assistant explains the scan; it does not identify the plant.</p>
           <p className="plant-assistant__privacy">Use English and leave out personal details, coordinates and access codes. This conversation is temporary and clears when you leave this scan.</p>
           <div className="plant-assistant__suggestions" role="group" aria-label="Suggested plant questions">
-            {SUGGESTIONS.map(text => <button key={text} type="button" disabled={pending} onClick={() => void submitQuestion(text)}>{text}</button>)}
+            {suggestionsFor(species!.species_id).map(text => <button key={text} type="button" disabled={pending} onClick={() => void submitQuestion(text)}>{text}</button>)}
           </div>
           <form onSubmit={submit}>
             <label htmlFor="plant-question">Your question</label>
@@ -131,13 +146,14 @@ export function PlantAssistantPanel({ result }: { result: IdentifyResult }) {
           </div>}
           {pending && <p role="status">Checking evidence for your question…</p>}
           {error && <p role="alert">{error}</p>}
-          {response && !pending && !repeat && <div className="plant-assistant__response" aria-live="polite">
+          <div aria-live="polite">
+          {response && !pending && !repeat && <div className="plant-assistant__response">
             <h3>{response.status === 'fallback' ? 'Source information' : response.status === 'answer' ? 'Answer' : 'Evidence is insufficient'}</h3>
             {response.status === 'fallback' && <p className="plant-assistant__notice">Here is the relevant approved source information.</p>}
             <p className="plant-assistant__answer">{response.answer}</p>
             {response.status === 'insufficient_evidence' && topicLabels.length > 0 &&
               <p className="plant-assistant__coverage">Available information for this species: {topicLabels.join(', ')}.</p>}
-            {response.answerability === 'answerable' && <div className="plant-assistant__choices" role="group" aria-label="Explanation level">
+            {response.status === 'answer' && <div className="plant-assistant__choices" role="group" aria-label="Explanation level">
               <button type="button" onClick={() => void submitQuestion(responseQuestion, 'simpler', false)}>Simpler explanation</button>
               <button type="button" onClick={() => void submitQuestion(responseQuestion, 'standard', false)}>Standard explanation</button>
               <button type="button" onClick={() => void submitQuestion(responseQuestion, 'detailed', false)}>More detail</button>
@@ -153,6 +169,7 @@ export function PlantAssistantPanel({ result }: { result: IdentifyResult }) {
             </>}
             <p className="plant-assistant__safety">{response.safetyBoundary}</p>
           </div>}
+          </div>
         </>}
       </>}
     </section>
