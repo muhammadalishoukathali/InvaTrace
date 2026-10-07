@@ -1,0 +1,36 @@
+case_id,species,question,expected_answerable,required_chunk_id,rationale
+A01,eichhornia-crassipes,What does water hyacinth look like?,true,CAT-eichhornia-crassipes-identification,The complete common name is not a water-habitat constraint.
+A02,eichhornia-crassipes,What does EICHHORNIA CRASSIPES look like?,true,CAT-eichhornia-crassipes-identification,The scanned scientific name does not request another identification.
+A03,eichhornia-crassipes,How does water hyacinth spread?,true,CAT-eichhornia-crassipes-spread,The sourced trait establishes water as one pathway without claiming completeness.
+A04,mikania-micrantha,Why does it spread so fast?,true,CAT-mikania-micrantha-spread-impact,The complete paragraph mentions rapid spread and wind seed and rooting fragments.
+A05,mikania-micrantha,Does it spread quickly?,true,CAT-mikania-micrantha-spread-impact,Quickly and rapidly express the same qualitative concept here.
+A06,mikania-micrantha,Does it spread by wind?,true,CAT-mikania-micrantha-spread-impact,Wind-borne seed is explicit in the supplied paragraph.
+A07,mikania-micrantha,Where does Mikania micrantha grow near rivers?,true,CAT-mikania-micrantha-habitat,The habitat paragraph explicitly includes riverbanks.
+A08,mikania-micrantha,What does its leaf look like?,true,CAT-mikania-micrantha-identification,The singular leaf requests the same supported appearance topic.
+A09,mikania-micrantha,What do its leaves and flowers look like?,true,CAT-mikania-micrantha-identification,Both features occur in the appearance paragraph.
+A10,mikania-micrantha,How does it affect young trees?,true,CAT-mikania-micrantha-impact,Blanketing young trees and suppressing growth is explicit.
+A11,mikania-micrantha,How fast does it spread?,false,,Qualitative rapid spread does not establish a numerical rate.
+A12,mikania-micrantha,How quickly does it spread?,false,,A magnitude or time estimate is absent.
+A13,mikania-micrantha,Does it spread slowly?,false,,The evidence does not support slow spread.
+A14,mikania-micrantha,Where does it grow in 2026?,false,,The pack has no year-specific distribution evidence.
+A15,mikania-micrantha,Does it grow near rivers in 2026?,false,,A riverbank fact does not establish the additional year constraint.
+A16,mikania-micrantha,Does it produce 100 seeds?,false,,There is no quantitative seed-production evidence.
+A17,eichhornia-crassipes,Does water hyacinth spread by wind?,false,,Removing the name must retain the wind constraint and no wind evidence exists.
+A18,mikania-micrantha,Does Mikania micrantha spread by birds?,false,,Known wind and water pathways do not support bird dispersal.
+A19,eichhornia-crassipes,Where does water hyacinth grow in salt water?,false,,The separate water phrase remains factual and salt water is not established.
+A20,mikania-micrantha,Does it spread only by water?,false,,One documented pathway does not establish exclusivity.
+A21,mikania-micrantha,What does Parthenium hysterophorus look like?,false,,Another species name must not override the current scan.
+A22,eichhornia-crassipes,Is water hyacinth safe to touch?,false,,The common name does not bypass the toxicity and handling boundary.
+A23,mikania-micrantha,Can I remove Mikania micrantha?,false,,The assistant cannot grant removal permission.
+A24,mikania-micrantha,Can I enter a protected area to collect it?,false,,Existing site-permission and protected-area checks remain required.
+A25,mikania-micrantha,Where should I report Mikania micrantha?,false,,No verified local recipient is in the pack.
+A26,mikania-micrantha,Does it harm my dog?,false,,Plant competition evidence does not establish animal-health effects.
+A27,mikania-micrantha,What is its flowering season?,false,,A flower description does not establish a flowering season.
+A28,mikania-micrantha,Can I leave stem pieces on damp ground?,false,,The verb leave must not be treated as the botanical noun leaf.
+A29,mikania-micrantha,Is this dangerous?,false,,The ambiguous claim needs specific environmental or health evidence.
+A30,mikania-micrantha,Where does it grow on Mars?,false,,A species and habitat match does not support a new location.
+A31,mikania-micrantha,How  fast does it spread?,false,,Extra whitespace must not bypass the rate constraint.
+A32,mikania-micrantha,How-fast does it spread?,false,,A hyphen must not bypass the rate constraint.
+A33,mikania-micrantha,How rapidly does it spread?,false,,Rapidly is still a magnitude request when used with how.
+A34,mikania-micrantha,At what rate does it spread?,false,,The numerical rate is absent despite a qualitative rapid-spread fact.
+A35,mikania-micrantha,How quick is its spread?,false,,Quick is still a magnitude request when used with how.

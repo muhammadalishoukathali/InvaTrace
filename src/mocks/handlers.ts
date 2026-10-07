@@ -395,6 +395,8 @@ const shouldInject = (kind: 'failPresign' | 'failReport' | 'expireSession') => {
 }
 
 export const handlers = [
+  // Plant questions use real local retrieval even in development mock mode.
+  http.post(url('/api/v1/plant-assistant/ask'), () => passthrough()),
   // these all need to pass through untouched - map tiles, fonts, sample
   // images, dev files. if MSW intercepts these MapLibre and Vite just break
   http.all('http://localhost:5173/node_modules/*', () => passthrough()),

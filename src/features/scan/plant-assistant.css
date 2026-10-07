@@ -1,0 +1,50 @@
+.plant-assistant {
+  margin-block: 24px;
+  padding-block: 20px;
+  border-block: 1px solid var(--border);
+  color: var(--body);
+  line-height: 1.6;
+  overflow-wrap: anywhere;
+}
+.plant-assistant h2 { font-size: 20px; color: var(--ink); margin: 0; }
+.plant-assistant h3 { font-size: 16px; color: var(--ink); margin: 24px 0 8px; }
+.plant-assistant p { margin: 12px 0; }
+.plant-assistant__heading { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
+.plant-assistant button {
+  min-height: var(--h-chip);
+  border: 1px solid var(--control-border);
+  border-radius: var(--r-button);
+  padding: 10px 14px;
+  color: var(--body);
+  background: var(--surface);
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+.plant-assistant button:hover:not(:disabled) { background: var(--hover); }
+.plant-assistant button:disabled { opacity: .6; cursor: default; }
+.plant-assistant button:focus-visible, .plant-assistant textarea:focus-visible, .plant-assistant a:focus-visible {
+  outline: 2px solid var(--green); outline-offset: 3px;
+}
+.plant-assistant button.plant-assistant__primary { background: var(--green); color: var(--on-accent); border-color: var(--green); font-weight: 600; }
+.plant-assistant button.plant-assistant__primary:hover:not(:disabled) { background: var(--green-dark); }
+.plant-assistant__privacy, .plant-assistant__notice { font-size: 14px; }
+.plant-assistant__suggestions, .plant-assistant__choices { display: flex; flex-wrap: wrap; gap: 8px; margin-block: 16px; }
+.plant-assistant__suggestions button { font-size: 14px; }
+.plant-assistant form { display: grid; gap: 10px; margin-block: 20px; }
+.plant-assistant label { color: var(--ink); font-weight: 600; }
+.plant-assistant textarea {
+  width: 100%; min-width: 0; resize: vertical; box-sizing: border-box;
+  padding: 12px; border: 1px solid var(--control-border); border-radius: var(--r-input);
+  font: inherit; color: var(--ink); background: var(--surface); caret-color: var(--green);
+}
+.plant-assistant__answer { white-space: pre-line; }
+.plant-assistant ul { padding-left: 20px; }
+.plant-assistant li { margin-block: 8px; }
+.plant-assistant a { color: var(--green-dark); text-decoration: underline; text-underline-offset: 3px; }
+.plant-assistant__safety { padding-top: 16px; border-top: 1px solid var(--border); font-size: 14px; }
+.plant-assistant__repeat { padding-block: 12px; }
+@media (max-width: 420px) {
+  .plant-assistant__suggestions { display: grid; }
+  .plant-assistant__choices button { flex: 1 1 140px; }
+}

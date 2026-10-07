@@ -1,0 +1,2 @@
+# Preserve the immutable evidence bytes used by the frozen integrity test.
+epic8_refusal_audit.csv -text whitespace=cr-at-eol
