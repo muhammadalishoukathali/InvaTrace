@@ -23,7 +23,7 @@ describe('scan navigation', () => {
   })
 
   it('preserves catalogue, place, monitoring and event task origins', () => {
-    for (const pathname of ['/catalogue', '/catalogue/mikania-micrantha', '/places/place-1', '/adopted-areas/adoption-1/activity', '/events', '/events/event-1/tasks']) {
+    for (const pathname of ['/catalogue', '/catalogue/mikania-micrantha', '/places/place-1', '/places/place-1/mission', '/adopted-areas/adoption-1/activity', '/events', '/events/event-1/tasks']) {
       expect(scanStateFromPath(pathname)).toEqual({ returnTo: pathname })
       expect(scanReturnPath({ returnTo: pathname })).toBe(pathname)
     }

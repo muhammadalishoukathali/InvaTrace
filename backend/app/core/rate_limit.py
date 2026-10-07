@@ -86,6 +86,11 @@ def _build_limits() -> dict[str, Limit]:
         "events_write": Limit(30, 60),
         "check_in": Limit(20, 60),
         "flag": Limit(10, 60),
+        # Epic 7 - guided missions are private per-profile state. Plant
+        # progress taps are frequent during a field search, so the write budget
+        # is more generous than event writes.
+        "guided_mission_read": Limit(120, 60),
+        "guided_mission_write": Limit(120, 60),
     }
 
 

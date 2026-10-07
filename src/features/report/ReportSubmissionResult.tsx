@@ -1,5 +1,8 @@
 import { useEffect, useState } from 'react'
-import { useNavigate } from 'react-router-dom'
+import { useLocation, useNavigate } from 'react-router-dom'
+import { missionIdForScan } from '@/features/guided-missions/mission-context'
+import { scanReturnPath } from '@/features/scan/scan-navigation'
+import { usePrivateAccess } from '@/features/private-access/private-access-store'
 import { useReportDraft } from '@/features/report/report-draft-store'
 import { useScan } from '@/features/scan/scan-store'
 import { api } from '@/services/api-client'
@@ -16,7 +19,9 @@ import './report-submission-result.css'
  */
 export function ReportSubmissionResult() {
   const navigate = useNavigate()
+  const location = useLocation()
   const { outcome, reset } = useReportDraft()
+  const profileId = usePrivateAccess((state) => state.profile?.id)
 
   const done = (destination: string) => {
     // If the server hands us a full URL instead of an internal path, we
@@ -73,6 +78,13 @@ export function ReportSubmissionResult() {
 
   if (!outcome) return null
 
+  // Epic 7 (AC 7.4.3): a report sent from a guided mission returns to it, where
+  // it now shows in the mission progress.
+  const returnTo = scanReturnPath(location.state)
+  const missionButton = missionIdForScan(returnTo, profileId)
+    ? <button type="button" onClick={() => done(returnTo)}>Return to mission</button>
+    : null
+
   const submitted = outcome.kind === 'submitted'
   const trackingDestination = submitted && outcome.kind === 'submitted'
     ? (typeof outcome.report.trackingUrl === 'string' && outcome.report.trackingUrl.length > 0
@@ -87,6 +99,7 @@ export function ReportSubmissionResult() {
           <h1>Report published</h1>
           <p>Community report - not expert validated</p>
           <div className="report-submission-result__actions">
+            {missionButton}
             <button type="button" onClick={() => done(sightingId ? `/map?sighting=${sightingId}` : '/map')}>
               View on map
             </button>
@@ -115,6 +128,7 @@ export function ReportSubmissionResult() {
           </p>
           <p>Community report - not expert validated</p>
           <div className="report-submission-result__actions">
+            {missionButton}
             {sightingId && (
               <button type="button" onClick={() => done(`/map?sighting=${sightingId}`)}>
                 View existing sighting
@@ -159,6 +173,7 @@ export function ReportSubmissionResult() {
               : 'Fix the issue above, then scan and report again.'}
           </p>
           <div className="report-submission-result__actions">
+            {missionButton}
             <button type="button" onClick={() => done('/scan')}>Scan again</button>
             {trackingDestination && (
               <button type="button" className="report-submission-result__secondary" onClick={() => done(trackingDestination)}>
@@ -178,6 +193,7 @@ export function ReportSubmissionResult() {
           <h1>Report not published</h1>
           <p>Automated duplicate or safety checks rejected this evidence.</p>
           <div className="report-submission-result__actions">
+            {missionButton}
             {trackingDestination && (
               <button type="button" onClick={() => done(trackingDestination)}>View report</button>
             )}
@@ -202,6 +218,7 @@ export function ReportSubmissionResult() {
         )}
 
         <div className="report-submission-result__actions">
+            {missionButton}
           {trackingDestination && (
             <button type="button" onClick={() => done(trackingDestination)}>
               View report

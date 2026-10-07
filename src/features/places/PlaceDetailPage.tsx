@@ -13,6 +13,7 @@ import { useOnline } from '@/hooks/useOnline'
 import { api } from '@/services/api-client'
 import type { PlaceDetail, PlacePlantAssociationsResponse } from '@/types'
 import { PlaceGeometryMap } from './PlaceGeometryMap'
+import { MissionEntryCard } from '@/features/guided-missions/MissionEntryCard'
 import './places.css'
 
 export function PlaceDetailPage() {
@@ -71,6 +72,7 @@ export function PlaceDetailPage() {
         Adding a bookmark is non-exclusive and does not create ownership, responsibility,
         access rights, or permission to remove plants.
       </p>
+      <MissionEntryCard placeId={placeId!} watchlistIds={associations.data.items.map((item) => item.speciesId)} />
       <p className="place-detail__notice"><Link to={`/events?placeId=${placeId}`}>See upcoming community events for this place</Link></p>
       <PlaceGeometryMap geometry={place.data.geometry} name={place.data.displayName} />
       {adopt.isError && <p className="place-detail__notice" role="alert">This monitoring bookmark could not be saved. Check your connection and try again.</p>}

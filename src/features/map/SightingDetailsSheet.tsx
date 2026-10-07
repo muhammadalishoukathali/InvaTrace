@@ -119,6 +119,12 @@ export function SightingDetailsSheet() {
   const tier = data ? pinTier(data) : 'isolated'
   const tierInfo = PIN_TIERS[tier]
   const coordinateDecimals = data?.precisionReduced ? 4 : 5
+  const media = data ? (
+    <>
+      <EvidenceThumbnail thumbnailUrl={data.thumbnailUrl} speciesName={data.speciesName} />
+      <PlantReferenceMedia latinName={data.latinName} speciesName={data.speciesName} />
+    </>
+  ) : null
   return createPortal(
     <>
       <div onClick={close} aria-hidden className="app-sheet-backdrop sighting-details-backdrop" />
@@ -155,8 +161,10 @@ export function SightingDetailsSheet() {
                   presigned thumbnailUrl. The reference photo below is clearly
                   labelled "reference" - I didn't want it read as if it were
                   the reporter's own evidence. */}
-              <EvidenceThumbnail thumbnailUrl={data.thumbnailUrl} speciesName={data.speciesName} />
-              <PlantReferenceMedia latinName={data.latinName} speciesName={data.speciesName} />
+              {/* Epic 4: for a removed / followed-up marker the follow-up state is
+                  the point of opening it, so that card leads and the photos
+                  follow (AC 4.6.2). */}
+              {!data.followUpState && media}
 
               <header className="pin-sheet__heading">
                 <h2 tabIndex={-1} data-dialog-initial>{data.speciesName}</h2>
@@ -187,9 +195,14 @@ export function SightingDetailsSheet() {
               </header>
 
               {data.followUpState === 'needed' && data.status === 'removal_reported' && (
-                <section className="pin-sheet__removal" aria-labelledby="start-follow-up-heading">
-                  <h3 id="start-follow-up-heading">Follow-up needed</h3>
-                  <p>Check this reported removal with a fresh location while you are nearby.</p>
+                <section className="pin-sheet__follow-up" aria-labelledby="start-follow-up-heading">
+                  <h3 id="start-follow-up-heading"><span className="pin-sheet__follow-up-dot" aria-hidden />Follow-up needed</h3>
+                  <dl>
+                    <div><dt>Removal reported</dt><dd>{formatDate(data.removalReportedAt ?? data.lastReportedAt)}</dd></div>
+                    <div><dt>Status</dt><dd>Waiting for an on-site follow-up</dd></div>
+                    {data.lastFollowupAt && <div><dt>Latest attempt</dt><dd>{formatDate(data.lastFollowupAt)} · unable to confirm</dd></div>}
+                  </dl>
+                  <p>Visit the spot and record whether the plant has grown back. You need to be within 250 m with a fresh GPS reading.</p>
                   <Link to={`/sightings/${data.id}/follow-up`} className="pin-sheet__follow-up-link">Start follow-up</Link>
                 </section>
               )}
@@ -207,6 +220,8 @@ export function SightingDetailsSheet() {
                   <p>{data.lastFollowupAt ? `Latest follow-up: ${formatTime(data.lastFollowupAt)}.` : 'The marker is active again.'}</p>
                 </section>
               )}
+
+              {data.followUpState && media}
 
               <section className="pin-sheet__record" aria-labelledby="sighting-record-heading">
                 <h3 id="sighting-record-heading">Report information</h3>
@@ -328,15 +343,6 @@ export function SightingDetailsSheet() {
           )}
         </div>
 
-        {data && (
-          <footer className="pin-sheet__footer">
-            <button type="button" disabled aria-label="Directions not available yet"
-              className="pin-sheet__directions" title="Coming in a later release">
-              <Icon name="Navigation" size={14} color="currentColor" />
-              Directions coming soon
-            </button>
-          </footer>
-        )}
       </aside>
     </>,
     document.body,
@@ -480,4 +486,12 @@ function publicRemovalError(error: Error | null): string {
     if (error.code === 'removal_not_available') return 'This sighting cannot be marked as removed.'
   }
   return 'The removal report could not be submitted. Check the connection and try again.'
+}
+
+/** Absolute date for follow-up records (AC 4.6.2 asks for the removal date). */
+function formatDate(value: string | null | undefined) {
+  const date = value ? new Date(value) : null
+  return date && !Number.isNaN(date.getTime())
+    ? new Intl.DateTimeFormat('en-GB', { day: 'numeric', month: 'short', year: 'numeric' }).format(date)
+    : 'Date unavailable'
 }

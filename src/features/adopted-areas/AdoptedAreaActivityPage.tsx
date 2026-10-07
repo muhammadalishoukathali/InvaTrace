@@ -20,6 +20,7 @@ import { api } from '@/services/api-client'
 import { useOnline } from '@/hooks/useOnline'
 import type { AdoptedAreaActivity } from '@/types'
 import { approvedSpeciesDataset } from '@shared/catalogue'
+import { PlaceEventsSection } from '@/features/events/PlaceEventsSection'
 import './adopted-areas.css'
 
 maplibregl.setWorkerUrl(mapLibreWorkerUrl)
@@ -193,6 +194,7 @@ export function AdoptedAreaActivityPage() {
             </p>
           </div>
         )}
+        {query.data && <PlaceEventsSection placeId={query.data.placeId} placeName={query.data.name} />}
         {selectedMarker && (
           <section className="activity-selection" aria-live="polite">
             <div>

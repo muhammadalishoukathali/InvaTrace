@@ -32,15 +32,16 @@ test('dates and fields remain English with a Chinese browser locale', async ({ p
     ['/reports', '.my-reports__results'],
     ['/reports/layout-report', '.report-tracking__meta'],
     ['/places/10000000-0000-4000-8000-000000000001', '.place-associations'],
-    ['/events/layout-event', '.event-facts'],
-    ['/events/layout-event/summary', '.event-facts'],
+    ['/events/layout-event', '.event-when'],
+    ['/events/layout-event/summary', '.event-stats'],
     ['/events', '.event-card'],
   ]) {
     await navigate(page, route)
     await expect(page.locator(selector).first()).toBeVisible()
     await expect(page.locator('main')).not.toContainText(/[\p{Script=Han}]/u)
   }
-  await expect(page.locator('.event-card').first()).toContainText(/\d{1,2} [A-Z][a-z]{2,3} \d{4}, \d{2}:\d{2}/)
+  await expect(page.locator('.event-card').first()).toContainText(/[A-Z][a-z]{2} \d{1,2} [A-Z][a-z]{2} · \d{2}:\d{2}–\d{2}:\d{2}/)
+  await page.getByRole('button', { name: 'Custom dates' }).click()
   await expect(page.getByLabel('From', { exact: true })).toHaveAttribute('placeholder', 'YYYY-MM-DD HH:mm')
   await expect(page.locator('input[type="datetime-local"]')).toHaveCount(0)
   await page.getByRole('button', { name: 'Choose from date and time' }).click()
@@ -77,6 +78,8 @@ test('dates and fields remain English with a Chinese browser locale', async ({ p
 })
 
 test('English hosting fields validate input and preserve API dates', async ({ page, context }) => {
+  // The POST is stubbed with context.route(); let it pass the dev MSW event mocks.
+  await page.addInitScript(() => localStorage.setItem('invatrace.mock.community', 'off'))
   await start(page)
   let submitted: { startAt: string; endAt: string } | undefined
   await context.route('**/api/v1/events', async route => {
@@ -85,15 +88,17 @@ test('English hosting fields validate input and preserve API dates', async ({ pa
     await route.fulfill({ status: 201, contentType: 'application/json', body: JSON.stringify({ event_id: 'layout-event', status: 'draft' }) })
   })
   await navigate(page, '/events/host')
-  await page.getByLabel('Title', { exact: true }).fill('English date check')
-  await page.getByLabel('Purpose').fill('Verify the selected local times.')
+  await page.getByLabel('Event title').fill('English date check')
+  await page.getByRole('textbox', { name: /^Purpose/ }).fill('Verify the selected local times.')
   await page.getByRole('button', { name: 'Continue', exact: true }).click()
-  await page.getByLabel('Mapped place').selectOption('10000000-0000-4000-8000-000000000001')
+  await page.getByLabel('Mapped place').fill('Bukit')
+  await page.getByRole('button', { name: /Bukit Kiara/ }).click()
+  await expect(page.getByText(/^Meeting point \d/)).toBeVisible()
   await page.getByRole('button', { name: 'Continue', exact: true }).click()
   await page.getByLabel('Starts', { exact: true }).fill('2030-02-30 08:00')
   await page.getByLabel('Ends', { exact: true }).fill('2030-03-01 10:00')
   await page.getByRole('button', { name: 'Continue', exact: true }).click()
-  await expect(page.getByRole('alert')).toContainText('Enter a valid end time')
+  await expect(page.getByRole('alert').first()).toContainText('Enter a start time and an end time after it')
   await page.getByLabel('Starts', { exact: true }).fill('2030-03-01 08:00')
   await page.getByRole('button', { name: 'Choose ends date and time' }).click()
   await page.getByRole('dialog').getByRole('button', { name: 'Use date and time' }).click()

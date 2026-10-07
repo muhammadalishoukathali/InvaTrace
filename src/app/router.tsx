@@ -40,6 +40,8 @@ const PlacesPage = lazy(() => import('@/features/places/PlacesPage')
   .then((module) => ({ default: module.PlacesPage })))
 const PlaceDetailPage = lazy(() => import('@/features/places/PlaceDetailPage')
   .then((module) => ({ default: module.PlaceDetailPage })))
+const GuidedMissionPage = lazy(() => import('@/features/guided-missions/GuidedMissionPage')
+  .then((module) => ({ default: module.GuidedMissionPage })))
 const FollowUpPage = lazy(() => import('@/features/follow-up/FollowUpPage')
   .then((module) => ({ default: module.FollowUpPage })))
 const EventsDiscoveryPage = lazy(() => import('@/features/events/EventsDiscoveryPage').then((module) => ({ default: module.EventsDiscoveryPage })))
@@ -110,6 +112,7 @@ export const router = createBrowserRouter([
       { path: 'adopted-areas/:adoptionId/activity', element: loadRoute(<AdoptedAreaActivityPage />) },
       { path: 'places', element: loadRoute(<PlacesPage />) },
       { path: 'places/:placeId', element: loadRoute(<PlaceDetailPage />) },
+      { path: 'places/:placeId/mission', element: loadRoute(<GuidedMissionPage />) },
       { path: 'sightings/:sightingId/follow-up/*', element: loadRoute(<FollowUpPage />) },
       { path: 'events', element: loadRoute(<EventsDiscoveryPage />) },
       { path: 'events/mine', element: loadRoute(<MyHostedEventsPage />) },

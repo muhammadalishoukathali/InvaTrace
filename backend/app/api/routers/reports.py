@@ -64,6 +64,7 @@ from app.domain.catalogue import (
     is_approved_species,
 )
 from app.domain.reporting import coordinate, report_response
+from app.services.guided_missions import validate_mission_link
 from app.services.object_deletion import enqueue_object_deletions
 from app.services.storage import storage
 
@@ -263,6 +264,10 @@ def create_report(
             captured_at=body.captured_at,
             now=now,
         )
+    if body.mission_id is not None:
+        # Epic 7 - fail closed before consuming the upload grant: only an
+        # active mission owned by this profile can be linked.
+        validate_mission_link(session, body.mission_id, auth.profile.id)
     if not grant:
         raise ApiProblem(400, "upload_not_issued", "The photo key is invalid.")
     if grant.expires_at <= now:
@@ -402,6 +407,7 @@ def create_report(
     report = Report(
         event_id=body.event_id,
         captured_at=body.captured_at if body.event_id is not None else None,
+        mission_id=body.mission_id,
         profile_id=auth.profile.id,
         species_id=body.species_id,
         status="processing",

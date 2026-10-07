@@ -108,6 +108,14 @@ export function ThreatMapPage() {
   const {
     species, statuses, risks, search, followUpNeeded, resolvedSightings, select, clearFilters,
   } = useMapStore()
+  // Deep link for the Epic 9 monitoring task: /map?status=followup-needed opens
+  // the map already filtered to grey markers awaiting follow-up (AC 4.6.3).
+  const requestedStatus = searchParams.get('status')
+  useEffect(() => {
+    if (requestedStatus !== 'followup-needed') return
+    const state = useMapStore.getState()
+    if (!state.followUpNeeded) state.toggleFollowUpNeeded()
+  }, [requestedStatus])
   const [locationNotice, setLocationNotice] = useState<{
     tone: 'pending' | 'success' | 'error'
     text: string

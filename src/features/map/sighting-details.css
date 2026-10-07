@@ -535,3 +535,19 @@
 @media (prefers-reduced-motion: reduce) {
   .pin-sheet { animation: none; }
 }
+
+/* Epic 4 follow-up card: grey to match the follow-up marker, and placed above
+   the photos so plant, removal date, status and the action are visible first. */
+.pin-sheet__follow-up { margin-top: 16px; padding: 16px; display: grid; gap: 10px; border: 1px solid var(--border); border-radius: var(--r-card); background: var(--bg-alt); }
+.pin-sheet__follow-up h3 { display: flex; align-items: center; gap: 8px; font-size: 15px; }
+.pin-sheet__follow-up-dot { width: 12px; height: 12px; border: 2px solid #fff; border-radius: 50%; background: #66736D; box-shadow: 0 0 0 1px #66736D; }
+.pin-sheet__follow-up dl { display: grid; gap: 6px; }
+.pin-sheet__follow-up dl > div { display: grid; grid-template-columns: 120px minmax(0, 1fr); gap: 8px; font-size: 13px; }
+.pin-sheet__follow-up dt { color: var(--muted); }
+.pin-sheet__follow-up dd { color: var(--ink); font-weight: 600; }
+.pin-sheet__follow-up p { color: var(--body); font-size: 12.5px; line-height: 1.5; }
+.pin-sheet__follow-up .pin-sheet__follow-up-link { margin-top: 2px; }
+@media (max-width: 480px) {
+  .pin-sheet__summary { flex-direction: column; align-items: flex-start; gap: 4px; }
+  .pin-sheet__summary > span[aria-hidden] { display: none; }
+}

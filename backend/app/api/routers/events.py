@@ -231,6 +231,7 @@ def _serialize(
         "target_species_ids": event.target_species_ids or [],
         "place_id": event.place_id,
         "place_name": place.name,
+        "place_type": event.place_type,
         "meeting_latitude": float(event.meeting_latitude),
         "meeting_longitude": float(event.meeting_longitude),
         "meeting_note": event.meeting_note,

@@ -70,7 +70,7 @@ test('a failed camera offers a gallery fallback that produces a usable preview',
   await page.getByRole('button', { name: 'Open camera' }).click()
   const cameraError = page.getByRole('alert')
   await expect(cameraError).toContainText('Camera access was unavailable')
-  await expect(cameraError.getByRole('button', { name: 'Choose from library' })).toBeVisible()
+  await expect(cameraError.getByRole('button', { name: 'Choose from gallery' })).toBeVisible()
 
   // Falling back to a library photo still reaches a usable, checked preview.
   await page.locator('input[aria-label="Choose photo from gallery"]').setInputFiles(

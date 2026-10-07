@@ -39,6 +39,7 @@ def report_submission(report: Report) -> ReportSubmissionDetails:
     return ReportSubmissionDetails(
         event_id=report.event_id,
         captured_at=report.captured_at,
+        mission_id=getattr(report, "mission_id", None),
         photo_key=report.photo_key,
         species_id=report.species_id,
         outcome=report.outcome,
@@ -71,6 +72,7 @@ def report_response(
     """
     return ReportResponse(
         event_id=str(report.event_id) if report.event_id else None,
+        mission_id=str(report.mission_id) if getattr(report, "mission_id", None) else None,
         evidence_label="community_reported" if report.event_id else None,
         id=str(report.id),
         status=report.status,

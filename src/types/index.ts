@@ -249,6 +249,8 @@ export interface ReportDraft {
 /** The actual wire format sent to the server for a submission. */
 export interface ReportSubmission {
   eventId?: string | null
+  /** Epic 7: the guided mission this report was submitted from, if any. */
+  missionId?: string | null
   capturedAt?: string | null
   photoKey: string
   /** SHA-256 of the raw capture bytes, worked out once client-side and sent
@@ -272,6 +274,7 @@ export interface ReportSubmission {
 
 export interface Report {
   eventId?: string | null
+  missionId?: string | null
   evidenceLabel?: 'community_reported' | null
   id: string
   status: ReportStatus

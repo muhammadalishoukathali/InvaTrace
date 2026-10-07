@@ -6,6 +6,11 @@ import { ReportNextButton } from './components/ReportNextButton'
 import { LOCATION_ACCURACY_MAX_M } from './gps-policy'
 import { useEventContext } from '@/features/events/event-context'
 import { ApiError } from '@/services/api-client'
+import { useLocation } from 'react-router-dom'
+import { missionIdForScan } from '@/features/guided-missions/mission-context'
+import { scanReturnPath } from '@/features/scan/scan-navigation'
+import { usePrivateAccess } from '@/features/private-access/private-access-store'
+import { findApprovedSpecies } from '@shared/catalogue'
 
 const EVENT_REJECTION_MESSAGES: Record<string, string> = {
   event_report_already_linked: 'This photo already belongs to an earlier report. View the original in My Records.',
@@ -36,6 +41,10 @@ const EXTENT_LABEL = {
  */
 export function ReportPreviewStep() {
   const activeEvent = useEventContext()
+  const location = useLocation()
+  const profileId = usePrivateAccess((state) => state.profile?.id)
+  // Epic 7: reports from a guided-mission scan are linked to that mission.
+  const missionId = missionIdForScan(scanReturnPath(location.state), profileId)
   const [eventRejected, setEventRejected] = useState(false)
   const [submitError, setSubmitError] = useState<string | null>(null)
   const {
@@ -57,9 +66,10 @@ export function ReportPreviewStep() {
     setSubmitting(true)
     setSubmitError(null)
     try {
+      const tagged = missionId ? { ...submission, missionId } : submission
       const result = await submitReport(toEvent && activeEvent
-        ? { ...submission, eventId: activeEvent.eventId, capturedAt: draft.observedAt }
-        : submission, imageBlob)
+        ? { ...tagged, eventId: activeEvent.eventId, capturedAt: draft.observedAt }
+        : tagged, imageBlob)
       if (result.status === 'submitted' && result.report) {
         setOutcome({ kind: 'submitted', report: result.report })
       } else {
@@ -108,7 +118,9 @@ export function ReportPreviewStep() {
       <Card>
         <Row icon="Leaf"
              label="Species"
-             value={draft.speciesId ?? 'Unknown - automated screening will request a rescan if needed'} />
+             value={draft.speciesId
+               ? (findApprovedSpecies({ speciesId: draft.speciesId })?.common_names[0] ?? draft.speciesId)
+               : 'Unknown - automated screening will request a rescan if needed'} />
         <Divider />
         <Row icon="AlertTriangle"
              label="Outcome"
@@ -157,6 +169,7 @@ export function ReportPreviewStep() {
         </p>
       )}
 
+      {missionId && <p role="note" style={{ margin: 0, fontSize: 13, color: 'var(--body)', lineHeight: 1.5 }}>This report will appear in your guided mission progress. It is still an ordinary community report.</p>}
       {eventEligible && <p>Community-reported event evidence. Joining an event does not grant removal permission.</p>}
       <ReportNextButton
         disabled={!canSubmit}
