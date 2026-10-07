@@ -52,6 +52,8 @@ test('preview, filter, habitat details, progress, resume and careful summary (US
   await expect(legend.getByText('Water edge')).toBeVisible()
   await expect(legend.getByText('Open grassland or shrubland')).toBeVisible()
   await expect(legend.getByText(/probability|score|rank/i)).toHaveCount(0)
+  // AC 7.3.2: no probability, score, ranking or high-priority wording anywhere on the page.
+  expect(await page.locator('main').innerText()).not.toMatch(/probabilit|\bscore|\brank|high[- ]priority|likely search/i)
 
   // AC 7.2.3: one plant narrows the habitats; Clear filter restores them.
   await page.getByRole('button', { name: 'Water hyacinth', exact: true }).click()

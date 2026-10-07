@@ -5,7 +5,7 @@ import { Icon } from '@/components/Icon'
 import { api, ApiError } from '@/services/api-client'
 import { eventsApi } from '@/services/api/events'
 import { EventState } from './EventCard'
-import { formatEventDay, formatEventTime } from './event-format'
+import { formatEventDay, formatEventTime, formatEventWindow } from './event-format'
 import './events.css'
 
 /**
@@ -42,7 +42,7 @@ export function EventSummaryPage() {
       <header className="event-detail__header">
         <span className="event-community">Community survey activity</span>
         <h2>What this event recorded</h2>
-        <p className="event-detail__host">{item.placeName} · {formatEventDay(item.startAt)}, {formatEventTime(item.startAt)}–{formatEventTime(item.endAt)}</p>
+        <p className="event-detail__host">{item.placeName} · {formatEventWindow(item.startAt, item.endAt)}</p>
       </header>
 
       <dl className="event-stats">

@@ -11,7 +11,7 @@ import { Link, useParams } from 'react-router-dom'
 import { BackLink } from '@/components/BackLink'
 import { useOnline } from '@/hooks/useOnline'
 import { api } from '@/services/api-client'
-import type { PlaceDetail, PlacePlantAssociationsResponse } from '@/types'
+import type { AdoptedAreaListResponse, PlaceDetail, PlacePlantAssociationsResponse } from '@/types'
 import { PlaceGeometryMap } from './PlaceGeometryMap'
 import { MissionEntryCard } from '@/features/guided-missions/MissionEntryCard'
 import './places.css'
@@ -37,6 +37,13 @@ export function PlaceDetailPage() {
     ),
     onSuccess: () => queryClient.invalidateQueries({ queryKey: ['adopted-areas'] }),
   })
+  // Show an existing adoption on return visits, not only right after the tap.
+  const adoptions = useQuery({
+    queryKey: ['adopted-areas', 'recent_activity'],
+    queryFn: () => api<AdoptedAreaListResponse>('/api/v1/adopted-areas?sort=recent_activity'),
+    enabled: online,
+  })
+  const adopted = adopt.isSuccess || Boolean(adoptions.data?.items.some((item) => item.placeId === placeId))
 
   if (!online) return (
     <div className="places-state" role="status">
@@ -63,9 +70,9 @@ export function PlaceDetailPage() {
               adopt.mutate()
             }
           }}
-          disabled={adopt.isPending || adopt.isSuccess}
+          disabled={adopt.isPending || adopted}
         >
-          {adopt.isSuccess ? 'Adopted for monitoring' : adopt.isPending ? 'Adding…' : 'Adopt for monitoring'}
+          {adopted ? 'Adopted for monitoring' : adopt.isPending ? 'Adding…' : 'Adopt for monitoring'}
         </button>
       </header>
       <p className="place-detail__notice">

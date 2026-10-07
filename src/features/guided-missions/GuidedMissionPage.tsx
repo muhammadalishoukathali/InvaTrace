@@ -258,7 +258,10 @@ export function GuidedMissionPage() {
     // A plant with a submitted sighting is never also a no-find outcome.
     noFind: active.plants.filter((plant) => plant.state === 'looked_for' && plant.noTargetFound && !reportsBySpecies.has(plant.speciesId)).length,
   } : null
-  const guidedPlants = watchlist.filter((plant) => plant.habitats.length)
+  // Offer only plants that have compatible habitat in this place, so picking
+  // one never leaves the map empty.
+  const guidedPlants = watchlist.filter((plant) => plant.habitats.length
+    && lookup.data && entry && compatibleHabitats([plant.speciesId], lookup.data, entry.available_habitats).size > 0)
 
   return (
     <section className="mission-page">
