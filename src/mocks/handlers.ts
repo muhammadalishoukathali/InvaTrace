@@ -2179,7 +2179,7 @@ const SPECIES_DETAIL: Record<string, unknown> = {
     statusReviewedAt: '2026-07-15',
     statusSourceId: 'MYBIS-IAS-2024.1',
     referenceImageUrl: '/reference-images/mikania_micrantha.jpg',
-    referenceImageCredit: 'Wikimedia · CC BY-SA',
+    referenceImageCredit: 'Wikimedia · Vengolis · CC BY-SA 3.0',
     traits: [
       { label: 'Leaf shape', value: 'Heart-shaped, opposite, 5-13 cm' },
       { label: 'Flower', value: 'Small white heads in dense clusters' },
