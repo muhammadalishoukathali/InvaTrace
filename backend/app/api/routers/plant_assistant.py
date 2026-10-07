@@ -137,7 +137,7 @@ async def ask(
     def insufficient() -> AskResponse:
         return AskResponse(
             status="insufficient_evidence",
-            answer="The approved information is not sufficient to answer this specific question. I cannot verify that claim or grant permission. You can ask about appearance, habitat, impact or safe observation.",
+            answer="The approved sources for this plant do not answer that question. Try asking what it looks like, where it grows, what its impacts are or how to respond safely.",
             sources=stored_sources(candidates),
             covered_topics=covered,
         )
