@@ -145,9 +145,10 @@ export function AdoptedAreaActivityPage() {
   return (
     <section className="activity-page">
       <div className="activity-page__summary">
-        <BackLink to="/adopted-areas">Back to monitoring areas</BackLink>
+        <BackLink to="/adopted-areas">Back to my adopted areas</BackLink>
         <h2>{query.data?.name ?? 'Community activity'}</h2>
         <p>Community monitoring activity · geometry v{query.data?.geometryVersion ?? '—'}</p>
+        {query.data?.disclaimer && <p className="activity-page__disclaimer">{query.data.disclaimer}</p>}
         <div className="activity-filters" aria-label="Activity filters">
           <label>Plant
             <select value={params.get('species_id') ?? ''} onChange={(event) => setFilter('species_id', event.target.value)}>

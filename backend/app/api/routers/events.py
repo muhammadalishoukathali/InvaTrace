@@ -11,6 +11,7 @@ from datetime import UTC, datetime, timedelta
 from typing import Literal
 from urllib.parse import urlsplit
 
+import structlog
 from fastapi import APIRouter, Depends, Query, Request
 from pydantic import Field, field_validator, model_validator
 from sqlalchemy import cast, func, or_, select
@@ -36,6 +37,7 @@ from app.db.models import (
 )
 from app.services.events import assert_event_geometry_current, event_place, point_within_event_place
 
+log = structlog.get_logger("invatrace.events")
 router = APIRouter(prefix="/api/v1/events", tags=["events"])
 places_router = APIRouter(prefix="/api/v1/places", tags=["events"])
 EVENT_TYPES = {"survey", "removal", "monitoring", "other"}
@@ -432,13 +434,14 @@ def patch_event(
         changes.get("permission_context", event.permission_context),
         changes.get("safety_notes", event.safety_notes),
     )
+    previous_place_id = event.place_id
     nullable = {"meeting_note", "safety_notes", "chat_link", "capacity"}
     for name, value in changes.items():
         if name not in {"restore", "status"}:
             if value is None and name not in nullable:
                 continue
             setattr(event, name, value)
-    if changes.get("place_id") is not None:
+    if changes.get("place_id") is not None and changes["place_id"] != previous_place_id:
         place, place_type, version = _write_place(session, event.place_id)
         event.place_type = place_type
         event.geometry_version = version
@@ -470,6 +473,11 @@ def patch_event(
                 422, "event_already_ended", "Set an end time in the future before publishing."
             )
         _host_cap(session, auth.profile.id, excluding=event.id)
+        # AC 9.6.5: a published event always carries safety notes.
+        if not (event.safety_notes or "").strip():
+            raise ApiProblem(
+                422, "safety_notes_required", "Add safety notes before publishing the event."
+            )
         place, place_type, version = _write_place(session, event.place_id)
         if not point_within_event_place(
             session, place, place_type, event.meeting_latitude, event.meeting_longitude
@@ -575,7 +583,15 @@ def list_events(
         if species_filters:
             statement = statement.where(or_(*species_filters))
     rows = session.scalars(statement.order_by(Event.start_at, Event.id)).all()
-    return {"items": [_serialize(session, e) for e in rows]}
+    items = []
+    for row in rows:
+        try:
+            items.append(_serialize(session, row))
+        except ApiProblem:
+            # A place withdrawn after publishing must not take down discovery
+            # for every other event; leave that one event out.
+            log.warning("events.list_skipped_unavailable_place", event_id=str(row.id))
+    return {"items": items}
 
 
 @places_router.get("/{place_id}/events")

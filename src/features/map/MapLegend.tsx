@@ -68,6 +68,7 @@ export function MapLegend() {
             <Row colour="#C2412D" label="Hotspot (5+ reports)" />
             <Row colour="#D9880F" label="Spreading (2-4 reports)" />
             <Row colour="#2E7D3F" label="Isolated (1 report)" />
+            <Row colour="#66736D" label="Removal reported · Follow-up needed" muted />
             <Row colour="#8B978F" label="Removed" muted />
             <div className="map-legend-card__divider" role="separator" aria-hidden />
             <span className="map-legend-card__subtitle">Mapped places</span>

@@ -92,7 +92,7 @@ export function PrivateAccessLandingPage() {
             ))}
           </ol>
           <p className="access-trail__note">
-            Your public profile ID is not a secret. Recovery codes are secret and each one works only once.
+            Your public profile ID is not a secret. Your recovery code is secret: anyone who has it can restore this profile.
           </p>
         </section>
       </div>

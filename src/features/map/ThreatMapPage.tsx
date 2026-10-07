@@ -36,6 +36,7 @@ import { useMapView as useMapStore } from '@/features/map/map-view-store'
 import type { PlaceMapFeature, PlaceMapProperties, PlaceMapResponse, Sighting } from '@/types'
 import { SightingDetailsSheet } from './SightingDetailsSheet'
 import { MapLegend } from './MapLegend'
+import { MAP_FILTER_SPECIES } from './MapFilters'
 import { Icon } from '@/components/Icon'
 import { parseMapLocationTarget, type MapLocationTarget } from './map-location-link'
 import { PLACE_ICONS, PLACE_TYPES, PUBLIC_PLACE_TYPES, formatPlaceType, loadSvgImage } from './place-icons'
@@ -1053,6 +1054,7 @@ function ReportsSheet({
               <button type="button" onClick={onRetry}>Try again</button>
             </p>
           )}
+          <ReportFilters />
           {!isLoading && !isError && (
             <>
               <p className="map-reports-sheet__count">
@@ -1086,6 +1088,45 @@ function ReportsSheet({
         </div>
       </aside>
     </>
+  )
+}
+
+/** The public map's filters (AC 4.2.3, 4.6.3, 4.8.4): one plant, removed
+ *  sightings awaiting follow-up, and resolved sightings. They drive the pins,
+ *  this list and the live count on the reports button together. */
+function ReportFilters() {
+  const {
+    species, followUpNeeded, resolvedSightings, statuses, risks, search,
+    toggleSpecies, toggleFollowUpNeeded, toggleResolvedSightings, clearFilters,
+  } = useMapStore()
+  const selected = species[0] ?? ''
+  const active = species.length + statuses.length + risks.length + (search.trim() ? 1 : 0)
+    + Number(followUpNeeded) + Number(resolvedSightings)
+  return (
+    <div className="map-report-filters" role="group" aria-label="Report filters">
+      <label className="map-report-filters__species">
+        <span>Plant</span>
+        <select
+          value={selected}
+          onChange={(event) => {
+            species.forEach((id) => toggleSpecies(id))
+            if (event.target.value) toggleSpecies(event.target.value)
+          }}
+        >
+          <option value="">All plants</option>
+          {MAP_FILTER_SPECIES.map((item) => <option key={item.id} value={item.id}>{item.label}</option>)}
+        </select>
+      </label>
+      <div className="map-report-filters__chips">
+        <button type="button" aria-pressed={followUpNeeded} onClick={toggleFollowUpNeeded}>
+          <span aria-hidden className="map-report-filters__dot" style={{ background: '#66736D' }} />Follow-up needed
+        </button>
+        <button type="button" aria-pressed={resolvedSightings} onClick={toggleResolvedSightings}>
+          <span aria-hidden className="map-report-filters__dot" style={{ background: '#65736C', opacity: 0.55 }} />Resolved sightings
+        </button>
+        {active > 0 && <button type="button" className="map-report-filters__clear" onClick={clearFilters}>Clear filters</button>}
+      </div>
+    </div>
   )
 }
 

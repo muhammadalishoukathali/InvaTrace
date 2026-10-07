@@ -1014,6 +1014,22 @@
   padding: 10px 14px 14px;
 }
 .map-reports-sheet__count { color: var(--muted); font-size: 12px; margin-bottom: 8px; }
+.map-report-filters { display: grid; gap: 8px; margin-bottom: 12px; }
+.map-report-filters__species { display: grid; gap: 4px; color: var(--muted); font-size: 12px; font-weight: 600; }
+.map-report-filters__species select {
+  min-height: 44px; padding: 0 10px; border: 1px solid var(--control-border);
+  border-radius: var(--r-input); background: var(--surface); color: var(--body); font: inherit; font-size: 14px;
+}
+.map-report-filters__chips { display: flex; flex-wrap: wrap; gap: 6px; }
+.map-report-filters__chips button {
+  min-height: 44px; display: inline-flex; align-items: center; gap: 6px; padding: 0 12px;
+  border: 1px solid var(--control-border); border-radius: 999px; background: var(--surface);
+  color: var(--body); font: inherit; font-size: 13px; cursor: pointer;
+}
+.map-report-filters__chips button[aria-pressed='true'] { border-color: var(--green); background: var(--green-light); color: var(--green-dark); font-weight: 600; }
+.map-report-filters__chips .map-report-filters__clear { border-color: transparent; background: transparent; color: var(--muted); }
+.map-report-filters__dot { width: 9px; height: 9px; border-radius: 50%; flex-shrink: 0; }
+.map-report-filters :focus-visible { outline: 2px solid var(--green); outline-offset: 2px; }
 .map-reports-sheet__list { list-style: none; display: flex; flex-direction: column; gap: 6px; }
 .map-reports-sheet__item {
   width: 100%;

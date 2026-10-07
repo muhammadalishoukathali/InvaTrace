@@ -52,6 +52,9 @@ export function PlantAssistantPanel({ result }: { result: IdentifyResult }) {
   const [question, setQuestion] = useState('')
   const [response, setResponse] = useState<AssistantResponse | null>(null)
   const [responseQuestion, setResponseQuestion] = useState('')
+  // Set when a level change returned the same approved wording as before.
+  const [unchangedDepth, setUnchangedDepth] = useState<Depth | null>(null)
+  const lastAnswers = useRef(new Map<string, string>())
   const [pending, setPending] = useState(false)
   const [repeat, setRepeat] = useState<string | null>(null)
   const [error, setError] = useState<string | null>(null)
@@ -90,6 +93,9 @@ export function PlantAssistantPanel({ result }: { result: IdentifyResult }) {
         }),
       })
       if (attempt.signal.aborted) return
+      const key = trimmed.toLowerCase()
+      setUnchangedDepth(depth !== 'standard' && lastAnswers.current.get(key) === next.answer ? depth : null)
+      lastAnswers.current.set(key, next.answer)
       setResponse(next)
       setResponseQuestion(trimmed)
       if (next.answerability === 'answerable') answered.current.add(trimmed.toLowerCase())
@@ -147,7 +153,12 @@ export function PlantAssistantPanel({ result }: { result: IdentifyResult }) {
           <div aria-live="polite">
           {response && !pending && !repeat && <div className="plant-assistant__response">
             <h3>{response.status === 'fallback' ? 'Source information' : response.status === 'answer' ? 'Answer' : 'Evidence is insufficient'}</h3>
-            {response.status === 'fallback' && <p className="plant-assistant__notice">Here is the relevant approved source information.</p>}
+            {response.status === 'fallback' && <p className="plant-assistant__notice">Your scan matched <em>{species!.scientific_name}</em>. Here is what the approved sources say about it.</p>}
+            {unchangedDepth && <p className="plant-assistant__notice" role="status">
+              {unchangedDepth === 'simpler'
+                ? 'This is already the shortest approved wording for this answer.'
+                : 'The approved sources have no further detail for this answer.'}
+            </p>}
             <p className="plant-assistant__answer">{response.answer}</p>
             {response.status === 'insufficient_evidence' && topicLabels.length > 0 &&
               <p className="plant-assistant__coverage">Available information for this species: {topicLabels.join(', ')}.</p>}

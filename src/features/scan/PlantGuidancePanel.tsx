@@ -943,7 +943,7 @@ function ActionPathBlock({
 function SpreadPreventionBlock({ items }: { items: SourcedItem[] }) {
   if (items.length === 0) {
     return (
-      <DetailsBlock title="Spread prevention" icon="ShieldCheck">
+      <DetailsBlock title="Prevent accidental spread" icon="ShieldCheck">
         <p style={{ fontSize: 13, color: 'var(--body)', lineHeight: 1.6 }}>
           Do not disturb; report the sighting instead.
         </p>
@@ -951,7 +951,7 @@ function SpreadPreventionBlock({ items }: { items: SourcedItem[] }) {
     )
   }
   return (
-    <DetailsBlock title="Spread prevention" icon="ShieldCheck">
+    <DetailsBlock title="Prevent accidental spread" icon="ShieldCheck">
       <SourcedList items={items} />
     </DetailsBlock>
   )

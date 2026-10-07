@@ -37,7 +37,7 @@
   position: relative;
   isolation: isolate;
   display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr)) 60px repeat(3, minmax(44px, 1fr));
+  grid-template-columns: repeat(2, minmax(0, 1fr)) 64px repeat(2, minmax(0, 1fr));
   align-items: center;
   height: 72px;
   padding: 6px 4px;
@@ -215,7 +215,7 @@
 @media (max-width: 350px) {
   .bottom-tabs-shell { width: calc(100vw - 16px); }
   .bottom-tabs {
-    grid-template-columns: repeat(2, minmax(44px, 1fr)) 56px repeat(3, minmax(44px, 1fr));
+    grid-template-columns: repeat(2, minmax(44px, 1fr)) 56px repeat(2, minmax(44px, 1fr));
     padding-inline: 4px;
   }
   .bottom-tabs .bottom-tabs__scan { width: 56px; min-width: 56px; }

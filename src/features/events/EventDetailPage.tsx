@@ -14,7 +14,7 @@ import { EventSafetyNotice } from './EventSafetyNotice'
 import { ReportEventModal } from './ReportEventModal'
 import { eventContextStore } from './event-context'
 import {
-  formatEventDay, formatEventTime, hostLabel, placeTypeLabels, targetSpeciesNames,
+  formatEventDay, formatEventDays, formatEventTime, hostLabel, placeTypeLabels, targetSpeciesNames,
 } from './event-format'
 import './events.css'
 
@@ -112,7 +112,7 @@ export function EventDetailPage() {
 
         <aside className="event-action-card" aria-label="Attend this event">
           <dl className="event-when">
-            <div><dt>Date</dt><dd>{formatEventDay(item.startAt)}</dd></div>
+            <div><dt>Date</dt><dd>{formatEventDays(item.startAt, item.endAt)}</dd></div>
             <div><dt>Time</dt><dd>{formatEventTime(item.startAt)} – {formatEventTime(item.endAt)} <span className="event-muted">your local time</span></dd></div>
             <div><dt>Going</dt><dd>{item.joinedCount ?? 0} joined</dd></div>
           </dl>

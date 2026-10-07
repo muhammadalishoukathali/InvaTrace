@@ -144,7 +144,14 @@ def _member_rows(session: Session, adoption: AdoptedArea) -> list[tuple]:
             cast(Sighting.location, Geometry("POINT", srid=4326)),
         )
     return session.execute(
-        select(Sighting, Species, func.max(SightingStatusEvent.created_at))
+        select(
+            Sighting,
+            Species,
+            # Date of the removal report itself, not of a later follow-up event.
+            func.max(SightingStatusEvent.created_at).filter(
+                SightingStatusEvent.event_type == "removal_reported"
+            ),
+        )
         .join(Species, Species.id == Sighting.species_id)
         .outerjoin(SightingStatusEvent, SightingStatusEvent.sighting_id == Sighting.id)
         .where(condition, Sighting.status.in_({"screened", "removal_reported"}))
@@ -249,7 +256,12 @@ def list_adopted_areas(
         select(AdoptedArea).where(AdoptedArea.profile_id == auth.profile.id)
     ).all()
     for adoption in adoptions:
-        place, place_type = _place(session, adoption.place_id)
+        try:
+            place, place_type = _place(session, adoption.place_id)
+        except ApiProblem:
+            # A place withdrawn from the mapped dataset must not hide every
+            # other adopted area; skip the orphaned bookmark.
+            continue
         metrics, most_recent = _metrics(_member_rows(session, adoption), now)
         cards.append(
             AdoptedAreaCard(
@@ -312,7 +324,7 @@ def _concentrations(
         first = remaining.pop(0)
         group = [first]
         for candidate in list(remaining):
-            # AC 6.3.5 says the reports must be within 250 m of one another.
+            # AC 6.3.4 says the reports must be within 250 m of one another.
             # Requiring every pair to satisfy the radius prevents a single-link
             # A-B-C chain from overstating a geographically dispersed group.
             if all(_haversine(member, candidate) <= 250 for member in group):

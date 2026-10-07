@@ -21,6 +21,14 @@ export function formatEventWindow(startAt: string, endAt: string) {
     : `${dayFormat.format(start)} ${timeFormat.format(start)} – ${dayFormat.format(end)} ${timeFormat.format(end)}`
 }
 
+/** Start date, plus the end date when the event runs past midnight. */
+export function formatEventDays(startAt: string, endAt: string) {
+  const start = new Date(startAt)
+  const end = new Date(endAt)
+  if (Number.isNaN(start.getTime()) || Number.isNaN(end.getTime()) || sameDay(start, end)) return formatEventDay(startAt)
+  return `${formatEventDay(startAt)} – ${formatEventDay(endAt)}`
+}
+
 export function formatEventDay(value: string) {
   const date = new Date(value)
   return Number.isNaN(date.getTime()) ? 'Date unavailable' : longDayFormat.format(date)

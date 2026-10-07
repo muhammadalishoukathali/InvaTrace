@@ -142,7 +142,9 @@ export function HostEventPage() {
       if (draft.eventType === 'removal' && draft.permissionContext !== 'explicit_permission') {
         next.permissionContext = 'A removal event needs confirmed permission from the land manager before it can be published.'
       }
-      if (draft.permissionContext === 'explicit_permission' && !draft.safetyNotes?.trim()) {
+      // The pre-filled default notes are generic advice, not a stated basis.
+      if (draft.permissionContext === 'explicit_permission'
+        && (!draft.safetyNotes?.trim() || draft.safetyNotes.trim() === DEFAULT_SAFETY_NOTES)) {
         next.safetyNotes = 'State who gave permission and any conditions in the safety notes.'
       }
     }

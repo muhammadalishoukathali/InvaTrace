@@ -36,6 +36,10 @@ test('host form prevents blank, invalid time, permission and http chat submissio
   await expect(page.getByText('Enter a start time and an end time after it.')).toBeVisible()
   await expect(page.getByText('A removal event needs confirmed permission from the land manager before it can be published.')).toBeVisible()
   await page.getByLabel('Ends', { exact: true }).fill('2030-01-01T12:00'); await page.getByRole('radio', { name: /Confirmed/ }).check(); await page.getByRole('button', { name: 'Continue' }).click()
+  // AC 9.6.5: the pre-filled generic notes are not a stated permission basis.
+  await expect(page.getByText('State who gave permission and any conditions in the safety notes.')).toBeVisible()
+  await page.getByRole('textbox', { name: 'Safety notes' }).fill('Permission from the park office (email, 1 Dec). Gloves provided; stay on marked paths.')
+  await page.getByRole('button', { name: 'Continue' }).click()
   await page.getByLabel('Group chat link (optional)').fill('http://chat.example'); await page.getByRole('button', { name: 'Publish event' }).click()
   await expect(page.getByText('Enter a valid https:// link without a username or password.')).toBeVisible(); expect(creates).toBe(0)
 })

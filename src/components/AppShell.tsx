@@ -16,7 +16,7 @@ const TITLES: Record<string, [string, string]> = {
   '/profile': ['My profile', 'Identity, recovery and device access'],
   '/reports': ['My records', 'Your submitted field reports'],
   '/catalogue': ['Plant catalogue', '32 evidence-reviewed invasive plants'],
-  '/adopted-areas': ['Monitoring areas', 'Your non-exclusive monitoring bookmarks'],
+  '/adopted-areas': ['My adopted areas', 'Your non-exclusive monitoring bookmarks'],
   '/places': ['Browse places', 'Mapped parks, forests and woodlands'],
   '/events': ['Community events', 'Surveys, safe removals and repeat monitoring'],
 }

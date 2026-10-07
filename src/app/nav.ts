@@ -24,7 +24,7 @@ export const NAV: NavItem[] = [
   { id: 'places', path: '/places', label: 'Places', full: 'Browse places', icon: 'Trees', iteration: 2 },
   { id: 'catalogue', path: '/catalogue', label: 'Plants', full: 'Plant catalogue', icon: 'BookOpen', iteration: 2 },
   { id: 'reports',  path: '/reports',  label: 'Records',  full: 'My records',   icon: 'ClipboardList', iteration: 1 },
-  { id: 'areas', path: '/adopted-areas', label: 'Areas', full: 'Monitoring areas', icon: 'Map', iteration: 2 },
+  { id: 'areas', path: '/adopted-areas', label: 'Areas', full: 'My adopted areas', icon: 'Map', iteration: 2 },
   { id: 'events', path: '/events', label: 'Events', full: 'Community events', icon: 'CalendarDays', iteration: 3 },
 ]
 
