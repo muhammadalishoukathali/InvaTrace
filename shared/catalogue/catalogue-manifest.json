@@ -5,7 +5,7 @@
   "content_version": "2.2.0",
   "model_version": "invatrace-student33-tinyvit5m-320-fp16",
   "last_reviewed": "2026-09-13",
-  "generated_at": "2026-09-15T05:36:09.687Z",
+  "generated_at": "2026-10-07T17:09:16.058Z",
   "assets": [
     {
       "species_id": "acacia-auriculiformis",
@@ -265,17 +265,17 @@
     {
       "species_id": "mikania-micrantha",
       "url": "/reference-images/mikania_micrantha.jpg",
-      "sha256": "4cf0c92bd9227faa8454812a1e22dde50d449b311d433b1ab6f60b61e54c4939",
-      "byte_length": 350027,
+      "sha256": "b8b11fd45281854c8688bf1a6eda2f9ac24bb243c1dcbf23b741b020e66ab402",
+      "byte_length": 319040,
       "review_status": "approved",
       "creator": "Vengolis",
-      "licence": "CC BY 4.0",
-      "licence_url": "https://creativecommons.org/licenses/by/4.0",
-      "source_title": "File:Mikania micrantha 129.jpg",
-      "source_url_or_identifier": "https://commons.wikimedia.org/wiki/File:Mikania_micrantha_129.jpg",
-      "retrieved_at": "2026-09-13",
-      "reviewed_at": "2026-09-13",
-      "attribution_text": "Vengolis — File:Mikania micrantha 129.jpg — CC BY 4.0 — via Wikimedia Commons; resized for offline use."
+      "licence": "CC BY-SA 3.0",
+      "licence_url": "https://creativecommons.org/licenses/by-sa/3.0",
+      "source_title": "File:Mikania micrantha C2.jpg",
+      "source_url_or_identifier": "https://commons.wikimedia.org/wiki/File:Mikania_micrantha_C2.jpg",
+      "retrieved_at": "2026-10-08",
+      "reviewed_at": "2026-10-08",
+      "attribution_text": "Vengolis — File:Mikania micrantha C2.jpg — CC BY-SA 3.0 — via Wikimedia Commons; resized for offline use."
     },
     {
       "species_id": "mimosa-diplotricha",
@@ -508,8 +508,8 @@
       "record_count": 28
     },
     "reference-images.json": {
-      "sha256": "33af5da859422d1ebc3cd70106e0b537d1c49260eef1264b3f0c6149a7b6aea9",
-      "byte_length": 31624,
+      "sha256": "4bf587ac357f81e2cfe73e1742a63d6278e116524091319565c26ddfb1f64004",
+      "byte_length": 31643,
       "schema_version": "invatrace.catalogue.reference-images.v1",
       "record_count": 32
     },
