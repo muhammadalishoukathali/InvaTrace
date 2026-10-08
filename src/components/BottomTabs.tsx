@@ -9,14 +9,14 @@ import './bottom-tabs.css'
 export function BottomTabs({ role }: { role: Role }) {
   const location = useLocation()
   const items = visibleNav(role)
-  // Two destinations either side of Scan keeps the bar symmetric. Places lives
-  // in the map controls cluster, and adopted areas are reached from the
-  // profile and Places pages; both stay in the desktop sidebar.
-  const permanentItems = items.filter((item) => item.id !== 'places' && item.id !== 'areas')
+  // Three destinations either side of Scan keeps the bar symmetric: exploring
+  // (Map, Places, Plants) on the left, the user's own records, adopted areas
+  // and events on the right. Order comes from NAV, shared with the sidebar.
+  const half = Math.ceil(items.length / 2)
   return (
     <div className="bottom-tabs-shell">
       <nav aria-label="Primary" className="bottom-tabs">
-        {permanentItems.slice(0, 2).map((item) => (
+        {items.slice(0, half).map((item) => (
           <NavLink key={item.id} to={item.path} className={({ isActive }) => `bottom-tab${isActive ? ' bottom-tab--active' : ''}`}>
             <span className="bottom-tab__icon"><Icon name={item.icon} size={20} color="currentColor" /></span>
             <span className="bottom-tab__label">{item.label}</span>
@@ -33,7 +33,7 @@ export function BottomTabs({ role }: { role: Role }) {
           </span>
           <span>Scan</span>
         </NavLink>
-        {permanentItems.slice(2).map((item) => (
+        {items.slice(half).map((item) => (
           <NavLink key={item.id} to={item.path} className={({ isActive }) => `bottom-tab${isActive ? ' bottom-tab--active' : ''}`}>
             <span className="bottom-tab__icon"><Icon name={item.icon} size={20} color="currentColor" /></span>
             <span className="bottom-tab__label">{item.label}</span>
