@@ -22,12 +22,15 @@ import {
   type ApprovedSpeciesDataset,
 } from '@shared/catalogue'
 import {
+  catalogueManifestRevised,
+  cataloguePackRevision,
   cataloguePackSize,
   downloadCataloguePack,
   fetchLatestCatalogueManifest,
   formatPackSize,
   installedCataloguePack,
   loadInstalledCatalogueData,
+  packAssetUrl,
   removeCataloguePack,
   type InstalledCataloguePack,
 } from './offline-catalogue'
@@ -59,6 +62,15 @@ export function CataloguePage() {
   const availableManifest = serverManifest ?? catalogueManifest
   const latestVersion = availableManifest.catalogue_version
   const updateAvailable = Boolean(installed && isNewerVersion(latestVersion, installed.version))
+  // Same version, different bytes: a file or photo was replaced in place.
+  const revisionAvailable = !updateAvailable
+    && cataloguePackRevision(installed, availableManifest).revised
+  // Images the network serves newer than the pack's copy. Measured against the
+  // bundled manifest because that is what this build's versioned URLs point at.
+  const staleAssetUrls = useMemo(
+    () => new Set(cataloguePackRevision(installed, catalogueManifest).staleAssetUrls),
+    [installed],
+  )
   const records = useMemo(() => dataset.records.filter((record) => (
     !normalized
     || record.scientific_name.toLowerCase().includes(normalized)
@@ -161,11 +173,22 @@ export function CataloguePage() {
                     : ''}
                 </span>
               )}
+              {revisionAvailable && (
+                <span>
+                  Some catalogue content in v{installed.version} has been revised since you
+                  downloaded it.
+                  {catalogueManifestRevised(catalogueManifest, availableManifest)
+                    ? ' Refresh the app before downloading it again.'
+                    : ' Download it again to get the latest copy.'}
+                </span>
+              )}
               <button type="button" onClick={() => void remove()} disabled={packState === 'working'}>
                 Remove offline catalogue
               </button>
               <button type="button" onClick={() => void download()} disabled={packState === 'working'}>
-                {updateAvailable ? 'Update offline catalogue' : 'Download again'}
+                {updateAvailable
+                  ? 'Update offline catalogue'
+                  : revisionAvailable ? 'Refresh offline catalogue' : 'Download again'}
               </button>
             </div>
           ) : (
@@ -219,7 +242,7 @@ export function CataloguePage() {
                 <Link to={`/catalogue/${record.species_id}`}>
                   <span className="catalogue-list__image">
                     {imageUrl ? (
-                      <img src={assetUrls[imageUrl] ?? referenceImageSrc(imageUrl)} alt="" loading="lazy" />
+                      <img src={packAssetUrl(assetUrls, imageUrl, staleAssetUrls, online) ?? referenceImageSrc(imageUrl)} alt="" loading="lazy" />
                     ) : <Icon name="Leaf" size={24} color="var(--green)" />}
                   </span>
                   <span className="catalogue-list__names">
