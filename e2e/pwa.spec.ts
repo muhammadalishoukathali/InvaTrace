@@ -38,7 +38,7 @@ async function updatedCataloguePack(version: string) {
 // session details into a later visit on the same device.
 test('production shell installs, works offline, and does not cache private access requests', async ({ page, context }) => {
   await page.goto('/')
-  await expect(page.getByRole('heading', { name: 'Field reporting without a personal account.' })).toBeVisible()
+  await expect(page.getByRole('heading', { level: 1, name: /Spot invasive plants/ })).toBeVisible()
 
   const manifest = await page.locator('link[rel="manifest"]').getAttribute('href')
   expect(manifest).toBeTruthy()
@@ -66,7 +66,7 @@ test('production shell installs, works offline, and does not cache private acces
 
   await context.setOffline(true)
   await page.reload()
-  await expect(page.getByRole('heading', { name: 'Field reporting without a personal account.' })).toBeVisible()
+  await expect(page.getByRole('heading', { level: 1, name: /Spot invasive plants/ })).toBeVisible()
 })
 
 test('offline catalogue uses a verified cache and keeps it when a replacement fails', async ({ page }) => {
