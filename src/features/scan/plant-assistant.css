@@ -7,7 +7,9 @@
   overflow-wrap: anywhere;
 }
 .plant-assistant h2 { font-size: 20px; color: var(--ink); margin: 0; }
-.plant-assistant h3 { font-size: 16px; color: var(--ink); margin: 24px 0 8px; }
+.plant-assistant h3 { font-size: 16px; color: var(--ink); margin: 20px 0 6px; }
+.plant-assistant h3:focus { outline: none; }
+.plant-assistant h3:focus-visible { outline: 2px solid var(--green); outline-offset: 3px; }
 .plant-assistant p { margin: 12px 0; }
 .plant-assistant__heading { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
 .plant-assistant button {
@@ -28,12 +30,33 @@
 }
 .plant-assistant button.plant-assistant__primary { background: var(--green); color: var(--on-accent); border-color: var(--green); font-weight: 600; }
 .plant-assistant button.plant-assistant__primary:hover:not(:disabled) { background: var(--green-dark); }
-.plant-assistant__privacy, .plant-assistant__notice { font-size: 14px; }
+.plant-assistant__intro { font-size: 15px; }
+.plant-assistant__hint, .plant-assistant__notice { margin: 0; font-size: 13px; color: var(--muted); line-height: 1.5; }
+.plant-assistant__notice { margin-block: 8px; }
+.plant-assistant button.plant-assistant__close { min-height: 36px; padding: 6px 12px; font-size: 14px; border-color: var(--border); }
 .plant-assistant__suggestions, .plant-assistant__choices { display: flex; flex-wrap: wrap; gap: 8px; margin-block: 16px; }
 .plant-assistant__suggestions button { font-size: 14px; border-radius: 999px; padding-inline: 16px; }
 .plant-assistant__choices { flex-wrap: nowrap; }
 .plant-assistant__choices button { flex: 1 1 0; text-align: center; padding-inline: 8px; }
-.plant-assistant form { display: grid; gap: 10px; margin-block: 20px; }
+.plant-assistant__levels {
+  display: flex; margin-block: 16px; padding: 3px; gap: 3px;
+  border: 1px solid var(--border); border-radius: var(--r-button); background: var(--bg-alt);
+}
+.plant-assistant .plant-assistant__levels button {
+  flex: 1 1 0; min-height: 38px; padding: 6px 8px; border-color: transparent; border-radius: 7px;
+  background: transparent; text-align: center; font-size: 14px;
+}
+.plant-assistant .plant-assistant__levels button[aria-pressed='true'] {
+  background: var(--surface); color: var(--ink); font-weight: 600; border-color: var(--border);
+  box-shadow: 0 1px 2px rgb(25 42 35 / 10%);
+}
+.plant-assistant__asked {
+  margin: 20px 0 0; padding-left: 12px; border-left: 3px solid var(--green-border);
+  color: var(--ink); font-weight: 600;
+}
+.plant-assistant__response { padding-bottom: 4px; scroll-margin-top: 8px; }
+.plant-assistant form { display: grid; gap: 8px; margin-block: 20px; }
+.plant-assistant form button.plant-assistant__primary { text-align: center; margin-top: 4px; }
 .plant-assistant label { color: var(--ink); font-weight: 600; }
 .plant-assistant textarea {
   width: 100%; min-width: 0; resize: vertical; box-sizing: border-box;
@@ -44,8 +67,8 @@
 .plant-assistant ul { padding-left: 20px; }
 .plant-assistant li { margin-block: 8px; }
 .plant-assistant a { color: var(--green-dark); text-decoration: underline; text-underline-offset: 3px; }
-.plant-assistant__safety { padding-top: 16px; border-top: 1px solid var(--border); font-size: 14px; }
-.plant-assistant__repeat { padding-block: 12px; }
+.plant-assistant__safety { margin-top: 16px; padding-top: 12px; border-top: 1px solid var(--border); font-size: 13px; color: var(--muted); }
+.plant-assistant__repeat { margin-block: 12px; padding: 4px 14px; border-radius: var(--r-input); background: var(--green-light); }
 @media (max-width: 340px) {
-  .plant-assistant__choices { flex-wrap: wrap; }
+  .plant-assistant__choices, .plant-assistant__levels { flex-wrap: wrap; }
 }

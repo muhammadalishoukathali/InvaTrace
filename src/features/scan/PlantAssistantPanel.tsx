@@ -21,6 +21,11 @@ const TOPIC_LABELS: Record<string, string> = {
 }
 
 type Depth = 'standard' | 'simpler' | 'detailed'
+const DEPTHS: Array<{ depth: Depth; label: string; ariaLabel?: string }> = [
+  { depth: 'simpler', label: 'Simpler', ariaLabel: 'Simpler explanation' },
+  { depth: 'standard', label: 'Standard', ariaLabel: 'Standard explanation' },
+  { depth: 'detailed', label: 'More detail' },
+]
 const SPREAD_QUESTION = 'How does it spread?'
 const SUGGESTIONS = [
   'What does this plant look like?',
@@ -52,6 +57,7 @@ export function PlantAssistantPanel({ result }: { result: IdentifyResult }) {
   const [question, setQuestion] = useState('')
   const [response, setResponse] = useState<AssistantResponse | null>(null)
   const [responseQuestion, setResponseQuestion] = useState('')
+  const [responseDepth, setResponseDepth] = useState<Depth>('standard')
   // Set when a level change returned the same approved wording as before.
   const [unchangedDepth, setUnchangedDepth] = useState<Depth | null>(null)
   const lastAnswers = useRef(new Map<string, string>())
@@ -61,16 +67,28 @@ export function PlantAssistantPanel({ result }: { result: IdentifyResult }) {
   const answered = useRef(new Set<string>())
   const controller = useRef<AbortController | null>(null)
   const heading = useRef<HTMLHeadingElement>(null)
+  const responseHeading = useRef<HTMLHeadingElement>(null)
+  const revealResponse = useRef(false)
   const species = assistantSpeciesForScan(result)
   const supported = Boolean(species)
 
   useEffect(() => () => controller.current?.abort(), [])
   useEffect(() => { if (open) heading.current?.focus() }, [open])
+  // A suggested question is tapped above the fold on phones, so bring the
+  // answer into view instead of leaving it below the action dock.
+  useEffect(() => {
+    if (!response || pending || !revealResponse.current) return
+    revealResponse.current = false
+    const target = responseHeading.current
+    if (!target) return
+    target.focus({ preventScroll: true })
+    const reduceMotion = window.matchMedia?.('(prefers-reduced-motion: reduce)').matches
+    target.closest('.plant-assistant__response')?.scrollIntoView?.({ block: 'start', behavior: reduceMotion ? 'auto' : 'smooth' })
+  }, [response, pending])
 
   const submitQuestion = async (text: string, depth: Depth = 'standard', clarify = true) => {
     const trimmed = text.trim()
     if (!trimmed || pending) return
-    setQuestion(trimmed)
     setError(null)
     if (clarify && answered.current.has(trimmed.toLowerCase())) {
       setRepeat(trimmed)
@@ -98,6 +116,9 @@ export function PlantAssistantPanel({ result }: { result: IdentifyResult }) {
       lastAnswers.current.set(key, next.answer)
       setResponse(next)
       setResponseQuestion(trimmed)
+      setResponseDepth(depth)
+      setQuestion('')
+      revealResponse.current = true
       if (next.answerability === 'answerable') answered.current.add(trimmed.toLowerCase())
     } catch (cause) {
       setError(cause instanceof ApiError && cause.status === 429
@@ -125,18 +146,19 @@ export function PlantAssistantPanel({ result }: { result: IdentifyResult }) {
       </button> : <>
         <div className="plant-assistant__heading">
           <h2 ref={heading} tabIndex={-1}>Ask about this plant</h2>
-          <button type="button" onClick={() => setOpen(false)} aria-label="Close plant assistant">Close</button>
+          <button type="button" className="plant-assistant__close" onClick={() => setOpen(false)} aria-label="Close plant assistant">Close</button>
         </div>
         {!supported ? <p role="status">We couldn’t identify this as one of the supported plant categories, so species-specific assistant guidance is unavailable. Try another scan or browse the catalogue.</p> : <>
-          <p>Questions about <strong>{species!.scientific_name}</strong>, based on your scan and approved sources. The assistant explains the scan; it does not identify the plant.</p>
-          <p className="plant-assistant__privacy">Use English and leave out personal details, coordinates and access codes. This conversation is temporary and clears when you leave this scan.</p>
+          <p className="plant-assistant__intro">Answers about <em>{species!.scientific_name}</em> come from approved sources only. They explain your scan result; they don’t re-identify the plant.</p>
           <div className="plant-assistant__suggestions" role="group" aria-label="Suggested plant questions">
             {suggestionsFor(species!.species_id).map(text => <button key={text} type="button" disabled={pending} onClick={() => void submitQuestion(text)}>{text}</button>)}
           </div>
           <form onSubmit={submit}>
             <label htmlFor="plant-question">Your question</label>
-            <textarea id="plant-question" value={question} maxLength={600} rows={3} disabled={pending}
+            <textarea id="plant-question" value={question} maxLength={600} rows={2} disabled={pending}
+              aria-describedby="plant-question-hint"
               onChange={event => { setQuestion(event.target.value); setRepeat(null) }} />
+            <p id="plant-question-hint" className="plant-assistant__hint">English only. Leave out personal details, locations and access codes. This conversation clears when you leave this scan.</p>
             <button className="plant-assistant__primary" type="submit" disabled={pending || !question.trim()}>
               {pending ? 'Checking the approved information…' : 'Ask question'}
             </button>
@@ -148,12 +170,12 @@ export function PlantAssistantPanel({ result }: { result: IdentifyResult }) {
               <button type="button" disabled={pending} onClick={() => void submitQuestion(repeat, 'detailed', false)}>More detail</button>
             </div>
           </div>}
-          {pending && <p role="status">Checking evidence for your question…</p>}
+          {pending && <p className="sr-only" role="status">Checking the approved information…</p>}
           {error && <p role="alert">{error}</p>}
           <div aria-live="polite">
           {response && !pending && !repeat && <div className="plant-assistant__response">
-            <h3>{response.status === 'fallback' ? 'Source information' : response.status === 'answer' ? 'Answer' : 'Evidence is insufficient'}</h3>
-            {response.status === 'fallback' && <p className="plant-assistant__notice">Your scan matched <em>{species!.scientific_name}</em>. Here is what the approved sources say about it.</p>}
+            <p className="plant-assistant__asked">{responseQuestion}</p>
+            <h3 ref={responseHeading} tabIndex={-1}>{response.status === 'fallback' ? 'Source information' : response.status === 'answer' ? 'Answer' : 'Evidence is insufficient'}</h3>
             {unchangedDepth && <p className="plant-assistant__notice" role="status">
               {unchangedDepth === 'simpler'
                 ? 'This is already the shortest approved wording for this answer.'
@@ -162,13 +184,14 @@ export function PlantAssistantPanel({ result }: { result: IdentifyResult }) {
             <p className="plant-assistant__answer">{response.answer}</p>
             {response.status === 'insufficient_evidence' && topicLabels.length > 0 &&
               <p className="plant-assistant__coverage">Available information for this species: {topicLabels.join(', ')}.</p>}
-            {response.answerability === 'answerable' && <div className="plant-assistant__choices" role="group" aria-label="Explanation level">
-              <button type="button" aria-label="Simpler explanation" onClick={() => void submitQuestion(responseQuestion, 'simpler', false)}>Simpler</button>
-              <button type="button" aria-label="Standard explanation" onClick={() => void submitQuestion(responseQuestion, 'standard', false)}>Standard</button>
-              <button type="button" onClick={() => void submitQuestion(responseQuestion, 'detailed', false)}>More detail</button>
+            {response.answerability === 'answerable' && <div className="plant-assistant__levels" role="group" aria-label="Explanation level">
+              {DEPTHS.map(({ depth, label, ariaLabel }) => <button key={depth} type="button" aria-label={ariaLabel}
+                aria-pressed={responseDepth === depth} disabled={pending}
+                onClick={() => { if (depth !== responseDepth) void submitQuestion(responseQuestion, depth, false) }}>{label}</button>)}
             </div>}
             {sources.length > 0 && <>
-              <h3>{response.answerability === 'answerable' ? 'Sources' : 'Related sources — these do not answer the question'}</h3>
+              <h3>{response.answerability === 'answerable' ? 'Sources' : 'Related sources'}</h3>
+              {response.answerability !== 'answerable' && <p className="plant-assistant__hint">These sources cover this plant but do not answer your question.</p>}
               <ul>{sources.map(source => <li key={source.sourceUrl}>
                 <a href={source.sourceUrl} target="_blank" rel="noopener noreferrer">{source.sourceName}</a>
                 {source.attribution && <span> — {source.attribution}</span>}
