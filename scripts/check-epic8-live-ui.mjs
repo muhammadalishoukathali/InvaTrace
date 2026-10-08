@@ -245,7 +245,7 @@ try {
   await fetch(`${apiBase}/test/mode`,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({mode:'controlled'})})
   body=await ask('Are its leaves purple?');assert.equal(body.status,'insufficient_evidence')
   body=await ask('Where does it grow?');assert.equal(body.status,'fallback')
-  assert.equal(await page.locator('.plant-assistant__notice').innerText(),'Here is the relevant approved source information.')
+  assert.equal(await page.locator('.plant-assistant__response h3').first().innerText(), 'Source information')
   passed('original adapters with controlled503 judge and429 generation show distinct useful UI failure paths')
   }else{await open()}
 
