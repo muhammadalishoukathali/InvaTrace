@@ -107,44 +107,63 @@
     border-radius: 14px;
   }
 
+  /* One short line is enough on a phone; the dock already covers the content. */
   .scan-result__action-copy {
-    display: block;
-  }
-
-  .scan-result__action-copy strong,
-  .scan-result__action-copy span {
-    display: block;
+    margin-bottom: 8px;
   }
 
   .scan-result__action-copy span {
-    margin-top: 2px;
+    display: none;
   }
 
   .scan-result__secondary-action,
   .scan-result__report-action {
-    padding: 0 8px;
+    padding: 0 10px;
+  }
+}
+
+/* Three buttons in one row get cramped below ~440px, so on phones the
+   report action takes its own full-width row under the two secondary ones. */
+@media (max-width: 440px) {
+  .scan-result--with-report {
+    padding-bottom: calc(176px + env(safe-area-inset-bottom));
+  }
+
+  .scan-result__action-dock--report .scan-result__action-buttons {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 8px;
+  }
+
+  .scan-result__action-dock--report .scan-result__secondary-action {
+    min-height: 44px;
+  }
+
+  .scan-result__action-dock--report .scan-result__report-action {
+    grid-column: 1 / -1;
+  }
+}
+
+@media (max-width: 340px) {
+  .scan-result__secondary-action,
+  .scan-result__report-action {
+    gap: 6px;
+    padding: 0 6px;
     font-size: 13px;
   }
 }
 
-@media (max-width: 360px) {
-  .scan-result {
-    padding-bottom: calc(184px + env(safe-area-inset-bottom));
+/* Phones held sideways have little height: keep the dock to one row. */
+@media (max-height: 480px) and (min-width: 441px) {
+  .scan-result__action-copy {
+    display: none;
   }
 
-  .scan-result__action-buttons {
-    display: grid;
-    grid-template-columns: repeat(2, minmax(0, 1fr));
-    gap: 6px;
+  .scan-result__action-dock {
+    padding: 8px;
   }
 
-  .scan-result__report-action {
-    grid-column: 1 / -1;
-  }
-
-  .scan-result__secondary-action,
-  .scan-result__report-action {
-    padding: 0 6px;
-    font-size: 12px;
+  .scan-result--with-report {
+    padding-bottom: calc(96px + env(safe-area-inset-bottom));
   }
 }

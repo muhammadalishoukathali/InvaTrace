@@ -97,7 +97,7 @@ export function ScanResultPage() {
   })
 
   return (
-    <div className="scan-result">
+    <div className={canReport ? 'scan-result scan-result--with-report' : 'scan-result'}>
       <OutcomeBadge pathway={pathway.pathway} />
 
       {/* Every classification result needs to carry this disclosure that it came
@@ -193,7 +193,7 @@ export function ScanResultPage() {
         </Link>
       )}
 
-      <div className="scan-result__action-dock" role="group" aria-label="Scan result actions">
+      <div className={canReport ? 'scan-result__action-dock scan-result__action-dock--report' : 'scan-result__action-dock'} role="group" aria-label="Scan result actions">
         {canReport && (
           <div className="scan-result__action-copy">
             <strong>Help confirm this sighting</strong>
