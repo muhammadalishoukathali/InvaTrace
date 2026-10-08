@@ -18,6 +18,12 @@
 # manifest, so any CDN-side re-encoding (Cloudflare Polish converting these to
 # WebP, for instance) breaks the download for everyone. no-transform keeps the
 # published bytes intact.
+#
+# Not immutable: photos are replaced in place at the same path, and a year-long
+# immutable entry kept the old photo on screen for anyone who had already seen
+# it. The app requests them with ?v=<content hash> (see
+# build/reference-image-versions.ts) so a replaced photo is a new URL; this
+# short revalidating policy covers any request that arrives without one.
 /reference-images/*
-  Cache-Control: public, max-age=31536000, immutable, no-transform
+  Cache-Control: public, max-age=3600, must-revalidate, no-transform
   X-Content-Type-Options: nosniff

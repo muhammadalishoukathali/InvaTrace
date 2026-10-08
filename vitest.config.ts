@@ -1,7 +1,9 @@
 import { defineConfig } from 'vitest/config'
 import { fileURLToPath, URL } from 'node:url'
+import { referenceImageVersions } from './build/reference-image-versions'
 
 export default defineConfig({
+  plugins: [referenceImageVersions()],
   resolve: {
     alias: {
       '@': fileURLToPath(new URL('./src', import.meta.url)),

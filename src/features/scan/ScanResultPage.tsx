@@ -11,6 +11,7 @@ import { findModelSpecies, modelReferenceImageUrl } from '@/data/model-species-c
 import type { IdentifyResult, SpeciesDetail } from '@/types'
 import { findApprovedSpecies } from '@shared/catalogue'
 import './scan-result.css'
+import { referenceImageSrc } from '@/data/reference-image-src'
 
 /**
  * Shows what a finished scan came back with - target species, other plant,
@@ -347,7 +348,7 @@ function ComparisonCard({
   return (
     <div style={{ overflow: 'hidden', borderRadius: 'var(--r-input)', background: bg }}>
       {imageUrl ? (
-        <img src={imageUrl} alt={imageAlt} loading="lazy" style={{
+        <img src={referenceImageSrc(imageUrl)} alt={imageAlt} loading="lazy" style={{
           width: '100%', aspectRatio: '4 / 3', objectFit: 'cover', display: 'block',
         }} />
       ) : (
@@ -376,7 +377,7 @@ function ComparisonCard({
 function ReferenceImage({ src, alt, credit }: { src: string; alt: string; credit?: string }) {
   return (
     <figure style={{ margin: 0 }}>
-      <img src={src} alt={alt} loading="lazy" style={{
+      <img src={referenceImageSrc(src)} alt={alt} loading="lazy" style={{
         width: '100%', maxHeight: 260, objectFit: 'cover',
         borderRadius: 'var(--r-input)', display: 'block',
       }} />
@@ -585,7 +586,7 @@ function UnsupportedTargetResult({ result }: { result: IdentifyResult }) {
       {referenceImage && (
         <figure style={{ margin: '10px 0 0' }}>
           <img
-            src={referenceImage}
+            src={referenceImageSrc(referenceImage)}
             alt={`Reference photo of ${scientific ?? displayName}`}
             loading="lazy"
             style={{

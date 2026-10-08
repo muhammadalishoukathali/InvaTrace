@@ -15,6 +15,7 @@ import type { AdoptedAreaListResponse, PlaceDetail, PlacePlantAssociationsRespon
 import { PlaceGeometryMap } from './PlaceGeometryMap'
 import { MissionEntryCard } from '@/features/guided-missions/MissionEntryCard'
 import './places.css'
+import { referenceImageSrc } from '@/data/reference-image-src'
 
 export function PlaceDetailPage() {
   const queryClient = useQueryClient()
@@ -101,7 +102,7 @@ export function PlaceDetailPage() {
             <li key={item.speciesId}>
               <div className="place-associations__heading">
                 {item.imageUrl && (
-                  <img src={item.imageUrl} alt={`Reference view of ${item.scientificName}`} loading="lazy" />
+                  <img src={referenceImageSrc(item.imageUrl)} alt={`Reference view of ${item.scientificName}`} loading="lazy" />
                 )}
                 <div>
                   <h3><i>{item.scientificName}</i></h3>

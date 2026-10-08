@@ -615,6 +615,8 @@ test('private detector can scan, analyse, and submit', async ({ page, context, b
   await expect(page.getByRole('heading', { name: 'Mile-a-minute weed' })).toBeVisible()
   await expect(page.getByRole('link', { name: 'View catalogue entry for Mikania micrantha' }))
     .toHaveAttribute('href', '/catalogue/mikania-micrantha')
+  await expect(page.getByAltText('Reference photo of Mile-a-minute weed'))
+    .toHaveAttribute('src', /^\/reference-images\/mikania_micrantha\.jpg\?v=[0-9a-f]{12}$/)
 
   await page.getByRole('button', { name: /Report sighting/ }).click()
   await expect(page).toHaveURL(/\/report$/)

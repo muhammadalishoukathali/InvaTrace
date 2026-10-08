@@ -16,3 +16,9 @@ interface ImportMetaEnv {
 interface ImportMeta {
   readonly env: ImportMetaEnv
 }
+
+declare module 'virtual:reference-image-versions' {
+  /** File name in public/reference-images/ -> short SHA-256 of its bytes. */
+  const versions: Record<string, string>
+  export default versions
+}

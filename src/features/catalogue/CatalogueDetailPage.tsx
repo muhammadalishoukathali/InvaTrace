@@ -21,6 +21,7 @@ import {
 } from '@shared/catalogue'
 import { loadInstalledCatalogueData } from './offline-catalogue'
 import './catalogue.css'
+import { referenceImageSrc } from '@/data/reference-image-src'
 
 export function CatalogueDetailPage() {
   const { speciesId = '' } = useParams()
@@ -101,7 +102,7 @@ export function CatalogueDetailPage() {
       <header className="catalogue-detail__header">
         <div className="catalogue-detail__media">
           {image ? (
-            <img src={assetUrls[image.url] ?? image.url} alt={`Reference view of ${record.scientific_name}`} />
+            <img src={assetUrls[image.url] ?? referenceImageSrc(image.url)} alt={`Reference view of ${record.scientific_name}`} />
           ) : <Icon name="Leaf" size={38} color="var(--green)" />}
         </div>
         <div>

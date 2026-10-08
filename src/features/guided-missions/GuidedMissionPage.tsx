@@ -21,6 +21,7 @@ import {
 import { missionContextStore, missionPath } from './mission-context'
 import { isRetryable, pendingCount, pendingMissionStore, usePendingMissionChanges, withPending } from './mission-offline'
 import './guided-missions.css'
+import { referenceImageSrc } from '@/data/reference-image-src'
 
 const SEARCH_GUIDANCE = 'Suggested area to search - plant presence is not confirmed.'
 const STATE_LABELS: Record<MissionPlantState, string> = { not_checked: 'Not checked', looked_for: 'Looked for', unable_to_check: 'Unable to check' }
@@ -469,7 +470,7 @@ function PlantThumb({ plant, placeId }: { plant: WatchlistPlant; placeId: string
   return (
     <li>
       <Link to={catalogueLink(plant.speciesId, placeId)} className="mission-plant-thumb">
-        {plant.image ? <img src={plant.image} alt={`Reference view of ${plant.scientificName}`} loading="lazy" /> : <span className="mission-plant-thumb__placeholder"><Icon name="Leaf" size={20} /></span>}
+        {plant.image ? <img src={referenceImageSrc(plant.image)} alt={`Reference view of ${plant.scientificName}`} loading="lazy" /> : <span className="mission-plant-thumb__placeholder"><Icon name="Leaf" size={20} /></span>}
         <span>
           <strong>{plant.name}</strong>
           <i>{plant.scientificName}</i>
@@ -546,7 +547,7 @@ function PlantProgress({ plant, placeId, state, noTargetFound, reports, busy, on
   return (
     <li className={`mission-plant mission-plant--${state}`}>
       <div className="mission-plant__head">
-        {plant.image ? <img src={plant.image} alt="" loading="lazy" /> : <span className="mission-plant-thumb__placeholder"><Icon name="Leaf" size={18} /></span>}
+        {plant.image ? <img src={referenceImageSrc(plant.image)} alt="" loading="lazy" /> : <span className="mission-plant-thumb__placeholder"><Icon name="Leaf" size={18} /></span>}
         <div>
           <strong>{plant.name}</strong>
           <span className="mission-plant__state">{STATE_LABELS[state]}{reports > 0 && ` · ${reports} ${reports === 1 ? 'sighting' : 'sightings'} submitted`}</span>

@@ -15,6 +15,7 @@ import { usePrivateAccess } from '@/features/private-access/private-access-store
 import { REMOVAL_MAX_M } from '@/features/report/gps-policy'
 import type { RemovalReportResponse, SightingDetail } from '@/types'
 import './sighting-details.css'
+import { referenceImageSrc } from '@/data/reference-image-src'
 
 const OSM_FEATURE_LABEL: Record<string, string> = {
   highway_path: 'trail',
@@ -382,7 +383,7 @@ function EvidenceThumbnail({
     <figure className="pin-sheet__reference">
       <img
         className="pin-sheet__photo"
-        src={thumbnailUrl}
+        src={referenceImageSrc(thumbnailUrl)}
         alt={`Reporter photo of ${speciesName}`}
         loading="lazy"
       />
@@ -409,7 +410,7 @@ function PlantReferenceMedia({ latinName, speciesName }: { latinName: string; sp
   if (!referenceImage) return null
   return (
     <figure className="pin-sheet__reference">
-      <img className="pin-sheet__photo" src={referenceImage}
+      <img className="pin-sheet__photo" src={referenceImageSrc(referenceImage)}
         alt={`Typical appearance of ${latinName}`} />
       <figcaption>
         <span>Species reference</span>

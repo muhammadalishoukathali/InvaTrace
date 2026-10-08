@@ -4,6 +4,7 @@ import react from '@vitejs/plugin-react'
 import basicSsl from '@vitejs/plugin-basic-ssl'
 import { VitePWA } from 'vite-plugin-pwa'
 import { fileURLToPath, URL } from 'node:url'
+import { referenceImageVersions } from './build/reference-image-versions'
 
 // The MapLibre worker we import with `?url` in src/features/map/ThreatMapPage.tsx
 // still contains a plain ES import for `./maplibre-gl-shared.mjs`. Vite copies
@@ -47,6 +48,7 @@ export default defineConfig({
     react(),
     ...(httpsEnabled ? [basicSsl()] : []),
     copyMaplibreWorkerShared(),
+    referenceImageVersions(),
     VitePWA({
       // Replace the cached application shell as soon as a new release is ready.
       registerType: 'autoUpdate',
