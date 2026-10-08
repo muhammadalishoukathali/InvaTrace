@@ -31,7 +31,10 @@ test('mobile scan stops the camera on interruption and stays within the viewport
     })
   })
   await startPrivateAccess(page)
-  await expect(page.getByRole('link', { name: 'Browse mapped places' })).toBeVisible()
+  // Three destinations either side of Scan; Places lives in the bar on phones.
+  const primary = page.getByRole('navigation', { name: 'Primary' })
+  await expect(primary.getByRole('link')).toHaveText(['Map', 'Places', 'Plants', 'Scan', 'Records', 'Areas', 'Events'])
+  await expect(page.getByRole('link', { name: 'Browse mapped places' })).toBeHidden()
   await page.goto('/scan')
   await page.getByRole('button', { name: 'Open camera' }).click()
   await expect(page.getByRole('heading', { name: 'Frame one clear plant feature' })).toBeVisible()
