@@ -59,10 +59,6 @@ export const SCREENS = {
   },
 } satisfies Record<string, WelcomeImage>
 
-// Where "Start privately" goes. The welcome page never creates an identity
-// itself; the existing private-access flow owns that.
-export const START_PATH = '/private-access'
-
 // UN Sustainable Development Goal link. The badge is shown in the hero, the
 // statement right after the problem section.
 export const SDG = {

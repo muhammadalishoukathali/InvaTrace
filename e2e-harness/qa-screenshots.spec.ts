@@ -12,7 +12,7 @@ fs.mkdirSync(OUT, { recursive: true })
 
 async function bootstrap(page: Page) {
   await page.goto('http://localhost:5173/')
-  await page.getByRole('button', { name: /Start privately/i }).click()
+  await page.getByRole('button', { name: /Start privately/i }).first().click()
   await expect(page.getByRole('heading', { name: /Save your recovery information/i })).toBeVisible({ timeout: 15_000 })
   await page.evaluate(() => document.querySelector<HTMLInputElement>('input[type=checkbox]')?.click())
   await page.getByRole('button', { name: /Continue to InvaTrace/i }).click()
@@ -123,7 +123,7 @@ test('09 report page reached from gallery upload (proves DEV unlock)', async ({ 
 test('10 recovery kit screen - 10 codes, ack checkbox', async ({ page }) => {
   await page.setViewportSize({ width: 390, height: 844 })
   await page.goto('http://localhost:5173/')
-  await page.getByRole('button', { name: /Start privately/i }).click()
+  await page.getByRole('button', { name: /Start privately/i }).first().click()
   await expect(page.getByRole('heading', { name: /Save your recovery information/i })).toBeVisible({ timeout: 15_000 })
   await page.waitForTimeout(400)
   await page.screenshot({ path: path.join(OUT, '10-recovery-kit.png'), fullPage: false })

@@ -6,8 +6,8 @@
 import { expect, test, type Page } from '@playwright/test'
 
 async function startPrivateAccess(page: Page) {
-  await page.goto('/private-access')
-  await page.getByRole('button', { name: 'Start privately' }).click()
+  await page.goto('/')
+  await page.getByRole('button', { name: 'Start privately' }).first().click()
   await page.getByRole('checkbox', { name: 'I have saved my recovery kit' }).check()
   await page.getByRole('button', { name: 'Continue', exact: true }).click()
   await expect(page).toHaveURL(/\/map$/)
@@ -31,10 +31,13 @@ test('mobile scan stops the camera on interruption and stays within the viewport
     })
   })
   await startPrivateAccess(page)
-  // Three destinations either side of Scan; Places lives in the bar on phones.
+  // Two destinations either side of Scan; Places and Plants sit at the top.
   const primary = page.getByRole('navigation', { name: 'Primary' })
-  await expect(primary.getByRole('link')).toHaveText(['Map', 'Places', 'Plants', 'Scan', 'Records', 'Areas', 'Events'])
-  await expect(page.getByRole('link', { name: 'Browse mapped places' })).toBeHidden()
+  await expect(primary.getByRole('link')).toHaveText(['Map', 'Records', 'Scan', 'Areas', 'Events'])
+  await expect(page.getByRole('link', { name: 'Browse mapped places' })).toBeVisible()
+  await page.getByRole('button', { name: 'Plant catalogue' }).click()
+  await expect(page).toHaveURL(/\/catalogue$/)
+  await expect(page.getByRole('button', { name: 'Plant catalogue' })).toHaveCount(0)
   await page.goto('/scan')
   await page.getByRole('button', { name: 'Open camera' }).click()
   await expect(page.getByRole('heading', { name: 'Frame one clear plant feature' })).toBeVisible()

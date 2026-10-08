@@ -65,9 +65,9 @@ export function RestorePrivateAccessPage() {
   return (
     <PrivateAccessLayout compact>
       <section className="access-form-panel">
-        <Link className="access-back-link" to="/private-access">
+        <Link className="access-back-link" to="/">
           <span aria-hidden="true">←</span>
-          <span>Private access</span>
+          <span>Back</span>
         </Link>
         <h1 ref={headingRef} tabIndex={-1}>Restore existing access</h1>
         <p className="access-form-panel__lead">

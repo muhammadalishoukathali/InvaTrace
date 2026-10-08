@@ -7,8 +7,8 @@ import path from 'node:path'
 // horizontally on a small phone screen or a normal desktop.
 
 async function startPrivateAccess(page: Page) {
-  await page.goto('/private-access')
-  await page.getByRole('button', { name: /Start privately/i }).click()
+  await page.goto('/')
+  await page.getByRole('button', { name: /Start privately/i }).first().click()
   await expect(page.getByRole('heading', { name: /Save your recovery kit/i }))
     .toBeVisible({ timeout: 15_000 })
   await page.locator('input[type="checkbox"]').check()

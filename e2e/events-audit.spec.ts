@@ -8,7 +8,7 @@ const place = { placeId: '10000000-0000-4000-8000-000000000001', displayName: 'B
 const future = { event_id: 'event-1', title: 'Original title', purpose: 'Original purpose', event_type: 'survey', status: 'draft', place_id: place.placeId, target_species_ids: [], meeting_latitude: 3.14, meeting_longitude: 101.69, start_at: '2030-01-01T08:00:00Z', end_at: '2030-01-01T10:00:00Z', permission_context: 'unknown', is_host: true }
 
 async function access(page: Page) {
-  await page.goto('/private-access'); await page.getByRole('button', { name: 'Start privately' }).click()
+  await page.goto('/'); await page.getByRole('button', { name: 'Start privately' }).first().click()
   await page.getByRole('checkbox', { name: 'I have saved my recovery kit' }).check(); await page.getByRole('button', { name: 'Continue', exact: true }).click()
   // Wait for setup to finish; navigating away mid-setup invalidates the recovery code.
   await expect(page).toHaveURL(/\/map$/)

@@ -7,8 +7,8 @@ test.skip(process.env.PLAYWRIGHT_EPIC9 !== '1', 'Requires the local iteration-3 
 test.beforeEach(async ({ page }) => { await page.addInitScript(() => localStorage.setItem('invatrace.mock.community', 'off')) })
 
 async function access(page: Page) {
-  await page.goto('/private-access')
-  await page.getByRole('button', { name: 'Start privately' }).click()
+  await page.goto('/')
+  await page.getByRole('button', { name: 'Start privately' }).first().click()
   await page.getByRole('checkbox', { name: 'I have saved my recovery kit' }).check()
   await page.getByRole('button', { name: 'Continue', exact: true }).click()
   await expect(page).toHaveURL(/\/map$/)

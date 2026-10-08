@@ -57,13 +57,13 @@ test('every route and workflow state fits the screen', async ({ page, context },
   page.on('pageerror', error => errors.push(error.message))
   await context.grantPermissions(['geolocation'])
   await context.setGeolocation({ latitude: 3.1483, longitude: 101.6404, accuracy: 8 })
-  await page.goto('/private-access')
-  await expect(page.getByRole('button', { name: 'Start privately' })).toBeVisible()
-  await inspect(page, info, '01-private-access', findings)
-  await page.getByRole('link', { name: 'Restore existing access' }).click()
+  await page.goto('/')
+  await expect(page.getByRole('button', { name: 'Start privately' }).first()).toBeVisible()
+  await inspect(page, info, '01-welcome', findings)
+  await page.getByRole('link', { name: 'Already use InvaTrace? Restore access' }).click()
   await inspect(page, info, '02-restore', findings)
-  await page.getByRole('link', { name: 'Private access', exact: true }).click()
-  await page.getByRole('button', { name: 'Start privately' }).click()
+  await page.getByRole('link', { name: 'Back', exact: true }).click()
+  await page.getByRole('button', { name: 'Start privately' }).first().click()
   await expect(page.getByRole('heading', { name: 'Save your recovery kit' })).toBeVisible()
   // Recovery codes are secrets; mask the test kit in saved visual evidence.
   await inspect(page, info, '03-recovery-layout', findings)
@@ -231,8 +231,8 @@ test('every route and workflow state fits the screen', async ({ page, context },
 
 test('empty, failed, queued and offline states remain usable', async ({ page, context }, info) => {
   const findings: LayoutFinding[] = []
-  await page.goto('/private-access')
-  await page.getByRole('button', { name: 'Start privately' }).click()
+  await page.goto('/')
+  await page.getByRole('button', { name: 'Start privately' }).first().click()
   await page.getByRole('checkbox', { name: 'I have saved my recovery kit' }).check()
   await page.getByRole('button', { name: 'Continue', exact: true }).click()
   await expect(page).toHaveURL(/\/map$/)

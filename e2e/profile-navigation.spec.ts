@@ -4,8 +4,8 @@
 import { expect, test } from '@playwright/test'
 
 test('a failed page download can be left and retried after reconnecting', async ({ page, context }) => {
-  await page.goto('/private-access')
-  await page.getByRole('button', { name: 'Start privately' }).click()
+  await page.goto('/')
+  await page.getByRole('button', { name: 'Start privately' }).first().click()
   await page.getByRole('checkbox', { name: 'I have saved my recovery kit' }).check()
   await page.getByRole('button', { name: 'Continue', exact: true }).click()
   await expect(page).toHaveURL(/\/map$/)
@@ -34,8 +34,8 @@ test('a failed page download can be left and retried after reconnecting', async 
 // Regression test for a back-button trap: profile -> records -> back should
 // land somewhere other than profile, not just bounce the user in a loop.
 test('leaving profile for records does not trap Back between the two pages', async ({ page }) => {
-  await page.goto('/private-access')
-  await page.getByRole('button', { name: 'Start privately' }).click()
+  await page.goto('/')
+  await page.getByRole('button', { name: 'Start privately' }).first().click()
   await page.getByRole('checkbox', { name: 'I have saved my recovery kit' }).check()
   await page.getByRole('button', { name: 'Continue', exact: true }).click()
   await expect(page).toHaveURL(/\/map$/)
@@ -52,8 +52,8 @@ test('leaving profile for records does not trap Back between the two pages', asy
 // real scan, then checks the map marker for it opens a dialog with the right
 // details and hands focus back to the marker properly once closed.
 test('a saved record marker opens its record details from the map', async ({ page }) => {
-  await page.goto('/private-access')
-  await page.getByRole('button', { name: 'Start privately' }).click()
+  await page.goto('/')
+  await page.getByRole('button', { name: 'Start privately' }).first().click()
   await page.getByRole('checkbox', { name: 'I have saved my recovery kit' }).check()
   await page.getByRole('button', { name: 'Continue', exact: true }).click()
   await expect(page).toHaveURL(/\/map$/)

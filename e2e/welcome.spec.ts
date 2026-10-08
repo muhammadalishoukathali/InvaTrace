@@ -7,7 +7,7 @@ test('a first-time visitor can read the welcome page without an identity', async
   await expect(page).toHaveURL(/\/$/)
   await expect(page.getByRole('heading', { level: 1, name: /Spot invasive plants/ })).toBeVisible()
   await expect(page.getByText('For Malaysia’s parks and trails')).toBeVisible()
-  await expect(page.getByRole('link', { name: 'Start privately' }).first()).toBeVisible()
+  await expect(page.getByRole('button', { name: 'Start privately' }).first()).toBeVisible()
   await expect(page.getByText('Supporting SDG 15 · Life on Land')).toBeInViewport()
   for (const impact of ['Native vegetation', 'Native habitats', 'Shared natural spaces']) {
     await expect(page.getByRole('heading', { name: impact })).toBeVisible()
@@ -28,7 +28,7 @@ test('How it works moves to the five steps', async ({ page }) => {
 test('Start privately on the welcome page goes straight to the recovery kit, then "/" opens the map', async ({ page }) => {
   await page.goto('/')
   await expect(page.getByText('No email, phone number or name needed.')).toBeVisible()
-  await page.getByRole('link', { name: 'Start privately' }).last().click()
+  await page.getByRole('button', { name: 'Start privately' }).last().click()
   // One click: no second private-access page with another Start privately button.
   await expect(page).toHaveURL(/\/private-access\/recovery$/)
   await expect(page.getByRole('heading', { name: 'Save your recovery kit' })).toBeVisible()
@@ -49,7 +49,7 @@ test('Start privately on the welcome page goes straight to the recovery kit, the
 
   // Starting again from /welcome must not replace the existing profile.
   const before = await page.evaluate(() => JSON.stringify(Object.keys(localStorage).sort()))
-  await page.getByRole('link', { name: 'Start privately' }).first().click()
+  await page.getByRole('button', { name: 'Start privately' }).first().click()
   await expect(page).toHaveURL(/\/map$/)
   expect(await page.evaluate(() => JSON.stringify(Object.keys(localStorage).sort()))).toBe(before)
 })
@@ -63,6 +63,24 @@ test('Restore access is reachable from the welcome page', async ({ page }) => {
 test('protected routes still require private access', async ({ page }) => {
   for (const path of ['/map', '/scan', '/report']) {
     await page.goto(path)
-    await expect(page).toHaveURL(/\/private-access$/)
+    await expect(page).toHaveURL(/\/$/)
   }
+})
+
+test('signing out lands on the welcome page, and the old /private-access page is gone', async ({ page }) => {
+  await page.goto('/')
+  await page.getByRole('button', { name: 'Start privately' }).first().click()
+  await page.getByRole('checkbox', { name: 'I have saved my recovery kit' }).check()
+  await page.getByRole('button', { name: 'Continue', exact: true }).click()
+  await expect(page).toHaveURL(/\/map$/)
+
+  await page.goto('/profile')
+  await page.getByRole('button', { name: 'Sign out' }).click()
+  await page.getByRole('button', { name: 'Yes, sign out' }).click()
+  await expect(page).toHaveURL(/\/$/)
+  await expect(page.getByRole('heading', { level: 1, name: /Spot invasive plants/ })).toBeVisible()
+
+  await page.goto('/private-access')
+  await expect(page).toHaveURL(/\/$/)
+  await expect(page.getByRole('heading', { level: 1, name: /Spot invasive plants/ })).toBeVisible()
 })

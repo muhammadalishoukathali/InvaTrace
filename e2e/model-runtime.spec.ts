@@ -33,7 +33,7 @@ test('model runtime retries a failed download, falls back to WASM, and reuses on
     if (!pathname.startsWith('/models/invatrace-student33-v1/')) return
     modelRequests.set(pathname, (modelRequests.get(pathname) ?? 0) + 1)
   })
-  await page.goto('/private-access')
+  await page.goto('/')
   const result = await page.evaluate(async () => {
     const { PulihModel } = await import('/src/features/scan/pulih-model.ts')
     const model = new PulihModel()
@@ -131,7 +131,7 @@ test('a corrupted model download is evicted and re-fetched instead of failing fo
     }
   })
 
-  await page.goto('/private-access')
+  await page.goto('/')
   const result = await page.evaluate(async () => {
     const modelUrl = '/models/invatrace-student33-v1/tinyvit5m_student33_320_fp16.onnx'
     // Stand in for the service worker's CacheFirst entry so the test can prove

@@ -120,10 +120,10 @@ async function clearStoredIdentity(page: Page) {
 }
 
 async function startPrivateAccess(page: Page, acknowledge = true) {
-  await page.goto('/private-access')
-  await expect(page).toHaveURL(/\/private-access$/)
+  await page.goto('/')
+  await expect(page).toHaveURL(/\/$/)
   const started = page.waitForResponse((response) => new URL(response.url()).pathname === START_PATH)
-  await page.getByRole('button', { name: 'Start privately' }).click()
+  await page.getByRole('button', { name: 'Start privately' }).first().click()
   const payload = await (await started).json() as {
     accessToken: string
     profile: { id: string; role: string; trustLevel: string }
@@ -413,8 +413,8 @@ test('restoration adds an installation with reusable codes, rotates batches, and
   const firstIdentity = await readStoredIdentity(page)
   await clearStoredIdentity(page)
   await page.reload()
-  await expect(page).toHaveURL(/\/private-access$/)
-  await page.getByRole('link', { name: 'Restore existing access' }).click()
+  await expect(page).toHaveURL(/\/$/)
+  await page.getByRole('link', { name: 'Already use InvaTrace? Restore access' }).click()
   await page.getByLabel('Public profile ID').fill(started.profile.id)
   await page.getByLabel('Recovery code').fill(started.recoveryCodes[0])
   const restoredResponse = page.waitForResponse((response) => new URL(response.url()).pathname === RESTORE_PATH)
@@ -544,10 +544,11 @@ test('a first-ever offline launch explains the network requirement without creat
   await page.addInitScript(() => {
     Object.defineProperty(Navigator.prototype, 'onLine', { configurable: true, get: () => false })
   })
-  await page.goto('/private-access')
-  await expect(page).toHaveURL(/\/private-access$/)
-  await expect(page.getByText('Connection needed')).toBeVisible()
-  await expect(page.getByRole('button', { name: 'Start privately' })).toBeDisabled()
+  await page.goto('/')
+  await expect(page).toHaveURL(/\/$/)
+  await page.getByRole('button', { name: 'Start privately' }).first().click()
+  await expect(page.getByRole('alert')).toContainText('needs the network once')
+  await expect(page).toHaveURL(/\/$/)
   const stored = await page.evaluate(async () => {
     const db = await new Promise<IDBDatabase>((resolve, reject) => {
       const request = indexedDB.open('invatrace-identity', 1)

@@ -165,7 +165,7 @@ export function AccessManagementPage() {
     setBusy('sign-out')
     try {
       await signOut()
-      navigate('/private-access', { replace: true })
+      navigate('/', { replace: true })
     } finally {
       setBusy(null)
       setConfirmSignOut(false)

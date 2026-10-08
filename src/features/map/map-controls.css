@@ -170,8 +170,6 @@
    three chips fit the corner without wrapping. */
 @media (max-width: 899.98px) {
   .map-controls-cluster { gap: 4px; padding: 4px 6px; }
-  /* Places is in the bottom bar on phones and tablets. */
-  .map-cluster-btn--browse { display: none; }
   .map-cluster-btn {
     flex-direction: column;
     gap: 1px;

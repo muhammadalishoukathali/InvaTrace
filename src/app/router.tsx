@@ -4,14 +4,13 @@ import { AppShell } from '@/components/AppShell'
 import { RequirePrivateAccess } from '@/features/private-access/components/RequirePrivateAccess'
 import { ScanFlowLayout } from '@/features/scan/ScanFlowLayout'
 import { PrivateAccessRouteGuard } from '@/features/private-access/components/PrivateAccessRouteGuard'
-import { PrivateAccessLandingPage } from '@/features/private-access/pages/PrivateAccessLandingPage'
 import { RestorePrivateAccessPage } from '@/features/private-access/pages/RestorePrivateAccessPage'
 import { RecoveryKitSetupPage } from '@/features/private-access/pages/RecoveryKitSetupPage'
 import { WelcomePage } from '@/features/welcome/WelcomePage'
 import { WelcomeRoute } from '@/features/welcome/WelcomeRoute'
 
 // I lazy load these because MapLibre especially is a pretty big chunk, and
-// bundling it into the main entry meant the private-access screen (which is
+// bundling it into the main entry meant the welcome screen (which is
 // the very first thing anyone sees) was loading way slower than it needed to
 // on a bad connection. Splitting per route fixed that.
 const ThreatMapPage = lazy(() => import('@/features/map/ThreatMapPage')
@@ -73,8 +72,8 @@ function RouteLoadingState() {
 // shows it. Neither sits inside RequirePrivateAccess.
 //
 // The rest of the tree is three groups, roughly matching the three states a
-// user can be in. First is the /private-access flow for anyone without a
-// profile yet - PrivateAccessRouteGuard redirects away from it once a
+// user can be in. First is the /private-access flow (restore and recovery
+// kit) for anyone without a finished profile - PrivateAccessRouteGuard redirects away from it once a
 // profile exists so people can't land back on the setup screen. Second is
 // the normal AppShell layout, gated by RequirePrivateAccess so nothing in
 // here can render without a profile. Third is /scan and /report, which
@@ -85,13 +84,15 @@ export const router = createBrowserRouter([
   { path: '/welcome', element: <WelcomePage /> },
   {
     path: '/auth/*',
-    element: <Navigate to="/private-access" replace />,
+    element: <Navigate to="/" replace />,
   },
   {
     path: '/private-access',
     element: <PrivateAccessRouteGuard />,
     children: [
-      { index: true, element: <PrivateAccessLandingPage /> },
+      // The old private-access landing page is gone; the welcome page at "/"
+      // is the only start screen now.
+      { index: true, element: <Navigate to="/" replace /> },
       { path: 'restore', element: <RestorePrivateAccessPage /> },
       { path: 'recovery', element: <RecoveryKitSetupPage /> },
     ],

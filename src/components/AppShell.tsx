@@ -69,6 +69,8 @@ export function AppShell() {
   // header, otherwise users get stranded on /places with no exit path.
   const showPlacesBack = !isDesktop && pathname === '/places'
   const showProfileShortcut = !isDesktop && pathname !== '/profile' && pathname !== '/reports'
+  // Plants is not in the mobile bottom bar, so the header carries it.
+  const showCatalogueShortcut = !isDesktop && !pathname.startsWith('/catalogue')
   const profileReturnTo = profileReturnPath(location.state)
 
   return (
@@ -108,6 +110,17 @@ export function AppShell() {
             </div>
           </div>
           <div className="app-header__actions">
+            {showCatalogueShortcut && (
+              <button
+                type="button"
+                aria-label="Plant catalogue"
+                title="Plant catalogue"
+                onClick={() => navigate('/catalogue')}
+                className="app-header__action"
+              >
+                <Icon name="BookOpen" size={18} color="var(--body)" />
+              </button>
+            )}
             {showProfileShortcut && (
               <button
                 type="button"
