@@ -5,7 +5,7 @@
 // compiled into the app so something renders immediately, then swaps in the
 // installed pack's copy if there is one. The pack's images come out of the Cache
 // API as blob URLs, so releasePack() has to run on unmount or those URLs leak.
-import { useEffect, useRef, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import { Link, useParams, useSearchParams } from 'react-router-dom'
 import { Icon } from '@/components/Icon'
 import { BackLink } from '@/components/BackLink'
@@ -19,7 +19,12 @@ import {
   type CatalogueDetailsDataset,
   type CatalogueSource,
 } from '@shared/catalogue'
-import { loadInstalledCatalogueData } from './offline-catalogue'
+import {
+  cataloguePackRevision,
+  installedCataloguePack,
+  loadInstalledCatalogueData,
+  packAssetUrl,
+} from './offline-catalogue'
 import './catalogue.css'
 import { referenceImageSrc } from '@/data/reference-image-src'
 
@@ -43,6 +48,12 @@ export function CatalogueDetailPage() {
     })),
   )
   const releasePack = useRef<(() => void) | null>(null)
+  // Photos replaced since the pack was installed: online, show this build's
+  // copy instead of the pack's old one (see cataloguePackRevision).
+  const staleAssetUrls = useMemo(
+    () => new Set(cataloguePackRevision(installedCataloguePack()).staleAssetUrls),
+    [],
+  )
   useEffect(() => {
     let active = true
     void loadInstalledCatalogueData().then((pack) => {
@@ -102,7 +113,7 @@ export function CatalogueDetailPage() {
       <header className="catalogue-detail__header">
         <div className="catalogue-detail__media">
           {image ? (
-            <img src={assetUrls[image.url] ?? referenceImageSrc(image.url)} alt={`Reference view of ${record.scientific_name}`} />
+            <img src={packAssetUrl(assetUrls, image.url, staleAssetUrls, online) ?? referenceImageSrc(image.url)} alt={`Reference view of ${record.scientific_name}`} />
           ) : <Icon name="Leaf" size={38} color="var(--green)" />}
         </div>
         <div>

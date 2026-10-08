@@ -114,6 +114,93 @@ export function isCatalogueManifest(value: unknown): value is CatalogueManifest 
   ))
 }
 
+// What an installed pack records about the manifest it was built from: the
+// version plus the hash of every file and image it holds.
+type PackContents = Pick<InstalledCataloguePack, 'version' | 'files' | 'assets'>
+
+function packContents(manifest: CatalogueManifest): Required<PackContents> {
+  return {
+    version: manifest.catalogue_version,
+    files: Object.fromEntries(Object.entries(manifest.files).map(([name, file]) => [
+      name,
+      { sha256: file.sha256, byteLength: file.byte_length },
+    ])),
+    assets: manifest.assets.map((asset) => ({
+      ...asset,
+      url: asset.url,
+      sha256: asset.sha256,
+      byteLength: asset.byte_length,
+    })),
+  }
+}
+
+export interface CataloguePackRevision {
+  /** Some file or image differs from the manifest under the same version. */
+  revised: boolean
+  /** Reference image URLs whose installed bytes are not the manifest's. */
+  staleAssetUrls: string[]
+}
+
+// A file can be replaced without the catalogue version moving - 24932bc swapped
+// the Mikania photo and kept 2.2.0 so queued reports stay valid. The installed
+// pack keeps verifying against its own stored hashes, so without this check it
+// would serve the old photo for good and never offer anything newer. A different
+// version is not a revision; isNewerVersion() on the page handles that. Packs
+// from before per-file hashes were stored can't be compared and count as current.
+export function cataloguePackRevision(
+  installed: PackContents | null,
+  manifest: CatalogueManifest = catalogueManifest,
+): CataloguePackRevision {
+  if (!installed || installed.version !== manifest.catalogue_version) {
+    return { revised: false, staleAssetUrls: [] }
+  }
+  const available = packContents(manifest)
+  const filesRevised = Boolean(installed.files) && (
+    Object.keys(installed.files ?? {}).length !== Object.keys(available.files).length
+    || Object.entries(available.files).some(([name, file]) => {
+      const stored = installed.files?.[name]
+      return stored?.sha256 !== file.sha256 || stored.byteLength !== file.byteLength
+    })
+  )
+  if (!installed.assets) return { revised: filesRevised, staleAssetUrls: [] }
+  const stored = new Map(installed.assets.map((asset) => [asset.url, asset]))
+  const staleAssetUrls = available.assets
+    .filter((asset) => {
+      const match = stored.get(asset.url)
+      return match?.sha256 !== asset.sha256 || match.byteLength !== asset.byteLength
+    })
+    .map((asset) => asset.url)
+  const dropped = installed.assets.some((asset) => (
+    !available.assets.some((current) => current.url === asset.url)
+  ))
+  return {
+    revised: filesRevised || dropped || staleAssetUrls.length > 0,
+    staleAssetUrls,
+  }
+}
+
+/** True when `next` revises `current` without changing the version - used to
+ *  tell whether this build's images already match the server's manifest. */
+export function catalogueManifestRevised(
+  current: CatalogueManifest,
+  next: CatalogueManifest,
+): boolean {
+  return cataloguePackRevision(packContents(current), next).revised
+}
+
+/** Pick the pack's blob URL for a reference image unless that image has been
+ *  replaced since the pack was installed and the network can serve the new
+ *  one. Offline, the old photo still beats no photo. */
+export function packAssetUrl(
+  assetUrls: Record<string, string>,
+  url: string,
+  staleAssetUrls: ReadonlySet<string>,
+  online: boolean,
+): string | undefined {
+  if (online && staleAssetUrls.has(url)) return undefined
+  return assetUrls[url]
+}
+
 export async function fetchLatestCatalogueManifest(): Promise<CatalogueManifest> {
   const response = await fetch(apiUrl('/api/v1/offline-pack/latest'), {
     cache: 'no-store',
@@ -272,21 +359,11 @@ export async function downloadCataloguePack(
     throw error
   }
   const installed: InstalledCataloguePack = {
-    version: manifest.catalogue_version,
     installedAt: new Date().toISOString(),
     reviewedAt: manifest.last_reviewed,
     byteSize: cataloguePackSize(manifest),
     cacheName,
-    files: Object.fromEntries(Object.entries(manifest.files).map(([name, file]) => [
-      name,
-      { sha256: file.sha256, byteLength: file.byte_length },
-    ])),
-    assets: manifest.assets.map((asset) => ({
-      ...asset,
-      url: asset.url,
-      sha256: asset.sha256,
-      byteLength: asset.byte_length,
-    })),
+    ...packContents(manifest),
   }
   try {
     localStorage.setItem(STORAGE_KEY, JSON.stringify(installed))
