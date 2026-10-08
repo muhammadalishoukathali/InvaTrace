@@ -78,8 +78,8 @@ async function reachConfirmation(page: Page, context: BrowserContext) {
   await context.grantPermissions(['geolocation'])
   // This is the existing s-10 removal-reported mock fixture's public point.
   await context.setGeolocation({ latitude: 3.1483, longitude: 101.6404, accuracy: 8 })
-  await page.goto('/private-access')
-  await page.getByRole('button', { name: 'Start privately' }).click()
+  await page.goto('/')
+  await page.getByRole('button', { name: 'Start privately' }).first().click()
   await expect(page.getByRole('heading', { name: 'Save your recovery kit' })).toBeVisible()
   await page.getByRole('checkbox', { name: 'I have saved my recovery kit' }).check()
   await page.getByRole('button', { name: 'Continue', exact: true }).click()

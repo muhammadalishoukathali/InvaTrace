@@ -1,36 +1,41 @@
-import { useState, type MouseEvent } from 'react'
+import { createContext, useContext, useState, type MouseEvent } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import { usePrivateAccess } from '@/features/private-access/private-access-store'
 import { Icon } from '@/components/Icon'
 import { LogoWordmark } from '@/components/Logo'
 import {
-  FACT_SOURCES, FEATURES, HERO_IMAGE, HERO_PHOTO_CREDIT, IMPACTS, SCREENS, SDG, START_PATH, STEPS,
+  FACT_SOURCES, FEATURES, HERO_IMAGE, HERO_PHOTO_CREDIT, IMPACTS, SCREENS, SDG, STEPS,
 } from './welcome-content'
 import './welcome.css'
 
 const HOW_ID = 'how-it-works'
 
 /** The one call to action on this page. It creates the private profile
- *  straight away and opens the recovery-kit step, so a visitor does not land
- *  on a second page with another Start privately button. It stays a real link
- *  to the private-access page: if starting is not possible here (offline,
- *  blocked storage, an error), or scripts have not loaded, that page explains
- *  why and offers the retry. */
-function StartLink({ tone, className }: { tone: 'green' | 'light' | 'outline'; className?: string }) {
+ *  straight away and opens the recovery-kit step. There is no second
+ *  private-access page to fall back to, so when starting is not possible
+ *  (offline, blocked storage, an error) the reason is shown in the hero via
+ *  StartNotice and the button can simply be pressed again. */
+function StartButton({ tone, className }: { tone: 'green' | 'light' | 'outline'; className?: string }) {
   const navigate = useNavigate()
   const status = usePrivateAccess((state) => state.status)
+  const profile = usePrivateAccess((state) => state.profile)
   const startPrivate = usePrivateAccess((state) => state.startPrivate)
-  // /welcome stays readable after sign-up; never replace an existing profile.
-  const hasProfile = usePrivateAccess((state) => state.profile !== null || state.installation !== null)
+  const setStartError = useWelcomeStartError()
   const [busy, setBusy] = useState(false)
   const starting = busy || status === 'starting'
 
-  const start = async (event: MouseEvent<HTMLAnchorElement>) => {
-    if (event.metaKey || event.ctrlKey || event.shiftKey || event.altKey || event.button !== 0) return
-    event.preventDefault()
+  const start = async () => {
     if (starting) return
-    if (hasProfile || status !== 'needs-access' || !navigator.onLine) {
-      navigate(START_PATH)
+    setStartError(null)
+    // /welcome stays readable after sign-up; never replace an existing profile.
+    if (status === 'recovery') { navigate('/private-access/recovery'); return }
+    if (profile) { navigate('/map'); return }
+    if (!navigator.onLine) {
+      setStartError('Starting private access needs the network once. Connect, then try again.')
+      return
+    }
+    if (status === 'storage-error') {
+      setStartError('This browser is blocking site storage. Allow it, then try again.')
       return
     }
     setBusy(true)
@@ -38,22 +43,37 @@ function StartLink({ tone, className }: { tone: 'green' | 'light' | 'outline'; c
       await startPrivate()
       navigate('/private-access/recovery', { replace: true })
     } catch {
-      navigate(START_PATH)
+      setStartError('We couldn’t start private access. Check your connection, then try again.')
     } finally {
       setBusy(false)
     }
   }
 
   return (
-    <Link
+    <button
+      type="button"
       className={`welcome-btn welcome-btn--${tone}${className ? ` ${className}` : ''}`}
-      to={START_PATH}
-      onClick={(event) => void start(event)}
+      onClick={() => void start()}
       aria-busy={starting || undefined}
     >
       {starting ? 'Starting…' : 'Start privately'}
-    </Link>
+    </button>
   )
+}
+
+// Any Start privately button on the page reports its failure to one place.
+const StartErrorContext = createContext<(message: string | null) => void>(() => {})
+const useWelcomeStartError = () => useContext(StartErrorContext)
+
+/** Why starting did not work (or why this installation was signed out),
+ *  shown once under the hero actions. */
+function StartNotice({ error }: { error: string | null }) {
+  const status = usePrivateAccess((state) => state.status)
+  const syncMessage = usePrivateAccess((state) => state.syncMessage)
+  const message = error
+    ?? (status === 'revoked' ? syncMessage ?? 'This installation is no longer active. Start again or restore your profile.' : null)
+  if (!message) return null
+  return <p className="welcome-hero__notice" role="alert">{message}</p>
 }
 
 /** Privacy promise and the way back in for existing users, shown beside the
@@ -79,10 +99,13 @@ function goToHowItWorks(event: MouseEvent<HTMLAnchorElement>) {
   window.history.replaceState(window.history.state, '', `#${HOW_ID}`)
 }
 
-/** Public first screen for people who have never used InvaTrace. Pure
- *  presentation: no identity, API or store access, so it renders for anyone. */
+/** Public first screen for people who have never used InvaTrace, and where
+ *  sign-out lands. Readable without any identity; the only store access is
+ *  the Start privately button creating one. */
 export function WelcomePage() {
+  const [startError, setStartError] = useState<string | null>(null)
   return (
+    <StartErrorContext.Provider value={setStartError}>
     <div className="welcome">
       <a className="welcome-skip" href="#welcome-main">Skip to content</a>
 
@@ -112,7 +135,7 @@ export function WelcomePage() {
           <LogoWordmark />
           <div className="welcome-nav__links">
             <a href={`#${HOW_ID}`} onClick={goToHowItWorks}>How it works</a>
-            <StartLink tone="outline" />
+            <StartButton tone="outline" />
           </div>
         </nav>
 
@@ -125,11 +148,12 @@ export function WelcomePage() {
               invasive plants, record what you find and return to see what changes.
             </p>
             <div className="welcome-actions">
-              <StartLink tone="light" />
+              <StartButton tone="light" />
               <a className="welcome-btn welcome-btn--ghost" href={`#${HOW_ID}`} onClick={goToHowItWorks}>
                 How it works
               </a>
             </div>
+            <StartNotice error={startError} />
             <AccessNote />
             <p className="welcome-hero__sdg">
               <span className="welcome-hero__sdg-icon"><Icon name="Trees" size={16} /></span>
@@ -177,7 +201,7 @@ export function WelcomePage() {
           </div>
           {/* Last in reading order, so the next step follows the whole section. */}
           <div className="welcome-why__action">
-            <StartLink tone="green" />
+            <StartButton tone="green" />
           </div>
         </section>
 
@@ -230,7 +254,7 @@ export function WelcomePage() {
 
         <section className="welcome-closing" aria-labelledby="welcome-closing-title">
           <h2 id="welcome-closing-title">Take your next walk with InvaTrace.</h2>
-          <StartLink tone="light" />
+          <StartButton tone="light" />
           <p>No email or password required. <Link to="/private-access/restore">Restore an existing profile</Link></p>
         </section>
       </main>
@@ -247,5 +271,6 @@ export function WelcomePage() {
         </p>
       </footer>
     </div>
+    </StartErrorContext.Provider>
   )
 }

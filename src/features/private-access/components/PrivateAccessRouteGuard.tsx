@@ -3,7 +3,7 @@ import { PrivateAccessLayout } from './PrivateAccessLayout'
 import { Logo } from '@/components/Logo'
 import { usePrivateAccess } from '@/features/private-access/private-access-store'
 
-/** Guards the four pre-app access routes (landing, recovery setup, restore).
+/** Guards the pre-app access routes (recovery setup, restore).
  *  This is the inverse of RequirePrivateAccess.tsx: that one keeps
  *  unauthorized users out of the app, this one keeps already-authorized
  *  users out of the setup flow so they can't accidentally re-run it. */

@@ -38,7 +38,7 @@ function appendFinding(f: Overflow) {
 
 async function bootstrap(page: Page) {
   await page.goto('http://localhost:5173/')
-  await page.getByRole('button', { name: /Start privately/i }).click()
+  await page.getByRole('button', { name: /Start privately/i }).first().click()
   const heading = page.getByRole('heading', { name: /Save your recovery information/i })
   await heading.waitFor({ state: 'visible', timeout: 15_000 })
   await page.evaluate(() => document.querySelector<HTMLInputElement>('input[type=checkbox]')?.click())
@@ -191,7 +191,7 @@ for (const vp of VIEWPORTS) {
     await checkOverflow(page, vp, '/private-access/restore', '09-restore')
 
     // /private-access landing
-    await page.goto('http://localhost:5173/private-access')
+    await page.goto('http://localhost:5173/')
     await page.waitForTimeout(500)
     await checkOverflow(page, vp, '/private-access', '10-landing')
   })

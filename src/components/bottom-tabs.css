@@ -37,7 +37,7 @@
   position: relative;
   isolation: isolate;
   display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr)) 60px repeat(3, minmax(0, 1fr));
+  grid-template-columns: repeat(2, minmax(0, 1fr)) 64px repeat(2, minmax(0, 1fr));
   align-items: center;
   height: 72px;
   padding: 6px 4px;
@@ -212,18 +212,14 @@
   border-radius: 20px;
 }
 
-/* Narrow phones: a slimmer Scan button and no side padding keep each of the
-   six tabs at least 44 px wide down to a 320 px screen. */
-@media (max-width: 380px) {
-  .bottom-tabs-shell { width: calc(100vw - 8px); }
+@media (max-width: 350px) {
+  .bottom-tabs-shell { width: calc(100vw - 16px); }
   .bottom-tabs {
-    grid-template-columns: repeat(3, minmax(44px, 1fr)) 48px repeat(3, minmax(44px, 1fr));
-    padding-inline: 0;
-    border-radius: 26px;
+    grid-template-columns: repeat(2, minmax(44px, 1fr)) 56px repeat(2, minmax(44px, 1fr));
+    padding-inline: 4px;
   }
-  .bottom-tabs .bottom-tabs__scan { width: 48px; min-width: 48px; height: 54px; min-height: 54px; border-radius: 18px; }
-  .bottom-tabs .bottom-tab { font-size: 10px; border-radius: 18px; }
-  .bottom-tab__icon { width: 22px; height: 22px; }
+  .bottom-tabs .bottom-tabs__scan { width: 56px; min-width: 56px; }
+  .bottom-tabs .bottom-tab { font-size: 10px; }
 }
 
 @media (max-width: 899.98px) and (max-height: 500px) {

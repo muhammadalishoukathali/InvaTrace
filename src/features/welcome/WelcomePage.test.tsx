@@ -21,7 +21,7 @@ describe('public welcome page', () => {
   })
 
   it('offers Start privately in the hero, after the problem and at the end', () => {
-    const starts = html.match(/<a[^>]*href="\/private-access"[^>]*>Start privately<\/a>/g) ?? []
+    const starts = html.match(/<button[^>]*type="button"[^>]*>Start privately<\/button>/g) ?? []
     expect(starts.length).toBeGreaterThanOrEqual(3)
     // The problem section's own action comes after its sources.
     const sources = html.indexOf('Sources:')

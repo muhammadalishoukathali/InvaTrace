@@ -33,7 +33,7 @@ export function RequirePrivateAccess({ children }: { children: React.ReactNode }
   }
 
   if (!profile) {
-    return <Navigate to="/private-access" replace />
+    return <Navigate to="/" replace />
   }
 
   return <>{children}</>

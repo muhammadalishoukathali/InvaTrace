@@ -44,7 +44,7 @@ export function RecoveryKitSetupPage() {
   // Already acknowledged (or arrived here with no reason to be here) - don't
   // let the recovery-code screen linger once it's done its job.
   if (status === 'ready') return <Navigate to="/map" replace />
-  if (!profile || !installation) return <Navigate to="/private-access" replace />
+  if (!profile || !installation) return <Navigate to="/" replace />
 
   const createdAt = new Date(batchCreatedAt ?? Date.now())
   const kitInput = { profileId: profile.id, recoveryCodes: codes ?? [], createdAt }

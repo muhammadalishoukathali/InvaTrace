@@ -37,7 +37,7 @@ async function updatedCataloguePack(version: string) {
 // those carry session-specific data, so caching them could leak one visitor's
 // session details into a later visit on the same device.
 test('production shell installs, works offline, and does not cache private access requests', async ({ page, context }) => {
-  await page.goto('/private-access')
+  await page.goto('/')
   await expect(page.getByRole('heading', { name: 'Field reporting without a personal account.' })).toBeVisible()
 
   const manifest = await page.locator('link[rel="manifest"]').getAttribute('href')
@@ -70,7 +70,7 @@ test('production shell installs, works offline, and does not cache private acces
 })
 
 test('offline catalogue uses a verified cache and keeps it when a replacement fails', async ({ page }) => {
-  await page.goto('/private-access')
+  await page.goto('/')
   await page.evaluate(async () => {
     const db = await new Promise<IDBDatabase>((resolve, reject) => {
       const request = indexedDB.open('invatrace-identity', 1)
