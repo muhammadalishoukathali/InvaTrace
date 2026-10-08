@@ -58,22 +58,33 @@ export function PlantAssistantPanel({ result }: { result: IdentifyResult }) {
   const [response, setResponse] = useState<AssistantResponse | null>(null)
   const [responseQuestion, setResponseQuestion] = useState('')
   const [responseDepth, setResponseDepth] = useState<Depth>('standard')
-  // Set when a level change returned the same approved wording as before.
+  // Set when a level change returned the same approved wording as the
+  // standard answer to that question.
   const [unchangedDepth, setUnchangedDepth] = useState<Depth | null>(null)
-  const lastAnswers = useRef(new Map<string, string>())
+  const standardAnswers = useRef(new Map<string, string>())
   const [pending, setPending] = useState(false)
   const [repeat, setRepeat] = useState<string | null>(null)
   const [error, setError] = useState<string | null>(null)
   const answered = useRef(new Set<string>())
   const controller = useRef<AbortController | null>(null)
   const heading = useRef<HTMLHeadingElement>(null)
+  const openButton = useRef<HTMLButtonElement>(null)
+  const wasOpen = useRef(false)
+  const errorMessage = useRef<HTMLParagraphElement>(null)
   const responseHeading = useRef<HTMLHeadingElement>(null)
   const revealResponse = useRef(false)
   const species = assistantSpeciesForScan(result)
   const supported = Boolean(species)
 
   useEffect(() => () => controller.current?.abort(), [])
-  useEffect(() => { if (open) heading.current?.focus() }, [open])
+  useEffect(() => {
+    if (open) heading.current?.focus()
+    else if (wasOpen.current) openButton.current?.focus()
+    wasOpen.current = open
+  }, [open])
+  useEffect(() => {
+    if (error) errorMessage.current?.scrollIntoView?.({ block: 'nearest' })
+  }, [error])
   // A suggested question is tapped above the fold on phones, so bring the
   // answer into view instead of leaving it below the action dock.
   useEffect(() => {
@@ -112,8 +123,8 @@ export function PlantAssistantPanel({ result }: { result: IdentifyResult }) {
       })
       if (attempt.signal.aborted) return
       const key = trimmed.toLowerCase()
-      setUnchangedDepth(depth !== 'standard' && lastAnswers.current.get(key) === next.answer ? depth : null)
-      lastAnswers.current.set(key, next.answer)
+      if (depth === 'standard') standardAnswers.current.set(key, next.answer)
+      setUnchangedDepth(depth !== 'standard' && standardAnswers.current.get(key) === next.answer ? depth : null)
       setResponse(next)
       setResponseQuestion(trimmed)
       setResponseDepth(depth)
@@ -141,7 +152,7 @@ export function PlantAssistantPanel({ result }: { result: IdentifyResult }) {
 
   return (
     <section className="plant-assistant" aria-label="Plant assistant">
-      {!open ? <button type="button" className="plant-assistant__primary" onClick={() => setOpen(true)}>
+      {!open ? <button ref={openButton} type="button" className="plant-assistant__primary" onClick={() => setOpen(true)}>
         Ask about this plant
       </button> : <>
         <div className="plant-assistant__heading">
@@ -171,7 +182,7 @@ export function PlantAssistantPanel({ result }: { result: IdentifyResult }) {
             </div>
           </div>}
           {pending && <p className="sr-only" role="status">Checking the approved information…</p>}
-          {error && <p role="alert">{error}</p>}
+          {error && <p ref={errorMessage} className="plant-assistant__error" role="alert">{error}</p>}
           <div aria-live="polite">
           {response && !pending && !repeat && <div className="plant-assistant__response">
             <p className="plant-assistant__asked">{responseQuestion}</p>
