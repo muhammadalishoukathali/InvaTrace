@@ -94,3 +94,21 @@ def test_cors_middleware_lists_both_catalogue_headers_explicitly() -> None:
     assert '"X-InvaTrace-Catalogue-Sha256"' in source
     # Wildcard would silently permit anything and hide future regressions.
     assert 'allow_headers=["*"]' not in source
+
+
+@pytest.mark.parametrize("origin", FRONTEND_ORIGINS)
+def test_guided_mission_plant_put_preflight_allowed(preflight_client, origin: str) -> None:
+    # AC 7.6.1 - "Try again" replays queued mission plant updates via
+    # PUT /guided-missions/{id}/plants/{species}. PUT must be preflight-allowed
+    # or the browser blocks the retry with a CORS error.
+    response = preflight_client.options(
+        "/api/v1/guided-missions/0086da23-d320-4c32-8152-3f1ff4dce82e/plants/chromolaena-odorata",
+        headers={
+            "Origin": origin,
+            "Access-Control-Request-Method": "PUT",
+            "Access-Control-Request-Headers": "authorization,content-type,idempotency-key",
+        },
+    )
+    assert response.status_code == 200, response.text
+    assert response.headers.get("access-control-allow-origin") == origin
+    assert "PUT" in response.headers.get("access-control-allow-methods", "")

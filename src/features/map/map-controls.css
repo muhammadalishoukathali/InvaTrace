@@ -279,8 +279,18 @@
   font-weight: 750;
 }
 
+/* The map runs under the floating bottom-tabs below 900px, so the preview
+   (and its "View plants recorded nearby" link) must clear the nav like the
+   legend and attribution do, and scroll if a short screen can't fit it. */
+@media (max-width: 899.98px) {
+  .map-place-preview {
+    bottom: calc(var(--mobile-nav-clearance) + 8px);
+    max-height: calc(100% - var(--mobile-nav-clearance) - 24px);
+    overflow-y: auto;
+  }
+}
+
 @media (max-width: 719px) {
-  .map-place-preview { bottom: var(--map-mobile-bottom-clearance); }
   .map-places-status { max-width: calc(100% - 92px); }
 }
 
