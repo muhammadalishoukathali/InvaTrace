@@ -197,7 +197,7 @@ def test_reference_images_are_served_with_no_transform_on_both_static_hosts() ->
     render = _read("render.yaml")
     assert (
         "path: /reference-images/*\n        name: Cache-Control\n"
-        "        value: public, max-age=31536000, immutable, no-transform"
+        "        value: public, max-age=3600, must-revalidate, no-transform"
     ) in render, "Render must serve /reference-images/* with no-transform."
 
     headers = _read("public/_headers")
@@ -208,3 +208,22 @@ def test_reference_images_are_served_with_no_transform_on_both_static_hosts() ->
     assert "no-transform" in reference_rule.split("\n\n", 1)[0], (
         "The Pages /reference-images/* rule must carry no-transform."
     )
+
+
+def test_reference_images_are_revalidated_not_cached_immutably() -> None:
+    """Replaced reference photos must reach browsers that saw the old one.
+
+    Photos under /reference-images/ are replaced in place at the same path. An
+    `immutable` year-long Cache-Control kept the old Mikania micrantha photo on
+    screen for anyone who had already loaded it, so both static hosts must use
+    a short, revalidating policy instead.
+    """
+
+    render = _read("render.yaml")
+    render_rule = render.split("path: /reference-images/*", 1)[1].split("- path:", 1)[0]
+    headers = _read("public/_headers")
+    pages_rule = headers.split("/reference-images/*", 1)[1].split("\n\n", 1)[0]
+    for host, rule in (("Render", render_rule), ("Cloudflare Pages", pages_rule)):
+        assert "immutable" not in rule, f"{host} must not cache /reference-images/* as immutable."
+        assert "must-revalidate" in rule, f"{host} must revalidate /reference-images/*."
+        assert "max-age=31536000" not in rule, f"{host} must not cache /reference-images/* for a year."

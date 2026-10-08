@@ -32,6 +32,7 @@ import {
   type InstalledCataloguePack,
 } from './offline-catalogue'
 import './catalogue.css'
+import { referenceImageSrc } from '@/data/reference-image-src'
 
 const bundledApprovedImages = Object.fromEntries(
   approvedSpeciesDataset.records.flatMap((record) => {
@@ -218,7 +219,7 @@ export function CataloguePage() {
                 <Link to={`/catalogue/${record.species_id}`}>
                   <span className="catalogue-list__image">
                     {imageUrl ? (
-                      <img src={assetUrls[imageUrl] ?? imageUrl} alt="" loading="lazy" />
+                      <img src={assetUrls[imageUrl] ?? referenceImageSrc(imageUrl)} alt="" loading="lazy" />
                     ) : <Icon name="Leaf" size={24} color="var(--green)" />}
                   </span>
                   <span className="catalogue-list__names">

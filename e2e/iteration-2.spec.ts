@@ -86,6 +86,10 @@ test('catalogue, place evidence, adoption and activity use one approved record s
   await page.getByRole('link', { name: /Mikania micrantha/ }).click()
   await expect(page).toHaveURL(/\/catalogue\/mikania-micrantha$/)
   await expect(page.getByRole('heading', { name: 'Sources and credits' })).toBeVisible()
+  // Reference photos are replaced in place, so the app must request them by
+  // content hash or browsers keep showing a cached old photo.
+  await expect(page.getByAltText('Reference view of Mikania micrantha'))
+    .toHaveAttribute('src', /^\/reference-images\/mikania_micrantha\.jpg\?v=[0-9a-f]{12}$/)
 
   await page.goto('/places')
   await page.getByRole('link', { name: /Bukit Kiara/ }).click()

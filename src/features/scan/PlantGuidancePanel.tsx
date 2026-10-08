@@ -25,6 +25,7 @@ import {
   type PlantStatusRecord,
 } from '@shared/catalogue'
 import type { ProtectedLocationContext } from '@/types'
+import { referenceImageSrc } from '@/data/reference-image-src'
 
 interface Props {
   scientificName?: string | null
@@ -238,7 +239,7 @@ export function PlantGuidancePanel({
       {showReferenceImage && plant.reference_image && (
         <figure style={{ margin: '12px 0 0' }}>
           <img
-            src={plant.reference_image}
+            src={referenceImageSrc(plant.reference_image)}
             alt={`Reference photo of ${plant.scientific_name}`}
             loading="lazy"
             style={{
