@@ -57,7 +57,6 @@ export function PlacesPage() {
       <header>
         <h2>Browse mapped places</h2>
         <p>Select a named park, forest or woodland to view historical occurrence associations.</p>
-        <p><Link to="/adopted-areas">My adopted areas</Link></p>
       </header>
       <label className="places-search">
         <span>Search places</span>

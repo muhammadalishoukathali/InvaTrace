@@ -41,11 +41,16 @@ test('leaving profile for records does not trap Back between the two pages', asy
   await expect(page).toHaveURL(/\/map$/)
 
   await page.goto('/profile')
-  await page.getByRole('link', { name: 'View my records' }).click()
+  // Records is reached from the primary nav (bottom tab or sidebar).
+  await page.getByRole('navigation', { name: 'Primary' }).getByRole('link', { name: /^(Records|My records)$/ }).click()
   await expect(page).toHaveURL(/\/reports$/)
 
+  // Back walks plain history (records -> profile -> map) without bouncing
+  // between profile and records.
   await page.goBack()
-  await expect(page).not.toHaveURL(/\/profile$/)
+  await expect(page).toHaveURL(/\/profile$/)
+  await page.goBack()
+  await expect(page).toHaveURL(/\/map$/)
 })
 
 // Seeds a fake scan record straight into localStorage instead of running a
