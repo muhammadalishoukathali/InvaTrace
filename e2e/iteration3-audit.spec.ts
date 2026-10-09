@@ -70,7 +70,7 @@ test('join confirmation can be declined without creating participation', async (
   await expect(page.getByRole('button', { name: 'Join this event', exact: true })).toBeVisible()
 })
 
-test('discovery labels the host and explains an invalid date range', async ({ page }) => {
+test('discovery labels the host and filters a whole-day custom range', async ({ page }) => {
   const queries: string[] = []
   await page.context().route('**/api/v1/events?**', route => {
     queries.push(route.request().url())
@@ -81,13 +81,18 @@ test('discovery labels the host and explains an invalid date range', async ({ pa
   await page.goto('/events')
   await expect(page.getByText('Hosted by Community host')).toBeVisible()
   await page.getByRole('button', { name: 'Custom dates' }).click()
-  await page.getByLabel('From', { exact: true }).fill('2030-01-02T08:00')
-  await page.getByLabel('Until', { exact: true }).fill('2030-01-01T08:00')
-  await expect(page.getByRole('alert')).toContainText('Until must be later than From')
-  expect(queries.some(url => {
+  await expect(page.locator('.events-range input')).toHaveCount(0)
+  await page.getByRole('button', { name: 'Next month' }).click()
+  const days = page.locator('.range-calendar__day button')
+  await days.nth(9).click()
+  await days.nth(4).click() // earlier than the first day: restarts the range
+  await days.nth(11).click()
+  await expect(page.locator('.range-calendar__foot [role="status"]')).toContainText('8 days')
+  await expect.poll(() => queries.some(url => {
     const params = new URL(url).searchParams
-    return params.has('from') && params.has('to') && Date.parse(params.get('to')!) <= Date.parse(params.get('from')!)
-  })).toBe(false)
+    const from = new Date(params.get('from') ?? ''), to = new Date(params.get('to') ?? '')
+    return from.getDate() === 5 && from.getHours() === 0 && to.getDate() === 13 && to.getHours() === 0
+  })).toBe(true)
 })
 
 test('a real seeded follow-up records an unable attempt and retains the needed state', async ({ page, context, baseURL }) => {
