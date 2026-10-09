@@ -13,6 +13,7 @@ import { EventState } from './EventCard'
 import { SpeciesPicker } from './SpeciesPicker'
 import { eventTypeLabels } from './event-types'
 import { formatEventWindow, placeTypeLabels, speciesName } from './event-format'
+import { rankPlaces } from './place-ranking'
 import './events.css'
 
 const DEFAULT_SAFETY_NOTES = 'Observe and report only unless the land manager has given permission. Wear closed shoes, bring water, stay on marked paths and keep away from water edges.'
@@ -94,11 +95,7 @@ export function HostEventPage() {
     },
   })
 
-  const filteredPlaces = useMemo(() => {
-    const term = placeSearch.trim().toLowerCase()
-    const all = places.data?.items ?? []
-    return (term ? all.filter((place) => place.displayName.toLowerCase().includes(term)) : all).slice(0, 40)
-  }, [places.data, placeSearch])
+  const filteredPlaces = useMemo(() => rankPlaces(places.data?.items ?? [], placeSearch), [places.data, placeSearch])
 
   const set = <K extends keyof EventDraft>(key: K, value: EventDraft[K]) => {
     setDraft((previous) => ({ ...previous, [key]: value }))
