@@ -18,7 +18,7 @@ const item = {
   event_type: 'survey', status: 'published', place_id: 'place-1', place_name: 'Mapped place',
   host_display_name: 'Community host', target_species_ids: [], meeting_latitude: 3.1,
   meeting_longitude: 101.6, start_at: '2030-01-01T08:00:00Z', end_at: '2030-01-01T10:00:00Z',
-  permission_context: 'unknown', is_joined: false,
+  land_status: 'not_protected', is_joined: false,
 }
 
 for (const width of [390, 1440]) {

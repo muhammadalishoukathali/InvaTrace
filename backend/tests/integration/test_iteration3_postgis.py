@@ -35,6 +35,8 @@ def test_event_create_publish_discovery_and_private_host_identity(
     from app.api.routers import events
 
     monkeypatch.setattr(events.rate_limiter, "check", lambda *_args, **_kwargs: None)
+    # The 3-sighting hosting gate has its own test; these hosts skip it.
+    monkeypatch.setattr(events, "_assert_can_host", lambda *_args, **_kwargs: None)
     run = uuid.uuid4().hex[:12]
     now = datetime.now(UTC)
     with SessionLocal() as session:

@@ -5,13 +5,13 @@ import type { CommunityEvent } from '@/services/api/events'
 import { speciesName } from './event-format'
 
 /**
- * The AC 9.2.4 / 9.6.5 wording: taking part is never removal permission. Used
+ * The AC 9.2.4 / 9.6.5 / 9.6.7 wording: taking part is never removal permission. Used
  * on the event detail, the join confirmation and the task view so the message
  * is word-for-word the same everywhere, with the Epic 3.0 guidance one tap
  * away.
  */
 export function EventSafetyNotice({ event, compact = false }: {
-  event: Pick<CommunityEvent, 'eventType' | 'permissionContext' | 'safetyNotes' | 'targetSpeciesIds'>
+  event: Pick<CommunityEvent, 'eventType' | 'landStatus' | 'protectedAreaName' | 'safetyNotes' | 'targetSpeciesIds'>
   compact?: boolean
 }) {
   // The detail page and its join dialog both render this notice; keep ids unique.
@@ -25,9 +25,11 @@ export function EventSafetyNotice({ event, compact = false }: {
       </p>
       {!compact && (
         <p>
-          {event.permissionContext === 'explicit_permission'
-            ? 'The host says they have permission from the land manager for this activity. Confirm the site rules yourself before acting.'
-            : 'The host has not confirmed permission from the land manager. Observe and report only.'}
+          {event.landStatus === 'protected'
+            ? `This place overlaps a mapped protected area${event.protectedAreaName ? ` (${event.protectedAreaName})` : ''}. Observe and report only.`
+            : event.landStatus === 'not_protected'
+              ? 'This place is not in a mapped protected area. That is not ownership or access permission — confirm the site rules yourself before acting.'
+              : 'The protected-area status of this place could not be confirmed. Observe and report only.'}
         </p>
       )}
       {!compact && event.safetyNotes && (

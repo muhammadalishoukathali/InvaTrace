@@ -29,7 +29,7 @@ VITE_ENABLE_MOCKS=false VITE_API_BASE_URL=http://localhost:8800 npm run dev -- -
 
 Open `/events`, start private access, and acknowledge the recovery kit. Discovery links to hosting and hosted-event management; monitoring-area and place pages link to events scoped to that place. The local seed contains two published events, one completed event with three screened reports, and one sighting in each follow-up state. These are explicitly labelled demo records. Existing seed records are preserved on repeated seeding; their dates do not roll forward automatically.
 
-Lifecycle jobs run every five minutes (completion) and one hour (automatic cancellation) when `RUN_WORKERS_IN_API=true`. Enable this only against an isolated database. Defaults: host cap 3, flag threshold 3 identities, report budget 60 per identity/event, check-in grace 30 minutes before start, hidden inactivity 14 days. Settings are `EVENT_HOST_CAP`, `EVENT_FLAG_HIDE_THRESHOLD`, `EVENT_REPORT_BUDGET_PER_IDENTITY`, `EVENT_CHECKIN_GRACE_MINUTES`, `EVENT_HIDDEN_AUTO_CANCEL_DAYS`.
+Lifecycle jobs run every five minutes (completion) and one hour (automatic cancellation) when `RUN_WORKERS_IN_API=true`. Enable this only against an isolated database. Defaults: hosting unlocks after 3 non-rejected reports, host cap 3, flag threshold 3 identities, report budget 60 per identity/event, check-in grace 30 minutes before start, hidden inactivity 14 days. Settings are `EVENT_HOST_MIN_REPORTS`, `EVENT_HOST_CAP`, `EVENT_FLAG_HIDE_THRESHOLD`, `EVENT_REPORT_BUDGET_PER_IDENTITY`, `EVENT_CHECKIN_GRACE_MINUTES`, `EVENT_HIDDEN_AUTO_CANCEL_DAYS`.
 
 ## Acceptance coverage
 
@@ -37,7 +37,7 @@ Each row is implemented. Verification combines focused unit tests, real PostGIS 
 
 Test keys:
 
-- **API**: `backend/tests/integration/test_iteration3_postgis.py` and `test_iteration3_edges_postgis.py`.
+- **API**: `backend/tests/integration/test_iteration3_postgis.py`, `test_iteration3_edges_postgis.py` and `test_event_host_gate_land_status_postgis.py` (hosting gate and land status).
 - **Summary**: `backend/tests/integration/test_iteration3_summary_postgis.py`.
 - **Report**: `backend/tests/test_events_reports.py`, `backend/tests/integration/test_iteration3_reports_postgis.py`, `src/features/report/event-report-queue.test.ts`, `e2e/report-event.spec.ts`.
 - **Lifecycle**: `backend/tests/integration/test_iteration3_lifecycle_postgis.py`.
@@ -73,12 +73,13 @@ Test keys:
 | 9.5.2 | Summary uses factual community-monitoring language without treatment/health scores | Summary, Visual |
 | 9.5.3 | Summary follows the mapped place using the existing adopted-area API and refreshes the monitoring-area cache | Visual, existing adopted-area tests |
 | 9.5.4 | Summary links the earliest future visible published event at the same place | Summary |
-| 9.6.1 | Host ownership for create/edit/cancel; six activity-sensitive fields locked | API |
+| 9.6.1 | Hosting locked (403 `hosting_locked`) below three counted reports, with UI progress; host ownership for create/edit/cancel; six activity-sensitive fields locked | API, Browser |
 | 9.6.2 | Display name or “Community host”; private public_id is never a fallback | API |
 | 9.6.3 | Required fields, aware ordered times, valid mapped place and meeting geometry validated; each form step prevents invalid advancement | API, Browser, Visual |
 | 9.6.4 | Drafts are private and absent from discovery; publication revalidates geometry | API |
-| 9.6.5 | Permission context required and safety notes shown | Request-contract tests, Visual |
-| 9.6.6 | Activity type required; removal requires explicit permission in both form and server | Request-contract tests, Visual |
+| 9.6.5 | Safety notes and server-derived land status shown; no self-declared permission | Request-contract tests, Visual |
+| 9.6.6 | Place chosen first; activity type limited by land status (removal only on `not_protected`) in both form and server, re-checked on publish | API, Request-contract tests, Browser |
+| 9.6.7 | Land status from the active protected-area release (`protected` / `not_protected` / `uncertain`, fail closed), with name, operator and disclaimer | API, Browser |
 | 9.7.1 | Cancellation is soft and idempotent, preserves attendance/report history and cannot cancel a completed summary | Summary, Lifecycle |
 | 9.7.2 | Profile lock serializes cap checks; fourth active hosted event rejected | API |
 | 9.7.3 | One flag per distinct non-host identity; third hides; only restoring a hidden event clears flags | API |

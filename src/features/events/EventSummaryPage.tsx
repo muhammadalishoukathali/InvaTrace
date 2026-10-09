@@ -7,6 +7,7 @@ import { eventsApi } from '@/services/api/events'
 import { EventState } from './EventCard'
 import { formatEventDay, formatEventTime, formatEventWindow } from './event-format'
 import './events.css'
+import { HostEventLink } from './HostEventGate'
 
 /**
  * US 9.5: a plain record of what the event submitted. It counts activity and
@@ -71,7 +72,7 @@ export function EventSummaryPage() {
             <Icon name="ChevronRight" size={18} />
           </Link>
         ) : (
-          <p className="event-muted">No later event has been published for this place yet. Follow the area to keep an eye on it, or <Link to="/events/host">host the next one</Link>.</p>
+          <p className="event-muted">No later event has been published for this place yet. Follow the area to keep an eye on it, or <HostEventLink inline>host the next one</HostEventLink>.</p>
         )}
       </section>
     </section>

@@ -5,7 +5,7 @@ const eventWire = {
   event_id: 'event-42', title: 'Trail survey', purpose: 'Record observations',
   event_type: 'survey', status: 'published', place_id: 'place-8', place_name: 'Bukit Kiara',
   target_species_ids: ['mikania-micrantha'], meeting_latitude: 3.15, meeting_longitude: 101.64,
-  start_at: '2030-02-01T08:00:00Z', end_at: '2030-02-01T10:00:00Z', permission_context: 'unknown',
+  start_at: '2030-02-01T08:00:00Z', end_at: '2030-02-01T10:00:00Z', land_status: 'protected', protected_area_name: 'Bukit Kiara Reserve',
   is_joined: true, participation_id: 'participation-4', joined_count: 3,
 }
 
@@ -24,11 +24,24 @@ describe('events API boundary', () => {
   it('strips UI-only draft fields and normalizes event_id after create', async () => {
     const fetch = vi.fn().mockResolvedValue(new Response(JSON.stringify({ event_id: 'created-9', status: 'draft' }), { status: 201 }))
     vi.stubGlobal('fetch', fetch)
-    const created = await eventsApi.create({ ...eventWire, id: 'ignore-me', eventType: 'survey', placeId: 'place-8', targetSpeciesIds: [], meetingLatitude: 3.15, meetingLongitude: 101.64, startAt: '2030-02-01T08:00:00Z', endAt: '2030-02-01T10:00:00Z', permissionContext: 'unknown', status: 'published' })
+    const created = await eventsApi.create({ ...eventWire, id: 'ignore-me', eventType: 'survey', placeId: 'place-8', targetSpeciesIds: [], meetingLatitude: 3.15, meetingLongitude: 101.64, startAt: '2030-02-01T08:00:00Z', endAt: '2030-02-01T10:00:00Z', status: 'published' })
     expect(created).toEqual({ eventId: 'created-9', status: 'draft' })
     const body = JSON.parse(fetch.mock.calls[0][1].body as string)
     expect(body).not.toHaveProperty('id')
     expect(body).not.toHaveProperty('status')
+    expect(body).not.toHaveProperty('permissionContext')
+  })
+
+  it('normalizes land status, place land-status and host eligibility', async () => {
+    const fetch = vi.fn()
+      .mockResolvedValueOnce(new Response(JSON.stringify(eventWire), { status: 200 }))
+      .mockResolvedValueOnce(new Response(JSON.stringify({ land_status: 'protected', protected_area_name: 'Bukit Kiara Reserve', operator: 'Forestry', allowed_event_types: ['survey', 'monitoring', 'other'], reason: 'r', disclaimer: 'd' }), { status: 200 }))
+      .mockResolvedValueOnce(new Response(JSON.stringify({ eligible: false, report_count: 1, required: 3 }), { status: 200 }))
+    vi.stubGlobal('fetch', fetch)
+    await expect(eventsApi.get('event-42')).resolves.toMatchObject({ landStatus: 'protected', protectedAreaName: 'Bukit Kiara Reserve' })
+    await expect(eventsApi.landStatus('place-8')).resolves.toMatchObject({ landStatus: 'protected', operator: 'Forestry', allowedEventTypes: ['survey', 'monitoring', 'other'] })
+    expect(fetch.mock.calls[1][0]).toContain('/api/v1/places/place-8/land-status')
+    await expect(eventsApi.hostEligibility()).resolves.toEqual({ eligible: false, reportCount: 1, required: 3 })
   })
 
   it('normalizes raw participation and completed-summary fields', async () => {

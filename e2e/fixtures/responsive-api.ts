@@ -24,7 +24,7 @@ const event = {
   host_display_name: 'Community host', target_species_ids: ['mikania-micrantha'],
   meeting_latitude: 3.1497, meeting_longitude: 101.6412,
   start_at: new Date(Date.now() - 600_000).toISOString(), end_at: new Date(Date.now() + 3_600_000).toISOString(),
-  permission_context: 'unknown', joined_count: 2, is_joined: true, participation_id: 'layout-participant',
+  land_status: 'not_protected', joined_count: 2, is_joined: true, participation_id: 'layout-participant',
   is_host: true, last_checkin_at: now,
 }
 
@@ -39,6 +39,7 @@ export function install() {
     http.get('*/api/v1/events', () => fixture.error
       ? HttpResponse.json({ detail: 'Test outage' }, { status: 503 })
       : HttpResponse.json({ items: fixture.empty ? [] : [event] })),
+    http.get('*/api/v1/events/host-eligibility', () => HttpResponse.json({ eligible: true, report_count: 3, required: 3 })),
     http.get('*/api/v1/events/mine', () => HttpResponse.json({ items: fixture.empty ? [] : [event] })),
     http.get('*/api/v1/events/layout-event', () => HttpResponse.json(event)),
     http.get('*/api/v1/events/layout-event/summary', () => HttpResponse.json({

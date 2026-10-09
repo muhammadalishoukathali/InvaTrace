@@ -2,6 +2,23 @@ import { api } from '@/services/api-client'
 
 export type EventType = 'survey' | 'removal' | 'monitoring' | 'other'
 export type EventStatus = 'draft' | 'published' | 'cancelled' | 'completed'
+/** Mapped protected-area status of an event place, derived by the server (AC 9.6.7). */
+export type LandStatus = 'protected' | 'not_protected' | 'uncertain'
+
+export interface PlaceLandStatus {
+  landStatus: LandStatus
+  protectedAreaName: string | null
+  operator: string | null
+  allowedEventTypes: EventType[]
+  reason: string
+  disclaimer: string
+}
+
+export interface HostEligibility {
+  eligible: boolean
+  reportCount: number
+  required: number
+}
 
 export interface CommunityEvent {
   id: string
@@ -20,7 +37,8 @@ export interface CommunityEvent {
   startAt: string
   endAt: string
   safetyNotes?: string | null
-  permissionContext: 'unknown' | 'explicit_permission'
+  landStatus: LandStatus
+  protectedAreaName?: string | null
   hostDisplayName?: string
   joinedCount?: number
   isJoined?: boolean
@@ -43,9 +61,9 @@ export interface EventSummary {
   nextEvent: { eventId: string; startAt: string } | null
 }
 
-type WireEvent = Partial<CommunityEvent> & { can_restore?: boolean; event_id?: string; event_type?: EventType; place_id?: string; place_name?: string; place_type?: CommunityEvent['placeType']; target_species_ids?: string[]; target_species?: CommunityEvent['targetSpecies']; meeting_latitude?: number; meeting_longitude?: number; meeting_note?: string | null; start_at?: string; end_at?: string; safety_notes?: string | null; permission_context?: CommunityEvent['permissionContext']; host_display_name?: string; joined_count?: number; is_joined?: boolean; participation_id?: string | null; is_host?: boolean; activity_locked?: boolean; last_checkin_at?: string | null; chat_link?: string | null }
+type WireEvent = Partial<CommunityEvent> & { can_restore?: boolean; event_id?: string; event_type?: EventType; place_id?: string; place_name?: string; place_type?: CommunityEvent['placeType']; target_species_ids?: string[]; target_species?: CommunityEvent['targetSpecies']; meeting_latitude?: number; meeting_longitude?: number; meeting_note?: string | null; start_at?: string; end_at?: string; safety_notes?: string | null; land_status?: LandStatus; protected_area_name?: string | null; host_display_name?: string; joined_count?: number; is_joined?: boolean; participation_id?: string | null; is_host?: boolean; activity_locked?: boolean; last_checkin_at?: string | null; chat_link?: string | null }
 const eventFromWire = (wire: WireEvent): CommunityEvent => ({
-  ...(wire as CommunityEvent), canRestore: wire.canRestore ?? wire.can_restore, id: wire.id ?? wire.event_id ?? '', eventType: wire.eventType ?? wire.event_type ?? 'other', placeId: wire.placeId ?? wire.place_id ?? '', placeName: wire.placeName ?? wire.place_name, placeType: wire.placeType ?? wire.place_type, targetSpeciesIds: wire.targetSpeciesIds ?? wire.target_species_ids ?? [], targetSpecies: wire.targetSpecies ?? wire.target_species, meetingLatitude: wire.meetingLatitude ?? wire.meeting_latitude ?? 0, meetingLongitude: wire.meetingLongitude ?? wire.meeting_longitude ?? 0, meetingNote: wire.meetingNote ?? wire.meeting_note, startAt: wire.startAt ?? wire.start_at ?? '', endAt: wire.endAt ?? wire.end_at ?? '', safetyNotes: wire.safetyNotes ?? wire.safety_notes, permissionContext: wire.permissionContext ?? wire.permission_context ?? 'unknown', hostDisplayName: wire.hostDisplayName ?? wire.host_display_name, joinedCount: wire.joinedCount ?? wire.joined_count, isJoined: wire.isJoined ?? wire.is_joined, participationId: wire.participationId ?? wire.participation_id, isHost: wire.isHost ?? wire.is_host, activityLocked: wire.activityLocked ?? wire.activity_locked, lastCheckinAt: wire.lastCheckinAt ?? wire.last_checkin_at, chatLink: wire.chatLink ?? wire.chat_link,
+  ...(wire as CommunityEvent), canRestore: wire.canRestore ?? wire.can_restore, id: wire.id ?? wire.event_id ?? '', eventType: wire.eventType ?? wire.event_type ?? 'other', placeId: wire.placeId ?? wire.place_id ?? '', placeName: wire.placeName ?? wire.place_name, placeType: wire.placeType ?? wire.place_type, targetSpeciesIds: wire.targetSpeciesIds ?? wire.target_species_ids ?? [], targetSpecies: wire.targetSpecies ?? wire.target_species, meetingLatitude: wire.meetingLatitude ?? wire.meeting_latitude ?? 0, meetingLongitude: wire.meetingLongitude ?? wire.meeting_longitude ?? 0, meetingNote: wire.meetingNote ?? wire.meeting_note, startAt: wire.startAt ?? wire.start_at ?? '', endAt: wire.endAt ?? wire.end_at ?? '', safetyNotes: wire.safetyNotes ?? wire.safety_notes, landStatus: wire.landStatus ?? wire.land_status ?? 'uncertain', protectedAreaName: wire.protectedAreaName ?? wire.protected_area_name, hostDisplayName: wire.hostDisplayName ?? wire.host_display_name, joinedCount: wire.joinedCount ?? wire.joined_count, isJoined: wire.isJoined ?? wire.is_joined, participationId: wire.participationId ?? wire.participation_id, isHost: wire.isHost ?? wire.is_host, activityLocked: wire.activityLocked ?? wire.activity_locked, lastCheckinAt: wire.lastCheckinAt ?? wire.last_checkin_at, chatLink: wire.chatLink ?? wire.chat_link,
 })
 
 export interface EventDraft {
@@ -61,7 +79,6 @@ export interface EventDraft {
   endAt: string
   targetSpeciesIds: string[]
   safetyNotes?: string
-  permissionContext: 'unknown' | 'explicit_permission'
   chatLink?: string
   capacity?: number | null
   status?: 'draft' | 'published'
@@ -82,6 +99,21 @@ export const eventsApi = {
     const { placeId, speciesId, ...range } = filters
     return api<{ items: WireEvent[] }>(`${placeId ? `/api/v1/places/${placeId}/events` : '/api/v1/events'}${query({ ...range, species_id: speciesId })}`).then((data) => ({ items: data.items.map(eventFromWire) }))
   },
+  hostEligibility() {
+    return api<HostEligibility & { report_count?: number }>('/api/v1/events/host-eligibility')
+      .then((value) => ({ eligible: value.eligible, reportCount: value.reportCount ?? value.report_count ?? 0, required: value.required }))
+  },
+  landStatus(placeId: string) {
+    type Wire = Partial<PlaceLandStatus> & { land_status?: LandStatus; protected_area_name?: string | null; allowed_event_types?: EventType[] }
+    return api<Wire>(`/api/v1/places/${placeId}/land-status`).then((value): PlaceLandStatus => ({
+      landStatus: value.landStatus ?? value.land_status ?? 'uncertain',
+      protectedAreaName: value.protectedAreaName ?? value.protected_area_name ?? null,
+      operator: value.operator ?? null,
+      allowedEventTypes: value.allowedEventTypes ?? value.allowed_event_types ?? ['survey', 'monitoring', 'other'],
+      reason: value.reason ?? '',
+      disclaimer: value.disclaimer ?? '',
+    }))
+  },
   get(id: string) { return api<WireEvent>(`/api/v1/events/${id}`).then(eventFromWire) },
   mine() { return api<{ items: WireEvent[] }>('/api/v1/events/mine').then((data) => ({ items: data.items.map(eventFromWire) })) },
   place(placeId: string) { return api<{ items: WireEvent[] }>(`/api/v1/places/${placeId}/events`).then((data) => ({ items: data.items.map(eventFromWire) })) },
@@ -91,7 +123,7 @@ export const eventsApi = {
       placeId: draft.placeId, meetingLatitude: draft.meetingLatitude,
       meetingLongitude: draft.meetingLongitude, meetingNote: draft.meetingNote,
       startAt: draft.startAt, endAt: draft.endAt, targetSpeciesIds: draft.targetSpeciesIds,
-      safetyNotes: draft.safetyNotes, permissionContext: draft.permissionContext,
+      safetyNotes: draft.safetyNotes,
       chatLink: draft.chatLink, capacity: draft.capacity,
     }
     return api<{ eventId?: string; event_id?: string; status: EventStatus }>('/api/v1/events', { method: 'POST', body: JSON.stringify(body) })

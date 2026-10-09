@@ -4,7 +4,7 @@ import { useNavigate, useParams } from 'react-router-dom'
 import { BackLink } from '@/components/BackLink'
 import { Icon } from '@/components/Icon'
 import { api, ApiError } from '@/services/api-client'
-import { eventsApi, type EventDraft, type EventType } from '@/services/api/events'
+import { eventsApi, type EventDraft, type EventType, type PlaceLandStatus } from '@/services/api/events'
 import type { PlaceDetail, PlaceSummary } from '@/types'
 import { parseLocalDateTime, toLocalDateTimeValue } from '@/utils/date-time'
 import { EventMap } from './EventMap'
@@ -15,24 +15,33 @@ import { eventTypeLabels } from './event-types'
 import { formatEventWindow, placeTypeLabels, speciesName } from './event-format'
 import { rankPlaces } from './place-ranking'
 import { eventWindowError } from './event-time'
+import { HostingLockedPanel, useHostEligibility } from './HostEventGate'
 import './events.css'
 
-const DEFAULT_SAFETY_NOTES = 'Observe and report only unless the land manager has given permission. Wear closed shoes, bring water, stay on marked paths and keep away from water edges.'
+const DEFAULT_SAFETY_NOTES = 'Observe and report by default. Wear closed shoes, bring water, stay on marked paths and keep away from water edges.'
 const initial: EventDraft = {
   title: '', purpose: '', eventType: 'survey', placeId: '', meetingLatitude: Number.NaN, meetingLongitude: Number.NaN,
-  startAt: '', endAt: '', targetSpeciesIds: [], permissionContext: 'unknown', safetyNotes: DEFAULT_SAFETY_NOTES,
+  startAt: '', endAt: '', targetSpeciesIds: [], safetyNotes: DEFAULT_SAFETY_NOTES,
 }
 type FormErrors = Partial<Record<keyof EventDraft | 'times' | 'meeting', string>>
-const STEPS = ['Activity', 'Place', 'Time & safety', 'Review'] as const
+const STEPS = ['Place & activity', 'Details & time', 'Review'] as const
+const LAST_STEP = STEPS.length
+// Fail closed: until the land status is known, only observe-and-report types are offered.
+const OBSERVE_ONLY: EventType[] = ['survey', 'monitoring', 'other']
 
 const TYPE_HELP: Record<EventType, string> = {
   survey: 'Find and record invasive plants. The safest default.',
-  removal: 'Safe removal. Needs permission from the land manager before you can publish.',
+  removal: 'Safe removal. Only offered outside mapped protected land; each person still passes the safety checks on the day.',
   monitoring: 'Revisit earlier sightings to check for regrowth.',
   other: 'Another activity — describe it in the purpose.',
 }
+const REMOVAL_UNAVAILABLE = 'Not available here: removal is only offered outside mapped protected land. Run a survey or monitoring visit instead.'
 
-/** US 9.6: any identity can host. Events start as drafts until published. */
+/**
+ * US 9.6: anyone with 3 reported sightings can host (AC 9.6.1). The host picks
+ * the place first; its mapped land status decides which activities are offered
+ * (AC 9.6.6 / 9.6.7). Events start as drafts until published.
+ */
 export function HostEventPage() {
   const queryClient = useQueryClient()
   const { eventId } = useParams()
@@ -43,6 +52,8 @@ export function HostEventPage() {
   const [errors, setErrors] = useState<FormErrors>({})
   const [createdId, setCreatedId] = useState<string | null>(null)
   const [placeSearch, setPlaceSearch] = useState('')
+  const [typeResetNote, setTypeResetNote] = useState<string | null>(null)
+  const eligibility = useHostEligibility()
   const initialized = useRef<string | null>(null)
   const headingRef = useRef<HTMLHeadingElement>(null)
   const places = useQuery({ queryKey: ['places'], queryFn: () => api<{ items: PlaceSummary[] }>('/api/v1/places') })
@@ -51,6 +62,12 @@ export function HostEventPage() {
     queryFn: () => api<PlaceDetail>(`/api/v1/places/${draft.placeId}`),
     enabled: Boolean(draft.placeId),
   })
+  const landStatus = useQuery({
+    queryKey: ['place', draft.placeId, 'land-status'],
+    queryFn: () => eventsApi.landStatus(draft.placeId),
+    enabled: Boolean(draft.placeId),
+  })
+  const allowedTypes: EventType[] = landStatus.data?.allowedEventTypes ?? OBSERVE_ONLY
   const existing = useQuery({ queryKey: ['event', eventId], queryFn: () => eventsApi.get(eventId!), enabled: edit })
   // An already-saved start is not re-judged against "now" (mirrors the API).
   const originalStart = existing.data ? localInput(existing.data.startAt) : null
@@ -63,9 +80,19 @@ export function HostEventPage() {
       title: item.title, purpose: item.purpose, eventType: item.eventType, placeId: item.placeId,
       meetingLatitude: item.meetingLatitude, meetingLongitude: item.meetingLongitude, meetingNote: item.meetingNote ?? '',
       startAt: localInput(item.startAt), endAt: localInput(item.endAt), targetSpeciesIds: item.targetSpeciesIds,
-      safetyNotes: item.safetyNotes ?? '', permissionContext: item.permissionContext, chatLink: item.chatLink ?? '',
+      safetyNotes: item.safetyNotes ?? '', chatLink: item.chatLink ?? '',
     })
   }, [eventId, existing.data])
+
+  // A place whose land status rules out the chosen type falls back to a survey.
+  // Locked events keep their type; the server owns that decision after activity.
+  useEffect(() => {
+    if (!landStatus.data || existing.data?.activityLocked) return
+    if (!landStatus.data.allowedEventTypes.includes(draft.eventType)) {
+      setDraft((previous) => ({ ...previous, eventType: 'survey' }))
+      setTypeResetNote(`${eventTypeLabels[draft.eventType]} isn’t available at this place, so the event is now a community survey.`)
+    }
+  }, [landStatus.data, draft.eventType, existing.data?.activityLocked])
 
   // Move focus to the step heading so keyboard and screen-reader users land at
   // the start of each new step.
@@ -123,35 +150,36 @@ export function HostEventPage() {
 
   const validate = (upTo: number) => {
     const next: FormErrors = {}
+    const locked = Boolean(existing.data?.activityLocked)
     if (upTo >= 1) {
-      if (!draft.title.trim()) next.title = 'Enter an event title.'
-      if (!draft.purpose.trim()) next.purpose = 'Describe what the group will do.'
+      if (!draft.placeId) next.placeId = 'Choose a mapped place.'
+      else if (landStatus.isLoading) next.eventType = 'Checking the land status of this place…'
+      else if (!locked && !allowedTypes.includes(draft.eventType)) next.eventType = REMOVAL_UNAVAILABLE
+      if (draft.placeId && !validMeeting(draft)) next.meeting = 'Tap the map inside the place to set a meeting point in Malaysia.'
     }
     if (upTo >= 2) {
-      if (!draft.placeId) next.placeId = 'Choose a mapped place.'
-      if (!validMeeting(draft)) next.meeting = 'Tap the map inside the place to set a meeting point in Malaysia.'
-    }
-    if (upTo >= 3) {
+      if (!draft.title.trim()) next.title = 'Enter an event title.'
+      if (!draft.purpose.trim()) next.purpose = 'Describe what the group will do.'
       // Locked times cannot change, so there is nothing for the host to fix.
-      const timeError = existing.data?.activityLocked ? null : eventWindowError(
+      const timeError = locked ? null : eventWindowError(
         parseLocalDateTime(draft.startAt), parseLocalDateTime(draft.endAt), new Date(), draft.startAt !== originalStart,
       )
       if (timeError) next.times = timeError
-      if (draft.eventType === 'removal' && draft.permissionContext !== 'explicit_permission') {
-        next.permissionContext = 'A removal event needs confirmed permission from the land manager before it can be published.'
-      }
-      // The pre-filled default notes are generic advice, not a stated basis.
-      if (draft.permissionContext === 'explicit_permission'
-        && (!draft.safetyNotes?.trim() || draft.safetyNotes.trim() === DEFAULT_SAFETY_NOTES)) {
-        next.safetyNotes = 'State who gave permission and any conditions in the safety notes.'
-      }
     }
-    if (upTo >= 4 && draft.chatLink?.trim() && !validChatLink(draft.chatLink)) next.chatLink = 'Enter a valid https:// link without a username or password.'
+    if (upTo >= 3 && draft.chatLink?.trim() && !validChatLink(draft.chatLink)) next.chatLink = 'Enter a valid https:// link without a username or password.'
     setErrors(next)
-    const firstInvalidStep = (next.title || next.purpose) ? 1 : (next.placeId || next.meeting) ? 2 : (next.times || next.permissionContext || next.safetyNotes) ? 3 : 4
+    const firstInvalidStep = (next.placeId || next.meeting || next.eventType) ? 1 : (next.title || next.purpose || next.times) ? 2 : 3
     return { ok: Object.keys(next).length === 0, firstInvalidStep }
   }
 
+  if (!edit && eligibility.data && !eligibility.data.eligible) {
+    return (
+      <section className="events-page event-narrow host-event">
+        <BackLink to="/events">Back to events</BackLink>
+        <HostingLockedPanel reportCount={eligibility.data.reportCount} required={eligibility.data.required} />
+      </section>
+    )
+  }
   if (edit && existing.isLoading) return <EventState text="Loading event editor…" />
   if (edit && (existing.isError || !existing.data)) return <EventState error text="This event cannot be edited." />
   if (edit && !existing.data!.isHost) return <EventState error text="Only the event host can edit this event." />
@@ -159,7 +187,7 @@ export function HostEventPage() {
   const locked = Boolean(existing.data?.activityLocked)
   const startFixed = existing.data?.status === 'published' && new Date(existing.data.startAt) <= new Date() && draft.startAt === originalStart
   const next = () => { const result = validate(step); if (result.ok) setStep(step + 1); else setStep(Math.min(step, result.firstInvalidStep)) }
-  const submit = (publish: boolean) => { const result = validate(4); if (result.ok) save.mutate(publish); else setStep(result.firstInvalidStep) }
+  const submit = (publish: boolean) => { const result = validate(LAST_STEP); if (result.ok) save.mutate(publish); else setStep(result.firstInvalidStep) }
   const point = validMeeting(draft) ? { latitude: draft.meetingLatitude, longitude: draft.meetingLongitude } : undefined
   const placeName = selectedPlace.data?.displayName ?? places.data?.items.find((place) => place.placeId === draft.placeId)?.displayName
 
@@ -168,7 +196,7 @@ export function HostEventPage() {
       <BackLink to={edit ? `/events/${eventId}` : '/events'}>{edit ? 'Back to event' : 'Back to events'}</BackLink>
       <header className="event-detail__header">
         <h2>{edit ? 'Edit event' : 'Host a community event'}</h2>
-        {!edit && <p className="event-detail__host">No account needed. It stays a private draft until you publish it.</p>}
+        {!edit && <p className="event-detail__host">No account needed. Pick the place first — what you can run there depends on its land status. It stays a private draft until you publish it.</p>}
       </header>
 
       <ol className="host-stepper" aria-label="Progress">
@@ -182,36 +210,9 @@ export function HostEventPage() {
       {locked && <p className="event-banner" role="status">People have checked in or reported, so the place, meeting point, times and event type are locked. To change them, cancel and create a new event.</p>}
 
       <div className="host-step">
-        <h3 ref={headingRef} tabIndex={-1}>Step {step} of 4 · {STEPS[step - 1]}</h3>
+        <h3 ref={headingRef} tabIndex={-1}>Step {step} of {LAST_STEP} · {STEPS[step - 1]}</h3>
 
         {step === 1 && (
-          <>
-            <label className="event-field">
-              <span>Event title</span>
-              <input value={draft.title} maxLength={120} placeholder="e.g. Saturday survey at the lake" onChange={(event) => set('title', event.target.value)} aria-invalid={Boolean(errors.title)} />
-              {errors.title && <small role="alert">{errors.title}</small>}
-            </label>
-            <label className="event-field">
-              <span>Purpose</span>
-              <textarea rows={4} value={draft.purpose} placeholder="What will the group do, and what should people bring?" onChange={(event) => set('purpose', event.target.value)} aria-invalid={Boolean(errors.purpose)} />
-              {errors.purpose && <small role="alert">{errors.purpose}</small>}
-            </label>
-            <fieldset className="event-type-picker" disabled={locked}>
-              <legend>What kind of event is it?</legend>
-              {(Object.keys(eventTypeLabels) as EventType[]).map((type) => (
-                <label key={type} className={draft.eventType === type ? 'is-selected' : ''}>
-                  <input type="radio" name="event-type" value={type} checked={draft.eventType === type} onChange={() => set('eventType', type)} />
-                  <span>
-                    <strong>{eventTypeLabels[type]}</strong>
-                    <small>{TYPE_HELP[type]}</small>
-                  </span>
-                </label>
-              ))}
-            </fieldset>
-          </>
-        )}
-
-        {step === 2 && (
           <>
             <div className="event-field">
               <label htmlFor="place-search">Mapped place</label>
@@ -230,7 +231,7 @@ export function HostEventPage() {
                     <ul className="host-place-results" aria-label="Matching places">
                       {filteredPlaces.map((place) => (
                         <li key={place.placeId}>
-                          <button type="button" onClick={() => { set('placeId', place.placeId); setMeeting(Number.NaN, Number.NaN); setPlaceSearch('') }}>
+                          <button type="button" onClick={() => { set('placeId', place.placeId); setMeeting(Number.NaN, Number.NaN); setPlaceSearch(''); setTypeResetNote(null) }}>
                             <strong>{place.displayName}</strong>
                             <small>{placeTypeLabels[place.placeType]}</small>
                           </button>
@@ -243,6 +244,25 @@ export function HostEventPage() {
               )}
               {errors.placeId && <small role="alert">{errors.placeId}</small>}
             </div>
+            {draft.placeId && <LandStatusCard status={landStatus.data} loading={landStatus.isLoading} failed={landStatus.isError} />}
+            <fieldset className="event-type-picker" disabled={locked || !draft.placeId}>
+              <legend>What kind of event is it?</legend>
+              {!draft.placeId && <small className="event-muted">Choose the place first — the activities offered depend on its land status.</small>}
+              {(Object.keys(eventTypeLabels) as EventType[]).map((type) => {
+                const unavailable = Boolean(draft.placeId) && !locked && !allowedTypes.includes(type)
+                return (
+                  <label key={type} className={[draft.eventType === type ? 'is-selected' : '', unavailable ? 'is-disabled' : ''].filter(Boolean).join(' ')}>
+                    <input type="radio" name="event-type" value={type} checked={draft.eventType === type} disabled={unavailable} onChange={() => { set('eventType', type); setTypeResetNote(null) }} />
+                    <span>
+                      <strong>{eventTypeLabels[type]}</strong>
+                      <small>{unavailable ? REMOVAL_UNAVAILABLE : TYPE_HELP[type]}</small>
+                    </span>
+                  </label>
+                )
+              })}
+            </fieldset>
+            {typeResetNote && <p className="event-banner" role="status">{typeResetNote}</p>}
+            {errors.eventType && <p className="event-inline-alert" role="alert">{errors.eventType}</p>}
             {draft.placeId && (
               <div className="event-field">
                 <span>Meeting point</span>
@@ -272,25 +292,23 @@ export function HostEventPage() {
           </>
         )}
 
-        {step === 3 && (
+        {step === 2 && (
           <>
+            <label className="event-field">
+              <span>Event title</span>
+              <input value={draft.title} maxLength={120} placeholder="e.g. Saturday survey at the lake" onChange={(event) => set('title', event.target.value)} aria-invalid={Boolean(errors.title)} />
+              {errors.title && <small role="alert">{errors.title}</small>}
+            </label>
+            <label className="event-field">
+              <span>Purpose</span>
+              <textarea rows={4} value={draft.purpose} placeholder="What will the group do, and what should people bring?" onChange={(event) => set('purpose', event.target.value)} aria-invalid={Boolean(errors.purpose)} />
+              {errors.purpose && <small role="alert">{errors.purpose}</small>}
+            </label>
             <EventTimePicker
               startAt={draft.startAt} endAt={draft.endAt} disabled={locked} startFixed={startFixed}
               onChange={(startAt, endAt) => { set('startAt', startAt); set('endAt', endAt) }}
             />
             {errors.times && <p className="event-inline-alert" role="alert">{errors.times}</p>}
-            <fieldset className="event-choice-list">
-              <legend>Permission from the land manager</legend>
-              <label>
-                <input type="radio" name="permission" checked={draft.permissionContext === 'unknown'} onChange={() => set('permissionContext', 'unknown')} />
-                <span><strong>Not confirmed</strong><small>Participants observe and report only.</small></span>
-              </label>
-              <label>
-                <input type="radio" name="permission" checked={draft.permissionContext === 'explicit_permission'} onChange={() => set('permissionContext', 'explicit_permission')} />
-                <span><strong>Confirmed</strong><small>Say who gave permission in the safety notes. Each person’s removal still goes through the InvaTrace checks on the day.</small></span>
-              </label>
-            </fieldset>
-            {errors.permissionContext && <p className="event-inline-alert" role="alert">{errors.permissionContext}</p>}
             <label className="event-field">
               <span>Safety notes</span>
               <textarea rows={4} value={draft.safetyNotes ?? ''} onChange={(event) => set('safetyNotes', event.target.value)} aria-invalid={Boolean(errors.safetyNotes)} />
@@ -299,7 +317,7 @@ export function HostEventPage() {
           </>
         )}
 
-        {step === 4 && (
+        {step === 3 && (
           <>
             <SpeciesPicker label="Target species" value={draft.targetSpeciesIds} onChange={(value) => set('targetSpeciesIds', value)} emptyLabel="Any supported invasive plant" />
             <label className="event-field">
@@ -315,7 +333,7 @@ export function HostEventPage() {
                 <div><dt>Place</dt><dd>{placeName ?? '—'}</dd></div>
                 <div><dt>When</dt><dd>{parseLocalDateTime(draft.startAt) && parseLocalDateTime(draft.endAt) ? formatEventWindow(parseLocalDateTime(draft.startAt)!.toISOString(), parseLocalDateTime(draft.endAt)!.toISOString()) : '—'}</dd></div>
                 <div><dt>Plants</dt><dd>{draft.targetSpeciesIds.length ? draft.targetSpeciesIds.map(speciesName).join(', ') : 'Any supported invasive plant'}</dd></div>
-                <div><dt>Permission</dt><dd>{draft.permissionContext === 'explicit_permission' ? 'Confirmed by host' : 'Not confirmed — observe and report'}</dd></div>
+                <div><dt>Land status</dt><dd>{landStatusLabel(landStatus.data)}</dd></div>
               </dl>
               <p className="event-banner">Hosting or joining an event never grants permission to remove plants. The default activity is to observe and report.</p>
             </section>
@@ -325,7 +343,7 @@ export function HostEventPage() {
 
       <div className="host-actions">
         {step > 1 && <button type="button" className="event-button" onClick={() => setStep(step - 1)}>Back</button>}
-        {step < 4
+        {step < LAST_STEP
           ? <button type="button" className="event-button event-button--primary" onClick={next}>Continue</button>
           : edit && existing.data?.status !== 'draft'
             ? <button type="button" className="event-button event-button--primary" disabled={save.isPending} onClick={() => submit(false)}>{save.isPending ? 'Saving…' : 'Save changes'}</button>
@@ -342,6 +360,40 @@ export function HostEventPage() {
 }
 
 const localInput = (value: string) => toLocalDateTimeValue(new Date(value))
+
+function landStatusLabel(status: PlaceLandStatus | undefined) {
+  if (!status) return '—'
+  if (status.landStatus === 'protected') return `Mapped protected area${status.protectedAreaName ? ` (${status.protectedAreaName})` : ''} — observe and report`
+  if (status.landStatus === 'not_protected') return 'Not in a mapped protected area'
+  return 'Protected-area status uncertain — observe and report'
+}
+
+/** AC 9.6.7: what the mapped protected-area data says about the chosen place. */
+function LandStatusCard({ status, loading, failed }: { status?: PlaceLandStatus; loading: boolean; failed: boolean }) {
+  if (loading) return <p className="host-land-status" role="status">Checking the mapped land status of this place…</p>
+  if (failed || !status) {
+    return (
+      <div className="host-land-status host-land-status--uncertain" role="status">
+        <Icon name="HelpCircle" size={18} />
+        <span><strong>Land status could not be checked</strong>Only observe-and-report activities are offered until it can be confirmed.</span>
+      </div>
+    )
+  }
+  const title = status.landStatus === 'protected'
+    ? `Mapped protected area${status.protectedAreaName ? `: ${status.protectedAreaName}` : ''}`
+    : status.landStatus === 'not_protected' ? 'Not in a mapped protected area' : 'Protected-area status uncertain'
+  return (
+    <div className={`host-land-status host-land-status--${status.landStatus}`} role="status">
+      <Icon name={status.landStatus === 'not_protected' ? 'ShieldCheck' : status.landStatus === 'protected' ? 'ShieldAlert' : 'HelpCircle'} size={18} />
+      <span>
+        <strong>{title}</strong>
+        {status.operator && <>Managed by {status.operator}. </>}
+        {status.reason}
+        {status.disclaimer && <small>{status.disclaimer}</small>}
+      </span>
+    </div>
+  )
+}
 
 const validMeeting = (draft: EventDraft) => Number.isFinite(draft.meetingLatitude) && Number.isFinite(draft.meetingLongitude)
   && draft.meetingLatitude >= 0.8 && draft.meetingLatitude <= 7.5 && draft.meetingLongitude >= 99.3 && draft.meetingLongitude <= 119.5
