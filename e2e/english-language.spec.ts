@@ -41,7 +41,11 @@ test('dates and fields remain English with a Chinese browser locale', async ({ p
     await expect(page.locator(selector).first()).toBeVisible()
     await expect(page.locator('main')).not.toContainText(/[\p{Script=Han}]/u)
   }
-  await expect(page.locator('.event-card').first()).toContainText(/[A-Z][a-z]{2} \d{1,2} [A-Z][a-z]{2} · \d{2}:\d{2}–\d{2}:\d{2}/)
+  // The fixture event runs from 10 minutes ago to an hour from now, so late in
+  // the evening it spans two days and the card switches to the two-day format.
+  await expect(page.locator('.event-card').first()).toContainText(
+    /[A-Z][a-z]{2} \d{1,2} [A-Z][a-z]{2} (· \d{2}:\d{2}–\d{2}:\d{2}|\d{2}:\d{2} – [A-Z][a-z]{2} \d{1,2} [A-Z][a-z]{2} \d{2}:\d{2})/,
+  )
   await page.getByRole('button', { name: 'Custom dates' }).click()
   await expect(page.locator('.events-range input')).toHaveCount(0)
   const calendar = page.locator('.range-calendar')
