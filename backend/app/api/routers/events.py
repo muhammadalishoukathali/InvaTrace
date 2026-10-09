@@ -35,6 +35,7 @@ from app.db.models import (
     Report,
     Species,
 )
+from app.domain.place_names import public_place_name
 from app.services.events import assert_event_geometry_current, event_place, point_within_event_place
 from app.services.land_status import LAND_STATUS_DISCLAIMER, LandStatus, place_land_status
 
@@ -341,7 +342,7 @@ def _serialize(
         "purpose": event.purpose,
         "target_species_ids": event.target_species_ids or [],
         "place_id": event.place_id,
-        "place_name": place.name,
+        "place_name": public_place_name(place.name),
         "place_type": event.place_type,
         "meeting_latitude": float(event.meeting_latitude),
         "meeting_longitude": float(event.meeting_longitude),
@@ -911,7 +912,7 @@ def event_summary(
         "reports_submitted_count": len(reports),
         "distinct_species_count": len({r.species_id for r in reports if r.species_id}),
         "place_id": event.place_id,
-        "place_name": place.name,
+        "place_name": public_place_name(place.name),
         "start_at": event.start_at,
         "end_at": event.end_at,
         "next_event": (

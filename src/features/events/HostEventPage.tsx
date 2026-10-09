@@ -264,7 +264,10 @@ export function HostEventPage() {
                       {filteredPlaces.map((place) => (
                         <li key={place.placeId}>
                           <button type="button" onClick={() => { set('placeId', place.placeId); setMeeting(Number.NaN, Number.NaN); setPlaceSearch(''); setTypeResetNote(null) }}>
-                            <strong>{place.displayName}</strong>
+                            <span className="host-place-results__name">
+                              <strong>{place.displayName}</strong>
+                              {place.locationHint && <small>{place.locationHint}</small>}
+                            </span>
                             <small>{placeTypeLabels[place.placeType]}</small>
                           </button>
                         </li>
