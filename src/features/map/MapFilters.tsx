@@ -19,7 +19,6 @@ export const MAP_FILTER_SPECIES = approvedSpeciesDataset.records
 const STATUSES: { id: SightingStatus; label: string; dot?: string }[] = [
   { id: 'screened', label: 'Rule screened' },
   { id: 'removal_reported', label: 'Removal reported', dot: '#8B978F' },
-  { id: 'removed', label: 'Removed (legacy)', dot: '#65736C' },
 ]
 
 const RISKS: { id: Risk; label: string; dot: string }[] = [

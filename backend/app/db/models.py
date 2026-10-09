@@ -959,12 +959,6 @@ Index(
     SightingStatusEvent.sighting_id,
     SightingStatusEvent.created_at.desc(),
 )
-Index(
-    "uq_sighting_removal_event",
-    SightingStatusEvent.sighting_id,
-    unique=True,
-    postgresql_where=SightingStatusEvent.event_type == "removal_reported",
-)
 
 
 class VerificationJob(Base):

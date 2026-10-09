@@ -84,7 +84,7 @@ Test keys:
 | 9.7.3 | One flag per distinct non-host identity; third hides; only restoring a hidden event clears flags | API |
 | 9.7.4 | Idempotent completion job emits audit records | Lifecycle |
 | 9.7.5 | Hidden, inactive published events auto-cancel after 14 days; host management explains review/restore; automatic cancellation can be restored after publish validation | Lifecycle |
-| 4.6.1 | Removed/needed sightings have a grey marker and follow-up-needed label | Follow-up, map implementation, Visual |
+| 4.6.1 | Removal-reported sightings have a grey marker and follow-up-needed label; the legend names the grey states (follow-up needed, resolved after follow-up) | Follow-up, map implementation, Visual |
 | 4.6.2 | Start-follow-up action appears for needed state | Follow-up UI |
 | 4.6.3 | Explicit needed-state map filter | Follow-up |
 | 4.7.1 | Fresh GPS, accuracy ≤250m and distance ≤250m gates | Follow-up |
@@ -95,6 +95,7 @@ Test keys:
 | 4.8.2 | Regrowth returns an active coloured sighting with dated badge | Follow-up |
 | 4.8.3 | Unable-to-confirm keeps grey/needed state and records latest attempt date | Follow-up |
 | 4.8.4 | Chronological append-only history exposes type/date with a stable tie-breaker, keeping exact follow-up coordinates private | Follow-up |
+| 4.8.5 | Regrowth makes the sighting active again and a signed-in user can mark it as removed again (same fresh-GPS rules as the first removal), which restarts the follow-up cycle with a new dated removal and follow-up needed state | Follow-up, Browser |
 
 ## Verification commands
 

@@ -149,6 +149,42 @@ describe('follow-up mock contract', () => {
   })
 })
 
+describe('removal again after regrowth', () => {
+  it('lets a regrown sighting be removed again and starts a new follow-up cycle', async () => {
+    const { payload } = await start(installationToken('Y'))
+    const headers = { Authorization: `Bearer ${payload.accessToken}`, 'Content-Type': 'application/json' }
+    const base = 'http://localhost/api/v1'
+    const detail = await (await fetch(`${base}/sightings/s-01`)).json() as {
+      location: { lat: number; lng: number }; removalReportId: string
+    }
+    const fix = () => ({
+      latitude: detail.location.lat, longitude: detail.location.lng, accuracyM: 8,
+      capturedAt: new Date().toISOString(),
+    })
+    const remove = () => fetch(`${base}/reports/${detail.removalReportId}/removal`, {
+      method: 'POST', headers, body: JSON.stringify(fix()),
+    })
+    expect((await remove()).status).toBe(200)
+    await fetch(`${base}/sightings/s-01/follow-up`, {
+      method: 'POST', headers, body: JSON.stringify({ ...fix(), outcome: 'regrowth_present' }),
+    })
+    const regrown = await (await fetch(`${base}/sightings/s-01`)).json() as {
+      status: string; followUpState: string; removalReportId: string | null
+    }
+    expect(regrown).toMatchObject({ status: 'screened', followUpState: 'regrowth' })
+    expect(regrown.removalReportId).toBe(detail.removalReportId)
+
+    expect((await remove()).status).toBe(200)
+    const again = await (await fetch(`${base}/sightings/s-01`)).json() as {
+      status: string; followUpState: string; followUpHistory: Array<{ eventType: string }>
+    }
+    expect(again).toMatchObject({ status: 'removal_reported', followUpState: 'needed' })
+    expect(again.followUpHistory.map((event) => event.eventType)).toEqual([
+      'reported', 'removal_reported', 'followup_regrowth', 'removal_reported',
+    ])
+  })
+})
+
 describe('private access mock contract', () => {
   it('creates explicit Detector/New access, returns three 128-bit reusable codes, and persists only hashes', async () => {
     const { response, payload } = await start()
