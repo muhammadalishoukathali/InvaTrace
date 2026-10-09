@@ -120,10 +120,10 @@
   text-decoration: none;
 }
 .catalogue-detail__header {
-  margin-top: 20px;
+  margin-top: 16px;
   display: grid;
-  grid-template-columns: minmax(220px, 360px) minmax(0, 1fr);
-  gap: clamp(28px, 6vw, 72px);
+  grid-template-columns: minmax(240px, 400px) minmax(0, 1fr);
+  gap: clamp(24px, 5vw, 56px);
   align-items: center;
 }
 .catalogue-detail__media {
@@ -135,19 +135,129 @@
   place-items: center;
 }
 .catalogue-detail__media img { width: 100%; height: 100%; object-fit: cover; }
-.catalogue-detail__header p { margin-top: 8px; color: var(--body); }
-.catalogue-detail__status { display: inline-flex; margin-top: 16px; padding: 5px 10px; border-radius: var(--r-chip); background: var(--green-light); color: var(--green-dark); font-size: 12px; font-weight: 650; }
-.catalogue-detail__body { width: min(100%, 72ch); margin-top: 48px; }
-.catalogue-detail__body section { padding: 26px 0; border-top: 1px solid var(--border); }
-.catalogue-detail__body h3 { margin-bottom: 10px; font-size: 17px; letter-spacing: -.015em; }
+.catalogue-detail__intro { min-width: 0; }
+.catalogue-detail__intro h2 { margin-top: 12px; font-style: italic; overflow-wrap: anywhere; }
+.catalogue-detail__common { margin-top: 8px; color: var(--body); font-size: 16px; }
+.catalogue-detail__accepted { margin-top: 6px; color: var(--muted); font-size: 13px; }
+.catalogue-detail__status {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 5px 10px;
+  border-radius: var(--r-chip);
+  background: var(--green-light);
+  border: 1px solid var(--green-border);
+  color: var(--green-dark);
+  font-size: 12px;
+  font-weight: 650;
+}
+
+.catalogue-detail__body {
+  margin-top: 36px;
+  display: grid;
+  gap: 16px;
+}
+.catalogue-detail__facts {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 16px;
+}
+.catalogue-detail__card {
+  padding: 20px 22px;
+  border: 1px solid var(--border);
+  border-radius: var(--r-card);
+  background: var(--surface);
+}
+.catalogue-detail__body h3 {
+  margin-bottom: 10px;
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  font-size: 16px;
+  letter-spacing: -.01em;
+  color: var(--ink);
+}
 .catalogue-detail__body p,
-.catalogue-detail__body li { color: var(--body); font-size: 14px; line-height: 1.7; }
+.catalogue-detail__body li { color: var(--body); font-size: 14px; line-height: 1.65; }
+.catalogue-detail__body p { max-width: 72ch; }
 .catalogue-detail__body p + p { margin-top: 8px; }
-.catalogue-detail__body ul { padding-left: 20px; }
 .catalogue-detail__body a { color: var(--green-dark); text-underline-offset: 3px; }
-.catalogue-sources { display: grid; gap: 10px; list-style: none; padding-left: 0 !important; }
-.catalogue-sources li { display: grid; }
-.catalogue-sources span { font-size: 12px; color: var(--muted); }
+.catalogue-detail__note {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin-top: 12px !important;
+  color: var(--muted) !important;
+  font-size: 12.5px !important;
+}
+
+.catalogue-detail__safety {
+  border-color: var(--amber-border);
+  background: var(--amber-light);
+}
+.catalogue-detail__safety h3 { color: var(--amber-text); }
+.catalogue-detail__steps { padding-left: 20px; display: grid; gap: 6px; }
+.catalogue-detail__steps li { color: var(--ink); }
+.catalogue-detail__cautions {
+  margin-top: 14px;
+  padding-top: 14px;
+  border-top: 1px solid var(--amber-border);
+  padding-left: 0;
+  list-style: none;
+  display: grid;
+  gap: 8px;
+}
+.catalogue-detail__cautions li {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  color: var(--amber-text);
+  font-size: 13.5px;
+  font-weight: 550;
+  line-height: 1.5;
+}
+.catalogue-detail__cautions svg { margin-top: 2px; flex-shrink: 0; }
+
+.catalogue-detail__places {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 18px;
+  background: var(--green-light);
+  border-color: var(--green-border);
+}
+.catalogue-detail__places h3 { margin-bottom: 6px; }
+.catalogue-detail__places-link {
+  min-height: var(--h-primary);
+  padding: 0 16px;
+  flex-shrink: 0;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  border-radius: var(--r-button);
+  background: var(--green);
+  color: var(--on-accent) !important;
+  font-size: 14px;
+  font-weight: 600;
+  text-decoration: none;
+}
+.catalogue-detail__places-link:hover { background: var(--green-dark); }
+.catalogue-detail__places-link:focus-visible { outline: 2px solid var(--green); outline-offset: 3px; }
+
+.catalogue-detail__credits {
+  margin-top: 8px;
+  padding: 20px 2px 0;
+  border-top: 1px solid var(--border);
+}
+.catalogue-detail__credits h3 { font-size: 14px; color: var(--body); }
+.catalogue-detail__credits p { margin-top: 10px !important; color: var(--muted); font-size: 12.5px; }
+.catalogue-sources { display: grid; gap: 12px; padding: 0; list-style: none; }
+.catalogue-sources li { display: grid; gap: 1px; }
+.catalogue-sources a { width: fit-content; font-size: 14px; font-weight: 550; }
+.catalogue-sources a svg { display: inline; margin-left: 4px; vertical-align: -2px; }
+.catalogue-sources span { font-size: 12px !important; color: var(--muted) !important; line-height: 1.5 !important; }
+.catalogue-sources code { font-size: 11px; padding: 0 4px; border-radius: 4px; background: var(--bg-alt); }
 
 @media (max-width: 720px) {
   .catalogue-page__intro,
@@ -156,5 +266,12 @@
   .catalogue-list__image { width: 54px; height: 54px; }
   .catalogue-list__status { grid-column: 2; }
   .catalogue-list a > svg { grid-column: 3; grid-row: 1 / span 2; }
-  .catalogue-detail__media { max-width: 420px; }
+  .catalogue-detail__media { max-width: none; aspect-ratio: 16 / 11; }
+  .catalogue-detail__intro h2 { margin-top: 10px; }
+  .catalogue-detail .guide-assistant-entry { max-width: none; }
+  .catalogue-detail__body { margin-top: 26px; gap: 12px; }
+  .catalogue-detail__facts { grid-template-columns: 1fr; gap: 12px; }
+  .catalogue-detail__card { padding: 16px; }
+  .catalogue-detail__places { flex-direction: column; align-items: stretch; }
+  .catalogue-detail__places-link { width: 100%; }
 }
