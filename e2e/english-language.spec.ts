@@ -52,6 +52,27 @@ test('dates and fields remain English with a Chinese browser locale', async ({ p
   await expect(calendar).toBeHidden()
 })
 
+test('the tapped first and last days stay filled while the pointer rests on them', async ({ page }) => {
+  await start(page)
+  await navigate(page, '/events')
+  await page.getByRole('button', { name: 'Custom dates' }).click()
+  await page.getByRole('button', { name: 'Next month' }).click()
+  const days = page.locator('.range-calendar__day button')
+  await days.nth(4).click()
+  await days.nth(9).click() // a touch screen keeps :hover on the last tapped day
+  const green = await page.evaluate(() => {
+    const probe = document.createElement('div')
+    probe.style.color = 'var(--green)'
+    document.body.append(probe)
+    const colour = getComputedStyle(probe).color
+    probe.remove()
+    return colour
+  })
+  for (const day of [days.nth(4), days.nth(9)]) {
+    await expect.poll(() => day.evaluate(el => getComputedStyle(el).backgroundColor)).toBe(green)
+  }
+})
+
 test('English hosting fields validate input and preserve API dates', async ({ page, context }) => {
   // The POST is stubbed with context.route(); let it pass the dev MSW event mocks.
   await page.addInitScript(() => localStorage.setItem('invatrace.mock.community', 'off'))
