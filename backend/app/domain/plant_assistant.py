@@ -631,10 +631,10 @@ def contains_private_details(question: str) -> bool:
         re.search(
             r"[\w.+-]+@[\w.-]+\.[a-z]{2,}|\b(password|credential|api.?key|token|recovery.?code|gps|latitude|longitude)\b|"
             r"\b(?:AIza[A-Za-z0-9_-]{20,}|AQ\.[A-Za-z0-9_-]{20,})\b|"
-            r"\b(?:my|our)\s+(?:full name|name|address|phone(?: number)?|student id|user id)\b|"
+            r"\b(?:my|our)\s+(?:full name|name|address|(?:home|residential|mailing|postal)\s+address|phone(?: number)?|student id|user id)\b|"
             r"\b(?:date of birth|profile id|installation id|session id)\b|"
-            r"\b(?:i|we)\s+(?:live|reside|stay|am\s+(?:living|staying)|are\s+(?:living|staying))\s+(?:at|in)\b|"
-            r"\b(?:i['’]m|we['’]re)\s+(?:living|staying)\s+(?:at|in)\b|"
+            r"\b(?:i|we)\s+(?:live|reside|stay|am\s+(?:living|staying)|are\s+(?:living|staying))\s+(?:at|in|on)\b|"
+            r"\b(?:i['’]m|we['’]re)\s+(?:living|staying)\s+(?:at|in|on)\b|"
             r"[-+]?\d{1,3}\.\d{3,}\s*[,; ]\s*[-+]?\d{1,3}\.\d{3,}|\b\d{9,}\b",
             question,
             re.I,

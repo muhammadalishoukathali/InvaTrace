@@ -16,6 +16,7 @@ from app.core.rate_limit import rate_limiter
 from app.domain.plant_assistant import (
     EvidenceRetriever,
     SupportState,
+    contains_private_details,
     get_retriever,
     validate_generated,
     words,
@@ -626,6 +627,74 @@ def test_residential_disclosure_stays_out_of_all_provider_roles(client, monkeypa
     judge.assert_not_awaited()
     generate.assert_not_awaited()
     grounding.assert_not_awaited()
+
+
+@pytest.mark.parametrize("context", ["scan", "guide", "map"])
+@pytest.mark.parametrize(
+    "question",
+    [
+        "Where does it grow? I live on Example Road",
+        "Where does it grow? We reside on Example Street",
+        "Where does it grow? I'm living on Example Road",
+        "Where does it grow? We're staying on Example Lane",
+        "Where does it grow? My home address is Example Road",
+        "Where does it grow? Our residential address is Example Street",
+        "Where does it grow? My mailing address is Example Road",
+        "Where does it grow? Our postal address is Example Lane",
+    ],
+)
+def test_residence_details_blocked_before_retrieval_in_every_context(
+    client, monkeypatch, question, context
+):
+    calls = {
+        role: AsyncMock(return_value=None)
+        for role in ("evaluate", "generate", "generate_general", "verify_grounding")
+    }
+    for role, spy in calls.items():
+        monkeypatch.setattr(plant_assistant, role, spy)
+    search = Mock(wraps=get_retriever().search)
+    monkeypatch.setattr(get_retriever(), "search", search)
+
+    if context == "scan":
+        response = ask(client, question, allowGeneralKnowledge=True)
+    else:
+        body = {"question": question, "depth": "standard", "allowGeneralKnowledge": True}
+        if context == "guide":
+            body["speciesId"] = "mikania-micrantha"
+        else:
+            from app.db.base import get_session
+
+            class PublicSession:
+                def execute(self, _statement):
+                    return self
+
+                def first(self):
+                    return ("mikania-micrantha", "Mikania micrantha")
+
+            client.app.dependency_overrides[get_session] = lambda: PublicSession()
+            body["sightingId"] = "00000000-0000-0000-0000-000000000101"
+        response = client.post(f"/api/v1/plant-assistant/{context}/ask", json=body)
+
+    assert response.status_code == 200
+    body = response.json()
+    assert body["status"] == "insufficient_evidence"
+    assert body["answer"].startswith("Please ask about the plant without personal details")
+    assert body["sources"] == []
+    search.assert_not_called()
+    for spy in calls.values():
+        spy.assert_not_awaited()
+
+
+@pytest.mark.parametrize(
+    "question",
+    [
+        "Why do plants grow on riverbanks?",
+        "Where do plants living on trees grow?",
+        "What is a home garden?",
+    ],
+)
+def test_residence_filter_preserves_general_plant_language(question):
+    assert not contains_private_details(question)
 
 
 @pytest.mark.parametrize(
