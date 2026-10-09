@@ -29,14 +29,28 @@ const DAY_MS = 24 * 60 * 60 * 1000
  * pushed below a wall of filters; on laptops they sit side by side.
  */
 export function EventsDiscoveryPage() {
-  const [params] = useSearchParams()
+  // Filters and the List/Map choice live in the URL so Back from an event
+  // returns to the same filtered list (and they can be shared or reloaded).
+  const [params, setParams] = useSearchParams()
   const placeId = params.get('placeId') ?? undefined
   const isDesktop = useIsDesktop()
-  const [preset, setPreset] = useState<RangePreset>('upcoming')
-  const [days, setDays] = useState<DayRange>({ start: null, end: null })
-  const [species, setSpecies] = useState<string[]>([])
+  const preset = parsePreset(params.get('range'))
+  const days = useMemo<DayRange>(() => ({ start: parseDay(params.get('from')), end: parseDay(params.get('to')) }), [params])
+  const speciesParam = params.get('species') ?? ''
+  const species = useMemo(() => speciesParam ? speciesParam.split(',').filter(Boolean) : [], [speciesParam])
+  const view: 'list' | 'map' = params.get('view') === 'map' ? 'map' : 'list'
+  const update = (changes: Record<string, string | null>) => setParams((previous) => {
+    const next = new URLSearchParams(previous)
+    for (const [key, value] of Object.entries(changes)) {
+      if (value) next.set(key, value)
+      else next.delete(key)
+    }
+    return next
+  }, { replace: true })
+  const setPreset = (value: RangePreset) => update({ range: value === 'upcoming' ? null : value, ...(value === 'custom' ? {} : { from: null, to: null }) })
+  const setSpecies = (value: string[]) => update({ species: value.length ? value.join(',') : null })
+  const setView = (value: 'list' | 'map') => update({ view: value === 'map' ? 'map' : null })
   const [bbox, setBbox] = useState<string>()
-  const [view, setView] = useState<'list' | 'map'>('list')
   const [selectedId, setSelectedId] = useState<string | null>(null)
   const [datesOpen, setDatesOpen] = useState(false)
   const customRef = useRef<HTMLButtonElement>(null)
@@ -116,7 +130,7 @@ export function EventsDiscoveryPage() {
             <DateRangeDialog
               initial={days}
               onClose={() => setDatesOpen(false)}
-              onApply={(next) => { setDays(next); setPreset('custom'); setDatesOpen(false) }}
+              onApply={(next) => { update({ range: 'custom', from: formatDay(next.start), to: formatDay(next.end) }); setDatesOpen(false) }}
               returnFocus={() => customRef.current}
             />
           )}
@@ -185,4 +199,20 @@ export function EventsDiscoveryPage() {
       )}
     </section>
   )
+}
+
+function parsePreset(value: string | null): RangePreset {
+  return value === 'week' || value === 'month' || value === 'custom' ? value : 'upcoming'
+}
+
+function parseDay(value: string | null): Date | null {
+  if (!value || !/^\d{4}-\d{2}-\d{2}$/.test(value)) return null
+  const [year, month, day] = value.split('-').map(Number)
+  const date = new Date(year, month - 1, day)
+  return Number.isNaN(date.getTime()) ? null : date
+}
+
+function formatDay(value: Date | null): string | null {
+  if (!value) return null
+  return `${value.getFullYear()}-${String(value.getMonth() + 1).padStart(2, '0')}-${String(value.getDate()).padStart(2, '0')}`
 }

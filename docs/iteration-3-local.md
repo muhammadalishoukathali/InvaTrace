@@ -78,7 +78,7 @@ Test keys:
 | 9.6.3 | Required fields, aware ordered times, valid mapped place and meeting geometry validated; each form step prevents invalid advancement | API, Browser, Visual |
 | 9.6.4 | Drafts are private and absent from discovery; publication revalidates geometry | API |
 | 9.6.5 | Safety notes and server-derived land status shown; no self-declared permission | Request-contract tests, Visual |
-| 9.6.6 | Place chosen first; activity type limited by land status (removal only on `not_protected`) in both form and server, re-checked on publish | API, Request-contract tests, Browser |
+| 9.6.6 | Place chosen first; activity type limited by land status (removal only on `not_protected`, not shown at all elsewhere) in both form and server, re-checked on publish | API, Request-contract tests, Browser |
 | 9.6.7 | Land status from the active protected-area release (`protected` / `not_protected` / `uncertain`, fail closed), with name, operator and disclaimer | API, Browser |
 | 9.7.1 | Cancellation is soft and idempotent, preserves attendance/report history and cannot cancel a completed summary | Summary, Lifecycle |
 | 9.7.2 | Profile lock serializes cap checks; fourth active hosted event rejected | API |

@@ -6,6 +6,7 @@ import { eventTypeLabels } from './event-types'
 import { formatEventWindow } from './event-format'
 import './events.css'
 import { HostEventLink } from './HostEventGate'
+import { useOrigin } from './event-navigation'
 
 /**
  * AC 9.1.6: on an adopted (followed) area, list the published upcoming events
@@ -13,6 +14,7 @@ import { HostEventLink } from './HostEventGate'
  * GET /api/v1/places/{place_id}/events. No notifications in the MVP.
  */
 export function PlaceEventsSection({ placeId, placeName }: { placeId: string; placeName: string }) {
+  const origin = useOrigin()
   const events = useQuery({ queryKey: ['events', 'place', placeId], queryFn: () => eventsApi.place(placeId), enabled: Boolean(placeId) })
   return (
     <section className="place-events" aria-labelledby="place-events-title">
@@ -23,7 +25,7 @@ export function PlaceEventsSection({ placeId, placeName }: { placeId: string; pl
         <ul>
           {events.data.items.slice(0, 4).map((event) => (
             <li key={event.id}>
-              <Link to={`/events/${event.id}`}>
+              <Link to={`/events/${event.id}`} state={origin}>
                 <strong>{event.title}</strong>
                 <span>{eventTypeLabels[event.eventType]} · {formatEventWindow(event.startAt, event.endAt)}</span>
               </Link>

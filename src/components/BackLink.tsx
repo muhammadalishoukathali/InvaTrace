@@ -8,9 +8,9 @@ import { Icon } from '@/components/Icon'
  * looked different or was missing depending where you were (UT-06). This gives
  * every detail screen the same visible, touch-sized back control.
  */
-export function BackLink({ to, children }: { to: string; children: React.ReactNode }) {
+export function BackLink({ to, state, children }: { to: string; state?: unknown; children: React.ReactNode }) {
   return (
-    <Link to={to} className="back-link">
+    <Link to={to} state={state} className="back-link">
       <Icon name="ChevronLeft" size={17} color="currentColor" />
       <span>{children}</span>
     </Link>

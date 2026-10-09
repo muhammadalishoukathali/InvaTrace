@@ -6,7 +6,7 @@ test.skip(process.env.RUN_INVATRACE_IT3_E2E !== '1' && process.env.PLAYWRIGHT_EP
 test.beforeEach(async ({ page }) => { await page.addInitScript(() => localStorage.setItem('invatrace.mock.community', 'off')) })
 
 const place = { placeId: '10000000-0000-4000-8000-000000000001', displayName: 'Bukit Kiara' }
-const future = { event_id: 'event-1', title: 'Original title', purpose: 'Original purpose', event_type: 'survey', status: 'draft', place_id: place.placeId, target_species_ids: [], meeting_latitude: 3.14, meeting_longitude: 101.69, start_at: '2030-01-01T08:00:00Z', end_at: '2030-01-01T10:00:00Z', land_status: 'not_protected', is_host: true }
+const future = { event_id: 'event-1', title: 'Original title', purpose: 'Original purpose', event_type: 'survey', status: 'draft', place_id: place.placeId, target_species_ids: [], meeting_latitude: 3.15, meeting_longitude: 101.64, start_at: '2030-01-01T08:00:00Z', end_at: '2030-01-01T10:00:00Z', land_status: 'not_protected', is_host: true }
 
 async function access(page: Page) {
   await page.goto('/'); await page.getByRole('button', { name: 'Start privately' }).first().click()
@@ -43,14 +43,16 @@ test('host form picks the place first, locks removal on protected land and block
   await access(page); await page.goto('/events/host')
   await expect(page.getByRole('heading', { name: /^Step 1 of 3/ })).toBeVisible()
   // The type picker waits for the place: what can run depends on its land status.
-  await expect(page.getByRole('radio', { name: /Community survey/ })).toBeDisabled()
+  await expect(page.getByRole('radio', { name: /Community survey/ })).toHaveCount(0)
   await page.getByRole('button', { name: 'Continue' }).click()
   await expect(page.getByText('Choose a mapped place.')).toBeVisible()
   await page.getByLabel('Mapped place').fill('Bukit'); await page.getByRole('button', { name: /Bukit Kiara/ }).click()
   // AC 9.6.6 / 9.6.7: mapped protected land offers observe-and-report types only.
-  await expect(page.getByText('Mapped protected area: Bukit Kiara Forest Reserve')).toBeVisible()
+  await expect(page.getByText('Protected area: Bukit Kiara Forest Reserve')).toBeVisible()
   await expect(page.getByText(/Managed by Jabatan Perhutanan/)).toBeVisible()
-  await expect(page.getByRole('radio', { name: /Removal activity/ })).toBeDisabled()
+  // Removal is not offered at all here — not even as a greyed-out option.
+  await expect(page.getByRole('radio', { name: /Removal activity/ })).toHaveCount(0)
+  await expect(page.getByRole('radio', { name: /Repeat monitoring/ })).toBeVisible()
   await expect(page.getByRole('radio', { name: /Community survey/ })).toBeChecked()
   await expect(page.getByText(/permission from the land manager/i)).toHaveCount(0)
   await expect(page.getByText(/^Meeting point \d/)).toBeVisible(); await page.getByRole('button', { name: 'Continue' }).click()
@@ -131,7 +133,58 @@ test('direct check-in auto-join refreshes cached participation before returning 
   await expect(page.getByRole('button', { name: 'Confirm check-in' })).toBeEnabled()
   await page.getByRole('button', { name: 'Confirm check-in' }).click()
   await expect(page).toHaveURL(/\/tasks$/)
-  await page.goBack()
   await page.getByRole('link', { name: 'Back to event', exact: true }).click()
   await expect(page.getByRole('button', { name: 'Withdraw', exact: true })).toBeVisible()
+  // Checked in: the event now leads to today's task rather than another check-in.
+  await expect(page.getByRole('link', { name: 'Open today’s task' })).toBeVisible()
+  // Check-in was replaced in history, so browser Back never lands on it again.
+  await page.goBack(); await expect(page).toHaveURL(/\/tasks$/)
+  await page.goBack(); await expect(page).not.toHaveURL(/\/check-in$/)
+})
+
+test('wizard Back steps back, leaving unsaved asks first, and a published event cannot re-open the form', async ({ page }) => {
+  await hostFixture(page)
+  await page.context().route('**/api/v1/events?*', route => route.fulfill({ json: { items: [] } }))
+  await page.context().route('**/api/v1/events', route => route.request().method() === 'POST'
+    ? route.fulfill({ status: 201, json: { event_id: 'event-1', status: 'draft' } })
+    : route.fulfill({ json: { items: [] } }))
+  await page.context().route('**/api/v1/events/event-1', route => route.fulfill({ json: { ...future, status: route.request().method() === 'PATCH' ? 'published' : future.status } }))
+  await access(page); await page.goto('/events')
+  await page.getByRole('link', { name: 'Host an event' }).click()
+  await page.getByLabel('Mapped place').fill('Bukit'); await page.getByRole('button', { name: /Bukit Kiara/ }).click()
+  await page.getByRole('button', { name: 'Continue' }).click()
+  await expect(page.getByRole('heading', { name: /^Step 2 of 3/ })).toBeVisible()
+
+  // Browser Back returns to the previous step and keeps what was entered.
+  await page.goBack()
+  await expect(page.getByRole('heading', { name: /^Step 1 of 3/ })).toBeVisible()
+  await expect(page).toHaveURL(/\/events\/host$/)
+  await expect(page.getByText('Bukit Kiara', { exact: true })).toBeVisible()
+
+  // Leaving with an unsaved draft asks first.
+  await page.getByRole('link', { name: 'Back to events' }).click()
+  await expect(page.getByRole('dialog', { name: 'Leave without saving?' })).toBeVisible()
+  await page.getByRole('button', { name: 'Keep editing' }).click()
+  await expect(page).toHaveURL(/\/events\/host$/)
+
+  await page.getByRole('button', { name: 'Continue' }).click()
+  await page.getByLabel('Event title').fill('Survey'); await page.getByRole('textbox', { name: /^Purpose/ }).fill('Record observations')
+  await pickEventTime(page, { hour: 10 }); await page.getByRole('button', { name: 'Continue' }).click()
+  await page.getByRole('button', { name: 'Publish event' }).click()
+  await expect(page).toHaveURL(/\/events\/event-1$/)
+  // The wizard was replaced in history: Back goes to where hosting started.
+  await page.goBack()
+  await expect(page).toHaveURL(/\/events$/)
+})
+
+test('an event opened from a filtered list returns to the same filters', async ({ page }) => {
+  await hostFixture(page, { ...future, status: 'published', is_host: false })
+  await page.context().route('**/api/v1/events?*', route => route.fulfill({ json: { items: [{ ...future, status: 'published' }] } }))
+  await access(page); await page.goto('/events')
+  await page.getByRole('button', { name: 'Next 7 days' }).click()
+  await expect(page).toHaveURL(/range=week/)
+  await page.getByRole('link', { name: /Original title/ }).click()
+  await page.getByRole('link', { name: 'Back to events' }).click()
+  await expect(page).toHaveURL(/range=week/)
+  await expect(page.getByRole('button', { name: 'Next 7 days' })).toHaveAttribute('aria-pressed', 'true')
 })

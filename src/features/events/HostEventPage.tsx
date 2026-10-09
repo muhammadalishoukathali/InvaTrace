@@ -1,8 +1,10 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
+import { createPortal } from 'react-dom'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
-import { useNavigate, useParams } from 'react-router-dom'
+import { useBlocker, useLocation, useNavigate, useParams } from 'react-router-dom'
 import { BackLink } from '@/components/BackLink'
 import { Icon } from '@/components/Icon'
+import { useDialogA11y } from '@/hooks/useDialogA11y'
 import { api, ApiError } from '@/services/api-client'
 import { eventsApi, type EventDraft, type EventType, type PlaceLandStatus } from '@/services/api/events'
 import type { PlaceDetail, PlaceSummary } from '@/types'
@@ -16,6 +18,8 @@ import { formatEventWindow, placeTypeLabels, speciesName } from './event-format'
 import { rankPlaces } from './place-ranking'
 import { eventWindowError } from './event-time'
 import { HostingLockedPanel, useHostEligibility } from './HostEventGate'
+import { defaultMeetingPoint, pointInPlace } from './place-geometry'
+import { backTarget } from './event-navigation'
 import './events.css'
 
 const DEFAULT_SAFETY_NOTES = 'Observe and report by default. Wear closed shoes, bring water, stay on marked paths and keep away from water edges.'
@@ -31,11 +35,12 @@ const OBSERVE_ONLY: EventType[] = ['survey', 'monitoring', 'other']
 
 const TYPE_HELP: Record<EventType, string> = {
   survey: 'Find and record invasive plants. The safest default.',
-  removal: 'Safe removal. Only offered outside mapped protected land; each person still passes the safety checks on the day.',
+  removal: 'Safe removal outside protected land. Each person still passes the safety checks on the day.',
   monitoring: 'Revisit earlier sightings to check for regrowth.',
   other: 'Another activity — describe it in the purpose.',
 }
-const REMOVAL_UNAVAILABLE = 'Not available here: removal is only offered outside mapped protected land. Run a survey or monitoring visit instead.'
+const REMOVAL_UNAVAILABLE = 'Removal isn’t offered at this place. Run a survey or monitoring visit instead.'
+const MEETING_OUTSIDE = 'Move the meeting point inside the dashed boundary — check-in only works inside the place.'
 
 /**
  * US 9.6: anyone with 3 reported sightings can host (AC 9.6.1). The host picks
@@ -47,7 +52,10 @@ export function HostEventPage() {
   const { eventId } = useParams()
   const edit = Boolean(eventId)
   const navigate = useNavigate()
+  const location = useLocation()
   const [draft, setDraft] = useState<EventDraft>(initial)
+  const baseline = useRef<EventDraft>(initial)
+  const saved = useRef(false)
   const [step, setStep] = useState(1)
   const [errors, setErrors] = useState<FormErrors>({})
   const [createdId, setCreatedId] = useState<string | null>(null)
@@ -76,13 +84,33 @@ export function HostEventPage() {
     const item = existing.data
     if (!item || initialized.current === eventId) return
     initialized.current = eventId ?? null
-    setDraft({
+    const loaded: EventDraft = {
       title: item.title, purpose: item.purpose, eventType: item.eventType, placeId: item.placeId,
       meetingLatitude: item.meetingLatitude, meetingLongitude: item.meetingLongitude, meetingNote: item.meetingNote ?? '',
       startAt: localInput(item.startAt), endAt: localInput(item.endAt), targetSpeciesIds: item.targetSpeciesIds,
       safetyNotes: item.safetyNotes ?? '', chatLink: item.chatLink ?? '',
-    })
+    }
+    baseline.current = loaded
+    setDraft(loaded)
   }, [eventId, existing.data])
+
+  // Browser Back moves to the previous wizard step instead of leaving it, and
+  // leaving with unsaved changes asks first so a half-built event isn't lost.
+  // Steps aren't separate history entries, so a POP while past step 1 is the
+  // browser's Back gesture.
+  const dirty = JSON.stringify(draft) !== JSON.stringify(baseline.current)
+  const stepBack = useRef(false)
+  const blocker = useBlocker(({ currentLocation, nextLocation, historyAction }) => {
+    if (saved.current || currentLocation.pathname === nextLocation.pathname) return false
+    stepBack.current = historyAction === 'POP' && step > 1
+    return stepBack.current || dirty
+  })
+  useEffect(() => {
+    if (blocker.state !== 'blocked' || !stepBack.current) return
+    stepBack.current = false
+    blocker.reset()
+    setStep((current) => Math.max(1, current - 1))
+  }, [blocker])
 
   // A place whose land status rules out the chosen type falls back to a survey.
   // Locked events keep their type; the server owns that decision after activity.
@@ -121,7 +149,10 @@ export function HostEventPage() {
         queryClient.invalidateQueries({ queryKey: ['events'] }),
         queryClient.invalidateQueries({ queryKey: ['event', id] }),
       ])
-      navigate(`/events/${id}`)
+      // Replace the wizard in history so Back from the event can't reopen a
+      // blank form (and create a duplicate).
+      saved.current = true
+      navigate(`/events/${id}`, { replace: true, state: location.state })
     },
   })
 
@@ -140,12 +171,12 @@ export function HostEventPage() {
     setErrors((previous) => ({ ...previous, meeting: undefined }))
   }
 
-  // When a place is chosen, start the meeting point in the middle of it so the
-  // host only needs to nudge it, not hunt for it.
+  // When a place is chosen, start the meeting point well inside it so the host
+  // only needs to nudge it, not hunt for it.
   useEffect(() => {
     if (!selectedPlace.data || edit || Number.isFinite(draft.meetingLatitude)) return
-    const centre = geometryCentre(selectedPlace.data.geometry)
-    if (centre) setMeeting(centre.latitude, centre.longitude)
+    const middle = defaultMeetingPoint(selectedPlace.data.geometry)
+    if (middle) setMeeting(middle.latitude, middle.longitude)
   }, [selectedPlace.data, edit, draft.meetingLatitude])
 
   const validate = (upTo: number) => {
@@ -156,6 +187,7 @@ export function HostEventPage() {
       else if (landStatus.isLoading) next.eventType = 'Checking the land status of this place…'
       else if (!locked && !allowedTypes.includes(draft.eventType)) next.eventType = REMOVAL_UNAVAILABLE
       if (draft.placeId && !validMeeting(draft)) next.meeting = 'Tap the map inside the place to set a meeting point in Malaysia.'
+      else if (!locked && selectedPlace.data && !pointInPlace(selectedPlace.data.geometry, { latitude: draft.meetingLatitude, longitude: draft.meetingLongitude })) next.meeting = MEETING_OUTSIDE
     }
     if (upTo >= 2) {
       if (!draft.title.trim()) next.title = 'Enter an event title.'
@@ -175,7 +207,7 @@ export function HostEventPage() {
   if (!edit && eligibility.data && !eligibility.data.eligible) {
     return (
       <section className="events-page event-narrow host-event">
-        <BackLink to="/events">Back to events</BackLink>
+        <BackLink {...backTarget(location.state, '/events')} />
         <HostingLockedPanel reportCount={eligibility.data.reportCount} required={eligibility.data.required} />
       </section>
     )
@@ -193,10 +225,10 @@ export function HostEventPage() {
 
   return (
     <section className="events-page event-narrow host-event">
-      <BackLink to={edit ? `/events/${eventId}` : '/events'}>{edit ? 'Back to event' : 'Back to events'}</BackLink>
+      {edit ? <BackLink to={`/events/${eventId}`} state={location.state}>Back to event</BackLink> : <BackLink {...backTarget(location.state, '/events')} />}
       <header className="event-detail__header">
         <h2>{edit ? 'Edit event' : 'Host a community event'}</h2>
-        {!edit && <p className="event-detail__host">No account needed. Pick the place first — what you can run there depends on its land status. It stays a private draft until you publish it.</p>}
+        {!edit && <p className="event-detail__host">No name or email needed. Pick the place first — what you can run there depends on its land status. It stays a private draft until you publish it.</p>}
       </header>
 
       <ol className="host-stepper" aria-label="Progress">
@@ -245,22 +277,24 @@ export function HostEventPage() {
               {errors.placeId && <small role="alert">{errors.placeId}</small>}
             </div>
             {draft.placeId && <LandStatusCard status={landStatus.data} loading={landStatus.isLoading} failed={landStatus.isError} />}
-            <fieldset className="event-type-picker" disabled={locked || !draft.placeId}>
-              <legend>What kind of event is it?</legend>
-              {!draft.placeId && <small className="event-muted">Choose the place first — the activities offered depend on its land status.</small>}
-              {(Object.keys(eventTypeLabels) as EventType[]).map((type) => {
-                const unavailable = Boolean(draft.placeId) && !locked && !allowedTypes.includes(type)
-                return (
-                  <label key={type} className={[draft.eventType === type ? 'is-selected' : '', unavailable ? 'is-disabled' : ''].filter(Boolean).join(' ')}>
-                    <input type="radio" name="event-type" value={type} checked={draft.eventType === type} disabled={unavailable} onChange={() => { set('eventType', type); setTypeResetNote(null) }} />
-                    <span>
-                      <strong>{eventTypeLabels[type]}</strong>
-                      <small>{unavailable ? REMOVAL_UNAVAILABLE : TYPE_HELP[type]}</small>
-                    </span>
-                  </label>
-                )
-              })}
-            </fieldset>
+            {/* AC 9.6.6: only the activities the place allows are offered at all;
+                the type list waits for the land status so Removal never flickers in. */}
+            {draft.placeId && !landStatus.isLoading && (
+              <fieldset className="event-type-picker" disabled={locked}>
+                <legend>What kind of event is it?</legend>
+                {(Object.keys(eventTypeLabels) as EventType[])
+                  .filter((type) => allowedTypes.includes(type) || (locked && type === draft.eventType))
+                  .map((type) => (
+                    <label key={type} className={draft.eventType === type ? 'is-selected' : ''}>
+                      <input type="radio" name="event-type" value={type} checked={draft.eventType === type} onChange={() => { set('eventType', type); setTypeResetNote(null) }} />
+                      <span>
+                        <strong>{eventTypeLabels[type]}</strong>
+                        <small>{TYPE_HELP[type]}</small>
+                      </span>
+                    </label>
+                  ))}
+              </fieldset>
+            )}
             {typeResetNote && <p className="event-banner" role="status">{typeResetNote}</p>}
             {errors.eventType && <p className="event-inline-alert" role="alert">{errors.eventType}</p>}
             {draft.placeId && (
@@ -270,25 +304,30 @@ export function HostEventPage() {
                 <EventMap
                   point={point}
                   boundary={selectedPlace.data?.geometry ?? null}
-                  onPointChange={locked ? undefined : (value) => setMeeting(value.latitude, value.longitude)}
+                  onPointChange={locked ? undefined : (value) => {
+                    setMeeting(value.latitude, value.longitude)
+                    if (selectedPlace.data && !pointInPlace(selectedPlace.data.geometry, value)) setErrors((previous) => ({ ...previous, meeting: MEETING_OUTSIDE }))
+                  }}
                   label="Choose the meeting point on the map"
                   className="event-map-wrap--picker"
                 />
                 <p className="host-coordinates">
                   {point ? `Meeting point ${point.latitude.toFixed(5)}, ${point.longitude.toFixed(5)}` : 'No meeting point yet'}
                   {!locked && selectedPlace.data && (
-                    <button type="button" className="event-text-button" onClick={() => { const centre = geometryCentre(selectedPlace.data!.geometry); if (centre) setMeeting(centre.latitude, centre.longitude) }}>
-                      Use the centre of the place
+                    <button type="button" className="event-text-button" onClick={() => { const middle = defaultMeetingPoint(selectedPlace.data!.geometry); if (middle) setMeeting(middle.latitude, middle.longitude) }}>
+                      Reset to the middle of the place
                     </button>
                   )}
                 </p>
                 {errors.meeting && <small role="alert">{errors.meeting}</small>}
               </div>
             )}
-            <label className="event-field">
-              <span>How to find the group (optional)</span>
-              <input maxLength={500} value={draft.meetingNote ?? ''} placeholder="e.g. By the main gate, next to the noticeboard" onChange={(event) => set('meetingNote', event.target.value)} />
-            </label>
+            {draft.placeId && (
+              <label className="event-field">
+                <span>How to find the group (optional)</span>
+                <input maxLength={500} value={draft.meetingNote ?? ''} placeholder="e.g. By the main gate, next to the noticeboard" onChange={(event) => set('meetingNote', event.target.value)} />
+              </label>
+            )}
           </>
         )}
 
@@ -355,7 +394,34 @@ export function HostEventPage() {
             )}
       </div>
       {save.error && <p className="event-inline-alert" role="alert">{save.error instanceof ApiError ? save.error.message : 'The event could not be saved. Try again.'}</p>}
+      {blocker.state === 'blocked' && !stepBack.current && (
+        <LeaveDraftDialog edit={edit} onStay={() => blocker.reset()} onLeave={() => blocker.proceed()} />
+      )}
     </section>
+  )
+}
+
+function LeaveDraftDialog({ edit, onStay, onLeave }: { edit: boolean; onStay: () => void; onLeave: () => void }) {
+  const dialogRef = useRef<HTMLDivElement>(null)
+  useDialogA11y(dialogRef, onStay)
+  return createPortal(
+    <div className="event-sheet">
+      <div className="event-sheet__scrim" onClick={onStay} />
+      <div ref={dialogRef} className="event-sheet__panel" role="dialog" aria-modal="true" aria-labelledby="leave-draft-title" tabIndex={-1}>
+        <header className="event-sheet__header">
+          <h2 id="leave-draft-title">{edit ? 'Discard your changes?' : 'Leave without saving?'}</h2>
+          <button type="button" className="event-icon-button" onClick={onStay} aria-label="Close"><Icon name="X" size={20} /></button>
+        </header>
+        <div className="event-sheet__body">
+          <p>{edit ? 'Your edits to this event haven’t been saved.' : 'This event hasn’t been saved yet. Use Save draft on the last step to keep it.'}</p>
+        </div>
+        <footer className="event-sheet__footer">
+          <button type="button" data-dialog-initial className="event-button event-button--primary" onClick={onStay}>Keep editing</button>
+          <button type="button" className="event-button" onClick={onLeave}>{edit ? 'Discard changes' : 'Leave'}</button>
+        </footer>
+      </div>
+    </div>,
+    document.body,
   )
 }
 
@@ -371,25 +437,21 @@ function landStatusLabel(status: PlaceLandStatus | undefined) {
 /** AC 9.6.7: what the mapped protected-area data says about the chosen place. */
 function LandStatusCard({ status, loading, failed }: { status?: PlaceLandStatus; loading: boolean; failed: boolean }) {
   if (loading) return <p className="host-land-status" role="status">Checking the mapped land status of this place…</p>
-  if (failed || !status) {
-    return (
-      <div className="host-land-status host-land-status--uncertain" role="status">
-        <Icon name="HelpCircle" size={18} />
-        <span><strong>Land status could not be checked</strong>Only observe-and-report activities are offered until it can be confirmed.</span>
-      </div>
-    )
-  }
-  const title = status.landStatus === 'protected'
-    ? `Mapped protected area${status.protectedAreaName ? `: ${status.protectedAreaName}` : ''}`
-    : status.landStatus === 'not_protected' ? 'Not in a mapped protected area' : 'Protected-area status uncertain'
+  const value = failed || !status ? 'uncertain' : status.landStatus
+  const title = value === 'protected'
+    ? `Protected area${status?.protectedAreaName ? `: ${status.protectedAreaName}` : ''}`
+    : value === 'not_protected' ? 'Not in a mapped protected area' : 'Protected-area status unknown'
+  const body = value === 'not_protected'
+    ? 'All event types are available.'
+    : 'Surveys, monitoring and other observe-and-report events only — no removal.'
   return (
-    <div className={`host-land-status host-land-status--${status.landStatus}`} role="status">
-      <Icon name={status.landStatus === 'not_protected' ? 'ShieldCheck' : status.landStatus === 'protected' ? 'ShieldAlert' : 'HelpCircle'} size={18} />
+    <div className={`host-land-status host-land-status--${value}`} role="status">
+      <Icon name={value === 'not_protected' ? 'ShieldCheck' : value === 'protected' ? 'ShieldAlert' : 'HelpCircle'} size={18} />
       <span>
         <strong>{title}</strong>
-        {status.operator && <>Managed by {status.operator}. </>}
-        {status.reason}
-        {status.disclaimer && <small>{status.disclaimer}</small>}
+        {status?.operator && <>Managed by {status.operator}. </>}
+        {body}
+        <small>Mapped status isn’t removal permission — everyone still passes the safety checks on the day.</small>
       </span>
     </div>
   )
@@ -405,23 +467,4 @@ function validChatLink(value: string) {
   } catch {
     return false
   }
-}
-
-/** Centre of a place's bounding box; for a trail, its middle vertex (always on the line). */
-function geometryCentre(geometry: GeoJSON.Geometry): { latitude: number; longitude: number } | null {
-  if (geometry.type === 'LineString' && geometry.coordinates.length) {
-    const [longitude, latitude] = geometry.coordinates[Math.floor(geometry.coordinates.length / 2)]
-    return { latitude, longitude }
-  }
-  const coords: number[][] = []
-  const visit = (value: unknown): void => {
-    if (!Array.isArray(value)) return
-    if (typeof value[0] === 'number') { coords.push(value as number[]); return }
-    value.forEach(visit)
-  }
-  if ('coordinates' in geometry) visit(geometry.coordinates)
-  if (!coords.length) return null
-  const lngs = coords.map((c) => c[0])
-  const lats = coords.map((c) => c[1])
-  return { latitude: (Math.min(...lats) + Math.max(...lats)) / 2, longitude: (Math.min(...lngs) + Math.max(...lngs)) / 2 }
 }
