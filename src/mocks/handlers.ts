@@ -1169,7 +1169,9 @@ export const handlers = [
       }, { status: 409 })
     }
     const existing = mockRemovalBySighting.get(report.sightingId)
-    if (existing) return HttpResponse.json(existing)
+    const current = SIGHTINGS.find((item) => item.id === report.sightingId)
+    // Replay only while the removal is open; after regrowth it can be reported again.
+    if (existing && current?.status === 'removal_reported') return HttpResponse.json(existing)
     const body = (await request.json()) as {
       latitude?: number
       longitude?: number
@@ -1208,7 +1210,12 @@ export const handlers = [
     }
     mockRemovalBySighting.set(sighting.id, response)
     sighting.status = 'removal_reported'
+    sighting.followUpState = 'needed'
     sighting.removalReportedAt = response.removalReportedAt
+    mockFollowUpHistory.set(sighting.id, [
+      ...(mockFollowUpHistory.get(sighting.id) ?? []),
+      { eventType: 'removal_reported', createdAt: response.removalReportedAt },
+    ])
     return HttpResponse.json(response)
   }),
 

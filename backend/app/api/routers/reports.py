@@ -570,13 +570,19 @@ def report_removal(
         raise ApiProblem(
             409, "removal_not_available", "This report is not linked to a public sighting."
         )
+    # A repeat submission while the removal is still open replays it. After
+    # confirmed regrowth the sighting is active again (status screened), so a
+    # fresh removal report is recorded below.
     existing = session.scalar(
-        select(SightingStatusEvent).where(
+        select(SightingStatusEvent)
+        .where(
             SightingStatusEvent.sighting_id == sighting.id,
             SightingStatusEvent.event_type == "removal_reported",
         )
+        .order_by(SightingStatusEvent.created_at.desc(), SightingStatusEvent.id.desc())
+        .limit(1)
     )
-    if existing is not None:
+    if existing is not None and sighting.status == "removal_reported":
         return RemovalReportResponse(
             report_id=existing.report_id,
             sighting_id=existing.sighting_id,

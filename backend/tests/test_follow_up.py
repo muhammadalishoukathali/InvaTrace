@@ -124,3 +124,54 @@ def test_status_history_opens_with_original_report_in_date_order() -> None:
     ]
     # An ordinary active sighting has no status history to show.
     assert _status_history(first_reported_at=reported, events=[]) == []
+
+
+def _removal_session(*, sighting_status: str, prior_removal: object | None):
+    report = SimpleNamespace(id=uuid.uuid4(), status="screened")
+    sighting = SimpleNamespace(
+        id=uuid.uuid4(), status=sighting_status, follow_up_state="regrowth",
+        latitude=3.14, longitude=101.69,
+    )
+    session = MagicMock()
+    # report, sighting id, sighting, latest removal event, stored distance
+    session.scalar.side_effect = [report, sighting.id, sighting, prior_removal, 5.0]
+    return report, sighting, session
+
+
+def test_removal_after_regrowth_records_a_new_removal_and_restarts_follow_up() -> None:
+    from app.api.routers.reports import RemovalReportRequest, report_removal
+
+    prior = SimpleNamespace(
+        report_id=uuid.uuid4(), sighting_id=uuid.uuid4(),
+        created_at=datetime.now(UTC) - timedelta(days=9), accuracy_m=10, distance_m=4,
+    )
+    report, sighting, session = _removal_session(sighting_status="screened", prior_removal=prior)
+    # The database stamps created_at on the new event; emulate it on refresh.
+    session.refresh.side_effect = lambda event: setattr(event, "created_at", datetime.now(UTC))
+    response = report_removal(
+        report.id,
+        RemovalReportRequest(latitude=3.14, longitude=101.69, accuracy_m=10, captured_at=datetime.now(UTC)),
+        MagicMock(), SimpleNamespace(profile=SimpleNamespace(id=uuid.uuid4())), session,
+    )
+    events = [c.args[0] for c in session.add.call_args_list if isinstance(c.args[0], SightingStatusEvent)]
+    assert [e.event_type for e in events] == ["removal_reported"]
+    assert sighting.status == "removal_reported"
+    assert sighting.follow_up_state == "needed"
+    assert response.removal_reported_at != prior.created_at
+
+
+def test_removal_while_still_open_replays_without_a_second_event() -> None:
+    from app.api.routers.reports import RemovalReportRequest, report_removal
+
+    prior = SimpleNamespace(
+        report_id=uuid.uuid4(), sighting_id=uuid.uuid4(),
+        created_at=datetime.now(UTC), accuracy_m=10, distance_m=4,
+    )
+    report, _sighting, session = _removal_session(sighting_status="removal_reported", prior_removal=prior)
+    response = report_removal(
+        report.id,
+        RemovalReportRequest(latitude=3.14, longitude=101.69, accuracy_m=10, captured_at=datetime.now(UTC)),
+        MagicMock(), SimpleNamespace(profile=SimpleNamespace(id=uuid.uuid4())), session,
+    )
+    session.add.assert_not_called()
+    assert response.removal_reported_at == prior.created_at

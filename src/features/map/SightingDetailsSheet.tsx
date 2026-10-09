@@ -251,10 +251,10 @@ export function SightingDetailsSheet({ onAskAssistant }: { onAskAssistant?: () =
                 </dl>
               </section>
 
-              {/* After regrowth the backend replays the original removal (one
-                  removal event per sighting), so offering it again would show a
-                  false success. */}
-              {profileId && data.status === 'screened' && !data.followUpState && data.removalReportId && (
+              {/* AC 4.8.5: confirmed regrowth makes the marker active again, so
+                  the removal can be reported again and a new follow-up cycle
+                  starts. */}
+              {profileId && data.status === 'screened' && (!data.followUpState || data.followUpState === 'regrowth') && data.removalReportId && (
                 <section className="pin-sheet__removal" aria-labelledby="sighting-removal-heading">
                   {!removalOpen ? (
                     <>

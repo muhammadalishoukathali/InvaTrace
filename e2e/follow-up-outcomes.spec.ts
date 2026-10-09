@@ -181,3 +181,45 @@ test('a concurrent state change explains why another location retry cannot help'
   await expect(page.getByRole('link', { name: 'Return to map' })).toBeVisible()
   await expect(page.getByRole('button', { name: 'Try location again' })).toHaveCount(0)
 })
+
+test('after regrowth the sighting can be marked removed again and follow-up restarts', async ({ page, context }) => {
+  // Real mock API end to end: s-01 is a screened sighting with a linked report.
+  const id = 's-01'
+  await context.grantPermissions(['geolocation'])
+  await page.goto('/')
+  await page.getByRole('button', { name: 'Start privately' }).first().click()
+  await page.getByRole('checkbox', { name: 'I have saved my recovery kit' }).check()
+  await page.getByRole('button', { name: 'Continue', exact: true }).click()
+  await expect(page).toHaveURL(/\/map$/)
+  const point = await page.evaluate(async (sightingId) => {
+    const detail = await (await fetch(`/api/v1/sightings/${sightingId}`)).json() as { location: { lat: number; lng: number } }
+    return detail.location
+  }, id)
+  await context.setGeolocation({ latitude: point.lat, longitude: point.lng, accuracy: 8 })
+
+  // Navigate in-app only: a page reload would reset the in-memory mock state.
+  const openSheet = async () => {
+    await page.locator(`.map-pin[data-sighting-id="${id}"]`).click()
+  }
+  const markRemoved = async () => {
+    await page.getByRole('button', { name: 'Mark as removed' }).click()
+    await page.getByRole('button', { name: 'Confirm removal report' }).first().click()
+    await expect(page.getByRole('heading', { name: 'Follow-up needed' })).toBeVisible()
+  }
+
+  await openSheet()
+  await markRemoved()
+
+  await page.getByRole('link', { name: 'Start follow-up' }).click()
+  await page.getByRole('button', { name: /current location/i }).click()
+  await expect(page.getByText('±8 m')).toBeVisible()
+  await page.getByRole('button', { name: 'Continue' }).click()
+  await selectAndSubmit(page, /Regrowth present/i)
+  await expect(page.getByRole('heading', { name: 'Follow-up recorded' })).toBeVisible()
+  await page.getByRole('link', { name: 'Return to map' }).click()
+
+  // Returning from a follow-up restores the open sighting sheet.
+  await expect(page.getByText('The marker is active on the map again.')).toBeVisible()
+  await markRemoved()
+  await expect(page.getByRole('link', { name: 'Start follow-up' })).toBeVisible()
+})
