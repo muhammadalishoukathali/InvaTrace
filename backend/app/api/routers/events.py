@@ -179,6 +179,31 @@ def _assert_permission_basis(permission_context: str, safety_notes: str | None) 
         )
 
 
+# A host may take a few minutes to finish the form after picking a start slot,
+# so a start this recent still counts as "now" rather than the past.
+EVENT_START_GRACE = timedelta(minutes=15)
+EVENT_MAX_DURATION = timedelta(hours=12)
+EVENT_MAX_LEAD = timedelta(days=365)
+
+
+def _assert_event_window(start_at: datetime, end_at: datetime, *, start_changed: bool) -> None:
+    if end_at <= start_at:
+        raise ApiProblem(422, "invalid_event_time", "End time must be after start time.")
+    if end_at - start_at > EVENT_MAX_DURATION:
+        raise ApiProblem(422, "event_too_long", "An event can last at most 12 hours.")
+    if not start_changed:
+        return
+    now = utcnow()
+    if start_at < now - EVENT_START_GRACE:
+        raise ApiProblem(
+            422, "event_start_in_past", "The start time has passed. Choose a later time."
+        )
+    if start_at > now + EVENT_MAX_LEAD:
+        raise ApiProblem(
+            422, "event_start_too_far", "Events can be scheduled up to one year ahead."
+        )
+
+
 def _same_value(current, new) -> bool:
     if current is None or new is None:
         return current is new
@@ -332,6 +357,7 @@ def create_event(
     session: Session = Depends(get_session),
 ):
     rate_limiter.check("events_write", str(auth.profile.id))
+    _assert_event_window(body.start_at, body.end_at, start_changed=True)
     _host_cap(session, auth.profile.id)
     _assert_species(session, body.target_species_ids)
     if body.event_type == "removal" and body.permission_context != "explicit_permission":
@@ -455,8 +481,10 @@ def patch_event(
         raise ApiProblem(
             422, "meeting_point_outside_place", "Meeting point is outside the event place."
         )
-    if event.end_at <= event.start_at:
-        raise ApiProblem(422, "invalid_event_time", "End time must be after start time.")
+    if changed_locked & {"start_at", "end_at"} or event.end_at <= event.start_at:
+        _assert_event_window(
+            event.start_at, event.end_at, start_changed="start_at" in changed_locked
+        )
     if "status" in changes and changes["status"] not in {None, "published", "draft"}:
         raise ApiProblem(
             422, "invalid_status_transition", "Use cancel or the lifecycle worker for this status."

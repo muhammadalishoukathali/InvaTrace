@@ -2,18 +2,19 @@ import { useEffect, useMemo, useRef, useState } from 'react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { useNavigate, useParams } from 'react-router-dom'
 import { BackLink } from '@/components/BackLink'
-import { EnglishDateTimeField } from '@/components/EnglishDateTimeField'
 import { Icon } from '@/components/Icon'
 import { api, ApiError } from '@/services/api-client'
 import { eventsApi, type EventDraft, type EventType } from '@/services/api/events'
 import type { PlaceDetail, PlaceSummary } from '@/types'
 import { parseLocalDateTime, toLocalDateTimeValue } from '@/utils/date-time'
 import { EventMap } from './EventMap'
+import { EventTimePicker } from './EventTimePicker'
 import { EventState } from './EventCard'
 import { SpeciesPicker } from './SpeciesPicker'
 import { eventTypeLabels } from './event-types'
 import { formatEventWindow, placeTypeLabels, speciesName } from './event-format'
 import { rankPlaces } from './place-ranking'
+import { eventWindowError } from './event-time'
 import './events.css'
 
 const DEFAULT_SAFETY_NOTES = 'Observe and report only unless the land manager has given permission. Wear closed shoes, bring water, stay on marked paths and keep away from water edges.'
@@ -51,6 +52,8 @@ export function HostEventPage() {
     enabled: Boolean(draft.placeId),
   })
   const existing = useQuery({ queryKey: ['event', eventId], queryFn: () => eventsApi.get(eventId!), enabled: edit })
+  // An already-saved start is not re-judged against "now" (mirrors the API).
+  const originalStart = existing.data ? localInput(existing.data.startAt) : null
 
   useEffect(() => {
     const item = existing.data
@@ -129,13 +132,11 @@ export function HostEventPage() {
       if (!validMeeting(draft)) next.meeting = 'Tap the map inside the place to set a meeting point in Malaysia.'
     }
     if (upTo >= 3) {
-      const start = parseLocalDateTime(draft.startAt)
-      const end = parseLocalDateTime(draft.endAt)
-      if (!start || !end || end <= start) {
-        next.times = 'Enter a start time and an end time after it.'
-      } else if (!existing.data?.activityLocked && end.getTime() <= Date.now()) {
-        next.times = 'The end time must be in the future.'
-      }
+      // Locked times cannot change, so there is nothing for the host to fix.
+      const timeError = existing.data?.activityLocked ? null : eventWindowError(
+        parseLocalDateTime(draft.startAt), parseLocalDateTime(draft.endAt), new Date(), draft.startAt !== originalStart,
+      )
+      if (timeError) next.times = timeError
       if (draft.eventType === 'removal' && draft.permissionContext !== 'explicit_permission') {
         next.permissionContext = 'A removal event needs confirmed permission from the land manager before it can be published.'
       }
@@ -156,6 +157,7 @@ export function HostEventPage() {
   if (edit && !existing.data!.isHost) return <EventState error text="Only the event host can edit this event." />
   if (edit && !['draft', 'published'].includes(existing.data!.status)) return <EventState error text="Cancelled and completed events can no longer be edited." />
   const locked = Boolean(existing.data?.activityLocked)
+  const startFixed = existing.data?.status === 'published' && new Date(existing.data.startAt) <= new Date() && draft.startAt === originalStart
   const next = () => { const result = validate(step); if (result.ok) setStep(step + 1); else setStep(Math.min(step, result.firstInvalidStep)) }
   const submit = (publish: boolean) => { const result = validate(4); if (result.ok) save.mutate(publish); else setStep(result.firstInvalidStep) }
   const point = validMeeting(draft) ? { latitude: draft.meetingLatitude, longitude: draft.meetingLongitude } : undefined
@@ -272,10 +274,10 @@ export function HostEventPage() {
 
         {step === 3 && (
           <>
-            <div className="host-times">
-              <EnglishDateTimeField label="Starts" disabled={locked} value={draft.startAt} onChange={(value) => set('startAt', value)} />
-              <EnglishDateTimeField label="Ends" disabled={locked} value={draft.endAt} onChange={(value) => set('endAt', value)} />
-            </div>
+            <EventTimePicker
+              startAt={draft.startAt} endAt={draft.endAt} disabled={locked} startFixed={startFixed}
+              onChange={(startAt, endAt) => { set('startAt', startAt); set('endAt', endAt) }}
+            />
             {errors.times && <p className="event-inline-alert" role="alert">{errors.times}</p>}
             <fieldset className="event-choice-list">
               <legend>Permission from the land manager</legend>

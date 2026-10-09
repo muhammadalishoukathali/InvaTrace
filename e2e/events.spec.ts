@@ -1,4 +1,5 @@
 import { expect, test } from '@playwright/test'
+import { pickEventTime } from './fixtures/event-time'
 
 async function startPrivateAccess(page: import('@playwright/test').Page) {
   await page.goto('/')
@@ -59,7 +60,7 @@ test.describe('Epic 9 events', () => {
     await page.goto('/events/host')
     await page.getByLabel('Event title').fill('Morning survey'); await page.getByLabel('Purpose', { exact: true }).fill('Record observations'); await page.getByRole('button', { name: 'Continue' }).click()
     await page.getByLabel('Mapped place').fill('Bukit'); await page.getByRole('button', { name: /Bukit Kiara/ }).click(); await expect(page.getByText(/^Meeting point \d/)).toBeVisible(); await page.getByRole('button', { name: 'Continue' }).click()
-    await page.getByLabel('Starts', { exact: true }).fill('2030-01-01T08:00'); await page.getByLabel('Ends', { exact: true }).fill('2030-01-01T10:00'); await page.getByRole('button', { name: 'Continue' }).click()
+    await pickEventTime(page); await page.getByRole('button', { name: 'Continue' }).click()
     await page.getByRole('button', { name: 'Publish event' }).click()
     await expect.poll(() => requests.some((request) => request === 'POST /api/v1/events')).toBe(true)
     await expect.poll(() => requests.some((request) => request === 'PATCH /api/v1/events/event-1')).toBe(true)
