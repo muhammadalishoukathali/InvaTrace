@@ -117,46 +117,65 @@ export function CatalogueDetailPage() {
             <img src={packAssetUrl(assetUrls, image.url, staleAssetUrls, online) ?? referenceImageSrc(image.url)} alt={`Reference view of ${record.scientific_name}`} />
           ) : <Icon name="Leaf" size={38} color="var(--green)" />}
         </div>
-        <div>
+        <div className="catalogue-detail__intro">
+          <span className="catalogue-detail__status">
+            <Icon name="MapPin" size={13} />Present in Malaysia
+          </span>
           <h2>{record.scientific_name}</h2>
-          <p>{record.common_names.join(' · ')}</p>
+          <p className="catalogue-detail__common">{record.common_names.join(' · ')}</p>
           {record.accepted_scientific_name && (
-            <p>Accepted name used by the reviewed source: <i>{record.accepted_scientific_name}</i></p>
+            <p className="catalogue-detail__accepted">Accepted name used by the reviewed source: <i>{record.accepted_scientific_name}</i></p>
           )}
-          <span className="catalogue-detail__status">Present in Malaysia</span>
+          <GuidePlantAssistant key={record.species_id} speciesId={record.species_id}
+            scientificName={record.scientific_name} />
         </div>
       </header>
 
-      <GuidePlantAssistant key={record.species_id} speciesId={record.species_id}
-        scientificName={record.scientific_name} />
-
       <div className="catalogue-detail__body">
-        <section>
-          <h3>Identifying characteristics</h3>
-          <p>{detail.identifying_characteristics}</p>
-        </section>
-        <section>
-          <h3>Typical habitat</h3>
-          <p>{detail.typical_habitat}</p>
-        </section>
-        <section>
-          <h3>Documented impacts</h3>
+        <div className="catalogue-detail__facts">
+          <section className="catalogue-detail__card">
+            <h3><Icon name="Search" size={18} color="var(--green)" />Identifying characteristics</h3>
+            <p>{detail.identifying_characteristics}</p>
+          </section>
+          <section className="catalogue-detail__card">
+            <h3><Icon name="Trees" size={18} color="var(--green)" />Typical habitat</h3>
+            <p>{detail.typical_habitat}</p>
+          </section>
+        </div>
+        <section className="catalogue-detail__card">
+          <h3><Icon name="TrendingUp" size={18} color="var(--green)" />Documented impacts</h3>
           <p>{detail.documented_impacts}</p>
-          <p>Formal severity assessment not available</p>
+          <p className="catalogue-detail__note"><Icon name="Info" size={14} />Formal severity assessment not available</p>
         </section>
-        <section>
-          <h3>Safe response guidance</h3>
-          <ul>{detail.safe_response_guidance.map((step) => <li key={step}>{step}</li>)}</ul>
-          <p>No beginner-safe active action is provided.</p>
-          <p>Outside a mapped protected area does not mean removal is permitted. Confirm permission first.</p>
+        <section className="catalogue-detail__card catalogue-detail__safety">
+          <h3><Icon name="ShieldAlert" size={18} color="var(--amber-text)" />Safe response guidance</h3>
+          <ol className="catalogue-detail__steps">
+            {detail.safe_response_guidance.map((step) => <li key={step}>{step}</li>)}
+          </ol>
+          <ul className="catalogue-detail__cautions">
+            <li><Icon name="AlertTriangle" size={15} />No beginner-safe active action is provided.</li>
+            <li><Icon name="AlertTriangle" size={15} />Outside a mapped protected area does not mean removal is permitted. Confirm permission first.</li>
+          </ul>
         </section>
-        <section>
-          <h3>Sources and credits</h3>
+        <section className="catalogue-detail__card catalogue-detail__places">
+          <div>
+            <h3><Icon name="MapPinned" size={18} color="var(--green)" />Where it is recorded</h3>
+            <p>Browse mapped parks, forests and woodlands to see historical occurrence
+              associations for invasive plants like this one.</p>
+          </div>
+          <Link to="/places" className="catalogue-detail__places-link">
+            Browse mapped places<Icon name="ChevronRight" size={16} />
+          </Link>
+        </section>
+        <section className="catalogue-detail__credits">
+          <h3><Icon name="BookOpen" size={16} color="var(--muted)" />Sources and credits</h3>
           <ul className="catalogue-sources">
             {cited.map((source) => (
               <li key={source.source_id}>
-                <a href={source.url} target="_blank" rel="noreferrer">{source.title}</a>
-                <span>{source.publisher} · {source.source_id}</span>
+                <a href={source.url} target="_blank" rel="noreferrer">
+                  {source.title}<Icon name="ExternalLink" size={13} />
+                </a>
+                <span>{source.publisher} · <code>{source.source_id}</code></span>
                 {source.reuse_status && <span>{source.reuse_status}</span>}
               </li>
             ))}
@@ -165,12 +184,6 @@ export function CatalogueDetailPage() {
             <ImageAttribution attribution={image} />
           ) : <p>Reference image unavailable pending reviewed attribution.</p>}
           <p>Catalogue v{dataset.catalogue_version} · last reviewed {detail.reviewed_at}</p>
-        </section>
-        <section className="catalogue-detail__places">
-          <h3>Where it is recorded</h3>
-          <p>Browse mapped parks, forests and woodlands to see historical occurrence
-            associations for invasive plants like this one.</p>
-          <Link to="/places">Browse mapped places</Link>
         </section>
       </div>
     </article>

@@ -1,5 +1,5 @@
-import { useEffect, useRef } from 'react'
-import { Outlet, useLocation, useNavigate } from 'react-router-dom'
+import { useEffect, useLayoutEffect, useRef } from 'react'
+import { Outlet, useLocation, useNavigate, useNavigationType } from 'react-router-dom'
 import { Sidebar } from './Sidebar'
 import { BottomTabs } from './BottomTabs'
 import { ReportQueueStatusBanner } from '@/features/report/ReportQueueStatusBanner'
@@ -34,13 +34,35 @@ export function AppShell() {
   const location = useLocation()
   const { pathname } = location
   const navigate = useNavigate()
+  const navigationType = useNavigationType()
   const headingRef = useRef<HTMLHeadingElement>(null)
+  const mainRef = useRef<HTMLElement>(null)
 
   // One of the accessibility ACs asked for screen readers to announce where
   // you land after navigating. React Router doesn't move focus on its own
   // (it's an SPA, no real page load happening), so I do it manually here -
   // just shove focus onto the heading whenever the pathname changes.
   useEffect(() => { headingRef.current?.focus() }, [pathname])
+
+  // Screens scroll inside <main>, not the window, so the browser never resets
+  // it between routes - opening a plant from halfway down the catalogue
+  // landed halfway down the plant's page. A fresh navigation starts at the
+  // top; Back/Forward returns to where that entry was left.
+  // Positions are recorded as the user scrolls (by then the next page has
+  // not replaced the DOM yet, so the value is the real one).
+  const scrollPositions = useRef(new Map<string, number>())
+  const scrollKey = useRef(location.key)
+  useLayoutEffect(() => {
+    const main = mainRef.current
+    if (!main) return
+    scrollKey.current = location.key
+    const saved = navigationType === 'POP' ? scrollPositions.current.get(location.key) : undefined
+    main.scrollTo({ top: 0, left: 0 })
+    if (!saved) return
+    // the lazy route may still be laying out, so restore on the next frame
+    const frame = requestAnimationFrame(() => main.scrollTo({ top: saved, left: 0 }))
+    return () => cancelAnimationFrame(frame)
+  }, [location.key, navigationType])
 
   // in theory RequirePrivateAccess already stops us getting here without a
   // profile, but there's a brief moment between that check passing and the
@@ -94,7 +116,9 @@ export function AppShell() {
           </div>
         </header>
 
-        <main id="main-content" tabIndex={-1} style={{
+        <main ref={mainRef} id="main-content" tabIndex={-1}
+          onScroll={(event) => { scrollPositions.current.set(scrollKey.current, event.currentTarget.scrollTop) }}
+          style={{
           flex: 1, minHeight: 0,
           overflow: pageFillsAvailableSpace ? 'hidden' : 'auto',
           padding: pageFillsAvailableSpace ? 0 : (isDesktop ? 26 : 16),
