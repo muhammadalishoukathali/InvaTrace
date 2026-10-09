@@ -36,7 +36,26 @@
 .events-filters { margin-top: 20px; display: grid; gap: 16px; padding: 16px; border: 1px solid var(--border); border-radius: var(--r-card); background: var(--surface); }
 .events-range { border: 0; padding: 0; margin: 0; min-width: 0; display: grid; gap: 8px; }
 .events-range legend, .species-picker__label { margin-bottom: 8px; color: var(--ink); font-size: 13px; font-weight: 650; }
-.events-range__custom { display: grid; gap: 12px; margin-top: 4px; }
+/* Custom dates: one calendar, first day then last day, no times */
+.range-calendar { width: 100%; max-width: 360px; margin-top: 4px; padding: 10px; border: 1px solid var(--border); border-radius: var(--r-card); background: var(--surface); }
+.range-calendar__head { margin-bottom: 6px; display: flex; align-items: center; justify-content: space-between; gap: 8px; }
+.range-calendar__head strong { color: var(--ink); font-size: 14px; }
+.range-calendar__head .event-icon-button:disabled { opacity: .35; cursor: not-allowed; }
+.range-calendar__grid { display: grid; grid-template-columns: repeat(7, minmax(0, 1fr)); row-gap: 2px; }
+.range-calendar__weekday { padding: 4px 0; color: var(--muted); font-size: 11.5px; font-weight: 650; text-align: center; }
+.range-calendar__day { display: grid; place-items: center; }
+.range-calendar__day.is-inside { background: var(--green-light); }
+.range-calendar__day.has-tail { background: linear-gradient(to right, transparent 50%, var(--green-light) 50%); }
+.range-calendar__day.has-head { background: linear-gradient(to left, transparent 50%, var(--green-light) 50%); }
+.range-calendar__day button { width: 100%; max-width: 44px; aspect-ratio: 1; min-height: 40px; display: grid; place-items: center; border: 0; border-radius: 50%; background: transparent; color: var(--ink); font: inherit; font-size: 14px; font-variant-numeric: tabular-nums; cursor: pointer; }
+.range-calendar__day button:hover:not(:disabled) { background: var(--hover); }
+.range-calendar__day.is-inside button { color: var(--green-dark); }
+.range-calendar__day.is-inside button:hover:not(:disabled) { background: var(--green-border); }
+.range-calendar__day.is-today button { box-shadow: inset 0 0 0 1px var(--green); color: var(--green-dark); font-weight: 700; }
+.range-calendar__day.is-start button, .range-calendar__day.is-end button { background: var(--green); color: var(--on-accent); font-weight: 700; }
+.range-calendar__day button:disabled { color: var(--icon); cursor: not-allowed; }
+.range-calendar__foot { min-height: 36px; margin-top: 8px; padding-top: 8px; display: flex; align-items: center; justify-content: space-between; gap: 12px; border-top: 1px solid var(--border); }
+.range-calendar__foot p { margin: 0; color: var(--body); font-size: 13px; }
 .event-segmented { display: flex; flex-wrap: wrap; gap: 6px; }
 .event-segmented button { min-height: 44px; padding: 8px 13px; flex: none; display: inline-flex; align-items: center; gap: 6px; border: 1px solid var(--border); border-radius: var(--r-chip); background: var(--surface); color: var(--body); font: inherit; font-size: 13px; font-weight: 600; cursor: pointer; white-space: nowrap; }
 .event-segmented button[aria-pressed="true"] { border-color: var(--green); background: var(--green); color: var(--on-accent); }
@@ -336,7 +355,6 @@
 @media (min-width: 600px) {
   .events-intro__actions { display: flex; }
   .events-filters { grid-template-columns: minmax(0, 1fr) minmax(0, 1.3fr); align-items: start; }
-  .events-range__custom { grid-template-columns: 1fr 1fr; }
   .event-sheet { align-items: center; padding: 24px; }
   .event-sheet__panel { width: min(100%, 520px); border-radius: var(--r-sheet); padding-bottom: 0; }
   .host-step { padding: 22px 24px; }

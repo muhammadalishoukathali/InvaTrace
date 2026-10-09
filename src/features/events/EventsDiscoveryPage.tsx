@@ -1,13 +1,12 @@
 import { useMemo, useState } from 'react'
 import { keepPreviousData, useQuery } from '@tanstack/react-query'
 import { Link, useSearchParams } from 'react-router-dom'
-import { EnglishDateTimeField } from '@/components/EnglishDateTimeField'
 import { Icon } from '@/components/Icon'
 import { useIsDesktop } from '@/hooks/useIsDesktop'
 import { api } from '@/services/api-client'
 import { eventsApi } from '@/services/api/events'
 import type { PlaceDetail } from '@/types'
-import { parseLocalDateTime } from '@/utils/date-time'
+import { DateRangeCalendar, dayRangeWindow, formatDayRange, type DayRange } from './DateRangeCalendar'
 import { EventCard, EventState } from './EventCard'
 import { EventMap } from './EventMap'
 import { SpeciesPicker } from './SpeciesPicker'
@@ -33,22 +32,18 @@ export function EventsDiscoveryPage() {
   const placeId = params.get('placeId') ?? undefined
   const isDesktop = useIsDesktop()
   const [preset, setPreset] = useState<RangePreset>('upcoming')
-  const [from, setFrom] = useState('')
-  const [to, setTo] = useState('')
+  const [days, setDays] = useState<DayRange>({ start: null, end: null })
   const [species, setSpecies] = useState<string[]>([])
   const [bbox, setBbox] = useState<string>()
   const [view, setView] = useState<'list' | 'map'>('list')
   const [selectedId, setSelectedId] = useState<string | null>(null)
 
   const range = useMemo(() => {
-    if (preset === 'custom') return { from: parseLocalDateTime(from), to: parseLocalDateTime(to) }
+    if (preset === 'custom') return dayRangeWindow(days)
     if (preset === 'upcoming') return { from: null, to: null }
     const now = new Date()
     return { from: null, to: new Date(now.getTime() + (preset === 'week' ? 7 : 30) * DAY_MS) }
-  }, [preset, from, to])
-  const invalidFields = preset === 'custom' && Boolean((from && !range.from) || (to && !range.to))
-  const invalidOrder = Boolean(range.from && range.to && range.to <= range.from)
-  const invalidDates = invalidFields || invalidOrder
+  }, [preset, days])
 
   const place = useQuery({
     queryKey: ['place', placeId],
@@ -59,7 +54,6 @@ export function EventsDiscoveryPage() {
   // anchored to the followed place, not just the ones currently on screen.
   const scopedBbox = placeId ? undefined : bbox
   const events = useQuery({
-    enabled: !invalidDates,
     queryKey: ['events', placeId, species, scopedBbox, range.from?.toISOString(), range.to?.toISOString()],
     placeholderData: keepPreviousData,
     queryFn: () => eventsApi.list({
@@ -70,7 +64,7 @@ export function EventsDiscoveryPage() {
   const items = events.data?.items ?? []
   const filterSummary = [
     species.length ? `${species.length} species` : 'all species',
-    RANGE_LABELS[preset].toLowerCase(),
+    preset === 'custom' && days.start ? formatDayRange(days) : RANGE_LABELS[preset].toLowerCase(),
     placeId ? (place.data?.displayName ?? 'selected place') : scopedBbox ? 'in the map area' : 'all places',
   ].join(' · ')
   const showList = isDesktop || view === 'list'
@@ -111,20 +105,14 @@ export function EventsDiscoveryPage() {
             ))}
           </div>
           {preset === 'custom' && (
-            <div className="events-range__custom">
-              <EnglishDateTimeField label="From" value={from} onChange={setFrom} />
-              <EnglishDateTimeField label="Until" value={to} onChange={setTo} />
-            </div>
+            <DateRangeCalendar value={days} onChange={setDays} />
           )}
         </fieldset>
       </div>
-      {invalidFields && <p className="event-inline-alert" role="alert">Enter valid filter dates using YYYY-MM-DD HH:mm, or use the date picker.</p>}
-      {invalidOrder && <p className="event-inline-alert" role="alert">Until must be later than From. Adjust the dates to see matching events.</p>}
 
       <div className="events-results-bar">
         <p role="status" aria-live="polite" className="events-count">
-          {invalidDates ? 'Fix the dates to search'
-            : events.isLoading ? 'Searching…'
+          {events.isLoading ? 'Searching…'
               : `${items.length} ${items.length === 1 ? 'event' : 'events'}`}
           <small className="events-count__summary">{filterSummary}</small>
           {events.isFetching && !events.isLoading && <span className="sr-only"> Updating results</span>}
@@ -137,9 +125,9 @@ export function EventsDiscoveryPage() {
         )}
       </div>
 
-      {!invalidDates && events.isLoading && <EventState text="Loading upcoming events…" />}
-      {!invalidDates && events.isError && !events.data && <EventState text="Upcoming events could not be loaded." retry={() => void events.refetch()} error />}
-      {!invalidDates && events.data && (
+      {events.isLoading && <EventState text="Loading upcoming events…" />}
+      {events.isError && !events.data && <EventState text="Upcoming events could not be loaded." retry={() => void events.refetch()} error />}
+      {events.data && (
         <div className={`events-layout${events.isFetching ? ' events-layout--updating' : ''}`}>
           {showList && (
             <div className="events-layout__list">
