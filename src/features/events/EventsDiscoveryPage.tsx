@@ -95,9 +95,7 @@ export function EventsDiscoveryPage() {
           <p>Volunteer outings hosted by community members — not official or government operations.</p>
         </div>
         <div className="events-intro__actions">
-          <HostEventLink className="event-button event-button--primary">
-            <Icon name="CalendarDays" size={17} />Host an event
-          </HostEventLink>
+          <HostEventLink className="event-button event-button--primary" icon="CalendarDays">Host an event</HostEventLink>
           <Link className="event-button" to="/events/mine">Your hosted events</Link>
         </div>
       </header>

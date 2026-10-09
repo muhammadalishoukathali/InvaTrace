@@ -190,7 +190,10 @@ def _host_report_count(session: Session, profile_id: uuid.UUID) -> int:
 
 
 def _assert_can_host(session: Session, profile_id: uuid.UUID) -> None:
-    required = get_settings().event_host_min_reports
+    settings = get_settings()
+    if not settings.event_host_gate_enabled:
+        return
+    required = settings.event_host_min_reports
     count = _host_report_count(session, profile_id)
     if count < required:
         raise ApiProblem(
@@ -679,9 +682,12 @@ def host_eligibility(
     auth: AuthContext = Depends(require_auth), session: Session = Depends(get_session)
 ):
     """AC 9.6.1: hosting unlocks after the identity has reported enough sightings."""
-    required = get_settings().event_host_min_reports
+    settings = get_settings()
+    required = settings.event_host_min_reports
     count = _host_report_count(session, auth.profile.id)
-    return {"eligible": count >= required, "report_count": count, "required": required}
+    # With the gate switched off everyone may host; the count is still reported.
+    eligible = count >= required or not settings.event_host_gate_enabled
+    return {"eligible": eligible, "report_count": count, "required": required}
 
 
 @places_router.get("/{place_id}/land-status")

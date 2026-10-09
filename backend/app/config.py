@@ -89,6 +89,9 @@ class Settings(BaseSettings):
     event_checkin_grace_minutes: int = Field(default=30, ge=0, le=120)
     event_host_cap: int = Field(default=3, ge=1, le=100)
     event_host_min_reports: int = Field(default=3, ge=0, le=1000)
+    # AC 9.6.1 hosting gate. Off during internal testing so anyone can host;
+    # set EVENT_HOST_GATE_ENABLED=true to require event_host_min_reports again.
+    event_host_gate_enabled: bool = False
     event_report_budget_per_identity: int = Field(default=60, ge=1, le=10_000)
     event_flag_hide_threshold: int = Field(default=3, ge=1, le=100)
     event_hidden_auto_cancel_days: int = Field(default=14, ge=1, le=365)
