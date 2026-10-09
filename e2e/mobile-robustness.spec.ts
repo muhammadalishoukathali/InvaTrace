@@ -31,13 +31,17 @@ test('mobile scan stops the camera on interruption and stays within the viewport
     })
   })
   await startPrivateAccess(page)
-  // Two destinations either side of Scan; Places and Plants sit at the top.
+  // Two slots either side of Scan; the rest (and Profile) sit behind More,
+  // so the header carries no shortcut buttons.
   const primary = page.getByRole('navigation', { name: 'Primary' })
-  await expect(primary.getByRole('link')).toHaveText(['Map', 'Records', 'Scan', 'Areas', 'Events'])
-  await expect(page.getByRole('link', { name: 'Browse mapped places' })).toBeVisible()
-  await page.getByRole('button', { name: 'Plant catalogue' }).click()
+  await expect(primary.getByRole('link')).toHaveText(['Map', 'Records', 'Scan', 'Areas'])
+  await expect(page.locator('.app-header button')).toHaveCount(0)
+  await primary.getByRole('button', { name: 'More' }).click()
+  const more = page.getByRole('dialog', { name: 'More destinations' })
+  await expect(more.getByRole('link')).toHaveText(['Browse places', 'Plant catalogue', 'Community events', 'My profile'])
+  await more.getByRole('link', { name: 'Plant catalogue' }).click()
   await expect(page).toHaveURL(/\/catalogue$/)
-  await expect(page.getByRole('button', { name: 'Plant catalogue' })).toHaveCount(0)
+  await expect(more).toHaveCount(0)
   await page.goto('/scan')
   await page.getByRole('button', { name: 'Open camera' }).click()
   await expect(page.getByRole('heading', { name: 'Frame one clear plant feature' })).toBeVisible()

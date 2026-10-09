@@ -194,7 +194,7 @@ export function SightingDetailsSheet({ onAskAssistant }: { onAskAssistant?: () =
                 )}
               </header>
 
-              {onAskAssistant && <button type="button" className="pin-sheet__retry"
+              {onAskAssistant && <button type="button" id="sighting-assistant-entry" className="pin-sheet__retry"
                 onClick={onAskAssistant}>Ask Plant Assistant</button>}
 
               {data.followUpState === 'needed' && data.status === 'removal_reported' && (
