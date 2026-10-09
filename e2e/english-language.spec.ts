@@ -1,4 +1,5 @@
 import { expect, test, type Page } from '@playwright/test'
+import { pickEventTime } from './fixtures/event-time'
 
 test.use({ locale: 'zh-CN', timezoneId: 'Asia/Kuala_Lumpur' })
 
@@ -67,17 +68,15 @@ test('English hosting fields validate input and preserve API dates', async ({ pa
   await page.getByRole('button', { name: /Bukit Kiara/ }).click()
   await expect(page.getByText(/^Meeting point \d/)).toBeVisible()
   await page.getByRole('button', { name: 'Continue', exact: true }).click()
-  await page.getByLabel('Starts', { exact: true }).fill('2030-02-30 08:00')
-  await page.getByLabel('Ends', { exact: true }).fill('2030-03-01 10:00')
   await page.getByRole('button', { name: 'Continue', exact: true }).click()
-  await expect(page.getByRole('alert').first()).toContainText('Enter a start time and an end time after it')
-  await page.getByLabel('Starts', { exact: true }).fill('2030-03-01 08:00')
-  await page.getByRole('button', { name: 'Choose ends date and time' }).click()
-  await page.getByRole('dialog').getByRole('button', { name: 'Use date and time' }).click()
-  await expect(page.getByLabel('Ends', { exact: true })).toHaveValue('2030-03-01 10:00')
+  await expect(page.getByRole('alert').first()).toContainText('Choose a date, a start time and how long the event lasts')
+  await pickEventTime(page, { hour: 8, duration: '2 h' })
+  await expect(page.getByRole('status').filter({ hasText: '08:00–10:00' })).toContainText('2 h')
   await page.getByRole('button', { name: 'Continue', exact: true }).click()
   await page.getByRole('button', { name: 'Save draft', exact: true }).click()
   await expect(page).toHaveURL(/\/events\/layout-event$/)
-  expect(submitted?.startAt).toBe('2030-03-01T00:00:00.000Z')
-  expect(submitted?.endAt).toBe('2030-03-01T02:00:00.000Z')
+  // 08:00–10:00 on the 15th in the browser's Asia/Kuala_Lumpur zone (UTC+8, no DST)
+  // is sent as 00:00–02:00 UTC. The runner's own zone may differ, so match the shape.
+  expect(submitted?.startAt).toMatch(/^\d{4}-\d{2}-15T00:00:00\.000Z$/)
+  expect(submitted?.endAt).toBe(submitted?.startAt.replace('T00:', 'T02:'))
 })

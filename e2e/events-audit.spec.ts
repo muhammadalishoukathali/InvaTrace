@@ -1,4 +1,5 @@
 import { expect, test, type Page } from '@playwright/test'
+import { pickEventTime } from './fixtures/event-time'
 
 test.skip(process.env.RUN_INVATRACE_IT3_E2E !== '1' && process.env.PLAYWRIGHT_EPIC9 !== '1', 'Iteration-3 browser coverage is gated.')
 // These specs stub the API with page.route(); switch off the dev MSW event mocks.
@@ -32,10 +33,16 @@ test('host form prevents blank, invalid time, permission and http chat submissio
   await expect(page.getByText('Choose a mapped place.')).toBeVisible()
   await page.getByLabel('Mapped place').fill('Bukit'); await page.getByRole('button', { name: /Bukit Kiara/ }).click()
   await expect(page.getByText(/^Meeting point \d/)).toBeVisible(); await page.getByRole('button', { name: 'Continue' }).click()
-  await page.getByLabel('Starts', { exact: true }).fill('2030-01-01T10:00'); await page.getByLabel('Ends', { exact: true }).fill('2030-01-01T08:00'); await page.getByRole('button', { name: 'Continue' }).click()
-  await expect(page.getByText('Enter a start time and an end time after it.')).toBeVisible()
+  // Past days and the previous month are never offered; no time yet blocks Continue.
+  await page.getByRole('button', { name: /^Date / }).click()
+  await expect(page.getByRole('button', { name: 'Previous month' })).toBeDisabled()
+  const yesterday = new Date(); yesterday.setDate(yesterday.getDate() - 1)
+  if (yesterday.getMonth() === new Date().getMonth()) await expect(page.getByRole('group', { name: /^Days in / }).getByRole('button', { name: new RegExp(` ${yesterday.getDate()} `) })).toBeDisabled()
+  await page.keyboard.press('Escape')
+  await page.getByRole('button', { name: 'Continue' }).click()
+  await expect(page.getByText('Choose a date, a start time and how long the event lasts.')).toBeVisible()
   await expect(page.getByText('A removal event needs confirmed permission from the land manager before it can be published.')).toBeVisible()
-  await page.getByLabel('Ends', { exact: true }).fill('2030-01-01T12:00'); await page.getByRole('radio', { name: /Confirmed/ }).check(); await page.getByRole('button', { name: 'Continue' }).click()
+  await pickEventTime(page, { hour: 10 }); await page.getByRole('radio', { name: /Confirmed/ }).check(); await page.getByRole('button', { name: 'Continue' }).click()
   // AC 9.6.5: the pre-filled generic notes are not a stated permission basis.
   await expect(page.getByText('State who gave permission and any conditions in the safety notes.')).toBeVisible()
   await page.getByRole('textbox', { name: 'Safety notes' }).fill('Permission from the park office (email, 1 Dec). Gloves provided; stay on marked paths.')

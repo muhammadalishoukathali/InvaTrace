@@ -148,3 +148,28 @@ def test_router_guards_terminal_edits_flags_and_join_contract() -> None:
     assert 'kind="system"' in flag
     cap = source.split("def _host_cap", 1)[1].split("def _can_restore", 1)[0]
     assert "Event.end_at > utcnow()" in cap
+
+
+def test_event_window_rejects_past_long_and_far_future_starts() -> None:
+    from app.api.routers.events import _assert_event_window
+
+    now = datetime.now(UTC)
+
+    def code(start: datetime, end: datetime, start_changed: bool = True) -> str | None:
+        try:
+            _assert_event_window(start, end, start_changed=start_changed)
+        except ApiProblem as error:
+            return error.code
+        return None
+
+    assert code(now + timedelta(hours=1), now + timedelta(hours=3)) is None
+    # A slot picked a few minutes ago is still accepted while the form is finished.
+    assert code(now - timedelta(minutes=10), now + timedelta(hours=1)) is None
+    assert code(now - timedelta(minutes=20), now + timedelta(hours=1)) == "event_start_in_past"
+    assert code(now + timedelta(hours=1), now + timedelta(hours=1)) == "invalid_event_time"
+    assert code(now + timedelta(hours=1), now + timedelta(hours=13, minutes=1)) == "event_too_long"
+    assert (
+        code(now + timedelta(days=366), now + timedelta(days=366, hours=1)) == "event_start_too_far"
+    )
+    # An unchanged start (e.g. editing only the end of a running event) is not re-judged.
+    assert code(now - timedelta(hours=2), now + timedelta(hours=1), start_changed=False) is None

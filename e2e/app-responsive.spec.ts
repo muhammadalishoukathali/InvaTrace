@@ -1,5 +1,6 @@
 import { expect, test, type Page, type TestInfo } from '@playwright/test'
 import fs from 'node:fs/promises'
+import { pickEventTime } from './fixtures/event-time'
 
 interface LayoutFinding { screen: string; overflow: string[]; smallTargets: string[] }
 
@@ -161,7 +162,7 @@ test('every route and workflow state fits the screen', async ({ page, context },
     await inspect(page, info, `28-host-step-${step}`, findings)
     if (step === 1) { await page.getByLabel('Event title').fill('Community survey'); await page.getByRole('textbox', { name: /^Purpose/ }).fill('Record field observations.') }
     if (step === 2) { await page.getByLabel('Mapped place').fill('Bukit'); await page.getByRole('button', { name: /Bukit Kiara/ }).click() }
-    if (step === 3) { await page.getByLabel('Starts', { exact: true }).fill('2030-01-01T08:00'); await page.getByLabel('Ends', { exact: true }).fill('2030-01-01T10:00') }
+    if (step === 3) { await pickEventTime(page) }
     if (step < 4) await page.getByRole('button', { name: 'Continue', exact: true }).click()
   }
 
