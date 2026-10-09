@@ -24,7 +24,7 @@ async function navigate(page: Page, destination: string) {
   await expect(page.locator('.route-loading')).toHaveCount(0)
 }
 
-test('dates and fields remain English with a Chinese browser locale', async ({ page }, info) => {
+test('dates and fields remain English with a Chinese browser locale', async ({ page }) => {
   await start(page)
   expect(await page.evaluate(() => navigator.language)).toBe('zh-CN')
   for (const [route, selector] of [
@@ -42,39 +42,11 @@ test('dates and fields remain English with a Chinese browser locale', async ({ p
   }
   await expect(page.locator('.event-card').first()).toContainText(/[A-Z][a-z]{2} \d{1,2} [A-Z][a-z]{2} · \d{2}:\d{2}–\d{2}:\d{2}/)
   await page.getByRole('button', { name: 'Custom dates' }).click()
-  await expect(page.getByLabel('From', { exact: true })).toHaveAttribute('placeholder', 'YYYY-MM-DD HH:mm')
-  await expect(page.locator('input[type="datetime-local"]')).toHaveCount(0)
-  await page.getByRole('button', { name: 'Choose from date and time' }).click()
-  const dialog = page.getByRole('dialog', { name: 'From date and time' })
-  await expect(dialog.getByLabel('Month')).toBeFocused()
-  await dialog.getByLabel('Year').fill('2030')
-  await dialog.getByLabel('Month').selectOption('0')
-  await dialog.getByRole('combobox', { name: 'Day', exact: true }).selectOption('31')
-  await dialog.getByLabel('Month').selectOption('1')
-  await expect(dialog.getByRole('combobox', { name: 'Day', exact: true })).toHaveValue('28')
-  await dialog.getByLabel('Year').fill('2028')
-  await dialog.getByRole('combobox', { name: 'Day', exact: true }).selectOption('29')
-  await dialog.getByLabel('Hour').selectOption('8')
-  await dialog.getByLabel('Minute').selectOption('0')
-  await expect(dialog).not.toContainText(/[\p{Script=Han}]/u)
-  const bounds = await dialog.boundingBox()
-  const viewport = page.viewportSize()!
-  expect(bounds!.x).toBeGreaterThanOrEqual(0)
-  expect(bounds!.x + bounds!.width).toBeLessThanOrEqual(viewport.width)
-  expect(bounds!.y + bounds!.height).toBeLessThanOrEqual(viewport.height)
-  await page.screenshot({ path: info.outputPath('english-date-picker.png') })
-  await dialog.getByRole('button', { name: 'Use date and time' }).click()
-  await expect(page.getByLabel('From', { exact: true })).toHaveValue('2028-02-29 08:00')
-  await expect(page.getByRole('button', { name: 'Choose from date and time' })).toBeFocused()
-  await page.getByLabel('From', { exact: true }).fill('2030-02-30 08:00')
-  await expect(page.getByRole('alert')).toContainText('Enter valid filter dates')
-  await page.getByLabel('From', { exact: true }).fill('2030-01-02 08:00')
-  await page.getByLabel('Until', { exact: true }).fill('2030-01-01 08:00')
-  await expect(page.getByRole('alert')).toContainText('Until must be later than From')
-  await page.getByRole('button', { name: 'Choose until date and time' }).click()
-  await page.keyboard.press('Escape')
-  await expect(page.getByRole('dialog')).toHaveCount(0)
-  await expect(page.getByRole('button', { name: 'Choose until date and time' })).toBeFocused()
+  await expect(page.locator('.events-range input')).toHaveCount(0)
+  const calendar = page.locator('.range-calendar')
+  await expect(calendar.locator('.range-calendar__head strong')).toHaveText(/^[A-Z][a-z]+ \d{4}$/)
+  await expect(calendar.locator('.range-calendar__weekday').first()).toHaveText('Mo')
+  await expect(calendar).not.toContainText(/[\p{Script=Han}]/u)
 })
 
 test('English hosting fields validate input and preserve API dates', async ({ page, context }) => {
