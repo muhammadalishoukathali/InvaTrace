@@ -34,9 +34,11 @@ test('host form prevents blank, invalid time, permission and http chat submissio
   await page.getByLabel('Mapped place').fill('Bukit'); await page.getByRole('button', { name: /Bukit Kiara/ }).click()
   await expect(page.getByText(/^Meeting point \d/)).toBeVisible(); await page.getByRole('button', { name: 'Continue' }).click()
   // Past days and the previous month are never offered; no time yet blocks Continue.
+  await page.getByRole('button', { name: /^Date / }).click()
   await expect(page.getByRole('button', { name: 'Previous month' })).toBeDisabled()
   const yesterday = new Date(); yesterday.setDate(yesterday.getDate() - 1)
   if (yesterday.getMonth() === new Date().getMonth()) await expect(page.getByRole('group', { name: /^Days in / }).getByRole('button', { name: new RegExp(` ${yesterday.getDate()} `) })).toBeDisabled()
+  await page.keyboard.press('Escape')
   await page.getByRole('button', { name: 'Continue' }).click()
   await expect(page.getByText('Choose a date, a start time and how long the event lasts.')).toBeVisible()
   await expect(page.getByText('A removal event needs confirmed permission from the land manager before it can be published.')).toBeVisible()
