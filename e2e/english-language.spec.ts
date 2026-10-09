@@ -24,7 +24,7 @@ async function navigate(page: Page, destination: string) {
   await expect(page.locator('.route-loading')).toHaveCount(0)
 }
 
-test('dates and fields remain English with a Chinese browser locale', async ({ page }, info) => {
+test('dates and fields remain English with a Chinese browser locale', async ({ page }) => {
   await start(page)
   expect(await page.evaluate(() => navigator.language)).toBe('zh-CN')
   for (const [route, selector] of [
