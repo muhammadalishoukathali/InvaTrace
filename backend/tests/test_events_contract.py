@@ -134,9 +134,23 @@ def test_permission_context_is_optional_and_legacy_values_are_accepted() -> None
     assert EventCreate.model_validate(payload).permission_context == "explicit_permission"
 
 
+def test_hosting_gate_is_off_by_default_for_internal_testing(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    from app.api.routers import events
+    from app.config import get_settings
+
+    assert get_settings().event_host_gate_enabled is False
+    monkeypatch.setattr(events, "_host_report_count", lambda *_args: 0)
+    events._assert_can_host(None, uuid.uuid4())  # type: ignore[arg-type]
+
+
 def test_hosting_is_locked_until_enough_reports(monkeypatch: pytest.MonkeyPatch) -> None:
     from app.api.routers import events
+    from app.config import get_settings
 
+    enabled = get_settings().model_copy(update={"event_host_gate_enabled": True})
+    monkeypatch.setattr(events, "get_settings", lambda: enabled)
     monkeypatch.setattr(events, "_host_report_count", lambda *_args: 2)
     with pytest.raises(ApiProblem) as error:
         events._assert_can_host(None, uuid.uuid4())  # type: ignore[arg-type]

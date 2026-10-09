@@ -41,9 +41,12 @@ export function MyHostedEventsPage() {
           <h2>Your hosted events</h2>
           <p>Drafts stay private until published. A hidden event is cancelled after 14 days unless you restore or cancel it.</p>
         </div>
-        <div className="events-intro__actions">
-          <HostEventLink className="event-button event-button--primary"><Icon name="CalendarDays" size={17} />Host an event</HostEventLink>
-        </div>
+        {/* With no events yet the empty state below carries the only host action. */}
+        {items.length > 0 && (
+          <div className="events-intro__actions">
+            <HostEventLink className="event-button event-button--primary" icon="CalendarDays">Host an event</HostEventLink>
+          </div>
+        )}
       </header>
 
       {items.length ? (
@@ -71,7 +74,7 @@ export function MyHostedEventsPage() {
         <section className="events-empty">
           <span className="events-empty__icon" aria-hidden><Icon name="CalendarDays" size={26} /></span>
           <h3>No hosted events yet</h3>
-          <p>Anyone who has reported 3 sightings can host. Choose a mapped place, what the group will do there and a time.</p>
+          <p>Choose a mapped place, what the group will do there and a time.</p>
           <HostEventLink className="event-button event-button--primary">Host your first event</HostEventLink>
         </section>
       )}

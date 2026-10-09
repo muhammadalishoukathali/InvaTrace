@@ -83,6 +83,11 @@ def _report(profile_id: uuid.UUID, status: str, index: int, run: str) -> tuple[S
 
 def test_hosting_gate_and_land_status_decide_event_types(monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.setattr(events.rate_limiter, "check", lambda *_args, **_kwargs: None)
+    # The gate ships switched off; this test covers it switched on.
+    from app.config import get_settings
+
+    enabled = get_settings().model_copy(update={"event_host_gate_enabled": True})
+    monkeypatch.setattr(events, "get_settings", lambda: enabled)
     run, now = uuid.uuid4().hex[:10], datetime.now(UTC)
     with SessionLocal() as s:
         host = Profile(public_id=f"gate-host-{run}")

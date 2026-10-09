@@ -15,25 +15,36 @@ export function hostingLockedText(reportCount: number, required: number) {
 }
 
 /**
- * A "Host an event" link that becomes a disabled button with progress while the
- * identity is below the sighting requirement. The API still enforces the rule
- * (403 hosting_locked); this only saves people from a form they cannot submit.
+ * A "Host an event" link that becomes a disabled button while the identity is
+ * below the sighting requirement, followed by a full-width progress note. The
+ * API still enforces the rule (403 hosting_locked); this only saves people from
+ * a form they cannot submit. While the gate is switched off server-side the
+ * eligibility check always passes, so only the plain link renders.
  */
-export function HostEventLink({ className, children, inline = false }: { className?: string; children: ReactNode; inline?: boolean }) {
+export function HostEventLink({ className, icon, children, inline = false }: { className?: string; icon?: string; children: ReactNode; inline?: boolean }) {
   const eligibility = useHostEligibility()
   const hintId = useId()
   const origin = useOrigin()
   // While loading or on a failed check, keep the normal link; the host page re-checks.
-  if (!eligibility.data || eligibility.data.eligible) return <Link className={className} to="/events/host" state={origin}>{children}</Link>
+  if (!eligibility.data || eligibility.data.eligible) {
+    return <Link className={className} to="/events/host" state={origin}>{icon && <Icon name={icon} size={17} />}{children}</Link>
+  }
   const { reportCount, required } = eligibility.data
-  if (inline) return <span className="host-locked-inline">{children} (unlocks after {required} sightings, {Math.min(reportCount, required)}/{required} so far)</span>
+  const done = Math.min(reportCount, required)
+  if (inline) return <span className="host-locked-inline">{children} (unlocks after {required} sightings, {done}/{required} so far)</span>
   return (
-    <span className="host-locked">
+    <>
       <button type="button" className={className} disabled aria-describedby={hintId}>
         <Icon name="Lock" size={16} />{children}
       </button>
-      <small id={hintId} className="event-muted">{hostingLockedText(reportCount, required)} <Link to="/scan">Scan a plant</Link></small>
-    </span>
+      <p id={hintId} className="host-locked-note">
+        <span className="host-locked-note__text">
+          <strong>{hostingLockedText(reportCount, required)}</strong>
+          <progress max={required} value={done} aria-label="Sightings reported" />
+        </span>
+        <Link to="/scan" className="host-locked-note__action"><Icon name="Camera" size={16} />Scan a plant</Link>
+      </p>
+    </>
   )
 }
 

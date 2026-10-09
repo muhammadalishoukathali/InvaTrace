@@ -670,7 +670,7 @@ Invalid `place_id` or `end_at` before `start_at`: HTTP 422.
 >
 > **Exact implementation rule**  Creation needs no special role or flag — only a valid anonymous session
 > and at least three of that identity's reports whose status is not `rejected` or `needs_rescan`
-> (setting `EVENT_HOST_MIN_REPORTS`, default 3). Management ownership is verified server-side from the session, the same way
+> (setting `EVENT_HOST_MIN_REPORTS`, default 3). The rule sits behind `EVENT_HOST_GATE_ENABLED`, which is switched off during internal testing (anyone with a session can host); setting it to `true` enforces the three-sighting requirement without other changes. Management ownership is verified server-side from the session, the same way
 > `DELETE /api/v1/adopted-areas/{id}` verifies ownership in Epic 6.0. No email, name or password is required.
 > Once the event has its first check-in or event-linked report, `place_id`, meeting coordinates, `start_at`,
 > `end_at` and `event_type` lock: a `PATCH` changing any of them returns HTTP 409, and only `safety_notes`,
