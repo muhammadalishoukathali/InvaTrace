@@ -7,6 +7,7 @@ import { fileURLToPath } from 'node:url'
 import { readFile, mkdir, writeFile } from 'node:fs/promises'
 import { resolve, sep } from 'node:path'
 import { build } from 'esbuild'
+import { loadConfigFromFile } from 'vite'
 import { chromium } from '@playwright/test'
 
 const root = fileURLToPath(new URL('..', import.meta.url))
@@ -103,7 +104,14 @@ try {
     await new Promise(resolve => setTimeout(resolve, 100))
   }
   assert(ready, 'Local backend readiness timeout')
+  const loaded = await loadConfigFromFile({command:'build',mode:'production'},resolve(root,'vite.config.ts'),root)
+  const imagePlugin = loaded.config.plugins.flat(Infinity).find(plugin => plugin?.name === 'reference-image-versions')
+  assert(imagePlugin, 'Reviewed reference-image plugin is required by the current UI')
   const bundle = await build({
+    plugins: [{name:'reviewed-reference-images',setup(builder) {
+      builder.onResolve({filter:/^virtual:reference-image-versions$/}, () => ({path:'versions',namespace:'reference-images'}))
+      builder.onLoad({filter:/.*/,namespace:'reference-images'}, async () => ({contents:await imagePlugin.load('\0virtual:reference-image-versions'),loader:'js'}))
+    }}],
     absWorkingDir: root, write: false, bundle: true, format: 'iife', outfile: '/tmp/epic8-in-memory.js',
     stdin: { resolveDir: root, loader: 'tsx', contents: `
       import React from 'react'; import {createRoot} from 'react-dom/client';
@@ -258,7 +266,7 @@ try {
   await page.getByLabel('Your question').fill('When does it flower?')
   next=page.waitForResponse(r=>r.url().endsWith('/ask'))
   await page.getByRole('button',{name:'Ask question',exact:true}).click()
-  assert(await page.getByRole('button',{name:'Checking the approved information…',exact:true}).isDisabled())
+  assert(await page.getByRole('button',{name:'Preparing your answer…',exact:true}).isDisabled())
   assert.equal(await page.locator('.plant-assistant__answer').count(),0)
   await next;await page.locator('.plant-assistant__answer').waitFor();await page.unroute('**/api/v1/plant-assistant/ask')
   await page.route('**/api/v1/plant-assistant/ask',route=>route.abort('failed'))

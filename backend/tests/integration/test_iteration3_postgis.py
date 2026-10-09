@@ -83,6 +83,7 @@ def test_event_create_publish_discovery_and_private_host_identity(
             "eventType": "survey",
             "title": "Native edge survey",
             "purpose": "Record community observations.",
+            "safetyNotes": "Observe and report; hosting or joining grants no removal permission.",
             "targetSpeciesIds": [species_id],
             "meetingLatitude": 3.005,
             "meetingLongitude": 101.005,

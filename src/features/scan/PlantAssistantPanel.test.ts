@@ -35,3 +35,17 @@ describe('suggested questions', () => {
     expect(suggestionsFor('asclepias-curassavica')).toHaveLength(4)
   })
 })
+
+import { assistantRequestFor } from './PlantAssistantPanel'
+
+it('keeps Map and Guide request fields distinct from genuine Scan fields', () => {
+  const map = assistantRequestFor({mapContext:{sightingId:'public-id',speciesId:'mikania-micrantha',scientificName:'Mikania micrantha'}},'What is a rhizome?','standard')
+  expect(map.path).toBe('/api/v1/plant-assistant/map/ask')
+  expect(Object.keys(map.body).sort()).toEqual(['allowGeneralKnowledge','depth','question','sightingId'])
+  const guide = assistantRequestFor({guideContext:{speciesId:'mikania-micrantha',scientificName:'Mikania micrantha'}},'Where does it grow?','detailed')
+  expect(guide.path).toBe('/api/v1/plant-assistant/guide/ask')
+  expect(Object.keys(guide.body).sort()).toEqual(['allowGeneralKnowledge','depth','question','speciesId'])
+  const scan = assistantRequestFor({result:{outcome:'target',speciesId:'mikania-micrantha',confidence:.83,modelVersion:'test',reportable:true}},'Where does it grow?','detailed')
+  expect(scan.path).toBe('/api/v1/plant-assistant/ask')
+  expect(scan.body).toMatchObject({classifierConfidence:.83,classifierOutcome:'target'})
+})

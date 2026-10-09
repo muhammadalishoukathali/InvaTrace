@@ -1,0 +1,152 @@
+{
+  "capture_date": "2026-10-08",
+  "origin": "Previous bounded 13-inference validation; exact saved payloads; no new provider calls",
+  "cases": {
+    "L04": {
+      "question": "Why do some plants have waxy leaves?",
+      "depth": "standard",
+      "retrieval_state": "NEEDS_SEMANTIC_REVIEW",
+      "retrieval_reason": "action_condition_or_comparison",
+      "provider_outputs": [
+        {
+          "provider": "gemini",
+          "role": "judge",
+          "http_status": 200,
+          "payload": null,
+          "payload_recorded": false
+        }
+      ],
+      "recorded_answer": "The approved sources for this plant do not answer that question. Try asking what it looks like, where it grows, what its impacts are or how to respond safely.",
+      "recorded_answer_mode": "fallback"
+    },
+    "L07": {
+      "question": "What is a rhizome?",
+      "depth": "detailed",
+      "retrieval_state": "HARD_BLOCK",
+      "retrieval_reason": "missing_evidence",
+      "provider_outputs": [
+        {
+          "provider": "gemini",
+          "role": "general_knowledge",
+          "http_status": 200,
+          "payload": {
+            "topic": "rhizome",
+            "sentences": [
+              "A rhizome is a modified plant stem that typically grows horizontally underground.",
+              "It functions primarily as a storage organ for starches, proteins, and other nutrients.",
+              "Nodes along the rhizome produce roots below and vertical shoots above.",
+              "This specialized stem structure enables many perennial species to survive unfavorable seasonal conditions.",
+              "It also facilitates vegetative propagation and lateral colony expansion across the soil matrix."
+            ]
+          },
+          "payload_recorded": true
+        }
+      ],
+      "recorded_answer": "The approved sources for this plant do not answer that question. Try asking what it looks like, where it grows, what its impacts are or how to respond safely.",
+      "recorded_answer_mode": "fallback"
+    },
+    "L07-recheck": {
+      "question": "What is a rhizome?",
+      "depth": "detailed",
+      "retrieval_state": "HARD_BLOCK",
+      "retrieval_reason": "missing_evidence",
+      "provider_outputs": [
+        {
+          "provider": "gemini",
+          "role": "general_knowledge",
+          "http_status": 200,
+          "payload": {
+            "topic": "rhizome",
+            "sentences": [
+              "A rhizome is a specialized underground stem that typically grows horizontally beneath the soil surface.",
+              "It stores starches, proteins, and other nutrients to help the plant survive unfavorable seasonal conditions.",
+              "Nodes along the stem produce roots pointing downward and new green shoots pointing upward.",
+              "Its growth pattern allows many perennial plants to spread rapidly and colonize adjacent areas over time."
+            ]
+          },
+          "payload_recorded": true
+        }
+      ],
+      "recorded_answer": "The approved sources for this plant do not answer that question. Try asking what it looks like, where it grows, what its impacts are or how to respond safely.",
+      "recorded_answer_mode": "fallback"
+    },
+    "L04-diagnostic": {
+      "question": "Why do some plants have waxy leaves?",
+      "depth": "standard",
+      "retrieval_state": "NEEDS_SEMANTIC_REVIEW",
+      "retrieval_reason": "action_condition_or_comparison",
+      "provider_outputs": [
+        {
+          "provider": "gemini",
+          "role": "judge",
+          "http_status": 200,
+          "payload": {
+            "decision": "unsupported",
+            "species": "Mikania micrantha",
+            "supporting_chunk_ids": [],
+            "aspect_support": [
+              {
+                "aspect": "Why do some plants have waxy leaves",
+                "supporting_chunk_ids": [],
+                "evidence_quotes": []
+              }
+            ]
+          },
+          "payload_recorded": true
+        }
+      ],
+      "recorded_answer": "The approved sources for this plant do not answer that question. Try asking what it looks like, where it grows, what its impacts are or how to respond safely.",
+      "recorded_answer_mode": "fallback"
+    },
+    "L07-format-recheck": {
+      "question": "What is a rhizome?",
+      "depth": "detailed",
+      "retrieval_state": "HARD_BLOCK",
+      "retrieval_reason": "missing_evidence",
+      "provider_outputs": [
+        {
+          "provider": "gemini",
+          "role": "general_knowledge",
+          "http_status": 200,
+          "payload": {
+            "topic": "rhizome",
+            "sentences": [
+              "A rhizome is a modified underground stem that grows horizontally just beneath the soil surface.",
+              "It stores starches and proteins to help the plant survive unfavorable seasons.",
+              "Nodes along the stem produce roots and new upward shoots to form independent individuals.",
+              "Its growth habit allows certain species to spread rapidly across large areas over time."
+            ]
+          },
+          "payload_recorded": true
+        }
+      ],
+      "recorded_answer": "The approved sources for this plant do not answer that question. Try asking what it looks like, where it grows, what its impacts are or how to respond safely.",
+      "recorded_answer_mode": "fallback"
+    },
+    "L12-detailed": {
+      "question": "What is a rhizome?",
+      "depth": "detailed",
+      "retrieval_state": "HARD_BLOCK",
+      "retrieval_reason": "missing_evidence",
+      "provider_outputs": [
+        {
+          "provider": "groq",
+          "role": "general_knowledge",
+          "http_status": 200,
+          "payload": {
+            "topic": "rhizome",
+            "sentences": [
+              "Rhizome is a horizontal underground stem that produces roots and shoots from its nodes.",
+              "Rhizome stores nutrients such as carbohydrates, allowing the plant to survive adverse conditions.",
+              "Rhizome enables vegetative propagation, so new plants can arise without seeds.",
+              "Rhizome often emerges at the soil surface as a crown, from which leaves may arise in some species."
+            ]
+          },
+          "payload_recorded": true
+        }
+      ],
+      "recorded_answer": "Rhizome is a horizontal underground stem that produces roots and shoots from its nodes. Rhizome stores nutrients such as carbohydrates, allowing the plant to survive adverse conditions. Rhizome enables vegetative propagation, so new plants can arise without seeds. Rhizome often emerges at the soil surface as a crown, from which leaves may arise in some species.",
+      "recorded_answer_mode": "general_knowledge"
+    }
+  }
+}

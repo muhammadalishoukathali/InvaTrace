@@ -1,11 +1,9 @@
 #!/bin/sh
 # Backstop for the commit authorship policy.
 #
-# .githooks/commit-msg cleans messages as they are written, but git does not
-# run it for every path that creates a commit: `git cherry-pick`, `git rebase`
-# and `git merge` all commit without it, so a trailer written elsewhere can be
-# replayed onto a branch untouched. That is not hypothetical - it is how one
-# reached main and cost a history rewrite to remove.
+# .githooks/commit-msg requires nonempty messages and preserves their content.
+# This hook checks the recorded authorship for every outgoing commit, including
+# messages created by cherry-pick, rebase and merge.
 #
 # This refuses the push instead, which is the last point where it can still be
 # fixed cheaply.
@@ -48,8 +46,8 @@ before pushing, for example:
 
 A single most-recent commit can be fixed with:
 
-  git commit --amend --no-edit
+  git commit --amend
 
-(the commit-msg hook strips the trailer as it rewrites the message).
+Edit the message to remove any disallowed tool-credit trailer.
 MSG
 exit 1

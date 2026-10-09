@@ -27,6 +27,7 @@ import {
 } from './offline-catalogue'
 import './catalogue.css'
 import { referenceImageSrc } from '@/data/reference-image-src'
+import { GuidePlantAssistant } from './GuidePlantAssistant'
 
 export function CatalogueDetailPage() {
   const { speciesId = '' } = useParams()
@@ -125,6 +126,9 @@ export function CatalogueDetailPage() {
           <span className="catalogue-detail__status">Present in Malaysia</span>
         </div>
       </header>
+
+      <GuidePlantAssistant key={record.species_id} speciesId={record.species_id}
+        scientificName={record.scientific_name} />
 
       <div className="catalogue-detail__body">
         <section>

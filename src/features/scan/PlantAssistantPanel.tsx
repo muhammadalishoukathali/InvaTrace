@@ -1,4 +1,5 @@
-import { useEffect, useRef, useState, type FormEvent } from 'react'
+import { useEffect, useRef, useState, type FormEvent, type Ref } from 'react'
+import { ArrowUp, BookOpen, ExternalLink, Info, Leaf, MessageCircle, ShieldCheck, Sprout, Trees, Wind, X } from 'lucide-react'
 import type { IdentifyResult } from '@/types'
 import { api, ApiError } from '@/services/api-client'
 import { findApprovedSpecies } from '@shared/catalogue'
@@ -10,6 +11,7 @@ interface AssistantResponse {
   answer: string
   safetyBoundary: string
   coveredTopics?: string[]
+  answerMode?: 'grounded' | 'general_knowledge' | 'fallback'
   sources: Array<{ chunkId: string; sourceName: string; sourceUrl: string; jurisdiction: string;
     attribution?: string | null; sourceLicense?: string | null; sourceLicenseUrl?: string | null }>
 }
@@ -20,7 +22,7 @@ const TOPIC_LABELS: Record<string, string> = {
   names_status: 'Names and status', origin: 'Origin', life_cycle: 'Life cycle',
 }
 
-type Depth = 'standard' | 'simpler' | 'detailed'
+export type Depth = 'standard' | 'simpler' | 'detailed'
 const DEPTHS: Array<{ depth: Depth; label: string; ariaLabel?: string }> = [
   { depth: 'simpler', label: 'Simpler', ariaLabel: 'Simpler explanation' },
   { depth: 'standard', label: 'Standard', ariaLabel: 'Standard explanation' },
@@ -34,6 +36,7 @@ const SUGGESTIONS = [
   SPREAD_QUESTION,
   'How should I respond safely?',
 ]
+const SUGGESTION_ICONS = [Leaf, Trees, Sprout, Wind, ShieldCheck]
 // Species whose reviewed knowledge pack documents spread pathways. Kept in step
 // with the backend by backend/tests/test_assistant_suggestions.py.
 export const SPREAD_DOCUMENTED_SPECIES = new Set([
@@ -52,31 +55,159 @@ export function assistantSpeciesForScan(result: IdentifyResult) {
   return findApprovedSpecies({ speciesId: result.speciesId, scientificName: result.scientificName })
 }
 
-export function PlantAssistantPanel({ result }: { result: IdentifyResult }) {
-  const [open, setOpen] = useState(false)
+export type AssistantContextProps =
+  | { result: IdentifyResult; mapContext?: never; guideContext?: never; initiallyOpen?: boolean; onClose?: () => void }
+  | { result?: never; mapContext: { sightingId: string; speciesId: string; scientificName: string }; guideContext?: never; initiallyOpen?: boolean; onClose?: () => void }
+
+  | { result?: never; mapContext?: never; guideContext: { speciesId: string; scientificName: string }; initiallyOpen?: boolean; onClose?: () => void }
+
+export function assistantRequestFor(context: AssistantContextProps, question: string, depth: Depth) {
+  if (context.mapContext) return {
+    path: '/api/v1/plant-assistant/map/ask',
+    body: { sightingId: context.mapContext.sightingId, question, depth, allowGeneralKnowledge: true },
+  }
+  if (context.guideContext) return {
+    path: '/api/v1/plant-assistant/guide/ask',
+    body: { speciesId: context.guideContext.speciesId, question, depth, allowGeneralKnowledge: true },
+  }
+  const species = assistantSpeciesForScan(context.result)
+  return {
+    path: '/api/v1/plant-assistant/ask',
+    body: { speciesId: species?.species_id ?? null, classifierConfidence: context.result.confidence,
+      classifierOutcome: context.result.outcome, question, depth, allowGeneralKnowledge: true },
+  }
+}
+
+interface AssistantTurn {
+  id: number
+  question: string
+  depth: Depth
+  response: AssistantResponse
+  unchangedDepth: Depth | null
+}
+
+export function PlantAssistantHeader({ context, speciesName, onClose, headingRef }: {
+  context: string; speciesName?: string; onClose: () => void; headingRef?: Ref<HTMLHeadingElement>
+}) {
+  return <div className="plant-assistant__heading">
+    <div className="plant-assistant__identity">
+      <span className="plant-assistant__mark"><Leaf size={24} aria-hidden="true" /></span>
+      <div>
+        <h2 ref={headingRef} tabIndex={-1}>Plant Assistant</h2>
+        <div className="plant-assistant__subtitle">
+          {speciesName && <em className="plant-assistant__species-name">{speciesName}</em>}
+          <p className="plant-assistant__context">{context}</p>
+        </div>
+      </div>
+    </div>
+    <button type="button" className="plant-assistant__close" onClick={onClose}
+      aria-label="Close plant assistant"><X size={16} aria-hidden="true" /><span>Close</span></button>
+  </div>
+}
+
+function AssistantTurnView({ turn, latest, pending, repeat, contextDescription, headingRef, onDepthChange }: {
+  turn: AssistantTurn; latest: boolean; pending: boolean; repeat: boolean; contextDescription: string;
+  headingRef?: Ref<HTMLHeadingElement>; onDepthChange: (depth: Depth) => void
+}) {
+  const { response, question, depth, unchangedDepth } = turn
+  const sourcesByUrl = new Map<string, AssistantResponse['sources'][number]>()
+  for (const source of response.sources) {
+    const prior = sourcesByUrl.get(source.sourceUrl)
+    if (!prior || (!prior.attribution && source.attribution)) sourcesByUrl.set(source.sourceUrl, source)
+  }
+  const sources = [...sourcesByUrl.values()]
+  const topicLabels = response.coveredTopics?.map(topic => TOPIC_LABELS[topic]).filter(Boolean) ?? []
+  return <article className={`plant-assistant__turn${latest ? ' plant-assistant__response' : ''}`}
+    data-turn-id={turn.id} data-depth={depth}
+    data-mode={response.answerMode === 'general_knowledge' ? 'general' : response.status === 'answer' ? 'grounded' : response.status === 'fallback' ? 'fallback' : 'limitation'}>
+    <div className="plant-assistant__question">
+      <span>Your question</span>
+      <p className="plant-assistant__asked">{question}</p>
+    </div>
+    <div className="plant-assistant__reply">
+      <h3 ref={headingRef} tabIndex={-1}>
+        {response.answerMode === 'general_knowledge' || response.answerability !== 'answerable'
+          ? <Info size={18} aria-hidden="true" /> : <BookOpen size={18} aria-hidden="true" />}
+        {response.answerMode === 'general_knowledge' ? 'General botanical information' : response.status === 'fallback' ? 'Source information' : response.status === 'answer' ? 'Answer' : 'Evidence is insufficient'}
+      </h3>
+      {response.answerMode === 'general_knowledge' && <p className="plant-assistant__notice">This explanation uses general model knowledge. It has not been verified against InvaTrace sources and makes no claim about the plant {contextDescription}.</p>}
+      {unchangedDepth && <p className="plant-assistant__notice" role={latest ? 'status' : undefined}>
+        {response.answerMode === 'general_knowledge'
+          ? 'The explanation is unchanged at this level.'
+          : unchangedDepth === 'simpler'
+            ? 'This is already the shortest approved wording for this answer.'
+            : 'The approved sources have no further detail for this answer.'}
+      </p>}
+      <p className="plant-assistant__answer">{response.answer}</p>
+      {response.status === 'insufficient_evidence' && topicLabels.length > 0 &&
+        <p className="plant-assistant__coverage">Available information for this species: {topicLabels.join(', ')}.</p>}
+      {response.answerability === 'answerable' && (latest && !repeat ? <div className="plant-assistant__depth">
+        <p>Explanation level</p>
+        <div className="plant-assistant__levels" role="group" aria-label="Explanation level">
+          {DEPTHS.filter(item => response.answerMode !== 'general_knowledge' || item.depth !== 'detailed').map(({ depth: nextDepth, label, ariaLabel }) => <button key={nextDepth} type="button" aria-label={ariaLabel}
+            aria-pressed={depth === nextDepth} disabled={pending}
+            onClick={() => { if (nextDepth !== depth) onDepthChange(nextDepth) }}>{label}</button>)}
+        </div>
+      </div> : <p className="plant-assistant__past-depth">Explanation level: {DEPTHS.find(item => item.depth === depth)?.label}</p>)}
+      {response.answerMode !== 'general_knowledge' && sources.length > 0 && <section className="plant-assistant__sources" aria-label={response.answerability === 'answerable' ? 'Sources' : 'Related sources'}>
+        <h3>{response.answerability === 'answerable' ? 'Sources' : 'Related sources'}</h3>
+        {response.answerability !== 'answerable' && <p className="plant-assistant__hint">These sources cover this plant but do not answer your question.</p>}
+        <ul>{sources.map(source => <li key={source.sourceUrl}>
+          <a className="plant-assistant__source-link" href={source.sourceUrl} target="_blank" rel="noopener noreferrer">
+            <span>{source.sourceName}</span><ExternalLink size={14} aria-hidden="true" />
+          </a>
+          {(source.attribution || (source.sourceLicense && source.sourceLicenseUrl)) && <p className="plant-assistant__source-meta">
+            {source.attribution && <span>{source.attribution}</span>}
+            {source.sourceLicense && source.sourceLicenseUrl && <span> (<a href={source.sourceLicenseUrl}
+              target="_blank" rel="noopener noreferrer">{source.sourceLicense}</a>)</span>}
+          </p>}
+        </li>)}</ul>
+      </section>}
+      <p className="plant-assistant__safety"><ShieldCheck size={18} aria-hidden="true" /><span>{response.safetyBoundary}</span></p>
+    </div>
+  </article>
+}
+
+export function PlantAssistantPanel(props: AssistantContextProps) {
+  const contextKey = props.mapContext
+    ? `map:${props.mapContext.sightingId}:${props.mapContext.speciesId}:${props.mapContext.scientificName}`
+    : props.guideContext
+      ? `guide:${props.guideContext.speciesId}:${props.guideContext.scientificName}`
+      : `scan:${props.result.speciesId}:${props.result.scientificName}:${props.result.outcome}:${props.result.confidence}`
+  return <PlantAssistantConversation key={contextKey} {...props} />
+}
+
+function PlantAssistantConversation(props: AssistantContextProps) {
+  const { result, mapContext, guideContext, onClose } = props
+  const [open, setOpen] = useState(props.initiallyOpen ?? false)
   const [question, setQuestion] = useState('')
-  const [response, setResponse] = useState<AssistantResponse | null>(null)
-  const [responseQuestion, setResponseQuestion] = useState('')
-  const [responseDepth, setResponseDepth] = useState<Depth>('standard')
-  // Set when a level change returned the same approved wording as the
-  // standard answer to that question.
-  const [unchangedDepth, setUnchangedDepth] = useState<Depth | null>(null)
-  const standardAnswers = useRef(new Map<string, string>())
+  const [turns, setTurns] = useState<AssistantTurn[]>([])
   const [pending, setPending] = useState(false)
+  const [requestQuestion, setRequestQuestion] = useState('')
   const [repeat, setRepeat] = useState<string | null>(null)
   const [error, setError] = useState<string | null>(null)
-  const answered = useRef(new Set<string>())
+  const standardAnswers = useRef(new Map<string, string>())
+  const answered = useRef(new Map<string, AssistantResponse['answerMode']>())
+  const nextTurnId = useRef(0)
   const controller = useRef<AbortController | null>(null)
   const heading = useRef<HTMLHeadingElement>(null)
   const openButton = useRef<HTMLButtonElement>(null)
   const wasOpen = useRef(false)
   const errorMessage = useRef<HTMLParagraphElement>(null)
+  const repeatMessage = useRef<HTMLDivElement>(null)
+  const pendingMessage = useRef<HTMLDivElement>(null)
   const responseHeading = useRef<HTMLHeadingElement>(null)
   const revealResponse = useRef(false)
-  const species = assistantSpeciesForScan(result)
+  const species = mapContext
+    ? findApprovedSpecies({ speciesId: mapContext.speciesId, scientificName: mapContext.scientificName })
+    : guideContext
+      ? findApprovedSpecies({ speciesId: guideContext.speciesId, scientificName: guideContext.scientificName })
+      : assistantSpeciesForScan(result!)
   const supported = Boolean(species)
+  const latestTurn = turns.at(-1)
+  const contextDescription = mapContext ? 'in this map record' : guideContext ? 'in a guide or observation' : 'in your scan'
 
-  useEffect(() => () => controller.current?.abort(), [])
+  useEffect(() => () => { controller.current?.abort(); controller.current = null }, [])
   useEffect(() => {
     if (open) heading.current?.focus()
     else if (wasOpen.current) openButton.current?.focus()
@@ -85,17 +216,35 @@ export function PlantAssistantPanel({ result }: { result: IdentifyResult }) {
   useEffect(() => {
     if (error) errorMessage.current?.scrollIntoView?.({ block: 'nearest' })
   }, [error])
-  // A suggested question is tapped above the fold on phones, so bring the
-  // answer into view instead of leaving it below the action dock.
   useEffect(() => {
-    if (!response || pending || !revealResponse.current) return
+    if (repeat) repeatMessage.current?.scrollIntoView?.({ block: 'nearest' })
+    if (pending) pendingMessage.current?.scrollIntoView?.({ block: 'nearest' })
+  }, [repeat, pending])
+  useEffect(() => {
+    if (!latestTurn || pending || !revealResponse.current) return
     revealResponse.current = false
     const target = responseHeading.current
     if (!target) return
     target.focus({ preventScroll: true })
     const reduceMotion = window.matchMedia?.('(prefers-reduced-motion: reduce)').matches
-    target.closest('.plant-assistant__response')?.scrollIntoView?.({ block: 'start', behavior: reduceMotion ? 'auto' : 'smooth' })
-  }, [response, pending])
+    target.closest('.plant-assistant__turn')?.scrollIntoView?.({ block: 'start', behavior: reduceMotion ? 'auto' : 'smooth' })
+  }, [latestTurn, pending])
+
+  const closeAssistant = () => {
+    controller.current?.abort()
+    controller.current = null
+    revealResponse.current = false
+    setOpen(false)
+    setQuestion('')
+    setTurns([])
+    setPending(false)
+    setRequestQuestion('')
+    setRepeat(null)
+    setError(null)
+    standardAnswers.current.clear()
+    answered.current.clear()
+    onClose?.()
+  }
 
   const submitQuestion = async (text: string, depth: Depth = 'standard', clarify = true) => {
     const trimmed = text.trim()
@@ -106,32 +255,30 @@ export function PlantAssistantPanel({ result }: { result: IdentifyResult }) {
       return
     }
     setRepeat(null)
-    setResponse(null)
+    setRequestQuestion(trimmed)
     setPending(true)
     const attempt = new AbortController()
     controller.current = attempt
     const timeout = window.setTimeout(() => attempt.abort(), 25_000)
     try {
-      const next = await api<AssistantResponse>('/api/v1/plant-assistant/ask', {
+      const payload = assistantRequestFor(props, trimmed, depth)
+      const next = await api<AssistantResponse>(payload.path, {
         method: 'POST', signal: attempt.signal, cache: 'no-store',
-        body: JSON.stringify({
-          speciesId: supported ? species!.species_id : null,
-          classifierConfidence: result.confidence,
-          classifierOutcome: result.outcome,
-          question: trimmed, depth,
-        }),
+        body: JSON.stringify(payload.body),
       })
       if (attempt.signal.aborted) return
       const key = trimmed.toLowerCase()
       if (depth === 'standard') standardAnswers.current.set(key, next.answer)
-      setUnchangedDepth(depth !== 'standard' && standardAnswers.current.get(key) === next.answer ? depth : null)
-      setResponse(next)
-      setResponseQuestion(trimmed)
-      setResponseDepth(depth)
+      const unchangedDepth = depth !== 'standard' && standardAnswers.current.get(key) === next.answer ? depth : null
+      const replacing = !clarify && latestTurn?.question.toLowerCase() === key
+      const turn: AssistantTurn = { id: replacing ? latestTurn.id : ++nextTurnId.current, question: trimmed, depth, response: next, unchangedDepth }
+      setTurns(previous => replacing ? [...previous.slice(0, -1), turn] : [...previous, turn])
       setQuestion('')
+      setRequestQuestion('')
       revealResponse.current = true
-      if (next.answerability === 'answerable') answered.current.add(trimmed.toLowerCase())
+      if (next.answerability === 'answerable') answered.current.set(key, next.answerMode)
     } catch (cause) {
+      if (attempt.signal.aborted && controller.current !== attempt) return
       setError(cause instanceof ApiError && cause.status === 429
         ? 'You have asked several questions recently. Wait a minute, then try again.'
         : 'The assistant could not be reached. Check your connection and try again, or open the catalogue entry.')
@@ -142,79 +289,78 @@ export function PlantAssistantPanel({ result }: { result: IdentifyResult }) {
   }
 
   const submit = (event: FormEvent) => { event.preventDefault(); void submitQuestion(question) }
-  const sourcesByUrl = new Map<string, AssistantResponse['sources'][number]>()
-  for (const source of response?.sources ?? []) {
-    const prior = sourcesByUrl.get(source.sourceUrl)
-    if (!prior || (!prior.attribution && source.attribution)) sourcesByUrl.set(source.sourceUrl, source)
-  }
-  const sources = [...sourcesByUrl.values()]
-  const topicLabels = response?.coveredTopics?.map(topic => TOPIC_LABELS[topic]).filter(Boolean) ?? []
+  const suggestions = <div className="plant-assistant__suggestions" role="group" aria-label="Suggested plant questions">
+    {species && suggestionsFor(species.species_id).map(text => {
+      const Icon = SUGGESTION_ICONS[SUGGESTIONS.indexOf(text)]
+      return <button key={text} type="button" disabled={pending} onClick={() => void submitQuestion(text)}>
+        <Icon size={16} aria-hidden="true" /><span>{text}</span>
+      </button>
+    })}
+  </div>
 
-  return (
-    <section className="plant-assistant" aria-label="Plant assistant">
-      {!open ? <button ref={openButton} type="button" className="plant-assistant__primary" onClick={() => setOpen(true)}>
-        Ask about this plant
-      </button> : <>
-        <div className="plant-assistant__heading">
-          <h2 ref={heading} tabIndex={-1}>Ask about this plant</h2>
-          <button type="button" className="plant-assistant__close" onClick={() => setOpen(false)} aria-label="Close plant assistant">Close</button>
-        </div>
-        {!supported ? <p role="status">We couldn’t identify this as one of the supported plant categories, so species-specific assistant guidance is unavailable. Try another scan or browse the catalogue.</p> : <>
-          <p className="plant-assistant__intro">Answers about <em>{species!.scientific_name}</em> come from approved sources only. They explain your scan result; they don’t re-identify the plant.</p>
-          <div className="plant-assistant__suggestions" role="group" aria-label="Suggested plant questions">
-            {suggestionsFor(species!.species_id).map(text => <button key={text} type="button" disabled={pending} onClick={() => void submitQuestion(text)}>{text}</button>)}
+  return <section className={`plant-assistant${open ? ' plant-assistant--open' : ''}${open && supported ? ' plant-assistant--supported' : ''}`} aria-label="Plant assistant">
+    {!open ? <button ref={openButton} type="button" className="plant-assistant__primary" onClick={() => setOpen(true)}>
+      <MessageCircle size={18} aria-hidden="true" />Ask about this plant
+    </button> : <>
+      <PlantAssistantHeader headingRef={heading} speciesName={species?.scientific_name}
+        context={mapContext ? 'Public map record' : guideContext ? 'Plant guide' : 'Scan result'} onClose={closeAssistant} />
+      {!supported ? <p className="plant-assistant__limitation" role="status">We couldn’t identify this as one of the supported plant categories, so species-specific assistant guidance is unavailable. Try another scan or browse the catalogue.</p> : <>
+        <div className={`plant-assistant__conversation${turns.length === 0 && !pending && !error ? ' plant-assistant__conversation--empty' : ''}`} aria-label="Current plant conversation">
+          <div className="plant-assistant__context-tools">
+          {(mapContext || guideContext) && <p className="plant-assistant__context-boundary">{mapContext
+            ? 'This is catalogue information for a public community record, not expert identification or proof of nearby presence.'
+            : 'This is catalogue education, not identification or verification of an observed plant.'}</p>}
+          <details className="plant-assistant__help">
+            <summary>About this assistant</summary>
+            <div className="plant-assistant__intro">
+              <p>Answers about <em>{species!.scientific_name}</em> come from approved sources only. {mapContext && 'This is catalogue information for a public community record, not expert identification or proof of nearby presence.'} {guideContext && 'This is catalogue education, not identification or verification of an observed plant.'}</p>
+              <p>You can also ask about general plant concepts. General information is labelled separately and does not identify your plant. General explanations support Simpler and Standard only.</p>
+            </div>
+          </details>
           </div>
-          <form onSubmit={submit}>
-            <label htmlFor="plant-question">Your question</label>
-            <textarea id="plant-question" value={question} maxLength={600} rows={2} disabled={pending}
-              aria-describedby="plant-question-hint"
-              onChange={event => { setQuestion(event.target.value); setRepeat(null) }} />
-            <p id="plant-question-hint" className="plant-assistant__hint">English only. Leave out personal details, locations and access codes. This conversation clears when you leave this scan.</p>
-            <button className="plant-assistant__primary" type="submit" disabled={pending || !question.trim()}>
-              {pending ? 'Checking the approved information…' : 'Ask question'}
-            </button>
-          </form>
-          {repeat && <div className="plant-assistant__repeat" role="status">
-            <p>I explained this question earlier in this conversation. Would you like a simpler or more detailed explanation?</p>
+          {turns.length === 0 ? <div className="plant-assistant__empty">
+            <p className="plant-assistant__welcome">Choose a suggested question or write your own.</p>
+            {suggestions}
+          </div> : <details className="plant-assistant__more-suggestions"><summary>Suggested questions</summary>{suggestions}</details>}
+          <div className="plant-assistant__messages" role="log" aria-label="Plant questions and answers" aria-live="polite" aria-relevant="additions text" aria-busy={pending}>
+            {turns.map((turn, index) => <AssistantTurnView key={turn.id} turn={turn} latest={index === turns.length - 1}
+              pending={pending} repeat={Boolean(repeat)} contextDescription={contextDescription}
+              headingRef={index === turns.length - 1 ? responseHeading : undefined}
+              onDepthChange={depth => void submitQuestion(turn.question, depth, false)} />)}
+          </div>
+          {repeat && <div ref={repeatMessage} className="plant-assistant__repeat" role="status">
+            <p>{answered.current.get(repeat.toLowerCase()) === 'general_knowledge' ? 'I explained this general question earlier. Would you like Simpler or Standard? Detailed general explanations are unavailable.' : 'I explained this question earlier in this conversation. Would you like a simpler or more detailed explanation?'}</p>
             <div className="plant-assistant__choices">
               <button type="button" aria-label="Simpler explanation" disabled={pending} onClick={() => void submitQuestion(repeat, 'simpler', false)}>Simpler</button>
-              <button type="button" disabled={pending} onClick={() => void submitQuestion(repeat, 'detailed', false)}>More detail</button>
+              {answered.current.get(repeat.toLowerCase()) === 'general_knowledge'
+                ? <button type="button" disabled={pending} onClick={() => void submitQuestion(repeat, 'standard', false)}>Standard</button>
+                : <button type="button" disabled={pending} onClick={() => void submitQuestion(repeat, 'detailed', false)}>More detail</button>}
             </div>
           </div>}
-          {pending && <p className="sr-only" role="status">Checking the approved information…</p>}
-          {error && <p ref={errorMessage} className="plant-assistant__error" role="alert">{error}</p>}
-          <div aria-live="polite">
-          {response && !pending && !repeat && <div className="plant-assistant__response">
-            <p className="plant-assistant__asked">{responseQuestion}</p>
-            <h3 ref={responseHeading} tabIndex={-1}>{response.status === 'fallback' ? 'Source information' : response.status === 'answer' ? 'Answer' : 'Evidence is insufficient'}</h3>
-            {unchangedDepth && <p className="plant-assistant__notice" role="status">
-              {unchangedDepth === 'simpler'
-                ? 'This is already the shortest approved wording for this answer.'
-                : 'The approved sources have no further detail for this answer.'}
-            </p>}
-            <p className="plant-assistant__answer">{response.answer}</p>
-            {response.status === 'insufficient_evidence' && topicLabels.length > 0 &&
-              <p className="plant-assistant__coverage">Available information for this species: {topicLabels.join(', ')}.</p>}
-            {response.answerability === 'answerable' && <div className="plant-assistant__levels" role="group" aria-label="Explanation level">
-              {DEPTHS.map(({ depth, label, ariaLabel }) => <button key={depth} type="button" aria-label={ariaLabel}
-                aria-pressed={responseDepth === depth} disabled={pending}
-                onClick={() => { if (depth !== responseDepth) void submitQuestion(responseQuestion, depth, false) }}>{label}</button>)}
+          {(pending || error) && <div className="plant-assistant__request">
+            <div className="plant-assistant__question"><span>Your question</span><p className="plant-assistant__asked">{requestQuestion}</p></div>
+            {pending && <div ref={pendingMessage} className="plant-assistant__thinking" role="status">
+              <span className="plant-assistant__thinking-dots" aria-hidden="true"><span /><span /><span /></span>
+              <span>Preparing your answer…</span>
             </div>}
-            {sources.length > 0 && <>
-              <h3>{response.answerability === 'answerable' ? 'Sources' : 'Related sources'}</h3>
-              {response.answerability !== 'answerable' && <p className="plant-assistant__hint">These sources cover this plant but do not answer your question.</p>}
-              <ul>{sources.map(source => <li key={source.sourceUrl}>
-                <a href={source.sourceUrl} target="_blank" rel="noopener noreferrer">{source.sourceName}</a>
-                {source.attribution && <span> — {source.attribution}</span>}
-                {source.sourceLicense && source.sourceLicenseUrl && <span> (<a href={source.sourceLicenseUrl}
-                  target="_blank" rel="noopener noreferrer">{source.sourceLicense}</a>)</span>}
-              </li>)}</ul>
-            </>}
-            <p className="plant-assistant__safety">{response.safetyBoundary}</p>
+            {error && <p ref={errorMessage} className="plant-assistant__error" role="alert">{error}</p>}
           </div>}
+        </div>
+        <form className="plant-assistant__composer" onSubmit={submit}>
+          <label className="plant-assistant__input-label" htmlFor="plant-question">Your question</label>
+          <div className="plant-assistant__compose-row">
+            <textarea id="plant-question" value={question} maxLength={600} rows={2} disabled={pending}
+              aria-describedby="plant-question-hint" placeholder="Ask about this plant or a general plant concept…"
+              onChange={event => { setQuestion(event.target.value); setRepeat(null) }} />
+            <button className="plant-assistant__primary" type="submit" disabled={pending || !question.trim()}
+              aria-label={pending ? 'Preparing your answer…' : 'Ask question'}>
+              <span className="plant-assistant__send-label">{pending ? 'Preparing your answer…' : 'Ask question'}</span>
+              <ArrowUp size={18} aria-hidden="true" />
+            </button>
           </div>
-        </>}
+          <p id="plant-question-hint" className="plant-assistant__hint">English only. Leave out personal details, locations and access codes. This conversation clears when you leave this {mapContext ? 'map record' : guideContext ? 'guide' : 'scan'}.</p>
+        </form>
       </>}
-    </section>
-  )
+    </>}
+  </section>
 }

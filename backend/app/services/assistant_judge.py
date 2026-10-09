@@ -30,7 +30,16 @@ POLICY = (
 )
 
 
-def provider_payload(question: str, species: str, evidence: list[dict]) -> dict:
+CLOSED_NEGATIVE_POLICY = (
+    " For unsupported or uncertain, BOTH supporting_chunk_ids and aspect_support must be "
+    "exactly empty arrays. Do not include per-aspect records with empty IDs or quotes. "
+    "Only supported decisions account for each aspect with source quotes and IDs."
+)
+
+
+def provider_payload(
+    question: str, species: str, evidence: list[dict], *, closed_negative: bool = False
+) -> dict:
     ids = {"type": "array", "items": {"type": "string"}}
     item = {
         "type": "object",
@@ -50,7 +59,7 @@ def provider_payload(question: str, species: str, evidence: list[dict]) -> dict:
             {k: c[k] for k in ("chunk_id", "topic", "content", "jurisdiction")} for c in evidence
         ],
     }
-    return {
+    payload = {
         "systemInstruction": {"parts": [{"text": POLICY}]},
         "contents": [{"role": "user", "parts": [{"text": json.dumps(context)}]}],
         "generationConfig": {
@@ -73,6 +82,30 @@ def provider_payload(question: str, species: str, evidence: list[dict]) -> dict:
             },
         },
     }
+    if closed_negative:
+        payload["systemInstruction"]["parts"][0]["text"] += CLOSED_NEGATIVE_POLICY
+        schema = payload["generationConfig"]["responseJsonSchema"]
+        schema["anyOf"] = [
+            {
+                "type": "object",
+                "additionalProperties": False,
+                "required": schema["required"],
+                "properties": schema["properties"]
+                | {"decision": {"type": "string", "enum": ["supported"]}},
+            },
+            {
+                "type": "object",
+                "additionalProperties": False,
+                "required": schema["required"],
+                "properties": schema["properties"]
+                | {
+                    "decision": {"type": "string", "enum": ["unsupported", "uncertain"]},
+                    "supporting_chunk_ids": ids | {"maxItems": 0},
+                    "aspect_support": schema["properties"]["aspect_support"] | {"maxItems": 0},
+                },
+            },
+        ]
+    return payload
 
 
 def validate_judgement(
@@ -130,7 +163,12 @@ def validate_judgement(
 
 
 async def evaluate(
-    question: str, species: str, evidence: list[dict], settings: Settings
+    question: str,
+    species: str,
+    evidence: list[dict],
+    settings: Settings,
+    *,
+    closed_negative: bool = False,
 ) -> object | None:
     if not (
         settings.assistant_judge_enabled
@@ -140,7 +178,7 @@ async def evaluate(
     ):
         return None
     return await complete(
-        provider_payload(question, species, evidence),
+        provider_payload(question, species, evidence, closed_negative=closed_negative),
         settings.assistant_judge_model,
         "judge",
         settings.assistant_judge_timeout_seconds,

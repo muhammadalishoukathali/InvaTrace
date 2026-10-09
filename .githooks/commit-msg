@@ -1,41 +1,13 @@
 #!/bin/sh
-# Enforce the commit authorship policy.
-#
-# Commits in this repository are attributed to the people who wrote them. Some
-# editor and tooling integrations append a `Co-Authored-By:` trailer, or a
-# "Generated with" footer, crediting the tool itself. Those are dropped here so
-# the history records authorship consistently.
-#
-# The message is rewritten in place rather than the commit rejected, so this is
-# silent for anyone whose tooling never adds one. Trailers naming a person are
-# left untouched.
-#
-# This hook only sees commits git routes through it. `git cherry-pick`,
-# `git rebase` and `git merge` commit without running commit-msg, so a trailer
-# written elsewhere can still be replayed onto a branch - that is exactly how
-# one reached main once. .githooks/pre-push is the backstop for those paths.
-#
-# Enable once per clone (git does not carry hooks in the repository itself):
-#
-#     git config core.hooksPath .githooks
-#
-# scripts/install-hooks.sh does that for you.
+# Require a nonempty commit message and preserve the supplied authorship.
+# Recorded commit metadata is checked separately before publication.
 
 msg_file="$1"
 [ -f "$msg_file" ] || exit 0
 
-tmp_file="$msg_file.stripped"
+if ! LC_ALL=C grep -q '[^[:space:]]' "$msg_file"; then
+  printf '%s\n' 'commit rejected: message must not be empty' >&2
+  exit 1
+fi
 
-# Drop tool-credit trailers and footers, then trim the trailing blank lines the
-# removal leaves behind.
-sed -E \
-  -e '/^[[:space:]]*[Cc]o-[Aa]uthored-[Bb]y:.*(([Cc]laude)|([Aa]nthropic)|([Cc]opilot)|([Cc]hat)?GPT|[Oo]pen[Aa][Ii]|[Cc]ursor).*$/d' \
-  -e '/^[[:space:]]*(🤖[[:space:]]*)?[Gg]enerated with \[?(Claude|GPT|Copilot|Cursor)/d' \
-  -e '/🤖/d' \
-  "$msg_file" > "$tmp_file" || exit 0
-
-# Strip trailing blank lines, then restore a single trailing newline.
-awk 'BEGIN{n=0} {lines[NR]=$0} END{last=NR; while (last>0 && lines[last] ~ /^[[:space:]]*$/) last--; for(i=1;i<=last;i++) print lines[i]}' \
-  "$tmp_file" > "$msg_file"
-rm -f "$tmp_file"
 exit 0

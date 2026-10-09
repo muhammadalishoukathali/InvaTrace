@@ -40,6 +40,20 @@ class Settings(BaseSettings):
     assistant_generation_key: SecretStr | None = Field(
         default=None, validation_alias="GEMINI_API_KEY"
     )
+    # Optional backend-only credentials for independently authorised projects.
+    assistant_generation_key_2: SecretStr | None = Field(
+        default=None, validation_alias="GEMINI_API_KEY_2"
+    )
+    assistant_generation_key_3: SecretStr | None = Field(
+        default=None, validation_alias="GEMINI_API_KEY_3"
+    )
+    assistant_generation_key_4: SecretStr | None = Field(
+        default=None, validation_alias="GEMINI_API_KEY_4"
+    )
+    assistant_generation_key_5: SecretStr | None = Field(
+        default=None, validation_alias="GEMINI_API_KEY_5"
+    )
+    gemini_key_pool_enabled: bool = False
     assistant_generation_model: str | None = None
     assistant_generation_free_tier: bool = False
     assistant_generation_enabled: bool = False

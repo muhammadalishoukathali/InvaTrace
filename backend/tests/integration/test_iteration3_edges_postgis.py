@@ -56,6 +56,7 @@ def test_host_cap_ownership_and_activity_locking(monkeypatch: pytest.MonkeyPatch
             "eventType": "survey",
             "title": title,
             "purpose": "p",
+            "safetyNotes": "Observe and report; hosting or joining grants no removal permission.",
             "meetingLatitude": 5.005,
             "meetingLongitude": 103.005,
             "startAt": (now - timedelta(minutes=10)).isoformat(),

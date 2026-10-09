@@ -24,6 +24,7 @@ import { useEffect, useMemo, useRef, useState } from 'react'
 import { createPortal } from 'react-dom'
 import { useQuery } from '@tanstack/react-query'
 import { Link, useLocation, useSearchParams } from 'react-router-dom'
+import { MessageCircle } from 'lucide-react'
 import * as maplibregl from 'maplibre-gl'
 import type { Map, Marker } from 'maplibre-gl'
 import 'maplibre-gl/dist/maplibre-gl.css'
@@ -36,6 +37,7 @@ import { useMapView as useMapStore } from '@/features/map/map-view-store'
 import type { PlaceMapFeature, PlaceMapProperties, PlaceMapResponse, Sighting } from '@/types'
 import { SightingDetailsSheet } from './SightingDetailsSheet'
 import { MapLegend } from './MapLegend'
+import { MapPlantAssistant } from './MapPlantAssistant'
 import { MAP_FILTER_SPECIES } from './MapFilters'
 import { Icon } from '@/components/Icon'
 import { parseMapLocationTarget, type MapLocationTarget } from './map-location-link'
@@ -110,7 +112,7 @@ export function ThreatMapPage() {
   )
   targetSightingId.current = requestedSightingId
   const {
-    species, statuses, risks, search, followUpNeeded, resolvedSightings, select, clearFilters,
+    species, statuses, risks, search, followUpNeeded, resolvedSightings, selectedId, select, clearFilters,
   } = useMapStore()
   // Deep link for the Epic 9 monitoring task: /map?status=followup-needed opens
   // the map already filtered to grey markers awaiting follow-up (AC 4.6.3).
@@ -126,6 +128,7 @@ export function ThreatMapPage() {
   } | null>(null)
   const [recordDetailsOpen, setRecordDetailsOpen] = useState(false)
   const [reportsSheetOpen, setReportsSheetOpen] = useState(false)
+  const [assistantOpen, setAssistantOpen] = useState(false)
   const [showPlaces, setShowPlaces] = useState(true)
   const showPlacesRef = useRef(showPlaces)
   const [placeData, setPlaceData] = useState<PlaceMapResponse>({
@@ -747,10 +750,16 @@ export function ThreatMapPage() {
           </div>
         )}
         <MapAttribution />
-        {/* Compact horizontal cluster of map controls. Icon-only on mobile;
-            icon + label on desktop. Places-shortcut lives here too (was a
-            floating pill in BottomTabs; kept clashing with the bottom nav). */}
-        <div className="map-controls-cluster" role="group" aria-label="Map controls">
+        {/* Keep the assistant label readable above the compact controls on
+            mobile, and alongside them on desktop. */}
+        <div className="map-controls-cluster map-controls-cluster--with-assistant" role="group" aria-label="Map controls">
+          <button id="map-assistant-entry" type="button"
+            className="map-cluster-btn map-cluster-btn--assistant"
+            aria-haspopup="dialog" aria-expanded={assistantOpen}
+            onClick={() => setAssistantOpen(true)}>
+            <MessageCircle size={20} strokeWidth={1.9} aria-hidden="true" />
+            <span>Ask Plant Assistant</span>
+          </button>
           <button
             type="button"
             id="map-live-count"
@@ -870,7 +879,9 @@ export function ThreatMapPage() {
           }}
         />
       </div>
-      <SightingDetailsSheet />
+      {!assistantOpen && <SightingDetailsSheet onAskAssistant={() => setAssistantOpen(true)} />}
+      {assistantOpen && <MapPlantAssistant key={selectedId ?? 'map-help'}
+        sightingId={selectedId} onClose={() => setAssistantOpen(false)} />}
       <SavedRecordDetailsSheet
         target={requestedLocation}
         open={recordDetailsOpen}

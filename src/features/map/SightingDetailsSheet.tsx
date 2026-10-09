@@ -33,7 +33,7 @@ const OSM_FEATURE_LABEL: Record<string, string> = {
  * whenever `selectedId` in map-view-store.ts gets set - that happens either
  * by clicking a pin or picking a row from the accessible sighting list.
  */
-export function SightingDetailsSheet() {
+export function SightingDetailsSheet({ onAskAssistant }: { onAskAssistant?: () => void } = {}) {
   const queryClient = useQueryClient()
   const { selectedId, select } = useMapView()
   const profileId = usePrivateAccess((state) => state.profile?.id ?? null)
@@ -193,6 +193,9 @@ export function SightingDetailsSheet() {
                   </p>
                 )}
               </header>
+
+              {onAskAssistant && <button type="button" className="pin-sheet__retry"
+                onClick={onAskAssistant}>Ask Plant Assistant</button>}
 
               {data.followUpState === 'needed' && data.status === 'removal_reported' && (
                 <section className="pin-sheet__follow-up" aria-labelledby="start-follow-up-heading">
