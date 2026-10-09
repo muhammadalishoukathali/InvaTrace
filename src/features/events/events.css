@@ -210,7 +210,7 @@
 .event-field textarea { resize: vertical; line-height: 1.5; }
 .event-field input[aria-invalid="true"], .event-field textarea[aria-invalid="true"] { border-color: var(--red); }
 
-.host-stepper { margin-top: 18px; display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 6px; list-style: none; counter-reset: step; }
+.host-stepper { margin-top: 18px; display: grid; grid-auto-flow: column; grid-auto-columns: minmax(0, 1fr); gap: 8px; list-style: none; counter-reset: step; }
 .host-stepper li { display: grid; gap: 6px; justify-items: start; color: var(--muted); font-size: 12px; font-weight: 600; }
 .host-stepper li::before { content: ''; width: 100%; height: 4px; border-radius: 4px; background: var(--border); }
 .host-stepper li.is-current::before, .host-stepper li.is-done::before { background: var(--green); }
@@ -233,6 +233,7 @@
 .host-place-results button { width: 100%; min-height: 48px; padding: 10px 12px; display: flex; justify-content: space-between; align-items: center; gap: 12px; border: 0; background: var(--surface); color: var(--ink); font: inherit; font-size: 14px; text-align: left; cursor: pointer; }
 @media (hover: hover) { .host-place-results button:hover { background: var(--hover); } }
 .host-place-results__name { min-width: 0; display: grid; gap: 2px; }
+.host-place-results button > small { flex: none; }
 .host-place-results small, .host-place-chosen small { color: var(--muted); font-size: 12px; font-weight: 500; }
 .host-place-chosen { min-height: 50px; padding: 10px 12px; display: flex; align-items: center; gap: 10px; border: 1px solid var(--green-border); border-radius: var(--r-input); background: var(--green-light); color: var(--green-dark); }
 .host-place-chosen > span { flex: 1; min-width: 0; display: grid; }
