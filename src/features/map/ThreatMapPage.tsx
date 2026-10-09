@@ -1195,7 +1195,7 @@ export const PIN_TIERS: Record<PinTier, { fill: string; label: string }> = {
   hotspot: { fill: '#C2412D', label: 'Hotspot (5+ reports)' },
   spreading: { fill: '#D9880F', label: 'Spreading (2-4 reports)' },
   isolated: { fill: '#2E7D3F', label: 'Isolated (1 report)' },
-  removed: { fill: '#8B978F', label: 'Removed' },
+  removed: { fill: '#8B978F', label: 'Resolved' },
   'followup-needed': { fill: '#66736D', label: 'Follow-up needed' },
 }
 
@@ -1213,7 +1213,7 @@ function sightingStatusLabel(s: Pick<Sighting, 'status' | 'followUpState'>): str
   if (s.followUpState === 'resolved' || s.status === 'resolved_after_follow_up') return 'Resolved after follow-up'
   if (s.followUpState === 'regrowth') return 'Regrowth reported'
   if (s.status === 'screened') return 'Community report - not expert validated'
-  return s.status === 'removal_reported' ? 'Removal reported' : 'Removed'
+  return s.status === 'removal_reported' ? 'Removal reported' : 'Resolved'
 }
 
 /**
