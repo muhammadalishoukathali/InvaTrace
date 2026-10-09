@@ -88,6 +88,15 @@ test('discovery labels the host and filters a whole-day custom range', async ({ 
   await days.nth(4).click() // earlier than the first day: restarts the range
   await days.nth(11).click()
   await expect(page.locator('.range-calendar__foot [role="status"]')).toContainText('8 days')
+  const dialog = page.getByRole('dialog', { name: 'Choose dates' })
+  await expect(dialog).toBeVisible()
+  // The calendar floats over the page: the filters keep their place.
+  await expect(page.locator('.events-filters .range-calendar')).toHaveCount(0)
+  await dialog.getByRole('button', { name: 'Apply' }).click()
+  await expect(dialog).toBeHidden()
+  const custom = page.locator('.events-range button[aria-haspopup="dialog"]')
+  await expect(custom).toHaveAttribute('aria-pressed', 'true')
+  await expect(custom).toContainText('–')
   await expect.poll(() => queries.some(url => {
     const params = new URL(url).searchParams
     const from = new Date(params.get('from') ?? ''), to = new Date(params.get('to') ?? '')
