@@ -1,5 +1,5 @@
 import { expect, test, type Page } from '@playwright/test'
-import { nextMonthDay, pickEventTime } from './fixtures/event-time'
+import { pickEventTime } from './fixtures/event-time'
 
 test.use({ locale: 'zh-CN', timezoneId: 'Asia/Kuala_Lumpur' })
 
@@ -103,8 +103,8 @@ test('English hosting fields validate input and preserve API dates', async ({ pa
   await page.getByRole('button', { name: 'Continue', exact: true }).click()
   await page.getByRole('button', { name: 'Save draft', exact: true }).click()
   await expect(page).toHaveURL(/\/events\/layout-event$/)
-  // Local 08:00 in the browser's zone is sent as an aware UTC instant.
-  const day = nextMonthDay()
-  expect(submitted?.startAt).toBe(new Date(day.getFullYear(), day.getMonth(), day.getDate(), 8).toISOString())
-  expect(submitted?.endAt).toBe(new Date(day.getFullYear(), day.getMonth(), day.getDate(), 10).toISOString())
+  // 08:00–10:00 on the 15th in the browser's Asia/Kuala_Lumpur zone (UTC+8, no DST)
+  // is sent as 00:00–02:00 UTC. The runner's own zone may differ, so match the shape.
+  expect(submitted?.startAt).toMatch(/^\d{4}-\d{2}-15T00:00:00\.000Z$/)
+  expect(submitted?.endAt).toBe(submitted?.startAt.replace('T00:', 'T02:'))
 })
