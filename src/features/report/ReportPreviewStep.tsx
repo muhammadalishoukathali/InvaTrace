@@ -75,6 +75,8 @@ export function ReportPreviewStep() {
       if (result.status === 'submitted' && result.report) {
         // AC 7.4.3: the mission progress must show this report on return.
         if (missionId) void queryClient.invalidateQueries({ queryKey: ['guided-mission'] })
+        // AC 9.6.1: a new sighting may unlock hosting; drop the cached count.
+        void queryClient.invalidateQueries({ queryKey: ['events', 'host-eligibility'] })
         setOutcome({ kind: 'submitted', report: result.report })
       } else {
         setOutcome({

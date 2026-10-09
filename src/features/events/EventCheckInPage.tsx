@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
-import { useNavigate, useParams } from 'react-router-dom'
+import { Link, useLocation, useNavigate, useParams } from 'react-router-dom'
 import { BackLink } from '@/components/BackLink'
 import { Icon } from '@/components/Icon'
 import { ApiError } from '@/services/api-client'
@@ -35,6 +35,7 @@ export function EventCheckInPage() {
   const { eventId = '' } = useParams()
   const cache = useQueryClient()
   const navigate = useNavigate()
+  const routeLocation = useLocation()
   const profileId = usePrivateAccess((state) => state.profile?.id)
   const [location, setLocation] = useState<GeolocationPosition | null>(null)
   const [geoError, setGeoError] = useState('')
@@ -54,7 +55,8 @@ export function EventCheckInPage() {
         eventContextStore.checkIn({ eventId: event.data.id, startAt: event.data.startAt, endAt: event.data.endAt, profileId }, result.checkedInAt)
       }
       await cache.invalidateQueries({ queryKey: ['event', eventId] })
-      navigate(`/events/${eventId}/tasks`)
+      // Replace check-in so Back from the task returns to the event, not here.
+      navigate(`/events/${eventId}/tasks`, { replace: true, state: routeLocation.state })
     },
   })
   const locate = () => {
@@ -95,13 +97,18 @@ export function EventCheckInPage() {
 
   return (
     <section className="events-page event-narrow">
-      <BackLink to={`/events/${eventId}`}>Back to event</BackLink>
+      <BackLink to={`/events/${eventId}`} state={routeLocation.state}>Back to event</BackLink>
       <header className="event-detail__header">
         <h2>Check in</h2>
         <p className="event-detail__host">{event.data.title} · {event.data.placeName ?? 'Mapped place'} · {formatEventTime(event.data.startAt)}–{formatEventTime(event.data.endAt)}</p>
       </header>
 
       {closed && <p className="event-banner" role="status">This event is not open for check-in. It may have ended, been cancelled or been hidden for review.</p>}
+      {!closed && event.data.lastCheckinAt && (
+        <p className="event-banner" role="status">
+          You’re already checked in. <Link to={`/events/${eventId}/tasks`} replace state={routeLocation.state}>Open today’s task</Link>
+        </p>
+      )}
       <ol className="event-steps">
         <li className={location ? 'is-done' : 'is-current'}>
           <span className="event-steps__marker" aria-hidden>{location ? <Icon name="Check" size={15} /> : 1}</span>

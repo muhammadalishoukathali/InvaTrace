@@ -11,10 +11,12 @@ import { EventCard, EventState } from './EventCard'
 import { eventContextStore } from './event-context'
 import './events.css'
 import { HostEventLink } from './HostEventGate'
+import { useOrigin } from './event-navigation'
 
 /** US 9.6 / 9.7: the host's own events - edit, restore after review, cancel. */
 export function MyHostedEventsPage() {
   const cache = useQueryClient()
+  const origin = useOrigin()
   const [cancelling, setCancelling] = useState<CommunityEvent | null>(null)
   const events = useQuery({ queryKey: ['events', 'mine'], queryFn: eventsApi.mine })
   const refresh = async (_: unknown, eventId: string) => {
@@ -51,7 +53,7 @@ export function MyHostedEventsPage() {
               <EventCard event={event} showStatus />
               <div className="event-manage">
                 {['draft', 'published'].includes(event.status) && (
-                  <Link className="event-button event-button--small" to={`/events/${event.id}/edit`}><Icon name="Pencil" size={15} />Edit</Link>
+                  <Link className="event-button event-button--small" to={`/events/${event.id}/edit`} state={origin}><Icon name="Pencil" size={15} />Edit</Link>
                 )}
                 {event.hidden && (event.canRestore ?? event.status !== 'cancelled') && (
                   <button type="button" className="event-button event-button--small" disabled={restore.isPending} onClick={() => restore.mutate(event.id)}>

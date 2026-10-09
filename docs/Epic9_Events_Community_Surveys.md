@@ -423,7 +423,7 @@ radius: HTTP 422 with a machine-readable reason code and no stored check-in.
 >
 > **Exact implementation rule**  The task view must keep Epic 1.0 identification-uncertainty and Epic 3.0
 > safety guidance visible. Find-and-record is available for every type. Removal steps appear only for a
-> removal event and only after the Epic 3.0 permission and protected-area checks pass.
+> removal event and only after the Epic 3.0 permission and protected-area checks pass. After a successful check-in the task view replaces the check-in screen in the app's history (Back returns to the event, never to check-in), and from then on the event page leads to the task instead of offering check-in again.
 > **API:** `GET /api/v1/events/{event_id}`
 > **Datasets/Sources:** Relational `events` records; Epic 1.0 catalogue; Epic 3.0 guidance.
 
@@ -700,7 +700,7 @@ Invalid `place_id` or `end_at` before `start_at`: HTTP 422.
 > **Exact implementation rule**  The event stores the `geometry_version` of the place at publish time so
 > the meeting point and any place references stay consistent. The meeting-point check uses the same
 > server-side PostGIS test as check-in (AC 9.3.2), so a participant who reaches the meeting point is always
-> inside the area that check-in accepts.
+> inside the area that check-in accepts. The host form defaults the meeting point to a point inside the place (not its bounding-box centre, which can fall outside an irregular boundary) and flags a point outside the boundary before the host can continue.
 > **API:** `POST /api/v1/events`
 > **Datasets/Sources:** Epic 5.0 Places dataset (Geofabrik OSM extract); geoBoundaries Malaysia ADM0.
 
@@ -711,7 +711,7 @@ Invalid `place_id` or `end_at` before `start_at`: HTTP 422.
 > discoverable only after the host sets `status = published`.
 >
 > **Exact implementation rule**  Discovery endpoints (`GET /api/v1/events`, `/places/{id}/events`) must
-> exclude any status other than `published`. (Consistent with AC 9.1.1.)
+> exclude any status other than `published`. (Consistent with AC 9.1.1.) In the host form, the browser Back gesture returns to the previous step without losing entries, leaving with unsaved changes asks for confirmation, and once saved or published the form is replaced in history so it cannot be reopened blank or submitted twice.
 > **API:** `PATCH /api/v1/events/{event_id}`
 > **Datasets/Sources:** Relational `events` records.
 
@@ -733,9 +733,9 @@ Invalid `place_id` or `end_at` before `start_at`: HTTP 422.
 > **Given** the host is creating an event
 > **When** they set its details
 > **Then** they choose the place first and then an `event_type` — `survey` (find and record), `removal`,
-> `monitoring` or `other` — from the types the place's land status allows: `removal` is selectable only
-> when the land status is `not_protected`, while `protected` or `uncertain` land offers `survey`,
-> `monitoring` or `other` only; the published event stores and displays that type.
+> `monitoring` or `other` — from the types the place's land status allows: `removal` is offered only
+> when the land status is `not_protected`; on `protected` or `uncertain` land the removal option is not
+> shown at all and only `survey`, `monitoring` or `other` are listed; the published event stores and displays that type.
 >
 > **Exact implementation rule**  The `event_type` drives which on-site task and guidance appear (AC 9.3.4).
 > The server re-checks the land status on create, on any change of place or type, and again on publish

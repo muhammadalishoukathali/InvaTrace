@@ -1,5 +1,5 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
-import { Link, useParams } from 'react-router-dom'
+import { Link, useLocation, useParams } from 'react-router-dom'
 import { BackLink } from '@/components/BackLink'
 import { Icon } from '@/components/Icon'
 import { api, ApiError } from '@/services/api-client'
@@ -8,6 +8,7 @@ import { EventState } from './EventCard'
 import { formatEventDay, formatEventTime, formatEventWindow } from './event-format'
 import './events.css'
 import { HostEventLink } from './HostEventGate'
+import { originState } from './event-navigation'
 
 /**
  * US 9.5: a plain record of what the event submitted. It counts activity and
@@ -16,6 +17,7 @@ import { HostEventLink } from './HostEventGate'
 export function EventSummaryPage() {
   const { eventId = '' } = useParams()
   const cache = useQueryClient()
+  const location = useLocation()
   const summary = useQuery({ queryKey: ['event-summary', eventId], queryFn: () => eventsApi.summary(eventId) })
   const adoptions = useQuery({
     queryKey: ['adopted-areas'],
@@ -39,7 +41,7 @@ export function EventSummaryPage() {
 
   return (
     <section className="events-page event-narrow">
-      <BackLink to={`/events/${eventId}`}>Back to event</BackLink>
+      <BackLink to={`/events/${eventId}`} state={location.state}>Back to event</BackLink>
       <header className="event-detail__header">
         <span className="event-community">Community survey activity</span>
         <h2>What this event recorded</h2>
@@ -66,7 +68,7 @@ export function EventSummaryPage() {
       <section className="event-section">
         <h3>Next survey here</h3>
         {item.nextEvent ? (
-          <Link className="event-next" to={`/events/${item.nextEvent.eventId}`}>
+          <Link className="event-next" to={`/events/${item.nextEvent.eventId}`} state={originState(`/events/${eventId}/summary`)}>
             <Icon name="CalendarDays" size={18} />
             <span><strong>Next event</strong>{formatEventDay(item.nextEvent.startAt)} · {formatEventTime(item.nextEvent.startAt)}</span>
             <Icon name="ChevronRight" size={18} />

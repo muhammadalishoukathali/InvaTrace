@@ -3,6 +3,7 @@ import { useQuery } from '@tanstack/react-query'
 import { Link } from 'react-router-dom'
 import { Icon } from '@/components/Icon'
 import { eventsApi } from '@/services/api/events'
+import { useOrigin } from './event-navigation'
 
 /** AC 9.6.1: hosting unlocks once the identity has reported enough sightings. */
 export function useHostEligibility() {
@@ -21,8 +22,9 @@ export function hostingLockedText(reportCount: number, required: number) {
 export function HostEventLink({ className, children, inline = false }: { className?: string; children: ReactNode; inline?: boolean }) {
   const eligibility = useHostEligibility()
   const hintId = useId()
+  const origin = useOrigin()
   // While loading or on a failed check, keep the normal link; the host page re-checks.
-  if (!eligibility.data || eligibility.data.eligible) return <Link className={className} to="/events/host">{children}</Link>
+  if (!eligibility.data || eligibility.data.eligible) return <Link className={className} to="/events/host" state={origin}>{children}</Link>
   const { reportCount, required } = eligibility.data
   if (inline) return <span className="host-locked-inline">{children} (unlocks after {required} sightings, {Math.min(reportCount, required)}/{required} so far)</span>
   return (

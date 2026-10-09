@@ -1,7 +1,7 @@
 import { useRef, useState } from 'react'
 import { createPortal } from 'react-dom'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
-import { Link, useParams } from 'react-router-dom'
+import { Link, useLocation, useParams } from 'react-router-dom'
 import { BackLink } from '@/components/BackLink'
 import { Icon } from '@/components/Icon'
 import { useDialogA11y } from '@/hooks/useDialogA11y'
@@ -12,7 +12,8 @@ import { EventState } from './EventCard'
 import { EventMap } from './EventMap'
 import { EventSafetyNotice } from './EventSafetyNotice'
 import { ReportEventModal } from './ReportEventModal'
-import { eventContextStore } from './event-context'
+import { eventContextStore, useEventContext } from './event-context'
+import { backTarget } from './event-navigation'
 import {
   formatEventDay, formatEventDays, formatEventTime, hostLabel, placeTypeLabels, targetSpeciesNames,
 } from './event-format'
@@ -22,6 +23,8 @@ import './events.css'
 export function EventDetailPage() {
   const { eventId = '' } = useParams()
   const cache = useQueryClient()
+  const location = useLocation()
+  const active = useEventContext()
   const [flagOpen, setFlagOpen] = useState(false)
   const [confirmOpen, setConfirmOpen] = useState(false)
   const [flagSent, setFlagSent] = useState(false)
@@ -51,11 +54,14 @@ export function EventDetailPage() {
   const ended = Date.now() > Date.parse(item.endAt)
   // AC 9.2.6: the host and joined participants see the chat link, never once
   // the event is hidden or cancelled (the API also withholds it).
+  // Once checked in (on this device or restored from the server) the next step
+  // is the task screen, not another check-in.
+  const checkedIn = active?.eventId === item.id || Boolean(item.lastCheckinAt)
   const showChat = Boolean(item.chatLink) && (item.isJoined || item.isHost) && item.status !== 'cancelled' && !item.hidden
 
   return (
     <section className="events-page event-detail">
-      <BackLink to="/events">Back to events</BackLink>
+      <BackLink {...backTarget(location.state, '/events')} />
 
       <header className="event-detail__header">
         <div className="event-card__tags">
@@ -73,7 +79,7 @@ export function EventDetailPage() {
       )}
       {item.status === 'cancelled' && <p className="event-banner" role="status">This event has been cancelled. Its attendance and report history are kept.</p>}
       {item.status === 'draft' && <p className="event-banner" role="status">Private draft — nobody else can find this event until you publish it.</p>}
-      {item.status === 'completed' && <p className="event-banner" role="status">This event has ended. <Link to={`/events/${item.id}/summary`}>See what it recorded</Link></p>}
+      {item.status === 'completed' && <p className="event-banner" role="status">This event has ended. <Link to={`/events/${item.id}/summary`} state={location.state}>See what it recorded</Link></p>}
 
       <div className="event-detail__layout">
         <div className="event-detail__main">
@@ -119,11 +125,22 @@ export function EventDetailPage() {
 
           {open && !ended && (item.isJoined ? (
             <div className="event-joined">
-              <p className="event-joined__state" role="status"><Icon name="CircleCheck" size={18} />Joined</p>
-              <p className="event-muted">Check in when you arrive on the day.</p>
-              <Link className="event-button event-button--primary event-button--block" to={`/events/${item.id}/check-in`}>
-                <Icon name="Crosshair" size={17} />Check in at the event
-              </Link>
+              {checkedIn ? (
+                <>
+                  <p className="event-joined__state" role="status"><Icon name="CircleCheck" size={18} />Checked in</p>
+                  <Link className="event-button event-button--primary event-button--block" to={`/events/${item.id}/tasks`} state={location.state}>
+                    <Icon name="ClipboardList" size={17} />Open today’s task
+                  </Link>
+                </>
+              ) : (
+                <>
+                  <p className="event-joined__state" role="status"><Icon name="CircleCheck" size={18} />Joined</p>
+                  <p className="event-muted">Check in when you arrive on the day.</p>
+                  <Link className="event-button event-button--primary event-button--block" to={`/events/${item.id}/check-in`} state={location.state}>
+                    <Icon name="Crosshair" size={17} />Check in at the event
+                  </Link>
+                </>
+              )}
               <button type="button" className="event-button event-button--block" onClick={() => withdraw.mutate()} disabled={withdraw.isPending}>
                 {withdraw.isPending ? 'Withdrawing…' : 'Withdraw'}
               </button>
@@ -151,8 +168,8 @@ export function EventDetailPage() {
           {join.error && !confirmOpen && <p className="event-inline-alert" role="alert">{join.error instanceof ApiError ? join.error.message : 'Could not join this event.'}</p>}
 
           <div className="event-action-card__links">
-            {item.isHost && <Link to={`/events/${item.id}/edit`}><Icon name="Pencil" size={15} />Edit event</Link>}
-            {item.status === 'completed' && <Link to={`/events/${item.id}/summary`}>View event summary</Link>}
+            {item.isHost && <Link to={`/events/${item.id}/edit`} state={location.state}><Icon name="Pencil" size={15} />Edit event</Link>}
+            {item.status === 'completed' && <Link to={`/events/${item.id}/summary`} state={location.state}>View event summary</Link>}
             {!item.isHost && open && (flagSent
               ? <span className="event-muted" role="status">Thanks — your report was recorded.</span>
               : <button type="button" className="event-text-button" onClick={() => setFlagOpen(true)}><Icon name="AlertTriangle" size={15} />Report this event</button>)}

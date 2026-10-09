@@ -5,6 +5,7 @@ import { eventTypeLabels } from './event-types'
 import {
   eventDateTile, formatEventWindow, hostLabel, placeTypeLabels, statusLabels, targetSpeciesNames,
 } from './event-format'
+import { useOrigin } from './event-navigation'
 
 const MAX_SPECIES_CHIPS = 3
 
@@ -20,12 +21,13 @@ export function EventCard({ event, showStatus = false, highlighted = false }: {
   showStatus?: boolean
   highlighted?: boolean
 }) {
+  const origin = useOrigin()
   const tile = eventDateTile(event.startAt)
   const species = targetSpeciesNames(event)
   const extraSpecies = species.length - MAX_SPECIES_CHIPS
   return (
     <article className={`event-card${highlighted ? ' event-card--highlighted' : ''}`} data-event-id={event.id}>
-      <Link to={`/events/${event.id}`} className="event-card__link">
+      <Link to={`/events/${event.id}`} state={origin} className="event-card__link">
         <span className="event-card__date" aria-hidden>
           <span>{tile.month}</span>
           <strong>{tile.day}</strong>

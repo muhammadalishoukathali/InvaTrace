@@ -1,6 +1,6 @@
 import { useEffect } from 'react'
 import { useQuery } from '@tanstack/react-query'
-import { Link, useParams } from 'react-router-dom'
+import { Link, useLocation, useParams } from 'react-router-dom'
 import { findApprovedSpecies } from '@shared/catalogue'
 import { BackLink } from '@/components/BackLink'
 import { Icon } from '@/components/Icon'
@@ -23,6 +23,7 @@ import './events.css'
 export function EventTaskPage() {
   const { eventId = '' } = useParams()
   const active = useEventContext()
+  const location = useLocation()
   const profileId = usePrivateAccess((state) => state.profile?.id)
   const event = useQuery({ queryKey: ['event', eventId], queryFn: () => eventsApi.get(eventId) })
   // A recovered identity may have a server-side check-in but no event context
@@ -41,7 +42,7 @@ export function EventTaskPage() {
   if (item.status !== 'published' || item.hidden || Date.now() > Date.parse(item.endAt)) {
     return (
       <section className="events-page event-narrow">
-        <BackLink to={`/events/${eventId}`}>Back to event</BackLink>
+        <BackLink to={`/events/${eventId}`} state={location.state}>Back to event</BackLink>
         <div className="events-empty">
           <h3>This event has ended or is unavailable</h3>
           <p>Scans you already captured during the event can still be submitted from My Records within the upload window.</p>
@@ -53,13 +54,13 @@ export function EventTaskPage() {
   if (active?.eventId !== eventId && !item.lastCheckinAt) {
     return (
       <section className="events-page event-narrow">
-        <BackLink to={`/events/${eventId}`}>Back to event</BackLink>
+        <BackLink to={`/events/${eventId}`} state={location.state}>Back to event</BackLink>
         <div className="events-empty">
           <span className="events-empty__icon" aria-hidden><Icon name="Crosshair" size={26} /></span>
           <h3>Check in first</h3>
           <p>Check in with a fresh location so your observations can be tagged to this event. You can still scan and report as normal without checking in.</p>
           <div className="events-empty__actions">
-            <Link className="event-button event-button--primary" to={`/events/${eventId}/check-in`}>Check in</Link>
+            <Link className="event-button event-button--primary" to={`/events/${eventId}/check-in`} state={location.state}>Check in</Link>
             <Link className="event-button" to="/scan" state={scanStateFromPath(`/events/${eventId}`)}>Scan without the event</Link>
           </div>
         </div>
@@ -70,7 +71,7 @@ export function EventTaskPage() {
   const scanState = scanStateFromPath(`/events/${eventId}/tasks`)
   return (
     <section className="events-page event-narrow">
-      <BackLink to={`/events/${eventId}`}>Back to event</BackLink>
+      <BackLink to={`/events/${eventId}`} state={location.state}>Back to event</BackLink>
       <header className="event-detail__header">
         <div className="event-card__tags">
           <span className={`event-type event-type--${item.eventType}`}>{eventTypeLabels[item.eventType]}</span>
