@@ -95,7 +95,7 @@ Test keys:
 | 4.8.2 | Regrowth returns an active coloured sighting with dated badge | Follow-up |
 | 4.8.3 | Unable-to-confirm keeps grey/needed state and records latest attempt date | Follow-up |
 | 4.8.4 | Chronological append-only history exposes type/date with a stable tie-breaker, keeping exact follow-up coordinates private | Follow-up |
-| 4.8.5 | Regrowth makes the sighting active again and a signed-in user can mark it as removed again (same fresh-GPS rules as the first removal), which restarts the follow-up cycle with a new dated removal and follow-up needed state | Follow-up, Browser |
+| 4.8.5 | Regrowth makes the sighting active again and a signed-in user can mark it as removed again (same fresh-GPS rules as the first removal), which restarts the follow-up cycle with a new dated removal and follow-up needed state | Follow-up, Browser, real-stack e2e (`e2e/real-removal-cycle.spec.ts`) |
 
 ## Verification commands
 
@@ -141,3 +141,14 @@ Local screenshots are in `verification/audit-*.png` and `verification/audit-conf
 - The three additive revisions are `20261002_21_events_core`, `20261002_22_reports_event_id`, `20261002_23_follow_up`, following the existing revision 20. Fresh local upgrade → downgrade three revisions → upgrade was verified. Revision 23 refuses to erase populated follow-up history on downgrade; preserve/export such data before a deliberately planned rollback.
 - Broad `alembic check` currently reports pre-existing extension-owned tiger/topology tables and existing place-evidence index/constraint drift. That check is not reported as passing. The explicit migration round-trip and new PostGIS endpoint tests pass.
 - Runtime-asset import warnings from the existing Vite setup and the pre-existing npm audit findings remain outside this iteration’s changes.
+
+## Real-stack check for AC 4.8.5
+
+The removal-after-regrowth cycle also runs against the real API and PostGIS (no mock service worker) with browser GPS emulated locally:
+
+```bash
+docker compose --profile demo up -d --build api worker seed-demo
+REAL_API_URL=http://127.0.0.1:8000 npx playwright test -c playwright.real.config.ts e2e/real-removal-cycle.spec.ts
+```
+
+The demo seed has one active linked sighting, so use `docker compose down -v` before repeating. Restoring the old `uq_sighting_removal_event` unique index makes this test fail, which confirms migration `20261009_25` is what enables the second removal. Production keeps the 350 m location gate; the live check is a manual on-site step.
