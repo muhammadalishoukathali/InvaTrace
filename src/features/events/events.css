@@ -37,7 +37,8 @@
 .events-range { border: 0; padding: 0; margin: 0; min-width: 0; display: grid; gap: 8px; }
 .events-range legend, .species-picker__label { margin-bottom: 8px; color: var(--ink); font-size: 13px; font-weight: 650; }
 /* Custom dates: one calendar, first day then last day, no times */
-.range-calendar { width: 100%; max-width: 360px; margin-top: 4px; padding: 10px; border: 1px solid var(--border); border-radius: var(--r-card); background: var(--surface); }
+.range-calendar { width: 100%; max-width: 400px; margin: 0 auto; }
+.range-dialog .event-sheet__body { padding-bottom: 12px; }
 .range-calendar__head { margin-bottom: 6px; display: flex; align-items: center; justify-content: space-between; gap: 8px; }
 .range-calendar__head strong { color: var(--ink); font-size: 14px; }
 .range-calendar__head .event-icon-button:disabled { opacity: .35; cursor: not-allowed; }

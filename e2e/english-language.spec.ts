@@ -48,6 +48,8 @@ test('dates and fields remain English with a Chinese browser locale', async ({ p
   await expect(calendar.locator('.range-calendar__head strong')).toHaveText(/^[A-Z][a-z]+ \d{4}$/)
   await expect(calendar.locator('.range-calendar__weekday').first()).toHaveText('Mo')
   await expect(calendar).not.toContainText(/[\p{Script=Han}]/u)
+  await page.keyboard.press('Escape')
+  await expect(calendar).toBeHidden()
 })
 
 test('English hosting fields validate input and preserve API dates', async ({ page, context }) => {

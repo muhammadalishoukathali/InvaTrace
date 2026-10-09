@@ -1,5 +1,7 @@
-import { useMemo, useState } from 'react'
+import { useId, useMemo, useRef, useState } from 'react'
+import { createPortal } from 'react-dom'
 import { Icon } from '@/components/Icon'
+import { useDialogA11y } from '@/hooks/useDialogA11y'
 import { ENGLISH_LOCALE } from '@/utils/date-time'
 
 export interface DayRange {
@@ -121,5 +123,44 @@ export function DateRangeCalendar({ value, onChange, monthsAhead = 12 }: Props) 
         {start && <button type="button" className="event-text-button" onClick={() => onChange({ start: null, end: null })}>Clear</button>}
       </div>
     </div>
+  )
+}
+
+/**
+ * The calendar in a modal: a bottom sheet on phones, a centred dialog on
+ * larger screens, so picking days never pushes the filters and results down.
+ * Choices are a draft until Apply; Cancel, Escape or the scrim leave the
+ * current filter untouched.
+ */
+export function DateRangeDialog({ initial, onClose, onApply, returnFocus }: {
+  initial: DayRange
+  onClose: () => void
+  onApply: (value: DayRange) => void
+  returnFocus: () => HTMLElement | null
+}) {
+  const [draft, setDraft] = useState(initial)
+  const dialogRef = useRef<HTMLDivElement>(null)
+  const titleId = useId()
+  useDialogA11y(dialogRef, onClose, { returnFocus })
+  return createPortal(
+    <div className="event-sheet">
+      <div className="event-sheet__scrim" onClick={onClose} />
+      <div ref={dialogRef} className="event-sheet__panel range-dialog" role="dialog" aria-modal="true" aria-labelledby={titleId} tabIndex={-1}>
+        <header className="event-sheet__header">
+          <h2 id={titleId}>Choose dates</h2>
+          <button type="button" data-dialog-initial className="event-icon-button" onClick={onClose} aria-label="Close">
+            <Icon name="X" size={20} />
+          </button>
+        </header>
+        <div className="event-sheet__body">
+          <DateRangeCalendar value={draft} onChange={setDraft} />
+        </div>
+        <footer className="event-sheet__footer">
+          <button type="button" className="event-button" onClick={onClose}>Cancel</button>
+          <button type="button" className="event-button event-button--primary" disabled={!draft.start} onClick={() => onApply(draft)}>Apply</button>
+        </footer>
+      </div>
+    </div>,
+    document.body,
   )
 }

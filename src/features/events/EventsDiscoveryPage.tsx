@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react'
+import { useMemo, useRef, useState } from 'react'
 import { keepPreviousData, useQuery } from '@tanstack/react-query'
 import { Link, useSearchParams } from 'react-router-dom'
 import { Icon } from '@/components/Icon'
@@ -6,7 +6,7 @@ import { useIsDesktop } from '@/hooks/useIsDesktop'
 import { api } from '@/services/api-client'
 import { eventsApi } from '@/services/api/events'
 import type { PlaceDetail } from '@/types'
-import { DateRangeCalendar, dayRangeWindow, formatDayRange, type DayRange } from './DateRangeCalendar'
+import { DateRangeDialog, dayRangeWindow, formatDayRange, type DayRange } from './DateRangeCalendar'
 import { EventCard, EventState } from './EventCard'
 import { EventMap } from './EventMap'
 import { SpeciesPicker } from './SpeciesPicker'
@@ -37,6 +37,8 @@ export function EventsDiscoveryPage() {
   const [bbox, setBbox] = useState<string>()
   const [view, setView] = useState<'list' | 'map'>('list')
   const [selectedId, setSelectedId] = useState<string | null>(null)
+  const [datesOpen, setDatesOpen] = useState(false)
+  const customRef = useRef<HTMLButtonElement>(null)
 
   const range = useMemo(() => {
     if (preset === 'custom') return dayRangeWindow(days)
@@ -98,14 +100,24 @@ export function EventsDiscoveryPage() {
         <fieldset className="events-range">
           <legend>When</legend>
           <div className="event-segmented">
-            {(Object.keys(RANGE_LABELS) as RangePreset[]).map((key) => (
+            {(Object.keys(RANGE_LABELS) as RangePreset[]).map((key) => key === 'custom' ? (
+              <button key={key} ref={customRef} type="button" aria-pressed={preset === key} aria-haspopup="dialog" onClick={() => setDatesOpen(true)}>
+                <Icon name="CalendarDays" size={15} />
+                {preset === 'custom' && days.start ? formatDayRange(days) : RANGE_LABELS[key]}
+              </button>
+            ) : (
               <button key={key} type="button" aria-pressed={preset === key} onClick={() => setPreset(key)}>
                 {RANGE_LABELS[key]}
               </button>
             ))}
           </div>
-          {preset === 'custom' && (
-            <DateRangeCalendar value={days} onChange={setDays} />
+          {datesOpen && (
+            <DateRangeDialog
+              initial={days}
+              onClose={() => setDatesOpen(false)}
+              onApply={(next) => { setDays(next); setPreset('custom'); setDatesOpen(false) }}
+              returnFocus={() => customRef.current}
+            />
           )}
         </fieldset>
       </div>
