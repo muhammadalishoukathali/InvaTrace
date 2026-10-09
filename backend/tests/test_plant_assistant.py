@@ -87,6 +87,7 @@ def client(monkeypatch):
     monkeypatch.setattr(rate_limiter, "enabled", False)
     app = create_app()
     app.dependency_overrides[get_settings] = lambda: Settings(
+        _env_file=None,
         app_env="test",
         assistant_judge_enabled=False,
         assistant_generation_enabled=False,
@@ -549,6 +550,7 @@ def test_provider_failures_are_controlled(monkeypatch, failure):
         lambda **kwargs: original(transport=httpx.MockTransport(transport), **kwargs),
     )
     settings = Settings(
+        _env_file=None,
         assistant_generation_enabled=True,
         assistant_generation_free_tier=True,
         assistant_generation_key="test-placeholder",
@@ -584,7 +586,9 @@ def test_disabled_provider_makes_no_network_request(monkeypatch):
     )
     assert (
         asyncio.run(
-            assistant_generation.generate("Where?", "Mikania micrantha", [], "standard", Settings())
+            assistant_generation.generate(
+                "Where?", "Mikania micrantha", [], "standard", Settings(_env_file=None)
+            )
         )
         is None
     )
