@@ -24,7 +24,6 @@ import { useEffect, useMemo, useRef, useState } from 'react'
 import { createPortal } from 'react-dom'
 import { useQuery } from '@tanstack/react-query'
 import { Link, useLocation, useSearchParams } from 'react-router-dom'
-import { MessageCircle } from 'lucide-react'
 import * as maplibregl from 'maplibre-gl'
 import type { Map, Marker } from 'maplibre-gl'
 import 'maplibre-gl/dist/maplibre-gl.css'
@@ -750,16 +749,7 @@ export function ThreatMapPage() {
           </div>
         )}
         <MapAttribution />
-        {/* Keep the assistant label readable above the compact controls on
-            mobile, and alongside them on desktop. */}
-        <div className="map-controls-cluster map-controls-cluster--with-assistant" role="group" aria-label="Map controls">
-          <button id="map-assistant-entry" type="button"
-            className="map-cluster-btn map-cluster-btn--assistant"
-            aria-haspopup="dialog" aria-expanded={assistantOpen}
-            onClick={() => setAssistantOpen(true)}>
-            <MessageCircle size={20} strokeWidth={1.9} aria-hidden="true" />
-            <span>Ask Plant Assistant</span>
-          </button>
+        <div className="map-controls-cluster" role="group" aria-label="Map controls">
           <button
             type="button"
             id="map-live-count"
@@ -789,18 +779,6 @@ export function ThreatMapPage() {
             <Icon name="Trees" size={16} color="currentColor" />
             <span className="map-cluster-btn__label">Places</span>
           </button>
-          {/* Mobile-only entry to Places; on desktop the sidebar already
-              carries "Browse places". */}
-          {!isDesktop && (
-            <Link
-              to="/places"
-              className="map-cluster-btn map-cluster-btn--browse"
-              aria-label="Browse mapped places"
-            >
-              <Icon name="Map" size={16} color="currentColor" />
-              <span className="map-cluster-btn__label">Browse</span>
-            </Link>
-          )}
         </div>
         <MapLegend />
         {showPlaces && (placesLoading || placesError || placeData.truncated || placeData.features.length === 0) && (

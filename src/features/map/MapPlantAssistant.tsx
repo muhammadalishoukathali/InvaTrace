@@ -13,7 +13,8 @@ export function MapPlantAssistant({ sightingId, onClose }: {
 }) {
   const dialog = useRef<HTMLElement>(null)
   useDialogA11y(dialog, onClose, {
-    returnFocus: () => document.getElementById('map-assistant-entry'),
+    // Opened from a sighting sheet; fall back to the map controls if it closed.
+    returnFocus: () => document.getElementById('sighting-assistant-entry') ?? document.getElementById('map-live-count'),
   })
   const { data, isLoading, isError } = useQuery({
     queryKey: ['sighting', sightingId],

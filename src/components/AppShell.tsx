@@ -8,7 +8,7 @@ import { useIsDesktop } from '@/hooks/useIsDesktop'
 import { usePrivateAccess } from '@/features/private-access/private-access-store'
 import { NAV } from '@/app/nav'
 import { Icon } from './Icon'
-import { profileReturnPath, profileStateFromPath } from '@/features/private-access/profile-navigation'
+import { profileReturnPath } from '@/features/private-access/profile-navigation'
 import './app-shell.css'
 
 const TITLES: Record<string, [string, string]> = {
@@ -64,13 +64,6 @@ export function AppShell() {
   const pageFillsAvailableSpace = pathname === '/map'
   const showBottomTabs = !isDesktop
   const showProfileBack = !isDesktop && pathname === '/profile'
-  // Places lives outside the mobile bottom-tabs (entry is from the map
-  // controls cluster) so it needs its own back-to-map affordance in the
-  // header, otherwise users get stranded on /places with no exit path.
-  const showPlacesBack = !isDesktop && pathname === '/places'
-  const showProfileShortcut = !isDesktop && pathname !== '/profile'
-  // Plants is not in the mobile bottom bar, so the header carries it.
-  const showCatalogueShortcut = !isDesktop && !pathname.startsWith('/catalogue')
   const profileReturnTo = profileReturnPath(location.state)
 
   return (
@@ -94,44 +87,10 @@ export function AppShell() {
                 <Icon name="ChevronLeft" size={20} color="var(--body)" />
               </button>
             )}
-            {showPlacesBack && (
-              <button
-                type="button"
-                className="app-header__back"
-                aria-label="Back to threat map"
-                onClick={() => navigate('/map')}
-              >
-                <Icon name="ChevronLeft" size={20} color="var(--body)" />
-              </button>
-            )}
             <div className="app-header__heading">
               <h1 ref={headingRef} tabIndex={-1} className="app-header__title">{title}</h1>
               {subtitle && <p className="app-header__subtitle">{subtitle}</p>}
             </div>
-          </div>
-          <div className="app-header__actions">
-            {showCatalogueShortcut && (
-              <button
-                type="button"
-                aria-label="Plant catalogue"
-                title="Plant catalogue"
-                onClick={() => navigate('/catalogue')}
-                className="app-header__action"
-              >
-                <Icon name="BookOpen" size={18} color="var(--body)" />
-              </button>
-            )}
-            {showProfileShortcut && (
-              <button
-                type="button"
-                aria-label="Manage private access"
-                title="Private access"
-                onClick={() => navigate('/profile', { state: profileStateFromPath(pathname) })}
-                className="app-header__action"
-              >
-                <Icon name="User" size={18} color="var(--body)" />
-              </button>
-            )}
           </div>
         </header>
 
