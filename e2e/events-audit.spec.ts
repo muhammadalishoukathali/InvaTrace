@@ -6,7 +6,7 @@ test.skip(process.env.RUN_INVATRACE_IT3_E2E !== '1' && process.env.PLAYWRIGHT_EP
 test.beforeEach(async ({ page }) => { await page.addInitScript(() => localStorage.setItem('invatrace.mock.community', 'off')) })
 
 const place = { placeId: '10000000-0000-4000-8000-000000000001', displayName: 'Bukit Kiara' }
-const future = { event_id: 'event-1', title: 'Original title', purpose: 'Original purpose', event_type: 'survey', status: 'draft', place_id: place.placeId, target_species_ids: [], meeting_latitude: 3.14, meeting_longitude: 101.69, start_at: '2030-01-01T08:00:00Z', end_at: '2030-01-01T10:00:00Z', permission_context: 'unknown', is_host: true }
+const future = { event_id: 'event-1', title: 'Original title', purpose: 'Original purpose', event_type: 'survey', status: 'draft', place_id: place.placeId, target_species_ids: [], meeting_latitude: 3.14, meeting_longitude: 101.69, start_at: '2030-01-01T08:00:00Z', end_at: '2030-01-01T10:00:00Z', land_status: 'not_protected', is_host: true }
 
 async function access(page: Page) {
   await page.goto('/'); await page.getByRole('button', { name: 'Start privately' }).first().click()
@@ -15,24 +15,47 @@ async function access(page: Page) {
   await expect(page).toHaveURL(/\/map$/)
 }
 
-async function hostFixture(page: Page, event = future) {
+const OBSERVE_ONLY_STATUS = { land_status: 'protected', protected_area_name: 'Bukit Kiara Forest Reserve', operator: 'Jabatan Perhutanan', allowed_event_types: ['survey', 'monitoring', 'other'], reason: 'This place overlaps Bukit Kiara Forest Reserve. Only survey, monitoring or other observe-and-report activities can be hosted here.', disclaimer: 'Mapped status is not removal permission.' }
+
+async function hostFixture(page: Page, event = future, eligibility = { eligible: true, report_count: 3, required: 3 }) {
   await page.context().route('**/api/v1/places', route => route.fulfill({ contentType: 'application/json', body: JSON.stringify({ items: [place] }) }))
   await page.context().route(`**/api/v1/places/${place.placeId}`, route => route.fulfill({ json: { ...place, geometry: { type: 'Polygon', coordinates: [[[101.63, 3.14], [101.65, 3.14], [101.65, 3.16], [101.63, 3.16], [101.63, 3.14]]] } } }))
+  await page.context().route(`**/api/v1/places/${place.placeId}/land-status`, route => route.fulfill({ json: OBSERVE_ONLY_STATUS }))
+  await page.context().route('**/api/v1/events/host-eligibility', route => route.fulfill({ json: eligibility }))
   await page.context().route('**/api/v1/events/event-1', route => route.fulfill({ contentType: 'application/json', body: JSON.stringify(event) }))
 }
 
-test('host form prevents blank, invalid time, permission and http chat submissions', async ({ page }) => {
+test('hosting stays locked until three sightings are reported (AC 9.6.1)', async ({ page }) => {
+  await hostFixture(page, future, { eligible: false, report_count: 1, required: 3 })
+  await page.context().route('**/api/v1/events', route => route.fulfill({ json: { items: [] } }))
+  await access(page); await page.goto('/events')
+  await expect(page.getByRole('button', { name: 'Host an event' })).toBeDisabled()
+  await expect(page.getByText('Report 3 sightings to unlock hosting (1/3 so far).')).toBeVisible()
+  await page.goto('/events/host')
+  await expect(page.getByRole('heading', { name: 'Hosting unlocks after 3 sightings' })).toBeVisible()
+  await expect(page.getByLabel('Mapped place')).toHaveCount(0)
+})
+
+test('host form picks the place first, locks removal on protected land and blocks invalid input', async ({ page }) => {
   let creates = 0
   await hostFixture(page)
   await page.context().route('**/api/v1/events', route => { creates += 1; return route.fulfill({ status: 201, contentType: 'application/json', body: JSON.stringify({ event_id: 'created', status: 'draft' }) }) })
   await access(page); await page.goto('/events/host')
-  await page.getByRole('button', { name: 'Continue' }).click()
-  await expect(page.getByText('Enter an event title.')).toBeVisible(); await expect(page.getByText('Describe what the group will do.')).toBeVisible()
-  await page.getByLabel('Event title').fill('Survey'); await page.getByRole('textbox', { name: /^Purpose/ }).fill('Record observations'); await page.getByRole('radio', { name: /Removal activity/ }).check(); await page.getByRole('button', { name: 'Continue' }).click()
+  await expect(page.getByRole('heading', { name: /^Step 1 of 3/ })).toBeVisible()
+  // The type picker waits for the place: what can run depends on its land status.
+  await expect(page.getByRole('radio', { name: /Community survey/ })).toBeDisabled()
   await page.getByRole('button', { name: 'Continue' }).click()
   await expect(page.getByText('Choose a mapped place.')).toBeVisible()
   await page.getByLabel('Mapped place').fill('Bukit'); await page.getByRole('button', { name: /Bukit Kiara/ }).click()
+  // AC 9.6.6 / 9.6.7: mapped protected land offers observe-and-report types only.
+  await expect(page.getByText('Mapped protected area: Bukit Kiara Forest Reserve')).toBeVisible()
+  await expect(page.getByText(/Managed by Jabatan Perhutanan/)).toBeVisible()
+  await expect(page.getByRole('radio', { name: /Removal activity/ })).toBeDisabled()
+  await expect(page.getByRole('radio', { name: /Community survey/ })).toBeChecked()
+  await expect(page.getByText(/permission from the land manager/i)).toHaveCount(0)
   await expect(page.getByText(/^Meeting point \d/)).toBeVisible(); await page.getByRole('button', { name: 'Continue' }).click()
+
+  await expect(page.getByRole('heading', { name: /^Step 2 of 3/ })).toBeVisible()
   // Past days and the previous month are never offered; no time yet blocks Continue.
   await page.getByRole('button', { name: /^Date / }).click()
   await expect(page.getByRole('button', { name: 'Previous month' })).toBeDisabled()
@@ -40,13 +63,13 @@ test('host form prevents blank, invalid time, permission and http chat submissio
   if (yesterday.getMonth() === new Date().getMonth()) await expect(page.getByRole('group', { name: /^Days in / }).getByRole('button', { name: new RegExp(` ${yesterday.getDate()} `) })).toBeDisabled()
   await page.keyboard.press('Escape')
   await page.getByRole('button', { name: 'Continue' }).click()
+  await expect(page.getByText('Enter an event title.')).toBeVisible(); await expect(page.getByText('Describe what the group will do.')).toBeVisible()
   await expect(page.getByText('Choose a date, a start time and how long the event lasts.')).toBeVisible()
-  await expect(page.getByText('A removal event needs confirmed permission from the land manager before it can be published.')).toBeVisible()
-  await pickEventTime(page, { hour: 10 }); await page.getByRole('radio', { name: /Confirmed/ }).check(); await page.getByRole('button', { name: 'Continue' }).click()
-  // AC 9.6.5: the pre-filled generic notes are not a stated permission basis.
-  await expect(page.getByText('State who gave permission and any conditions in the safety notes.')).toBeVisible()
-  await page.getByRole('textbox', { name: 'Safety notes' }).fill('Permission from the park office (email, 1 Dec). Gloves provided; stay on marked paths.')
-  await page.getByRole('button', { name: 'Continue' }).click()
+  await page.getByLabel('Event title').fill('Survey'); await page.getByRole('textbox', { name: /^Purpose/ }).fill('Record observations')
+  await pickEventTime(page, { hour: 10 }); await page.getByRole('button', { name: 'Continue' }).click()
+
+  await expect(page.getByRole('heading', { name: /^Step 3 of 3/ })).toBeVisible()
+  await expect(page.getByText(/Mapped protected area \(Bukit Kiara Forest Reserve\) — observe and report/)).toBeVisible()
   await page.getByLabel('Group chat link (optional)').fill('http://chat.example'); await page.getByRole('button', { name: 'Publish event' }).click()
   await expect(page.getByText('Enter a valid https:// link without a username or password.')).toBeVisible(); expect(creates).toBe(0)
 })
@@ -62,7 +85,8 @@ test('non-host direct editor route is blocked and refetch does not overwrite dir
     reads += 1
     return route.fulfill({ contentType: 'application/json', body: JSON.stringify({ ...future, is_host: true, title: `Server title ${reads}` }) })
   })
-  await page.goto('/events/event-1/edit'); await page.getByLabel('Event title').fill('Unsaved local title')
+  await page.goto('/events/event-1/edit'); await page.getByRole('button', { name: 'Continue' }).click()
+  await page.getByLabel('Event title').fill('Unsaved local title')
   const beforeRefetch = reads
   // Drive a genuine React Query refetch; a window-focus event is intentionally
   // ignored while the query is still fresh.

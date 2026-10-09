@@ -552,6 +552,9 @@ class Event(TimestampMixin, Base):
         CheckConstraint(
             "permission_context IN ('unknown','explicit_permission')", name="permission_context"
         ),
+        CheckConstraint(
+            "land_status IN ('protected','not_protected','uncertain')", name="land_status"
+        ),
         CheckConstraint("end_at > start_at", name="time_range"),
         CheckConstraint("meeting_latitude BETWEEN 0.8 AND 7.5", name="malaysia_latitude"),
         CheckConstraint("meeting_longitude BETWEEN 99.3 AND 119.5", name="malaysia_longitude"),
@@ -584,7 +587,13 @@ class Event(TimestampMixin, Base):
     start_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
     end_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
     safety_notes: Mapped[str | None] = mapped_column(Text)
+    # Legacy self-declared permission; the API now always stores "unknown" and
+    # derives land_status from the mapped protected-area data instead.
     permission_context: Mapped[str] = mapped_column(String(20), default="unknown", nullable=False)
+    land_status: Mapped[str] = mapped_column(
+        String(16), default="uncertain", server_default="uncertain", nullable=False
+    )
+    protected_area_name: Mapped[str | None] = mapped_column(String(240))
     chat_link: Mapped[str | None] = mapped_column(String(500))
     capacity: Mapped[int | None] = mapped_column(Integer)
     hidden: Mapped[bool] = mapped_column(Boolean, default=False, nullable=False)

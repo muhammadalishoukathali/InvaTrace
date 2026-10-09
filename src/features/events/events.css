@@ -387,3 +387,24 @@
 .place-events strong { font-size: 13.5px; color: var(--ink); }
 .place-events span { font-size: 12px; color: var(--muted); }
 .place-events > a, .place-events p a { color: var(--green-dark); font-size: 13px; font-weight: 600; }
+
+/* AC 9.6.1 hosting gate */
+.host-locked { display: inline-flex; flex-direction: column; gap: 6px; max-width: 320px; }
+.host-locked .event-button { align-self: flex-start; }
+.host-locked-inline { color: var(--muted); }
+.events-empty progress { width: min(240px, 100%); accent-color: var(--green); }
+
+/* AC 9.6.7 land status card in the host wizard */
+.host-land-status { display: flex; gap: 10px; align-items: flex-start; padding: 12px 14px; border-radius: var(--r-card); border: 1px solid var(--border); background: var(--bg-alt); color: var(--ink); font-size: 14px; line-height: 1.5; }
+.host-land-status strong { display: block; }
+.host-land-status small { display: block; color: var(--muted); font-size: 12px; margin-top: 4px; }
+.host-land-status--protected { background: var(--amber-light); border-color: var(--amber-border); }
+.host-land-status--protected > svg { color: var(--amber-text); }
+.host-land-status--not_protected { background: var(--green-light); border-color: var(--green-border); }
+.host-land-status--not_protected > svg { color: var(--green); }
+.event-type-picker label.is-disabled { opacity: .55; cursor: not-allowed; }
+/* Place controls now sit on step 1 of the wizard; keep them full touch-target size. */
+.host-place-chosen .event-text-button, .host-coordinates .event-text-button { min-height: 44px; min-width: 44px; }
+.events-intro__actions { align-items: start; }
+.events-intro__actions .host-locked .event-button { width: 100%; justify-content: center; }
+.host-land-status > svg { flex: none; margin-top: 2px; }

@@ -10,6 +10,7 @@ import { eventsApi, type CommunityEvent } from '@/services/api/events'
 import { EventCard, EventState } from './EventCard'
 import { eventContextStore } from './event-context'
 import './events.css'
+import { HostEventLink } from './HostEventGate'
 
 /** US 9.6 / 9.7: the host's own events - edit, restore after review, cancel. */
 export function MyHostedEventsPage() {
@@ -39,7 +40,7 @@ export function MyHostedEventsPage() {
           <p>Drafts stay private until published. A hidden event is cancelled after 14 days unless you restore or cancel it.</p>
         </div>
         <div className="events-intro__actions">
-          <Link className="event-button event-button--primary" to="/events/host"><Icon name="CalendarDays" size={17} />Host an event</Link>
+          <HostEventLink className="event-button event-button--primary"><Icon name="CalendarDays" size={17} />Host an event</HostEventLink>
         </div>
       </header>
 
@@ -68,8 +69,8 @@ export function MyHostedEventsPage() {
         <section className="events-empty">
           <span className="events-empty__icon" aria-hidden><Icon name="CalendarDays" size={26} /></span>
           <h3>No hosted events yet</h3>
-          <p>Anyone can host. Choose a mapped place, a time and what the group will do.</p>
-          <Link className="event-button event-button--primary" to="/events/host">Host your first event</Link>
+          <p>Anyone who has reported 3 sightings can host. Choose a mapped place, what the group will do there and a time.</p>
+          <HostEventLink className="event-button event-button--primary">Host your first event</HostEventLink>
         </section>
       )}
       {restore.error && <p className="event-inline-alert" role="alert">{restore.error instanceof ApiError ? restore.error.message : 'The event could not be restored. Try again.'}</p>}

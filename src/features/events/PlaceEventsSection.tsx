@@ -5,6 +5,7 @@ import { eventsApi } from '@/services/api/events'
 import { eventTypeLabels } from './event-types'
 import { formatEventWindow } from './event-format'
 import './events.css'
+import { HostEventLink } from './HostEventGate'
 
 /**
  * AC 9.1.6: on an adopted (followed) area, list the published upcoming events
@@ -30,7 +31,7 @@ export function PlaceEventsSection({ placeId, placeName }: { placeId: string; pl
           ))}
         </ul>
       ) : (
-        <p className="event-muted">No upcoming events at {placeName} yet. <Link to="/events/host">Host one</Link></p>
+        <p className="event-muted">No upcoming events at {placeName} yet. <HostEventLink inline>Host one</HostEventLink></p>
       ))}
       {events.data && events.data.items.length > 4 && <Link to={`/events?placeId=${placeId}`}>See all {events.data.items.length} events</Link>}
     </section>

@@ -88,6 +88,7 @@ class Settings(BaseSettings):
     upload_cleanup_interval_seconds: int = Field(default=3600, ge=60, le=86_400)
     event_checkin_grace_minutes: int = Field(default=30, ge=0, le=120)
     event_host_cap: int = Field(default=3, ge=1, le=100)
+    event_host_min_reports: int = Field(default=3, ge=0, le=1000)
     event_report_budget_per_identity: int = Field(default=60, ge=1, le=10_000)
     event_flag_hide_threshold: int = Field(default=3, ge=1, le=100)
     event_hidden_auto_cancel_days: int = Field(default=14, ge=1, le=365)

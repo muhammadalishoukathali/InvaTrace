@@ -414,6 +414,8 @@ export const handlers = [
       .filter((report) => report.submission.missionId === missionId && report.status !== 'rejected')
       .map((report) => ({ reportId: report.id, speciesId: report.submission.speciesId ?? null, status: report.status, submittedAt: report.createdAt })),
     scansForMission: (missionId) => mockScans.filter((scan) => scan.missionId === missionId).length,
+    reportCountFor: (profileId) => mockReports
+      .filter((report) => report.ownerProfileId === profileId && report.status !== 'rejected' && report.status !== 'needs_rescan').length,
   }),
   // Plant questions use real local retrieval even in development mock mode.
   http.post(url('/api/v1/plant-assistant/ask'), () => passthrough()),
@@ -1624,6 +1626,7 @@ const MOCK_PLACES = [
   {
     placeId: '10000000-0000-4000-8000-000000000001',
     name: 'Bukit Kiara',
+    landStatus: 'not_protected' as const,
     type: 'park' as const,
     geometryStatus: 'available',
     source: 'OpenStreetMap development extract',
@@ -1636,6 +1639,7 @@ const MOCK_PLACES = [
   {
     placeId: '10000000-0000-4000-8000-000000000002',
     name: 'Taman Tugu Trail',
+    landStatus: 'not_protected' as const,
     type: 'trail' as const,
     geometryStatus: 'available',
     source: 'OpenStreetMap development extract',
@@ -1648,6 +1652,10 @@ const MOCK_PLACES = [
   {
     placeId: '10000000-0000-4000-8000-000000000003',
     name: 'Kota Damansara Community Forest',
+    // Mock protected-area overlap so the host wizard's removal lock can be seen in dev.
+    landStatus: 'protected' as const,
+    protectedAreaName: 'Kota Damansara Forest Reserve',
+    operator: 'Jabatan Perhutanan Negeri Selangor',
     type: 'forest' as const,
     geometryStatus: 'available',
     source: 'OpenStreetMap development extract',
@@ -1664,6 +1672,7 @@ const MOCK_PLACES = [
     // plenty of these tagged `natural=wood`; the mock just samples one.
     placeId: '10000000-0000-4000-8000-000000000004',
     name: 'Rimba Ilmu Woodland',
+    landStatus: 'uncertain' as const,
     type: 'wood' as const,
     geometryStatus: 'available',
     source: 'OpenStreetMap development extract',
@@ -1678,6 +1687,7 @@ const MOCK_PLACES = [
     // overlay in public/data/habitat-zones resolves for this place in dev.
     placeId: 'e56ae54c-ca04-5fbf-b2c2-01b6e7fbdf46',
     name: 'Taman Tasik Titiwangsa',
+    landStatus: 'not_protected' as const,
     type: 'park' as const,
     geometryStatus: 'available',
     source: 'OpenStreetMap development extract',

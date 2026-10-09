@@ -157,13 +157,12 @@ test('every route and workflow state fits the screen', async ({ page, context },
   await inspect(page, info, '27d-mission-habitat', findings)
 
   await navigate(page, '/events/host')
-  for (let step = 1; step <= 4; step++) {
-    await expect(page.getByRole('heading', { name: new RegExp(`^Step ${step} of 4`) })).toBeVisible()
+  for (let step = 1; step <= 3; step++) {
+    await expect(page.getByRole('heading', { name: new RegExp(`^Step ${step} of 3`) })).toBeVisible()
+    if (step === 1) { await page.getByLabel('Mapped place').fill('Bukit'); await page.getByRole('button', { name: /Bukit Kiara/ }).click(); await expect(page.getByText('Not in a mapped protected area')).toBeVisible() }
     await inspect(page, info, `28-host-step-${step}`, findings)
-    if (step === 1) { await page.getByLabel('Event title').fill('Community survey'); await page.getByRole('textbox', { name: /^Purpose/ }).fill('Record field observations.') }
-    if (step === 2) { await page.getByLabel('Mapped place').fill('Bukit'); await page.getByRole('button', { name: /Bukit Kiara/ }).click() }
-    if (step === 3) { await pickEventTime(page) }
-    if (step < 4) await page.getByRole('button', { name: 'Continue', exact: true }).click()
+    if (step === 2) { await page.getByLabel('Event title').fill('Community survey'); await page.getByRole('textbox', { name: /^Purpose/ }).fill('Record field observations.'); await pickEventTime(page) }
+    if (step < 3) await page.getByRole('button', { name: 'Continue', exact: true }).click()
   }
 
   await navigate(page, '/sightings/s-10/follow-up')

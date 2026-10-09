@@ -23,6 +23,8 @@ if os.getenv("RUN_INVATRACE_IT3_POSTGIS") != "1":
 
 def test_host_cap_ownership_and_activity_locking(monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.setattr(events.rate_limiter, "check", lambda *_args, **_kwargs: None)
+    # The 3-sighting hosting gate has its own test; these hosts skip it.
+    monkeypatch.setattr(events, "_assert_can_host", lambda *_args, **_kwargs: None)
     run, now = uuid.uuid4().hex[:10], datetime.now(UTC)
     with SessionLocal() as s:
         host, other = Profile(public_id=f"edge-host-{run}"), Profile(public_id=f"edge-other-{run}")

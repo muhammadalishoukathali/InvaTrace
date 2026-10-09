@@ -79,7 +79,7 @@ Build order is: host/create → discover → view & join → check in → report
 | — AC 9.5.4 | Zack |
 | US 9.6 Host & publish | Zhuya (lead), Ethan |
 | — AC 9.6.1 / 9.6.2 / 9.6.3 / 9.6.4 / 9.6.5 | Zhuya |
-| — AC 9.6.6 | Ethan |
+| — AC 9.6.6 / 9.6.7 | Ethan |
 | US 9.7 Keep list safe & current | Ethan (lead), Ali |
 | — AC 9.7.1 / 9.7.2 / 9.7.3 / 9.7.5 | Ethan |
 | — AC 9.7.4 | Ali |
@@ -99,9 +99,9 @@ Rough AC load: Ethan 8, Zhuya 7, Ali 5, Zack 5, Qixin 5, Omran 4, Nikhil 3. (37 
 
 **Description**
 
-Goal: Give people who care about a place a reason to show up and do something about invasive plants together. An event is an organised outing at a park, forest or trail, and the host chooses what it is for: a survey to find and record plants, a safe removal, a monitoring revisit, or another activity they describe. Any InvaTrace user can host one; others discover it near a place they follow, join it, check in on the day, record what they find through the existing scan and report flow, and come back to watch the area over time. This turns a one-off wish to help into organised activity and repeat monitoring under SDG 15 target 15.8. The safe defaults hold whatever the type: finding and recording is always available, attendance and record counts are never dressed up as ecological improvement, and joining or hosting an event never grants blanket permission to remove a plant — a removal event still runs through the existing Epic 3.0 safe-response and permission checks, per person and per location.
+Goal: Give people who care about a place a reason to show up and do something about invasive plants together. An event is an organised outing at a park, forest or trail, and the host chooses what it is for: a survey to find and record plants, a safe removal, a monitoring revisit, or another activity they describe. Any InvaTrace user who has reported at least three sightings can host one, choosing from the activities the place's mapped land status allows (removal only outside mapped protected land); others discover it near a place they follow, join it, check in on the day, record what they find through the existing scan and report flow, and come back to watch the area over time. This turns a one-off wish to help into organised activity and repeat monitoring under SDG 15 target 15.8. The safe defaults hold whatever the type: finding and recording is always available, attendance and record counts are never dressed up as ecological improvement, and joining or hosting an event never grants blanket permission to remove a plant — a removal event still runs through the existing Epic 3.0 safe-response and permission checks, per person and per location.
 
-Persona: the everyday nature enthusiast, Aina. There is no organiser role; hosting is simply something a user can do, and the host is shown only by an optional display name.
+Persona: the everyday nature enthusiast, Aina. There is no organiser role; hosting is simply something a user can do once they have reported three sightings, and the host is shown only by an optional display name.
 
 Builds on Epics 1.0 to 6.0: scan and status, anonymous access, safe guidance, reporting, place discovery and adopted areas.
 
@@ -823,37 +823,37 @@ MoSCoW: Must Have
 
 As a nature enthusiast who cares about a local place
 
-I want to create an event on a place I choose — choosing what it is for (survey, removal, monitoring or other), with its purpose, meeting point, time, target species and safety notes — and publish it when it is ready
+I want to pick a place I care about, see what its mapped land status allows, and create an event there — choosing what it is for (survey, removal, monitoring or other) from the activities allowed at that place, with its purpose, meeting point, time, target species and safety notes — and publish it when it is ready
 
 So that I can rally other people around a place I care about, for the kind of activity it actually needs, without waiting on an admin or creating an account.
 
-Description: Hosting is open to any active Epic 2.0 identity. There is no organiser role: whoever creates the event is its host, shown only by an optional display name (Community host if they skip it). The host chooses the event type, which decides the on-site task and guidance participants see (US 9.3). The host may also add an optional discussion link, such as a WhatsApp group invite, so participants can talk before and after — it is shown only to people who join (AC 9.2.6). Events begin as drafts and go public only when the host publishes them, and a host can only edit their own. Cancelling, moderation and completion are handled separately in US 9.7.
+Description: Hosting is open to any active Epic 2.0 identity once it has reported at least three sightings (reports not rejected or sent back for a rescan). There is no organiser role: whoever creates the event is its host, shown only by an optional display name (Community host if they skip it). The host picks the place first; InvaTrace looks it up in the mapped protected-area data and shows its land status, and the host then chooses the event type from the types allowed there. The type decides the on-site task and guidance participants see (US 9.3). The host is never asked to self-declare land-manager permission. The host may also add an optional discussion link, such as a WhatsApp group invite, so participants can talk before and after — it is shown only to people who join (AC 9.2.6). Events begin as drafts and go public only when the host publishes them, and a host can only edit their own. Cancelling, moderation and completion are handled separately in US 9.7.
 
-Data dependency: events records; the active anonymous identity and its optional display name (Epic 2.0); Epic 5.0 places for place_id and geometry.
+Data dependency: events records; the active anonymous identity, its optional display name and its report count; Epic 5.0 places for place_id and geometry; the active OSM protected-area release.
 
-API: POST /api/v1/events accepts the active session plus place_id, event_type, title, purpose, target_species_ids, meeting coordinates, meeting_note, start_at, end_at, safety_notes, permission_context, an optional discussion chat_link and an optional informational capacity; it sets host_identity_id from the session and returns HTTP 201 with event_id and status draft. PATCH /api/v1/events/{event_id} edits a draft or published event including publish or cancel. DELETE /api/v1/events/{event_id} cancels. Editing or cancelling an event the caller does not host HTTP 403. No active session HTTP 401. Invalid place_id or end_at before start_at HTTP 422.
+API: POST /api/v1/events accepts the active session plus place_id, event_type, title, purpose, target_species_ids, meeting coordinates, meeting_note, start_at, end_at, safety_notes, an optional discussion chat_link and an optional informational capacity (a legacy permission_context is accepted and ignored); it sets host_identity_id from the session, derives and stores the place's land_status, and returns HTTP 201 with event_id and status draft. Fewer than three counted reports HTTP 403 hosting_locked. An event type the place's land status does not allow HTTP 422 removal_not_allowed_here. GET /api/v1/events/host-eligibility returns eligible, report_count and required; GET /api/v1/places/{place_id}/land-status returns the land status, protected-area name and operator when known, and the allowed event types. PATCH /api/v1/events/{event_id} edits a draft or published event including publish or cancel. DELETE /api/v1/events/{event_id} cancels. Editing or cancelling an event the caller does not host HTTP 403. No active session HTTP 401. Invalid place_id or end_at before start_at HTTP 422.
 
 ---
 
 - **Card type:** AC
 - **Parent:** US 9.6
-- **Title:** AC 9.6.1 Any user can host; only the host can manage
+- **Title:** AC 9.6.1 Hosting unlocks after three sightings; only the host can manage
 - **Assignee:** Zhuya
 - **Fields:** Header: Iteration 3 | Lane: To Do This Iteration → Acceptance Criteria | Planned Start: 09/28/2026 | Planned Finish: 09/29/2026 | Priority: High | Size: 0 | Blocked: Unblocked
 
 **Description**
 
-Given a user with an active anonymous session creates an event
+Given a user with an active anonymous session who has reported at least three sightings creates an event
 
 When the request reaches POST /api/v1/events
 
-Then the event is created with host_identity_id set to that identity, and any later PATCH or DELETE on it succeeds only for the same identity and returns HTTP 403 for anyone else.
+Then the event is created with host_identity_id set to that identity, and any later PATCH or DELETE on it succeeds only for the same identity and returns HTTP 403 for anyone else; a user with fewer than three counted reports gets HTTP 403 hosting_locked, and the app shows "Report 3 sightings to unlock hosting (n/3 so far)" in place of the host form.
 
-Rule: Creation must not require any special role or flag — only a valid anonymous session. Management ownership is verified server-side from the session, the same way DELETE /api/v1/adopted-areas/{id} verifies ownership in Epic 6.0. No email, name or password is required. Once the event has its first check-in or event-linked report, place_id, meeting coordinates, start_at, end_at and event_type lock: a PATCH changing any of them returns HTTP 409, and only safety_notes, permission_context, chat_link, capacity, title and purpose stay editable, so existing check-ins and reports never become inconsistent. To change a locked field the host must cancel and re-create.
+Rule: Creation needs no special role or flag — only a valid anonymous session and at least three of that identity's reports whose status is not rejected or needs_rescan (setting EVENT_HOST_MIN_REPORTS, default 3). Management ownership is verified server-side from the session, the same way DELETE /api/v1/adopted-areas/{id} verifies ownership in Epic 6.0. No email, name or password is required. Once the event has its first check-in or event-linked report, place_id, meeting coordinates, start_at, end_at and event_type lock: a PATCH changing any of them returns HTTP 409, and only safety_notes, chat_link, capacity, title and purpose stay editable, so existing check-ins and reports never become inconsistent. To change a locked field the host must cancel and re-create.
 
-API: POST, PATCH, DELETE /api/v1/events/{event_id}
+API: GET /api/v1/events/host-eligibility; POST, PATCH, DELETE /api/v1/events/{event_id}
 
-Sources: Epic 2.0 anonymous-identity records.
+Sources: Epic 2.0 anonymous-identity records; Epic 1.0 report records.
 
 ---
 
@@ -935,9 +935,9 @@ Given the host sets the event guidance
 
 When the event is published
 
-Then the event carries an explicit permission_context and safety notes, its default framing is observe and report, and it states that hosting or joining does not grant removal permission; explicit_permission may be set only with a stated basis.
+Then the event carries safety notes and the server-derived land status of its place, its default framing is observe and report, and it states that hosting or joining does not grant removal permission.
 
-Rule: The event must not present active removal as the default activity, and the Epic 3.0 permission and protected-area guidance stays reachable from the published event.
+Rule: The event must not present active removal as the default activity, the host is never asked to self-declare land-manager permission, and the Epic 3.0 permission and protected-area guidance stays reachable from the published event.
 
 API: POST, PATCH /api/v1/events/{event_id}
 
@@ -957,13 +957,35 @@ Given the host is creating an event
 
 When they set its details
 
-Then they must choose an event type — survey (find and record), removal, monitoring, or other — and the published event stores and displays that type.
+Then they choose the place first and then an event type — survey (find and record), removal, monitoring, or other — from the types the place's land status allows: removal is selectable only when the land status is not_protected, while protected or uncertain land offers survey, monitoring or other only; the published event stores and displays that type.
 
-Rule: The event type drives which on-site task and guidance appear (AC 9.3.4). A removal event must carry a permission_context and reference the Epic 3.0 safe-response guidance before it can be published. Every type keeps find-and-record available, and no type grants blanket removal permission.
+Rule: The event type drives which on-site task and guidance appear (AC 9.3.4). The server re-checks the land status on create, on any change of place or type, and again on publish; a disallowed type returns HTTP 422 removal_not_allowed_here. A removal event references the Epic 3.0 safe-response guidance, and each participant still passes the Epic 3.0 checks on the day. Every type keeps find-and-record available, and no type grants blanket removal permission.
 
-API: POST /api/v1/events (with event_type)
+API: POST /api/v1/events (with event_type), PATCH /api/v1/events/{event_id}
 
-Sources: events records; Epic 3.0 InvaTrace Plant Guidance v1.
+Sources: events records; OSM protected-area release; Epic 3.0 InvaTrace Plant Guidance v1.
+
+---
+
+- **Card type:** AC
+- **Parent:** US 9.6
+- **Title:** AC 9.6.7 Land status comes from mapped data, not self-declaration
+- **Assignee:** Ethan
+- **Fields:** Header: Iteration 3 | Lane: To Do This Iteration → Acceptance Criteria | Planned Start: 10/09/2026 | Planned Finish: 10/10/2026 | Priority: High | Size: 0 | Blocked: Unblocked
+
+**Description**
+
+Given the host has chosen a place for an event
+
+When the place's land status is looked up
+
+Then InvaTrace reports protected (the place overlaps a mapped protected area, or is itself an OSM protected area, national park or nature reserve — shown with the area name and managing operator when known), not_protected (the place lies inside the dataset coverage and clear of every mapped protected area) or uncertain (no active dataset, place outside coverage, or a failed lookup), always with the disclaimer that mapped status is not ownership, access or removal permission.
+
+Rule: Polygon places use a PostGIS ST_Intersects test against the active protected-area release; trail places use the 750 metre trail buffer from AC 9.3.2. Uncertain fails closed to observe-and-report types. The status and protected-area name are stored on the event (land_status, protected_area_name) and shown on its detail page.
+
+API: GET /api/v1/places/{place_id}/land-status; POST, PATCH /api/v1/events
+
+Sources: OSM Malaysia protected-area release (Geofabrik extract: boundary=protected_area, boundary=national_park, leisure=nature_reserve); Epic 5.0 places.
 
 ---
 

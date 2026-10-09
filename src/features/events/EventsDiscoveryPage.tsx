@@ -11,6 +11,7 @@ import { EventCard, EventState } from './EventCard'
 import { EventMap } from './EventMap'
 import { SpeciesPicker } from './SpeciesPicker'
 import './events.css'
+import { HostEventLink } from './HostEventGate'
 
 type RangePreset = 'upcoming' | 'week' | 'month' | 'custom'
 const RANGE_LABELS: Record<RangePreset, string> = {
@@ -80,9 +81,9 @@ export function EventsDiscoveryPage() {
           <p>Volunteer outings hosted by community members — not official or government operations.</p>
         </div>
         <div className="events-intro__actions">
-          <Link className="event-button event-button--primary" to="/events/host">
+          <HostEventLink className="event-button event-button--primary">
             <Icon name="CalendarDays" size={17} />Host an event
-          </Link>
+          </HostEventLink>
           <Link className="event-button" to="/events/mine">Your hosted events</Link>
         </div>
       </header>

@@ -14,6 +14,10 @@ interface MockPlace {
   name: string
   type: 'park' | 'forest' | 'wood' | 'trail'
   geometryVersion: string
+  /** Mock stand-in for the server's protected-area lookup (AC 9.6.7). */
+  landStatus?: 'protected' | 'not_protected' | 'uncertain'
+  protectedAreaName?: string
+  operator?: string
 }
 interface Deps {
   profileFor: (request: Request) => PseudonymousProfile | null
@@ -21,6 +25,8 @@ interface Deps {
   placeContains: (placeId: string, point: { lat: number; lng: number }) => boolean
   reportsForMission: (missionId: string) => Array<{ reportId: string; speciesId: string | null; status: string; submittedAt: string }>
   scansForMission: (missionId: string) => number
+  /** Reports by this identity that are not rejected or sent back for a rescan. */
+  reportCountFor: (profileId: string) => number
 }
 
 type EventStatus = 'draft' | 'published' | 'cancelled' | 'completed'
@@ -42,7 +48,8 @@ interface MockEvent {
   startAt: string
   endAt: string
   safetyNotes: string | null
-  permissionContext: 'unknown' | 'explicit_permission'
+  landStatus: 'protected' | 'not_protected' | 'uncertain'
+  protectedAreaName: string | null
   chatLink: string | null
   capacity: number | null
   participants: Map<string, { id: string; status: 'joined' | 'withdrawn'; joinedAt: string }>
@@ -65,6 +72,11 @@ interface MockMission {
 const problem = (status: number, code: string, detail: string) => HttpResponse.json({ code, detail }, { status })
 const CHECKIN_GRACE_MS = 30 * 60 * 1000
 const MAX_LIVE_EVENTS = 3
+const HOST_MIN_REPORTS = 3
+const OBSERVE_ONLY = ['survey', 'monitoring', 'other']
+// Dev/demo escape hatch: set this localStorage key to "on" to host without
+// first submitting three mock reports.
+const HOST_UNLOCK_KEY = 'invatrace.mock.host-unlocked'
 const HIDE_THRESHOLD = 3
 
 export function createCommunityHandlers(deps: Deps) {
@@ -93,16 +105,26 @@ export function createCommunityHandlers(deps: Deps) {
     const base = {
       hostProfileId: 'seed-host', status: 'published' as const, hidden: false, flags: new Set<string>(),
       meetingNote: null, safetyNotes: 'Observe and report only. Wear closed shoes, bring water and stay on marked paths.',
-      permissionContext: 'unknown' as const, chatLink: null, capacity: null,
+      chatLink: null, capacity: null,
     }
-    const samples: MockEvent[] = [
+    const samples: Array<Omit<MockEvent, 'landStatus' | 'protectedAreaName'>> = [
       { ...base, id: 'evt-seed-survey', hostDisplayName: 'Aina', eventType: 'survey', title: 'Saturday Mikania survey', purpose: 'Walk the lower loop together and record every Mikania and Siam weed patch we can find.', placeId: titiwangsa?.placeId ?? kiara.placeId, targetSpeciesIds: ['mikania-micrantha', 'chromolaena-odorata'], meetingLatitude: 3.1778, meetingLongitude: 101.7069, meetingNote: 'Main gate by the lake, next to the noticeboard', startAt: day(3, 8), endAt: day(3, 11), participants: new Map(), checkins: new Map() },
       { ...base, id: 'evt-seed-monitoring', hostDisplayName: null, eventType: 'monitoring', title: 'Monthly regrowth check', purpose: 'Revisit last month’s removal sites and record whether anything has grown back.', placeId: kota.placeId, targetSpeciesIds: ['mikania-micrantha'], meetingLatitude: 3.17, meetingLongitude: 101.59, startAt: day(10, 9), endAt: day(10, 12), participants: new Map(), checkins: new Map() },
     ]
-    samples.forEach((event) => events.set(event.id, event))
+    samples.forEach((event) => events.set(event.id, { ...event, ...landOf(event.placeId) }))
   }
 
   const placeOf = (placeId: string) => deps.places().find((place) => place.placeId === placeId)
+  const landOf = (placeId: string) => {
+    const place = placeOf(placeId)
+    return { landStatus: place?.landStatus ?? 'uncertain', protectedAreaName: place?.protectedAreaName ?? null } as const
+  }
+  const allowedTypes = (placeId: string) => landOf(placeId).landStatus === 'not_protected' ? [...OBSERVE_ONLY, 'removal'] : OBSERVE_ONLY
+  const hostingUnlocked = () => { try { return localStorage.getItem(HOST_UNLOCK_KEY) === 'on' } catch { return false } }
+  const eligibilityFor = (profileId: string) => {
+    const count = deps.reportCountFor(profileId)
+    return { eligible: hostingUnlocked() || count >= HOST_MIN_REPORTS, report_count: count, required: HOST_MIN_REPORTS }
+  }
   const joinedCount = (event: MockEvent) => [...event.participants.values()].filter((item) => item.status === 'joined').length
   const isLive = (event: MockEvent) => event.status === 'published' && !event.hidden && Date.parse(event.endAt) > Date.now()
   // Same rule as backend _host_cap: draft or published events that have not ended.
@@ -120,7 +142,7 @@ export function createCommunityHandlers(deps: Deps) {
       target_species_ids: event.targetSpeciesIds, place_id: event.placeId, place_name: place?.name ?? 'Mapped place',
       place_type: place?.type, meeting_latitude: event.meetingLatitude, meeting_longitude: event.meetingLongitude,
       meeting_note: event.meetingNote, start_at: event.startAt, end_at: event.endAt, safety_notes: event.safetyNotes,
-      permission_context: event.permissionContext, capacity: event.capacity, joined_count: joinedCount(event),
+      permission_context: 'unknown', land_status: event.landStatus, protected_area_name: event.protectedAreaName, capacity: event.capacity, joined_count: joinedCount(event),
       last_checkin_at: viewer ? event.checkins.get(viewer) ?? null : null,
       host_display_name: event.hostDisplayName ?? 'Community host',
       ...(detail ? {
@@ -137,10 +159,11 @@ export function createCommunityHandlers(deps: Deps) {
     : errors.includes('meetingLatitude')
       ? problem(422, 'meeting_point_outside_place', 'Meeting point is outside the event place.')
       : problem(422, 'invalid_event_time', 'End time must be after start time.')
-  const permissionProblem = (body: Record<string, unknown>) => {
-    if (body.eventType === 'removal' && body.permissionContext !== 'explicit_permission') return problem(422, 'removal_permission_required', 'Removal events require explicit removal permission.')
-    if (body.permissionContext === 'explicit_permission' && !String(body.safetyNotes ?? '').trim()) return problem(422, 'permission_basis_required', 'State who gave permission, and any conditions, in the safety notes.')
-    return null
+  // Mirrors backend _apply_land_status: removal only outside mapped protected land.
+  const landProblem = (body: Record<string, unknown>) => {
+    const placeId = String(body.placeId ?? '')
+    if (!placeOf(placeId) || allowedTypes(placeId).includes(String(body.eventType))) return null
+    return problem(422, 'removal_not_allowed_here', 'Only survey, monitoring or other observe-and-report activities can be hosted at this place.')
   }
   const validChatLink = (value: unknown) => {
     if (value === undefined || value === null || String(value).trim() === '') return true
@@ -197,10 +220,31 @@ export function createCommunityHandlers(deps: Deps) {
     http.all(url('/api/v1/events'), optOut),
     http.all(url('/api/v1/events/*'), optOut),
     http.all(url('/api/v1/places/:placeId/events'), optOut),
+    http.all(url('/api/v1/places/:placeId/land-status'), optOut),
     http.all(url('/api/v1/guided-missions'), optOut),
     http.all(url('/api/v1/guided-missions/*'), optOut),
 
     // ---- Epic 9 events ---------------------------------------------------
+    http.get(url('/api/v1/events/host-eligibility'), ({ request }) => {
+      const profile = deps.profileFor(request)
+      if (!profile) return problem(401, 'session_required', 'Sign in again.')
+      return HttpResponse.json(eligibilityFor(profile.id))
+    }),
+    http.get(url('/api/v1/places/:placeId/land-status'), ({ params }) => {
+      const place = placeOf(String(params.placeId))
+      if (!place) return problem(404, 'place_not_found', 'Not found')
+      const land = landOf(place.placeId)
+      const reason = land.landStatus === 'protected'
+        ? `This place overlaps ${land.protectedAreaName ?? 'a mapped protected area'}. Only survey, monitoring or other observe-and-report activities can be hosted here.`
+        : land.landStatus === 'uncertain'
+          ? 'Protected-area status could not be confirmed for this place, so only survey, monitoring or other observe-and-report activities can be hosted here.'
+          : 'This place is not in a mapped protected area. All activity types are available.'
+      return HttpResponse.json({
+        place_id: place.placeId, land_status: land.landStatus, protected_area_name: land.protectedAreaName,
+        operator: place.operator ?? null, dataset_version: 'mock', allowed_event_types: allowedTypes(place.placeId), reason,
+        disclaimer: 'Mapped status is not removal permission. Being outside a mapped protected area does not establish ownership, access rights, or permission; every participant still goes through the safety checks before any active step.',
+      })
+    }),
     http.get(url('/api/v1/events/mine'), ({ request }) => {
       seed(); completeExpired()
       const profile = deps.profileFor(request)
@@ -243,11 +287,13 @@ export function createCommunityHandlers(deps: Deps) {
       if (!profile) return problem(401, 'session_required', 'Sign in again.')
       const body = await request.json() as Record<string, unknown>
       if (!validChatLink(body.chatLink)) return problem(422, 'validation_error', 'chat_link must use https')
+      const eligibility = eligibilityFor(profile.id)
+      if (!eligibility.eligible) return problem(403, 'hosting_locked', `Report at least ${HOST_MIN_REPORTS} sightings before hosting an event (${eligibility.report_count} of ${HOST_MIN_REPORTS} so far).`)
       if ([...events.values()].filter((item) => item.hostProfileId === profile.id && countsTowardCap(item)).length >= MAX_LIVE_EVENTS) return capProblem()
-      const permission = permissionProblem(body)
-      if (permission) return permission
       const errors = validateDraft(body, false)
       if (errors.length) return draftProblem(errors)
+      const land = landProblem(body)
+      if (land) return land
       const id = `evt-${crypto.randomUUID().slice(0, 8)}`
       events.set(id, {
         id, hostProfileId: profile.id, hostDisplayName: profile.displayName ?? null, status: 'draft', hidden: false, flags: new Set(),
@@ -255,7 +301,7 @@ export function createCommunityHandlers(deps: Deps) {
         placeId: String(body.placeId), targetSpeciesIds: (body.targetSpeciesIds as string[]) ?? [],
         meetingLatitude: Number(body.meetingLatitude), meetingLongitude: Number(body.meetingLongitude),
         meetingNote: (body.meetingNote as string) || null, startAt: String(body.startAt), endAt: String(body.endAt),
-        safetyNotes: (body.safetyNotes as string) || null, permissionContext: body.permissionContext as MockEvent['permissionContext'],
+        safetyNotes: (body.safetyNotes as string) || null, ...landOf(String(body.placeId)),
         chatLink: (body.chatLink as string) || null, capacity: (body.capacity as number) ?? null,
         participants: new Map(), checkins: new Map(),
       })
@@ -308,16 +354,17 @@ export function createCommunityHandlers(deps: Deps) {
       }
       if (event.checkins.size && locked.some(changed)) return problem(409, 'event_fields_locked', 'Event fields are locked after activity.')
       const merged = { ...event, ...body } as Record<string, unknown>
-      const permission = permissionProblem(merged)
-      if (permission) return permission
       const errors = validateDraft(merged, false)
       if (errors.length) return draftProblem(errors)
+      const land = landProblem(merged)
+      if (land) return land
       if (body.status === 'published') {
         if (Date.parse(String(merged.endAt)) <= Date.now()) return problem(422, 'event_already_ended', 'Set an end time in the future before publishing.')
         if ([...events.values()].filter((item) => item.id !== event.id && item.hostProfileId === profile.id && countsTowardCap(item)).length >= MAX_LIVE_EVENTS) return capProblem()
       }
       if (body.status === 'draft' && event.checkins.size) return problem(409, 'invalid_status_transition', 'An event with activity cannot return to draft.')
-      Object.assign(event, Object.fromEntries(Object.entries(body).filter(([key]) => key !== 'restore' && key !== 'id')))
+      Object.assign(event, Object.fromEntries(Object.entries(body).filter(([key]) => key !== 'restore' && key !== 'id' && key !== 'permissionContext')))
+      Object.assign(event, landOf(event.placeId))
       return HttpResponse.json(serialize(event, profile.id, true))
     }),
     http.delete(url('/api/v1/events/:id'), ({ params, request }) => {

@@ -5,7 +5,7 @@ import {
   ChevronDown, ChevronLeft, ChevronRight, RotateCcw, Leaf, HelpCircle, XOctagon, Send, ScanLine,
   MapPin, Crosshair, Grid3x3, Info, CircleCheck, Clock, ImagePlus,
   SlidersHorizontal, Filter, Navigation, ClipboardList, BookOpen, Trees,
-  Copy, Download, KeyRound, Shield, Smartphone, Trash2, RefreshCw, ExternalLink, Pencil, LogOut, Menu,
+  Copy, Download, KeyRound, Shield, Smartphone, Trash2, RefreshCw, ExternalLink, Pencil, LogOut, Menu, Lock,
   type LucideIcon,
 } from 'lucide-react'
 
@@ -16,7 +16,7 @@ const REGISTRY: Record<string, LucideIcon> = {
   ChevronDown, ChevronLeft, ChevronRight, RotateCcw, Leaf, HelpCircle, XOctagon, Send, ScanLine,
   MapPin, Crosshair, Grid3x3, Info, CircleCheck, Clock, ImagePlus,
   SlidersHorizontal, Filter, Navigation, ClipboardList, BookOpen, Trees,
-  Copy, Download, KeyRound, Shield, Smartphone, Trash2, RefreshCw, ExternalLink, Pencil, LogOut, Menu,
+  Copy, Download, KeyRound, Shield, Smartphone, Trash2, RefreshCw, ExternalLink, Pencil, LogOut, Menu, Lock,
 }
 
 interface Props { name: string; size?: number; color?: string; strokeWidth?: number }

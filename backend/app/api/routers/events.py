@@ -36,6 +36,7 @@ from app.db.models import (
     Species,
 )
 from app.services.events import assert_event_geometry_current, event_place, point_within_event_place
+from app.services.land_status import LAND_STATUS_DISCLAIMER, LandStatus, place_land_status
 
 log = structlog.get_logger("invatrace.events")
 router = APIRouter(prefix="/api/v1/events", tags=["events"])
@@ -55,7 +56,9 @@ class EventCreate(ApiModel):
     start_at: datetime
     end_at: datetime
     safety_notes: str | None = None
-    permission_context: Literal["unknown", "explicit_permission"]
+    # Deprecated: land status is derived server-side. Accepted and ignored so
+    # older clients still sending it do not fail validation.
+    permission_context: Literal["unknown", "explicit_permission"] | None = None
     chat_link: str | None = Field(default=None, max_length=500)
     capacity: int | None = Field(default=None, ge=1)
 
@@ -169,14 +172,49 @@ def _write_place(session: Session, place_id: uuid.UUID):
         raise
 
 
-def _assert_permission_basis(permission_context: str, safety_notes: str | None) -> None:
-    # AC 9.6.5 - explicit_permission may be set only with a stated basis.
-    if permission_context == "explicit_permission" and not (safety_notes or "").strip():
+# Hosting needs a track record: reports that were not rejected or sent back
+# for a rescan count as sightings (AC 9.6.1).
+COUNTED_REPORT_EXCLUDED_STATUSES = ("rejected", "needs_rescan")
+
+
+def _host_report_count(session: Session, profile_id: uuid.UUID) -> int:
+    return int(
+        session.scalar(
+            select(func.count(Report.id)).where(
+                Report.profile_id == profile_id,
+                Report.status.not_in(COUNTED_REPORT_EXCLUDED_STATUSES),
+            )
+        )
+        or 0
+    )
+
+
+def _assert_can_host(session: Session, profile_id: uuid.UUID) -> None:
+    required = get_settings().event_host_min_reports
+    count = _host_report_count(session, profile_id)
+    if count < required:
+        raise ApiProblem(
+            403,
+            "hosting_locked",
+            f"Report at least {required} sightings before hosting an event "
+            f"({count} of {required} so far).",
+        )
+
+
+def _apply_land_status(session: Session, event: Event, place, place_type: str) -> LandStatus:
+    # AC 9.6.6 / 9.6.7: the place's mapped land status decides which event types
+    # may run there. Removal needs land confidently outside protected areas.
+    land = place_land_status(session, place, place_type)
+    if event.event_type not in land.allowed_event_types:
         raise ApiProblem(
             422,
-            "permission_basis_required",
-            "State who gave permission, and any conditions, in the safety notes.",
+            "removal_not_allowed_here",
+            land.reason,
         )
+    event.land_status = land.status
+    event.protected_area_name = land.protected_area_name
+    event.permission_context = "unknown"
+    return land
 
 
 # A host may take a few minutes to finish the form after picking a start slot,
@@ -309,6 +347,8 @@ def _serialize(
         "end_at": event.end_at,
         "safety_notes": event.safety_notes,
         "permission_context": event.permission_context,
+        "land_status": event.land_status,
+        "protected_area_name": event.protected_area_name,
         "capacity": event.capacity,
         "joined_count": int(joined_count),
         "last_checkin_at": last_checkin_at,
@@ -357,16 +397,10 @@ def create_event(
     session: Session = Depends(get_session),
 ):
     rate_limiter.check("events_write", str(auth.profile.id))
+    _assert_can_host(session, auth.profile.id)
     _assert_event_window(body.start_at, body.end_at, start_changed=True)
     _host_cap(session, auth.profile.id)
     _assert_species(session, body.target_species_ids)
-    if body.event_type == "removal" and body.permission_context != "explicit_permission":
-        raise ApiProblem(
-            422,
-            "removal_permission_required",
-            "Removal events require explicit removal permission.",
-        )
-    _assert_permission_basis(body.permission_context, body.safety_notes)
     place, place_type, version = _write_place(session, body.place_id)
     if not point_within_event_place(
         session, place, place_type, body.meeting_latitude, body.meeting_longitude
@@ -380,8 +414,9 @@ def create_event(
         place_type=place_type,
         geometry_version=version,
         status="draft",
-        **body.model_dump(exclude={"place_id"}),
+        **body.model_dump(exclude={"place_id", "permission_context"}),
     )
+    _apply_land_status(session, event, place, place_type)
     session.add(event)
     session.commit()
     session.refresh(event)
@@ -447,19 +482,7 @@ def patch_event(
         )
     if "target_species_ids" in changes and changes["target_species_ids"] is not None:
         _assert_species(session, changes["target_species_ids"])
-    if (
-        changes.get("event_type", event.event_type) == "removal"
-        and changes.get("permission_context", event.permission_context) != "explicit_permission"
-    ):
-        raise ApiProblem(
-            422,
-            "removal_permission_required",
-            "Removal events require explicit removal permission.",
-        )
-    _assert_permission_basis(
-        changes.get("permission_context", event.permission_context),
-        changes.get("safety_notes", event.safety_notes),
-    )
+    changes.pop("permission_context", None)
     previous_place_id = event.place_id
     nullable = {"meeting_note", "safety_notes", "chat_link", "capacity"}
     for name, value in changes.items():
@@ -473,6 +496,8 @@ def patch_event(
         event.geometry_version = version
     else:
         place, place_type, _ = event_place(session, event.place_id)
+    if {"place_id", "event_type"} & changes.keys() and changes.get("status") != "published":
+        _apply_land_status(session, event, place, place_type)
     if any(
         k in changes for k in {"place_id", "meeting_latitude", "meeting_longitude"}
     ) and not point_within_event_place(
@@ -515,6 +540,8 @@ def patch_event(
             )
         event.place_type = place_type
         event.geometry_version = version
+        # Re-check on publish so a refreshed protected-area release still applies.
+        _apply_land_status(session, event, place, place_type)
         event.status = "published"
     elif changes.get("status") == "draft":
         if event.status not in {"draft", "published"} or _activity_locked(session, event):
@@ -645,6 +672,38 @@ def my_events(auth: AuthContext = Depends(require_auth), session: Session = Depe
         .order_by(Event.start_at.desc())
     ).all()
     return {"items": [_serialize(session, e, auth.profile.id, True) for e in rows]}
+
+
+@router.get("/host-eligibility")
+def host_eligibility(
+    auth: AuthContext = Depends(require_auth), session: Session = Depends(get_session)
+):
+    """AC 9.6.1: hosting unlocks after the identity has reported enough sightings."""
+    required = get_settings().event_host_min_reports
+    count = _host_report_count(session, auth.profile.id)
+    return {"eligible": count >= required, "report_count": count, "required": required}
+
+
+@places_router.get("/{place_id}/land-status")
+def place_land_status_view(
+    place_id: uuid.UUID,
+    request: Request,
+    session: Session = Depends(get_session),
+):
+    """AC 9.6.7: mapped land status for a place and the event types allowed there."""
+    rate_limiter.check("location_context_read", client_address(request))
+    place, place_type, _ = event_place(session, place_id)
+    land = place_land_status(session, place, place_type)
+    return {
+        "place_id": place_id,
+        "land_status": land.status,
+        "protected_area_name": land.protected_area_name,
+        "operator": land.operator,
+        "dataset_version": land.dataset_version,
+        "allowed_event_types": land.allowed_event_types,
+        "reason": land.reason,
+        "disclaimer": LAND_STATUS_DISCLAIMER,
+    }
 
 
 @router.get("/{event_id}")

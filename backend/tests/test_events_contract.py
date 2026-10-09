@@ -126,14 +126,76 @@ def test_unchanged_locked_values_are_not_treated_as_edits() -> None:
     assert not _same_value("survey", "removal")
 
 
-def test_explicit_permission_needs_a_stated_basis() -> None:
-    from app.api.routers.events import _assert_permission_basis
+def test_permission_context_is_optional_and_legacy_values_are_accepted() -> None:
+    payload = _event_payload()
+    payload.pop("permissionContext")
+    assert EventCreate.model_validate(payload).permission_context is None
+    payload["permissionContext"] = "explicit_permission"
+    assert EventCreate.model_validate(payload).permission_context == "explicit_permission"
 
-    _assert_permission_basis("unknown", None)
-    _assert_permission_basis("explicit_permission", "Permission from the park office, 2 Oct.")
+
+def test_hosting_is_locked_until_enough_reports(monkeypatch: pytest.MonkeyPatch) -> None:
+    from app.api.routers import events
+
+    monkeypatch.setattr(events, "_host_report_count", lambda *_args: 2)
     with pytest.raises(ApiProblem) as error:
-        _assert_permission_basis("explicit_permission", "   ")
-    assert error.value.code == "permission_basis_required"
+        events._assert_can_host(None, uuid.uuid4())  # type: ignore[arg-type]
+    assert error.value.status_code == 403
+    assert error.value.code == "hosting_locked"
+    assert "2 of 3" in error.value.detail
+    monkeypatch.setattr(events, "_host_report_count", lambda *_args: 3)
+    events._assert_can_host(None, uuid.uuid4())  # type: ignore[arg-type]
+
+
+def test_rejected_and_rescan_reports_do_not_count_towards_hosting() -> None:
+    from app.api.routers.events import COUNTED_REPORT_EXCLUDED_STATUSES
+
+    assert set(COUNTED_REPORT_EXCLUDED_STATUSES) == {"rejected", "needs_rescan"}
+
+
+def test_land_status_only_allows_removal_outside_mapped_protected_land() -> None:
+    from app.services.land_status import LandStatus
+
+    assert "removal" in LandStatus("not_protected").allowed_event_types
+    for status in ("protected", "uncertain"):
+        allowed = LandStatus(status).allowed_event_types  # type: ignore[arg-type]
+        assert "removal" not in allowed
+        assert {"survey", "monitoring", "other"} <= set(allowed)
+    assert "Gate Reserve" in LandStatus("protected", protected_area_name="Gate Reserve").reason
+
+
+def test_land_status_rejects_disallowed_event_type_and_records_status(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    from types import SimpleNamespace
+
+    from app.api.routers import events
+    from app.services.land_status import LandStatus
+
+    event = SimpleNamespace(
+        event_type="removal", land_status=None, protected_area_name=None, permission_context="x"
+    )
+    monkeypatch.setattr(
+        events, "place_land_status", lambda *_args: LandStatus("protected", "Gate Reserve")
+    )
+    with pytest.raises(ApiProblem) as error:
+        events._apply_land_status(None, event, None, "park")  # type: ignore[arg-type]
+    assert error.value.status_code == 422
+    assert error.value.code == "removal_not_allowed_here"
+    event.event_type = "survey"
+    events._apply_land_status(None, event, None, "park")  # type: ignore[arg-type]
+    assert event.land_status == "protected"
+    assert event.protected_area_name == "Gate Reserve"
+    assert event.permission_context == "unknown"
+
+
+def test_publish_and_type_changes_recheck_land_status() -> None:
+    source = (Path(__file__).parents[1] / "app/api/routers/events.py").read_text()
+    create = source.split("def create_event", 1)[1].split("def patch_event", 1)[0]
+    patch = source.split("def patch_event", 1)[1].split("def cancel_event", 1)[0]
+    assert "_assert_can_host(session, auth.profile.id)" in create
+    assert "_apply_land_status" in create
+    assert patch.count("_apply_land_status") == 2
 
 
 def test_router_guards_terminal_edits_flags_and_join_contract() -> None:
