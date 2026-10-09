@@ -357,7 +357,10 @@ export interface PlaceDetail {
   viewPlantsUrl: string
 }
 
-export type PlaceSummary = Omit<PlaceDetail, 'geometry'>
+export type PlaceSummary = Omit<PlaceDetail, 'geometry'> & {
+  /** Set only when different places share a name, e.g. "Near 1.49° N, 103.74° E". */
+  locationHint?: string | null
+}
 
 export interface PlaceMapProperties {
   placeId: string

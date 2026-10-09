@@ -19,6 +19,7 @@ pytestmark = pytest.mark.integration
 def _rate_limit_request() -> SimpleNamespace:
     return SimpleNamespace(client=SimpleNamespace(host="test"))
 
+
 if os.getenv("RUN_INVATRACE_SPATIAL_INTEGRATION") != "1":
     pytest.skip(
         "set RUN_INVATRACE_SPATIAL_INTEGRATION=1 with PostgreSQL/PostGIS available",
@@ -136,15 +137,100 @@ def test_postgis_geography_includes_exact_buffer_boundary(distance_m: int) -> No
     with SessionLocal() as session:
         origin = func.ST_GeogFromText("SRID=4326;POINT(101.6412 3.1497)")
         projected = func.ST_Project(origin, distance_m, 1.5707963267948966)
-        assert session.scalar(
-            select(
-                func.ST_DWithin(
-                    origin,
-                    projected,
-                    distance_m + SPATIAL_BOUNDARY_EPSILON_M,
+        assert (
+            session.scalar(
+                select(
+                    func.ST_DWithin(
+                        origin,
+                        projected,
+                        distance_m + SPATIAL_BOUNDARY_EPSILON_M,
+                    )
                 )
             )
-        ) is True
+            is True
+        )
         assert session.scalar(select(func.ST_Distance(origin, projected))) == pytest.approx(
             distance_m, abs=0.02
         )
+
+
+def test_place_list_shows_one_clean_entry_per_real_place() -> None:
+    from app.api.routers.places import list_places
+
+    run = uuid.uuid4().hex[:8]
+    trail = f"Dedupe Ridge {run}"
+    park = f"Dedupe Park {run}"
+    homonym = f"Dedupe Common {run}"
+    osm = {"geometry_status": "available", "source": "OpenStreetMap", "geometry_version": "v1"}
+
+    def line(lat: float) -> str:
+        return f"SRID=4326;MULTILINESTRING((101.300 {lat:.3f},101.300 {lat + 0.015:.3f}))"
+
+    def square(lon: float, lat: float) -> str:
+        return (
+            f"SRID=4326;MULTIPOLYGON((({lon} {lat},{lon + 0.01} {lat},{lon + 0.01} {lat + 0.01},"
+            f"{lon} {lat + 0.01},{lon} {lat})))"
+        )
+
+    trails = [
+        Trail(
+            id=uuid.uuid4(),
+            name=trail if index == 0 else f"{trail} · OSM way/{900 + index}",
+            geometry=func.ST_GeogFromText(line(3.300 + index * 0.016)),
+            metadata_json={**osm, "tags": {"highway": "path"}},
+        )
+        for index in range(4)
+    ]
+    areas = [
+        MonitoredArea(
+            id=uuid.uuid4(),
+            name=park,
+            geometry=func.ST_GeogFromText(square(101.40, 3.40)),
+            metadata_json={
+                **osm,
+                "source": "invatrace-featured-seed-v1",
+                "tags": {"leisure": "park"},
+            },
+        ),
+        MonitoredArea(
+            id=uuid.uuid4(),
+            name=f"{park} · OSM relation/77",
+            geometry=func.ST_GeogFromText(square(101.405, 3.405)),
+            metadata_json={**osm, "tags": {"leisure": "park"}},
+        ),
+        MonitoredArea(
+            id=uuid.uuid4(),
+            name=homonym,
+            geometry=func.ST_GeogFromText(square(101.50, 3.50)),
+            metadata_json={**osm, "tags": {"leisure": "park"}},
+        ),
+        MonitoredArea(
+            id=uuid.uuid4(),
+            name=f"{homonym} · OSM way/88",
+            geometry=func.ST_GeogFromText(square(103.70, 1.50)),
+            metadata_json={**osm, "tags": {"leisure": "park"}},
+        ),
+    ]
+    with SessionLocal() as session:
+        session.add_all([*trails, *areas])
+        session.commit()
+        try:
+            items = list_places(_rate_limit_request(), session).items  # type: ignore[arg-type]
+            ours = [item for item in items if run in item.display_name]
+            names = sorted((item.display_name, item.place_type) for item in ours)
+            assert names == sorted(
+                [(trail, "trail"), (park, "park"), (homonym, "park"), (homonym, "park")]
+            )
+            assert all("· OSM" not in item.display_name for item in ours)
+            # The whole split trail is one entry, the unsuffixed parent.
+            assert next(i for i in ours if i.display_name == trail).place_id == trails[0].id
+            # The curated park hides its OSM copy.
+            assert next(i for i in ours if i.display_name == park).source.startswith("invatrace")
+            hints = sorted(i.location_hint or "" for i in ours if i.display_name == homonym)
+            # Two different parks share a name: each says roughly where it is.
+            assert hints[0].startswith("Near 1.5") and "103.7" in hints[0]
+            assert hints[1].startswith("Near 3.5") and "101.5" in hints[1]
+        finally:
+            for row in [*trails, *areas]:
+                session.delete(row)
+            session.commit()

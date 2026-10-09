@@ -30,6 +30,7 @@ from app.domain.catalogue import (
     approved_catalogue_image_for_species,
     approved_species_record,
 )
+from app.domain.place_names import PlaceCandidate, dedupe_places, public_place_name
 from app.waterway_import import MAX_SNAP_DISTANCE_M, OSM_DIRECTION_SOURCE
 
 router = APIRouter(prefix="/api/v1/places", tags=["places"])
@@ -56,6 +57,8 @@ class PlaceSummary(ApiModel):
     source: str
     geometry_version: str
     view_plants_url: str
+    # Only set when different places share a name, so people can tell them apart.
+    location_hint: str | None = None
 
 
 class PlaceDetail(ApiModel):
@@ -214,7 +217,7 @@ def _summary(
     )
     return PlaceSummary(
         place_id=place_id,
-        display_name=name,
+        display_name=public_place_name(name),
         place_type=place_type,
         geometry_status=geometry_status,
         source=source,
@@ -272,7 +275,7 @@ def _place_detail_response(
         raise ApiProblem(422, "unsupported_place_geometry", "This place has no usable geometry.")
     return PlaceDetail(
         place_id=place.id,
-        display_name=place.name,
+        display_name=public_place_name(place.name),
         place_type=place_type,
         geometry_status=geometry_status,
         source=source,
@@ -287,27 +290,46 @@ def list_places(
     request: Request,
     session: Session = Depends(get_session),
 ) -> PlaceListResponse:
-    """Return searchable place metadata without expensive full geometries."""
+    """Return searchable place metadata without expensive full geometries.
+
+    One entry per real place: split trail segments and repeated OSM features
+    merge, a curated place hides its raw OSM copy, and different places that
+    share a name carry a location hint (see app.domain.place_names).
+    """
     rate_limiter.check("places_read", client_address(request))
+    candidates: list[PlaceCandidate[PlaceSummary]] = []
+    for model, kind in ((MonitoredArea, "area"), (Trail, "trail")):
+        point = func.ST_PointOnSurface(cast(model.geometry, Geometry))
+        rows = session.execute(
+            select(
+                model.id,
+                model.name,
+                model.metadata_json,
+                func.ST_Y(point),
+                func.ST_X(point),
+            ).order_by(model.name)
+        ).all()
+        for place_id, name, metadata, latitude, longitude in rows:
+            metadata = metadata or {}
+            place_type = "trail" if kind == "trail" else _classify_area(name, metadata)
+            item = _summary(place_id, name, metadata, place_type)
+            if item is None:
+                continue
+            candidates.append(
+                PlaceCandidate(
+                    item=item,
+                    name=item.display_name,
+                    kind=kind,
+                    curated=not item.source.startswith("OpenStreetMap"),
+                    suffixed=item.display_name != name,
+                    latitude=latitude,
+                    longitude=longitude,
+                )
+            )
     items: list[PlaceSummary] = []
-    area_rows = session.execute(
-        select(
-            MonitoredArea.id,
-            MonitoredArea.name,
-            MonitoredArea.metadata_json,
-        ).order_by(MonitoredArea.name)
-    ).all()
-    for place_id, name, metadata in area_rows:
-        item = _summary(place_id, name, metadata or {}, _classify_area(name, metadata or {}))
-        if item is not None:
-            items.append(item)
-    trail_rows = session.execute(
-        select(Trail.id, Trail.name, Trail.metadata_json).order_by(Trail.name)
-    ).all()
-    for place_id, name, metadata in trail_rows:
-        item = _summary(place_id, name, metadata or {}, "trail")
-        if item is not None:
-            items.append(item)
+    for candidate in dedupe_places(candidates):
+        candidate.item.location_hint = candidate.location_hint
+        items.append(candidate.item)
     items.sort(key=lambda item: item.display_name.casefold())
     return PlaceListResponse(items=items)
 
@@ -321,7 +343,9 @@ def _validate_viewport(min_lon: float, min_lat: float, max_lon: float, max_lat: 
         and MALAYSIA_MIN_LAT <= min_lat <= MALAYSIA_MAX_LAT
         and MALAYSIA_MIN_LAT <= max_lat <= MALAYSIA_MAX_LAT
     ):
-        raise ApiProblem(422, "viewport_outside_malaysia", "Viewport must be within Malaysia bounds.")
+        raise ApiProblem(
+            422, "viewport_outside_malaysia", "Viewport must be within Malaysia bounds."
+        )
 
 
 def _available_geometry(model):
@@ -568,9 +592,7 @@ def plant_associations(
             .outerjoin(PlaceOccurrenceWaterwayEvidence, waterway_join)
             .where(or_(spatial_match, upstream_match))
         )
-    rows = session.execute(
-        statement.order_by(distance.asc()).limit(ASSOCIATION_MAX_ROWS + 1)
-    ).all()
+    rows = session.execute(statement.order_by(distance.asc()).limit(ASSOCIATION_MAX_ROWS + 1)).all()
     truncated = len(rows) > ASSOCIATION_MAX_ROWS
     rows = rows[:ASSOCIATION_MAX_ROWS]
     grouped: dict[str, list[tuple]] = defaultdict(list)
@@ -703,12 +725,10 @@ def plant_associations(
                 catalogue_url=f"/catalogue/{approved.species_id}",
             )
         )
-    community_items.sort(
-        key=lambda item: (-item.active_reports, item.scientific_name)
-    )
+    community_items.sort(key=lambda item: (-item.active_reports, item.scientific_name))
     return PlacePlantAssociationsResponse(
         place_id=place.id,
-        place_name=place.name,
+        place_name=public_place_name(place.name),
         place_type=place_type,
         geometry_version=geometry_version,
         processed_data_versions=sorted(data_versions),

@@ -80,7 +80,7 @@ export function PlacesPage() {
           {places.map((place) => (
             <li key={place.placeId}>
               <Link to={`/places/${place.placeId}`}>
-                <span><strong>{place.displayName}</strong><small>{place.placeType}</small></span>
+                <span><strong>{place.displayName}</strong><small>{place.placeType}{place.locationHint ? ` · ${place.locationHint}` : ''}</small></span>
                 <span className="places-list__source">{place.source} · geometry {place.geometryVersion}</span>
                 <strong className="places-list__action">View plants recorded nearby</strong>
               </Link>
