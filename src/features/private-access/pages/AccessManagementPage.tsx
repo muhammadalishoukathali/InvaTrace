@@ -3,7 +3,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { createPortal } from 'react-dom'
 import { useNavigate } from 'react-router-dom'
 import type { AccessOverview, AuthorizedInstallation, RecoveryCodeBatchResponse } from '@/types'
-import { PrivateAccessButton, PrivateAccessField, PrivateAccessLink, RecoveryCodeGrid, PrivateAccessNotice } from '@/features/private-access/components/PrivateAccessControls'
+import { PrivateAccessButton, PrivateAccessField, RecoveryCodeGrid, PrivateAccessNotice } from '@/features/private-access/components/PrivateAccessControls'
 import { Icon } from '@/components/Icon'
 import { api } from '@/services/api-client'
 import {
@@ -191,10 +191,6 @@ export function AccessManagementPage() {
           >
             <Icon name="Pencil" size={15} />
           </button>
-        </div>
-        <div className="access-profile-summary__links">
-          <PrivateAccessLink href="/reports" icon="ClipboardList" replace>View my records</PrivateAccessLink>
-          <PrivateAccessLink href="/adopted-areas" icon="Map" replace>My adopted areas</PrivateAccessLink>
         </div>
       </header>
 

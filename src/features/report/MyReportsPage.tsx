@@ -15,7 +15,6 @@ import { api } from '@/services/api-client'
 import { useOnline } from '@/hooks/useOnline'
 import { scanStateFromPath } from '@/features/scan/scan-navigation'
 import { listScanHistory, type ScanHistoryRecord } from '@/features/scan/scan-history-store'
-import { profileStateFromPath } from '@/features/private-access/profile-navigation'
 import { mapStateForLocation } from '@/features/map/map-location-link'
 import { usePrivateAccess } from '@/features/private-access/private-access-store'
 import { findApprovedSpecies } from '@shared/catalogue'
@@ -123,18 +122,6 @@ export function MyReportsPage() {
 
   return (
     <section className="my-reports" aria-label="My records">
-      <nav className="my-reports__toolbar" aria-label="Record actions">
-        <Link className="my-reports__back" to="/profile" state={profileStateFromPath('/reports')}>
-          <Icon name="ChevronLeft" size={17} />
-          <span>Profile</span>
-        </Link>
-        <Link className="my-reports__cta" to="/scan" state={scanStateFromPath('/reports')}>
-          <Icon name="ScanLine" size={16} />
-          <span>New scan</span>
-        </Link>
-      </nav>
-
-
       <div className="my-reports__overview">
         <div className="my-reports__overview-copy">
           <span className="my-reports__eyebrow">Field record</span>

@@ -25,6 +25,8 @@
   color: var(--body);
 }
 .catalogue-page__places-link { display: inline-flex; margin-top: 14px; color: var(--green-dark); font-weight: 650; text-underline-offset: 3px; }
+/* Desktop sidebar already lists Browse places. */
+@media (min-width: 900px) { .catalogue-page__places-link { display: none; } }
 
 .catalogue-pack {
   padding: 18px;

@@ -6,28 +6,7 @@
   margin: 0 auto;
 }
 
-.my-reports__toolbar {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 12px;
-}
 
-.my-reports__back {
-  min-height: 44px;
-  display: inline-flex;
-  align-items: center;
-  gap: 5px;
-  padding: 0 10px 0 7px;
-  border-radius: var(--r-input);
-  color: var(--body);
-  font-size: 13px;
-  font-weight: 600;
-  text-decoration: none;
-}
-.my-reports__back:hover { background: var(--hover); color: var(--ink); }
-.my-reports__back:focus-visible,
-.my-reports__cta:focus-visible { outline: 2px solid var(--green); outline-offset: 2px; }
 
 .my-reports__overview {
   position: relative;
@@ -333,22 +312,6 @@
 .my-reports__empty-cta:hover { border-color: var(--green); }
 .my-reports__empty-cta:active { transform: scale(.98); }
 
-.my-reports__cta {
-  display: inline-flex;
-  align-items: center;
-  gap: 6px;
-  padding: 10px 16px;
-  border-radius: var(--r-button);
-  background: var(--green);
-  color: var(--on-accent);
-  text-decoration: none;
-  font-weight: 600;
-  font-size: 13px;
-  height: var(--h-primary);
-  box-sizing: border-box;
-}
-.my-reports__cta:hover { background: var(--green-hover); }
-.my-reports__cta:active { transform: scale(.98); }
 
 .my-reports__error {
   display: flex;
@@ -375,16 +338,13 @@
 }
 .my-reports__error button:hover { background: var(--hover); }
 
-/* The application shell switches to its sidebar at the same breakpoint. On
-   laptops the sidebar already provides Profile and New scan, so the page uses
-   the recovered width for content instead of repeating mobile navigation. */
+/* The application shell switches to its sidebar at the same breakpoint, so
+   the page uses the recovered width for content. */
 @media (min-width: 900px) {
   .my-reports {
     width: min(960px, 100%);
     gap: 24px;
   }
-
-  .my-reports__toolbar { display: none; }
 
   .my-reports__overview {
     grid-template-columns: minmax(0, 1fr) minmax(300px, 340px);
@@ -460,9 +420,6 @@
 
 @media (max-width: 560px) {
   .my-reports { gap: 18px; }
-  .my-reports__toolbar { position: relative; z-index: 1; }
-  .my-reports__back { margin-left: -7px; font-size: 13px; }
-  .my-reports__cta { min-height: 46px; padding-inline: 15px; }
   .my-reports__overview { gap: 19px; padding: 24px 20px 21px; border-radius: 16px; }
   .my-reports__overview::after { right: -112px; top: -148px; }
   .my-reports__overview h2 { font-size: 24px; }
@@ -487,8 +444,6 @@
 @media (max-width: 350px) {
   .my-reports__overview { padding-inline: 17px; }
   .my-reports__overview h2 { font-size: 22px; }
-  .my-reports__toolbar { gap: 6px; }
-  .my-reports__cta { padding-inline: 12px; }
   .my-reports__status { padding-inline: 8px; }
 }
 .my-reports__load-more {

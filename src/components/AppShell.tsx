@@ -68,7 +68,7 @@ export function AppShell() {
   // controls cluster) so it needs its own back-to-map affordance in the
   // header, otherwise users get stranded on /places with no exit path.
   const showPlacesBack = !isDesktop && pathname === '/places'
-  const showProfileShortcut = !isDesktop && pathname !== '/profile' && pathname !== '/reports'
+  const showProfileShortcut = !isDesktop && pathname !== '/profile'
   // Plants is not in the mobile bottom bar, so the header carries it.
   const showCatalogueShortcut = !isDesktop && !pathname.startsWith('/catalogue')
   const profileReturnTo = profileReturnPath(location.state)

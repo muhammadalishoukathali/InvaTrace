@@ -789,14 +789,18 @@ export function ThreatMapPage() {
             <Icon name="Trees" size={16} color="currentColor" />
             <span className="map-cluster-btn__label">Places</span>
           </button>
-          <Link
-            to="/places"
-            className="map-cluster-btn map-cluster-btn--browse"
-            aria-label="Browse mapped places"
-          >
-            <Icon name="Map" size={16} color="currentColor" />
-            <span className="map-cluster-btn__label">Browse</span>
-          </Link>
+          {/* Mobile-only entry to Places; on desktop the sidebar already
+              carries "Browse places". */}
+          {!isDesktop && (
+            <Link
+              to="/places"
+              className="map-cluster-btn map-cluster-btn--browse"
+              aria-label="Browse mapped places"
+            >
+              <Icon name="Map" size={16} color="currentColor" />
+              <span className="map-cluster-btn__label">Browse</span>
+            </Link>
+          )}
         </div>
         <MapLegend />
         {showPlaces && (placesLoading || placesError || placeData.truncated || placeData.features.length === 0) && (
