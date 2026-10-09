@@ -199,3 +199,111 @@ def test_follow_up_outcomes_filters_history_and_rejections_are_atomic(
             session.execute(delete(Species).where(Species.id == species_id))
             session.execute(delete(Profile).where(Profile.id == profile_id))
             session.commit()
+
+
+def test_removal_can_be_reported_again_after_regrowth(monkeypatch: pytest.MonkeyPatch) -> None:
+    """AC 4.8.5: removal -> regrowth -> removal again restarts follow-up on PostGIS."""
+    from decimal import Decimal
+
+    from app.db.models import Report, ReportSightingLink, Scan
+
+    monkeypatch.setattr(sightings.rate_limiter, "check", lambda *_a, **_k: None)
+    run = uuid.uuid4().hex[:12]
+    now = datetime.now(UTC)
+    species_id = f"reremoval-species-{run}"
+    lat, lng = Decimal("3.15000"), Decimal("101.70000")
+    with SessionLocal() as session:
+        profile = Profile(public_id=f"reremoval-{run}")
+        species = Species(
+            id=species_id, name="Re-removal invasive", latin_name="Reremoval invasiva",
+            is_invasive=True, reportable=True,
+        )
+        session.add_all((profile, species))
+        session.flush()
+        scan = Scan(
+            profile_id=profile.id, capture_id=uuid.uuid4(), predicted_species_id=species_id,
+            outcome="target", confidence=Decimal("0.9"), model_version="test", capture_source="camera",
+        )
+        sighting = Sighting(
+            species_id=species_id, source_profile_id=None, status="screened", risk="high",
+            latitude=lat, longitude=lng, reporter_trust="Trusted",
+            recommended_action="Observe safely.", place_label="Integration place",
+        )
+        session.add_all((scan, sighting))
+        session.flush()
+        report = Report(
+            profile_id=profile.id, species_id=species_id, status="screened",
+            photo_key=f"reremoval/{run}.jpg", outcome="target", confidence=Decimal("0.9"),
+            client_model_version="test", observed_at=now, capture_id=scan.capture_id,
+            capture_source="camera", scan_id=scan.id, latitude=lat, longitude=lng,
+            location_accuracy_m=8, extent="single", notes="", consent_accurate=True,
+            consent_no_pii=True, submitter_trust="Trusted", idempotency_key=f"reremoval-{run}",
+        )
+        session.add(report)
+        session.flush()
+        session.add(ReportSightingLink(report_id=report.id, sighting_id=sighting.id, active=True))
+        session.commit()
+        profile_id, sighting_id, report_id = profile.id, sighting.id, report.id
+
+    def auth_override() -> AuthContext:
+        with SessionLocal() as session:
+            profile = session.get(Profile, profile_id)
+            assert profile is not None
+            return AuthContext(profile=profile, installation=None)  # type: ignore[arg-type]
+
+    app.dependency_overrides[require_auth] = auth_override
+    client = TestClient(app, raise_server_exceptions=False)
+    fix = {"latitude": float(lat), "longitude": float(lng), "accuracyM": 10}
+
+    def remove():
+        return client.post(
+            f"/api/v1/reports/{report_id}/removal",
+            json={**fix, "capturedAt": datetime.now(UTC).isoformat()},
+        )
+
+    def follow_up(outcome: str):
+        return client.post(
+            f"/api/v1/sightings/{sighting_id}/follow-up",
+            json={**fix, "capturedAt": datetime.now(UTC).isoformat(), "outcome": outcome},
+        )
+
+    def detail() -> dict:
+        return client.get(f"/api/v1/sightings/{sighting_id}").json()
+
+    try:
+        first = remove()
+        assert first.status_code == 200, first.text
+        # A repeat while the removal is still open replays it without a new event.
+        replay = remove()
+        assert replay.status_code == 200 and replay.json()["removalReportedAt"] == first.json()["removalReportedAt"]
+        assert follow_up("regrowth_present").status_code == 201
+        assert detail()["followUpState"] == "regrowth"
+        assert detail()["removalReportId"] == str(report_id)
+
+        second = remove()
+        assert second.status_code == 200, second.text
+        assert second.json()["removalReportedAt"] != first.json()["removalReportedAt"]
+        after = detail()
+        assert after["status"] == "removal_reported" and after["followUpState"] == "needed"
+        assert after["reportCount"] == 1
+        assert [e["eventType"] for e in after["followUpHistory"]] == [
+            "reported", "removal_reported", "followup_regrowth", "removal_reported",
+        ]
+        assert after["removalReportedAt"] == second.json()["removalReportedAt"]
+
+        # The restarted cycle can run to resolution; a resolved sighting cannot be removed again.
+        assert follow_up("no_regrowth").status_code == 201
+        assert remove().status_code == 409
+    finally:
+        app.dependency_overrides.pop(require_auth, None)
+        with SessionLocal() as session:
+            session.execute(delete(SightingStatusEvent).where(SightingStatusEvent.sighting_id == sighting_id))
+            session.execute(delete(AuditEvent).where(AuditEvent.subject_id == str(sighting_id)))
+            session.execute(delete(ReportSightingLink).where(ReportSightingLink.sighting_id == sighting_id))
+            session.execute(delete(Report).where(Report.id == report_id))
+            session.execute(delete(Sighting).where(Sighting.id == sighting_id))
+            session.execute(delete(Scan).where(Scan.profile_id == profile_id))
+            session.execute(delete(AuditEvent).where(AuditEvent.subject_id == str(report_id)))
+            session.execute(delete(Profile).where(Profile.id == profile_id))
+            session.execute(delete(Species).where(Species.id == species_id))
+            session.commit()
