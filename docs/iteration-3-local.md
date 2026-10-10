@@ -109,10 +109,10 @@ npm run build
 npm run test:e2e
 ```
 
-The default browser suite uses MSW. Stop any real-API Vite server on 5173 before running it, because the existing config reuses that port. The new event browser tests are deliberately gated. With the local API running on 8800 and port 5175 free:
+The default browser suite uses MSW. Stop any real-API Vite server on 5173 before running it, because the existing config reuses that port. The event browser tests run in that default suite. To run the same specs against the local API on 8800, with port 5175 free:
 
 ```sh
-PLAYWRIGHT_EPIC9=1 npx playwright test --config=playwright.it3.config.ts
+npx playwright test --config=playwright.it3.config.ts
 RUN_INVATRACE_IT3_POSTGIS=1 .venv/bin/pytest backend/tests/integration/test_iteration3* -q
 ```
 

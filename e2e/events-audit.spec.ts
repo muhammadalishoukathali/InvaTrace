@@ -1,7 +1,6 @@
 import { expect, test, type Page } from '@playwright/test'
 import { pickEventTime } from './fixtures/event-time'
 
-test.skip(process.env.RUN_INVATRACE_IT3_E2E !== '1' && process.env.PLAYWRIGHT_EPIC9 !== '1', 'Iteration-3 browser coverage is gated.')
 // These specs stub the API with page.route(); switch off the dev MSW event mocks.
 test.beforeEach(async ({ page }) => { await page.addInitScript(() => localStorage.setItem('invatrace.mock.community', 'off')) })
 
@@ -25,7 +24,7 @@ async function hostFixture(page: Page, event = future, eligibility = { eligible:
   await page.context().route('**/api/v1/events/event-1', route => route.fulfill({ contentType: 'application/json', body: JSON.stringify(event) }))
 }
 
-test('hosting stays locked until three sightings are reported (AC 9.6.1)', async ({ page }) => {
+test('AC 9.6.1 hosting stays locked until three sightings are reported', async ({ page }) => {
   await hostFixture(page, future, { eligible: false, report_count: 1, required: 3 })
   await page.context().route('**/api/v1/events', route => route.fulfill({ json: { items: [] } }))
   await access(page); await page.goto('/events')
@@ -36,7 +35,7 @@ test('hosting stays locked until three sightings are reported (AC 9.6.1)', async
   await expect(page.getByLabel('Mapped place')).toHaveCount(0)
 })
 
-test('host form picks the place first, locks removal on protected land and blocks invalid input', async ({ page }) => {
+test('AC 9.6.6 AC 9.6.7 host form picks the place first, locks removal on protected land and blocks invalid input', async ({ page }) => {
   let creates = 0
   await hostFixture(page)
   await page.context().route('**/api/v1/events', route => { creates += 1; return route.fulfill({ status: 201, contentType: 'application/json', body: JSON.stringify({ event_id: 'created', status: 'draft' }) }) })
@@ -47,9 +46,11 @@ test('host form picks the place first, locks removal on protected land and block
   await page.getByRole('button', { name: 'Continue' }).click()
   await expect(page.getByText('Choose a mapped place.')).toBeVisible()
   await page.getByLabel('Mapped place').fill('Bukit'); await page.getByRole('button', { name: /Bukit Kiara/ }).click()
-  // AC 9.6.6 / 9.6.7: mapped protected land offers observe-and-report types only.
+  // AC 9.6.6 and AC 9.6.7: mapped protected land offers observe-and-report types only.
   await expect(page.getByText('Protected area: Bukit Kiara Forest Reserve')).toBeVisible()
   await expect(page.getByText(/Managed by Jabatan Perhutanan/)).toBeVisible()
+  // AC 9.6.7: the mapped status always carries the not-a-permission disclaimer.
+  await expect(page.locator('.host-land-status')).toContainText('Mapped status isn’t removal permission')
   // Removal is not offered at all here — not even as a greyed-out option.
   await expect(page.getByRole('radio', { name: /Removal activity/ })).toHaveCount(0)
   await expect(page.getByRole('radio', { name: /Repeat monitoring/ })).toBeVisible()
@@ -76,7 +77,7 @@ test('host form picks the place first, locks removal on protected land and block
   await expect(page.getByText('Enter a valid https:// link without a username or password.')).toBeVisible(); expect(creates).toBe(0)
 })
 
-test('non-host direct editor route is blocked and refetch does not overwrite dirty host input', async ({ page }) => {
+test('AC 9.6.1 non-host direct editor route is blocked and refetch does not overwrite dirty host input', async ({ page }) => {
   await hostFixture(page, { ...future, is_host: false })
   await access(page); await page.goto('/events/event-1/edit')
   await expect(page.getByText('Only the event host can edit this event.')).toBeVisible()
@@ -100,13 +101,15 @@ test('non-host direct editor route is blocked and refetch does not overwrite dir
   await expect(page.getByLabel('Event title')).toHaveValue('Unsaved local title')
 })
 
-test('failed fresh GPS request clears the prior check-in fix and disables confirmation', async ({ page, context, baseURL }) => {
+test('AC 9.3.1 failed fresh GPS request clears the prior check-in fix and disables confirmation', async ({ page, context, baseURL }) => {
   await context.grantPermissions(['geolocation'], { origin: new URL(baseURL!).origin })
   await context.setGeolocation({ latitude: 3.14, longitude: 101.69, accuracy: 8 })
   await page.context().route('**/api/v1/events/event-1', route => route.fulfill({ contentType: 'application/json', body: JSON.stringify({ ...future, status: 'published', is_host: false }) }))
   await access(page); await page.goto('/events/event-1/check-in')
   // Opening the screen requests a fresh location (AC 9.3.1); no tap needed.
   await expect(page.getByText('±8 m')).toBeVisible()
+  // Coordinates come from the device only: the screen has no field to type them into.
+  await expect(page.locator('.events-page').locator('input, textarea, select, [contenteditable="true"]')).toHaveCount(0)
   await expect(page.getByRole('button', { name: 'Confirm check-in' })).toBeEnabled()
   await context.clearPermissions()
   await page.getByRole('button', { name: 'Get a new location' }).click()
@@ -115,7 +118,7 @@ test('failed fresh GPS request clears the prior check-in fix and disables confir
   await expect(page.getByText('Measured accuracy')).toHaveCount(0)
 })
 
-test('direct check-in auto-join refreshes cached participation before returning to details', async ({ page, context }) => {
+test('AC 9.3.4 direct check-in auto-join refreshes cached participation before returning to details', async ({ page, context }) => {
   await context.grantPermissions(['geolocation'])
   await context.setGeolocation({ latitude: 3.14, longitude: 101.69, accuracy: 8 })
   let checkedIn = false
@@ -133,6 +136,12 @@ test('direct check-in auto-join refreshes cached participation before returning 
   await expect(page.getByRole('button', { name: 'Confirm check-in' })).toBeEnabled()
   await page.getByRole('button', { name: 'Confirm check-in' }).click()
   await expect(page).toHaveURL(/\/tasks$/)
+  // The survey task: find and record, an explicit scan action, and the
+  // identification-uncertainty and permission guidance still in view.
+  await expect(page.getByRole('heading', { name: 'Find and record' })).toBeVisible()
+  await expect(page.getByRole('link', { name: 'Start a scan' })).toBeVisible()
+  await expect(page.getByRole('heading', { name: 'Identification is a prediction' })).toBeVisible()
+  await expect(page.getByText(/is not permission to remove any plant/)).toBeVisible()
   await page.getByRole('link', { name: 'Back to event', exact: true }).click()
   await expect(page.getByRole('button', { name: 'Withdraw', exact: true })).toBeVisible()
   // Checked in: the event now leads to today's task rather than another check-in.
@@ -142,7 +151,7 @@ test('direct check-in auto-join refreshes cached participation before returning 
   await page.goBack(); await expect(page).not.toHaveURL(/\/check-in$/)
 })
 
-test('wizard Back steps back, leaving unsaved asks first, and a published event cannot re-open the form', async ({ page }) => {
+test('AC 9.6.4 wizard Back steps back, leaving unsaved asks first, and a published event cannot re-open the form', async ({ page }) => {
   await hostFixture(page)
   await page.context().route('**/api/v1/events?*', route => route.fulfill({ json: { items: [] } }))
   await page.context().route('**/api/v1/events', route => route.request().method() === 'POST'

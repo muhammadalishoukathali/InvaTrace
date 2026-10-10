@@ -28,6 +28,7 @@
     "test:e2e:model-ui": "playwright test --config=playwright.model.config.ts",
     "test:e2e:real": "playwright test --config=playwright.real.config.ts",
     "test:e2e:pwa": "playwright test --config=playwright.pwa.config.ts",
+    "test:ac-coverage": "python3 scripts/ac_traceability.py --check --csv",
     "test:e2e:retest": "playwright test happy-path.spec.ts iteration-2.spec.ts mobile-robustness.spec.ts && npm run test:e2e:pwa"
   },
   "dependencies": {

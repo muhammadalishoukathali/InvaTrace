@@ -5,11 +5,14 @@
 // API actually returns.
 import { expect, test } from '@playwright/test'
 
+// Set REAL_API_URL when the Compose API is published on a port other than 8000.
+const API = process.env.REAL_API_URL ?? 'http://localhost:8000'
+
 // Hits /health/live first so this fails fast with an obvious reason if the
 // backend just isn't up yet, instead of failing confusingly later on a UI
 // timeout.
 test('private access starts and bootstraps against the real API', async ({ page, request }) => {
-  const health = await request.get('http://localhost:8000/health/live')
+  const health = await request.get(`${API}/health/live`)
   expect(health.status()).toBe(200)
   expect(await health.json()).toEqual({ status: 'ok' })
 
@@ -45,7 +48,7 @@ test('private access starts and bootstraps against the real API', async ({ page,
 })
 
 test('real geospatial data is discoverable from the main map', async ({ page, request }) => {
-  const ready = await request.get('http://localhost:8000/health/ready')
+  const ready = await request.get(`${API}/health/ready`)
   const readiness = await ready.json() as {
     status: string
     database: string
@@ -123,7 +126,7 @@ test('real geospatial data is discoverable from the main map', async ({ page, re
 // hits the real FastAPI stack - no MSW involved.
 test('reporting flow completes end-to-end against the real API', async ({ request }) => {
   const installationToken = base64Url(crypto.getRandomValues(new Uint8Array(32)))
-  const started = await request.post('http://localhost:8000/api/v1/profiles/start', {
+  const started = await request.post(`${API}/api/v1/profiles/start`, {
     data: { installationToken },
   })
   expect(started.status()).toBe(201)
@@ -135,7 +138,7 @@ test('reporting flow completes end-to-end against the real API', async ({ reques
   const imageSha256 = await sha256Hex(photo)
   const captureId = crypto.randomUUID()
 
-  const scan = await request.post('http://localhost:8000/api/v1/scans', {
+  const scan = await request.post(`${API}/api/v1/scans`, {
     headers: authHeaders,
     data: {
       captureId,
@@ -150,7 +153,7 @@ test('reporting flow completes end-to-end against the real API', async ({ reques
   expect(scan.ok()).toBe(true)
 
   const idempotencyBase = `real-e2e-${captureId}`
-  const presign = await request.post('http://localhost:8000/api/v1/uploads/presign', {
+  const presign = await request.post(`${API}/api/v1/uploads/presign`, {
     headers: { ...authHeaders, 'Idempotency-Key': `${idempotencyBase}:upload` },
     data: { contentType: 'image/jpeg', sizeBytes: photo.length },
   })
@@ -178,7 +181,7 @@ test('reporting flow completes end-to-end against the real API', async ({ reques
     notes: 'real-backend e2e reporting coverage',
     consent: { accurate: true, noPII: true },
   }
-  const submitted = await request.post('http://localhost:8000/api/v1/reports', {
+  const submitted = await request.post(`${API}/api/v1/reports`, {
     headers: { ...authHeaders, 'Idempotency-Key': idempotencyBase },
     data: submission,
   })
@@ -192,14 +195,14 @@ test('reporting flow completes end-to-end against the real API', async ({ reques
   let published: { status: string; sightingId: string | null } = initial
   while (Date.now() < deadline && published.status === 'processing') {
     await new Promise((resolve) => setTimeout(resolve, 500))
-    const poll = await request.get(`http://localhost:8000/api/v1/reports/${initial.id}`, { headers: authHeaders })
+    const poll = await request.get(`${API}/api/v1/reports/${initial.id}`, { headers: authHeaders })
     expect(poll.status()).toBe(200)
     published = await poll.json() as { status: string; sightingId: string | null }
   }
   expect(published.status).toBe('screened')
   expect(published.sightingId).toBeTruthy()
 
-  const detail = await request.get(`http://localhost:8000/api/v1/sightings/${published.sightingId}`)
+  const detail = await request.get(`${API}/api/v1/sightings/${published.sightingId}`)
   expect(detail.status()).toBe(200)
   const sighting = await detail.json() as {
     status: string; thumbnailUrl: string | null; confidence: number | null

@@ -7,7 +7,6 @@ const apiUrl = process.env.REAL_API_URL
 
 export default defineConfig({
   testDir: './e2e',
-  testMatch: ['real-backend.spec.ts', 'real-removal-cycle.spec.ts'],
   fullyParallel: false,
   forbidOnly: !!process.env.CI,
   retries: process.env.CI ? 1 : 0,
@@ -26,5 +25,20 @@ export default defineConfig({
     reuseExistingServer: false,
     timeout: 60_000,
   },
-  projects: [{ name: 'chromium', use: { ...devices['Desktop Chrome'] } }],
+  projects: [
+    {
+      name: 'chromium',
+      testMatch: ['real-backend.spec.ts', 'real-removal-cycle.spec.ts'],
+      use: { ...devices['Desktop Chrome'] },
+    },
+    // The per-AC server-rule specs start many identities and deliberately trip
+    // rate limiters, so they run after the browser journeys, which do not wait
+    // for a limiter window to reopen.
+    {
+      name: 'ac-real',
+      testMatch: 'ac-real/**/*.spec.ts',
+      dependencies: ['chromium'],
+      use: { ...devices['Desktop Chrome'] },
+    },
+  ],
 })

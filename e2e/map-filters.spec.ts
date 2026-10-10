@@ -9,7 +9,7 @@ async function startPrivateAccess(page: Page) {
   await expect(page).toHaveURL(/\/map$/)
 }
 
-test('the reports list filters by follow-up state and plant, and the count follows', async ({ page }) => {
+test('AC 4.6.3 Follow up map filter, AC 4.2.3 Species filter: the reports list filters by follow-up state and plant, and the count follows', async ({ page }) => {
   await startPrivateAccess(page)
   await page.getByRole('button', { name: /Open reports list/ }).click()
   const sheet = page.getByRole('dialog', { name: 'Community reports list' })

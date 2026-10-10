@@ -2,7 +2,7 @@
 // private-access flow. Runs against the mock service worker (npm run dev).
 import { test, expect } from '@playwright/test'
 
-test('a first-time visitor can read the welcome page without an identity', async ({ page }) => {
+test('AC 10.1.1 Landing page first view: a first-time visitor can read the welcome page without an identity', async ({ page }) => {
   await page.goto('/')
   await expect(page).toHaveURL(/\/$/)
   await expect(page.getByRole('heading', { level: 1, name: /Spot invasive plants/ })).toBeVisible()
@@ -31,7 +31,7 @@ test('How it works moves to the five steps', async ({ page }) => {
   await expect(page).toHaveURL(/#how-it-works$/)
 })
 
-test('Start privately on the welcome page goes straight to the recovery kit, then "/" opens the map', async ({ page }) => {
+test('AC 10.2.3 Clear next action: Start privately on the welcome page goes straight to the recovery kit, then "/" opens the map', async ({ page }) => {
   await page.goto('/')
   await expect(page.getByText('No email, phone number or name needed.')).toBeVisible()
   await page.getByRole('button', { name: 'Start privately' }).last().click()
@@ -60,7 +60,7 @@ test('Start privately on the welcome page goes straight to the recovery kit, the
   expect(await page.evaluate(() => JSON.stringify(Object.keys(localStorage).sort()))).toBe(before)
 })
 
-test('Restore access is reachable from the welcome page', async ({ page }) => {
+test('AC 10.2.3 Clear next action: Restore access is reachable from the welcome page', async ({ page }) => {
   await page.goto('/')
   await page.getByRole('link', { name: 'Already use InvaTrace? Restore access' }).click()
   await expect(page).toHaveURL(/\/private-access\/restore$/)

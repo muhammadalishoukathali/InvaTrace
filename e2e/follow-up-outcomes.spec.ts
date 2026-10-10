@@ -3,8 +3,6 @@ import { expect, test, type BrowserContext, type Page } from '@playwright/test'
 const SIGHTING_ID = 's-10'
 const now = '2026-10-02T08:00:00.000Z'
 
-test.skip(process.env.PLAYWRIGHT_EPIC9 !== '1', 'Epic 4 follow-up is gated until the iteration-3 integration environment is enabled.')
-
 async function installFollowUpFixture(page: Page, rejection?: { status: number; code: string; detail: string }) {
   // The dev MSW service worker answers the follow-up POST before page.route can
   // see it, so a server rejection is injected through MSW's one-shot test hook.
@@ -102,24 +100,27 @@ async function selectAndSubmit(page: Page, outcomeName: RegExp) {
 
 for (const scenario of [
   {
-    name: 'no regrowth resolves and hides the marker from the default map',
+    name: 'AC 4.8.1 No regrowth outcome, AC 4.7.3 Outcome confirmation: no regrowth resolves and hides the marker from the default map',
     outcome: /No regrowth found/i,
     requestOutcome: 'no_regrowth',
     preview: /resolved and hidden/i,
+    completed: 'The marker is resolved and hidden from the default map.',
     expectedPins: 0,
   },
   {
-    name: 'regrowth returns an active coloured marker',
+    name: 'AC 4.8.2 Regrowth outcome, AC 4.7.3 Outcome confirmation: regrowth returns an active coloured marker',
     outcome: /Regrowth present/i,
     requestOutcome: 'regrowth_present',
     preview: /return to the active map/i,
+    completed: 'The marker has returned to the active map with a regrowth label.',
     expectedPins: 1,
   },
   {
-    name: 'unable to confirm leaves the grey follow-up marker',
+    name: 'AC 4.8.3 Unconfirmed outcome, AC 4.7.3 Outcome confirmation: unable to confirm leaves the grey follow-up marker',
     outcome: /Unable to confirm/i,
     requestOutcome: 'unable_to_confirm',
     preview: /remain grey/i,
+    completed: 'The marker remains grey and needs another follow-up.',
     expectedPins: 1,
   },
 ]) {
@@ -133,6 +134,8 @@ for (const scenario of [
     expect(submitted).toMatchObject({ outcome: scenario.requestOutcome })
     expect(submitted.accuracyM).toBeLessThanOrEqual(250)
     await expect(page.getByRole('heading', { name: 'Follow-up recorded' })).toBeVisible()
+    // AC 4.7.3: the success state explains how the marker has changed.
+    await expect(page.getByText(scenario.completed)).toBeVisible()
 
     await page.getByRole('link', { name: 'Return to map' }).click()
     await expect(page).toHaveURL(/\/map$/)
@@ -147,7 +150,7 @@ for (const scenario of [
   })
 }
 
-test('a stale-location rejection clears the fix and preserves the selected outcome on Back', async ({ page, context }) => {
+test('AC 4.7.4 Follow up location failure: a stale-location rejection clears the fix and preserves the selected outcome on Back', async ({ page, context }) => {
   await installFollowUpFixture(page, {
     status: 422,
     code: 'follow_up_location_stale',
@@ -182,7 +185,7 @@ test('a concurrent state change explains why another location retry cannot help'
   await expect(page.getByRole('button', { name: 'Try location again' })).toHaveCount(0)
 })
 
-test('after regrowth the sighting can be marked removed again and follow-up restarts', async ({ page, context }) => {
+test('AC 4.8.5 Re-report removal after regrowth: the sighting can be marked removed again and follow-up restarts', async ({ page, context }) => {
   // Real mock API end to end: s-01 is a screened sighting with a linked report.
   const id = 's-01'
   await context.grantPermissions(['geolocation'])
@@ -222,4 +225,7 @@ test('after regrowth the sighting can be marked removed again and follow-up rest
   await expect(page.getByText('The marker is active on the map again.')).toBeVisible()
   await markRemoved()
   await expect(page.getByRole('link', { name: 'Start follow-up' })).toBeVisible()
+  // AC 4.8.5: the earlier history is kept, in date order, with the new removal last.
+  await expect(page.getByRole('region', { name: 'Status history' }).getByRole('listitem').locator('strong'))
+    .toHaveText(['Original report', 'Removal reported', 'Regrowth reported', 'Removal reported'])
 })
