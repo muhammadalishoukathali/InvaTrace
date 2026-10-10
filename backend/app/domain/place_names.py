@@ -4,7 +4,8 @@ The OSM import keeps every feature, so it gives the second and later features
 sharing a name a unique label such as ``"Ah Meng Trail · OSM way/123"``. That
 label is right for storage but wrong for people: a split trail shows up as a
 dozen near-identical rows, and a curated place appears again as its raw OSM
-copy. Search lists use these helpers to show one clean entry per real place.
+copy. Search lists use these helpers to show one clean entry per real place;
+imported records take precedence over demonstration seed records.
 """
 
 from __future__ import annotations
@@ -37,6 +38,7 @@ class PlaceCandidate[T]:
     latitude: float | None
     longitude: float | None
     location_hint: str | None = None
+    demo_seed: bool = False
 
 
 def _distance_km(a: PlaceCandidate, b: PlaceCandidate) -> float:
@@ -67,7 +69,7 @@ def dedupe_places[T](candidates: list[PlaceCandidate[T]]) -> list[PlaceCandidate
 
     Within a name and kind, candidates chained together by gaps shorter than
     SAME_PLACE_DISTANCE_KM merge into one (so every segment of a long split
-    trail joins up), keeping a curated place over OSM and an unsuffixed OSM
+    trail joins up), keeping a genuine curated place over OSM, OSM over demo seeds, and an unsuffixed OSM
     feature over a suffixed one. Clusters that remain apart are genuinely
     different places, so each gets an approximate-location hint.
     """
@@ -92,7 +94,7 @@ def dedupe_places[T](candidates: list[PlaceCandidate[T]]) -> list[PlaceCandidate
         for index, candidate in enumerate(group):
             clusters.setdefault(_root(parent, index), []).append(candidate)
         representatives = [
-            min(cluster, key=lambda c: (not c.curated, c.suffixed)) for cluster in clusters.values()
+            min(cluster, key=lambda c: (c.demo_seed, not c.curated, c.suffixed)) for cluster in clusters.values()
         ]
         if len(representatives) > 1:
             for rep in representatives:

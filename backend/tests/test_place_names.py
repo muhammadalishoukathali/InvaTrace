@@ -1,12 +1,15 @@
+import pytest
+
 from app.domain.place_names import PlaceCandidate, dedupe_places, public_place_name
 
 
-def _place(name, *, kind="area", curated=False, suffixed=False, at=(3.15, 101.63), key=None):
+def _place(name, *, kind="area", curated=False, suffixed=False, at=(3.15, 101.63), key=None, demo_seed=False):
     return PlaceCandidate(
         item=name if key is None else key,
         name=name,
         kind=kind,
         curated=curated,
+        demo_seed=demo_seed,
         suffixed=suffixed,
         latitude=at[0],
         longitude=at[1],
@@ -63,3 +66,18 @@ def test_a_trail_never_merges_with_a_park_of_the_same_name() -> None:
     kept = dedupe_places([_place("Kiara", kind="trail"), _place("Kiara", kind="area")])
     assert len(kept) == 2
     assert all(c.location_hint is None for c in kept)
+
+
+@pytest.mark.parametrize("reverse", [False, True])
+@pytest.mark.parametrize("name", ["Taman Botani Negara Shah Alam", "Example forest", "Example park"])
+def test_osm_record_supersedes_demo_seed(name, reverse):
+    candidates = [
+        _place(name, curated=True, demo_seed=True, at=(3.1017, 101.535), key="demo"),
+        _place(name, suffixed=True, at=(3.112, 101.5085), key="osm"),
+    ]
+    kept = dedupe_places(candidates[::-1] if reverse else candidates)
+    assert [c.item for c in kept] == ["osm"]
+
+
+def test_demo_without_imported_duplicate_remains_available():
+    assert dedupe_places([_place("Seed only", curated=True, demo_seed=True, key="demo")])[0].item == "demo"

@@ -293,7 +293,8 @@ def list_places(
     """Return searchable place metadata without expensive full geometries.
 
     One entry per real place: split trail segments and repeated OSM features
-    merge, a curated place hides its raw OSM copy, and different places that
+    merge, imported places supersede demo seeds, genuine curated places supersede
+    their OSM copies, and different places that
     share a name carry a location hint (see app.domain.place_names).
     """
     rate_limiter.check("places_read", client_address(request))
@@ -321,6 +322,7 @@ def list_places(
                     name=item.display_name,
                     kind=kind,
                     curated=not item.source.startswith("OpenStreetMap"),
+                    demo_seed=item.source.startswith("invatrace-featured-seed"),
                     suffixed=item.display_name != name,
                     latitude=latitude,
                     longitude=longitude,
