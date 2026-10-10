@@ -121,23 +121,24 @@ async def verify_image(
         )
     project = settings.plantnet_project or "all"
     endpoint_url = f"{settings.plantnet_endpoint}/{project}"
-    # Key goes in a header, not the query string. Query params bleed into
-    # request logs and any httpx.HTTPError.str() we log below, so keeping
-    # the secret out of the URL entirely is the safe default.
-    request_headers = {"Api-Key": settings.plantnet_api_key}
+    # PlantNet only reads the key from the `api-key` query parameter (an
+    # `Api-Key` header is answered with 401 "Missing authentication"). That
+    # puts the secret in the request URL, so nothing below may log the URL
+    # or the text of an exception, which can embed it.
     # `no-reject=false` matches PlantNet's default; kept explicit so a
     # future dashboard tweak cannot silently flip identifier behaviour.
-    request_params = {"no-reject": "false"}
+    request_params = {"api-key": settings.plantnet_api_key, "no-reject": "false"}
     if not organs:
         organs = ("auto",)
     files = [("images", (filename, image_bytes, content_type))]
-    data = [("organs", organ) for organ in organs]
+    # Must be a mapping: httpx treats any other `data` value as a raw request
+    # body, which AsyncClient refuses to send. A list value repeats the field.
+    data = {"organs": list(organs)}
 
     async def _call(client: httpx.AsyncClient) -> httpx.Response:
         return await client.post(
             endpoint_url,
             params=request_params,
-            headers=request_headers,
             files=files,
             data=data,
             timeout=settings.plantnet_timeout_seconds,
@@ -150,13 +151,16 @@ async def verify_image(
         else:
             response = await _call(http_client)
     except httpx.TimeoutException:
-        # Never log the endpoint URL alongside the key context; the URL is
-        # safe on its own (no key in it) but we keep the log minimal.
         log.warning("plantnet timeout")
         return PlantNetVerification(status="not_sure", species=None, reason="PlantNet timed out")
     except httpx.HTTPError as error:
         log.warning("plantnet transport error", error_type=type(error).__name__)
         return PlantNetVerification(status="error", species=None, reason="transport error")
+    except Exception as error:
+        # PlantNet is a best-effort second opinion; an unexpected failure in
+        # the outbound call must not turn into a 500 for the scan UI.
+        log.error("plantnet unexpected error", error_type=type(error).__name__)
+        return PlantNetVerification(status="error", species=None, reason="unexpected error")
 
     if response.status_code == 404:
         # PlantNet uses 404 for "no species matched" on the /identify endpoint.
