@@ -1,3 +1,5 @@
+import { playFeedbackSound } from '@/services/sound-feedback'
+import { PlantLoader } from '@/components/PlantLoader'
 import { useEffect, useRef, useState } from 'react'
 import { createPortal } from 'react-dom'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
@@ -66,6 +68,7 @@ export function SightingDetailsSheet({ onAskAssistant }: { onAskAssistant?: () =
       { method: 'POST', body: JSON.stringify(fix) },
     ),
     onSuccess: async () => {
+      playFeedbackSound('removal')
       await Promise.all([
         refetch(),
         queryClient.invalidateQueries({ queryKey: ['sightings'] }),
@@ -153,7 +156,7 @@ export function SightingDetailsSheet({ onAskAssistant }: { onAskAssistant?: () =
               <span className="pin-sheet__skeleton-line pin-sheet__skeleton-line--title invatrace-skeleton" aria-hidden />
               <span className="pin-sheet__skeleton-line pin-sheet__skeleton-line--short invatrace-skeleton" aria-hidden />
               <span className="pin-sheet__skeleton-line invatrace-skeleton" aria-hidden />
-              <span className="sr-only">Loading sighting…</span>
+              <PlantLoader label="Loading sighting…" />
             </div>
           ) : (
             <>
@@ -294,7 +297,7 @@ export function SightingDetailsSheet({ onAskAssistant }: { onAskAssistant?: () =
                               onClick={() => removal.mutate(removalFix)}
                               disabled={removal.isPending}
                             >
-                              {removal.isPending ? 'Submitting…' : 'Confirm removal report'}
+                              {removal.isPending ? <PlantLoader compact label="Submitting…" /> : 'Confirm removal report'}
                             </button>
                           ) : (
                             <>

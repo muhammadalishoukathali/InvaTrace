@@ -1,3 +1,4 @@
+import { PlantLoader } from '@/components/PlantLoader'
 import { ENGLISH_LOCALE } from '@/utils/date-time'
 // The list of areas this user has adopted, at /adopted-areas. Adopting an area
 // means you want to be told when something is reported inside it, so the list
@@ -34,7 +35,7 @@ export function AdoptedAreasPage() {
       {' '}<Link to="/catalogue">Open offline catalogue</Link>
     </div>
   )
-  if (query.isLoading) return <div className="areas-state" role="status">Loading monitoring areas…</div>
+  if (query.isLoading) return <div className="areas-state" role="status"><PlantLoader label="Loading monitoring areas…" /></div>
   if (query.isError || !query.data) {
     return (
       <div className="areas-state" role="alert">

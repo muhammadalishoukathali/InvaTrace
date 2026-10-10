@@ -1,3 +1,4 @@
+import { PlantLoader } from '@/components/PlantLoader'
 import { ENGLISH_LOCALE } from '@/utils/date-time'
 // The plant catalogue list at /catalogue. This is the one screen that has to
 // keep working with no signal at all, because the whole point of it is that a
@@ -192,7 +193,7 @@ export function CataloguePage() {
             </div>
           ) : (
             <button type="button" onClick={() => void download()} disabled={packState === 'working'}>
-              {packState === 'working' ? 'Checking and saving…' : 'Download offline catalogue'}
+              {packState === 'working' ? <PlantLoader compact label="Checking and saving…" /> : 'Download offline catalogue'}
             </button>
           )}
           {packState === 'error' && (

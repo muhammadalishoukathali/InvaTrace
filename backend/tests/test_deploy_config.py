@@ -27,6 +27,7 @@ deployment:
 
 from __future__ import annotations
 
+import os
 from pathlib import Path
 
 REPO_ROOT = Path(__file__).resolve().parents[2]
@@ -34,6 +35,18 @@ REPO_ROOT = Path(__file__).resolve().parents[2]
 
 def _read(relative: str) -> str:
     return (REPO_ROOT / relative).read_text()
+
+
+def test_local_web_serves_maplibre_module_workers_as_javascript() -> None:
+    config = _read("infrastructure/epic8-web/nginx.conf")
+    assert r"location ~ \.mjs$" in config
+    assert "application/javascript mjs" in config
+    assert "try_files $uri =404" in config
+
+
+def test_local_api_and_worker_accept_bundled_student33_version() -> None:
+    config = _read("compose.epic8.yaml")
+    assert config.count("E1_MODEL_VERSIONS: invatrace-student33-tinyvit5m-320-fp16,oe_v4_31class_web_fp16") == 2
 
 
 def test_render_yaml_backend_uses_repo_root_build_context() -> None:
@@ -79,7 +92,10 @@ def test_render_yaml_declares_the_gps_and_dedup_policy_env_vars_explicitly() -> 
 
 def test_render_yaml_allows_both_published_frontend_origins() -> None:
     render = _read("render.yaml")
-    assert "https://invatrace-web-siul.onrender.com,https://invatrace-web.onrender.com,https://invatrace.pages.dev" in render
+    assert (
+        "https://invatrace-web-siul.onrender.com,https://invatrace-web.onrender.com,https://invatrace.pages.dev"
+        in render
+    )
 
 
 def test_render_yaml_declares_expected_frontend_cache_headers() -> None:
@@ -175,7 +191,12 @@ def test_docker_entrypoint_is_executable() -> None:
     path = REPO_ROOT / "backend" / "docker-entrypoint.sh"
     assert path.is_file(), "docker-entrypoint.sh must exist."
     mode = path.stat().st_mode
-    assert mode & 0o111, "docker-entrypoint.sh must be executable."
+    if os.name == "nt":
+        # NTFS checkouts do not expose POSIX executable bits; the image must
+        # still explicitly install the executable permission before startup.
+        assert "RUN chmod +x /usr/local/bin/docker-entrypoint.sh" in _read("backend/Dockerfile")
+    else:
+        assert mode & 0o111, "docker-entrypoint.sh must be executable."
     # POSIX line endings only - a stray CRLF makes `/bin/sh` fail with a
     # cryptic "not found" on the shebang line.
     raw = path.read_bytes()
@@ -226,4 +247,6 @@ def test_reference_images_are_revalidated_not_cached_immutably() -> None:
     for host, rule in (("Render", render_rule), ("Cloudflare Pages", pages_rule)):
         assert "immutable" not in rule, f"{host} must not cache /reference-images/* as immutable."
         assert "must-revalidate" in rule, f"{host} must revalidate /reference-images/*."
-        assert "max-age=31536000" not in rule, f"{host} must not cache /reference-images/* for a year."
+        assert "max-age=31536000" not in rule, (
+            f"{host} must not cache /reference-images/* for a year."
+        )

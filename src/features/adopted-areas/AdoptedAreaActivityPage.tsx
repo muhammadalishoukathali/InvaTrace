@@ -1,3 +1,4 @@
+import { PlantLoader } from '@/components/PlantLoader'
 import { ENGLISH_LOCALE } from '@/utils/date-time'
 // Activity feed for one adopted area: what has been reported inside it lately,
 // with a small map showing where.
@@ -23,7 +24,7 @@ import { approvedSpeciesDataset } from '@shared/catalogue'
 import { PlaceEventsSection } from '@/features/events/PlaceEventsSection'
 import './adopted-areas.css'
 
-maplibregl.setWorkerUrl(mapLibreWorkerUrl)
+maplibregl.setWorkerUrl(`${mapLibreWorkerUrl}?module-mime=1`)
 
 export function AdoptedAreaActivityPage() {
   const { adoptionId } = useParams()
@@ -213,7 +214,7 @@ export function AdoptedAreaActivityPage() {
       </div>
       <div className="activity-page__map-wrap">
         <div ref={container} className="activity-page__map" aria-label="Community activity map" />
-        {query.isLoading && <div className="activity-page__overlay" role="status">Loading activity…</div>}
+        {query.isLoading && <div className="activity-page__overlay" role="status"><PlantLoader label="Loading activity…" /></div>}
         {query.data?.emptyMessage && <div className="activity-page__overlay">{query.data.emptyMessage}</div>}
       </div>
     </section>

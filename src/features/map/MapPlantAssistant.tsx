@@ -1,3 +1,4 @@
+import { PlantLoader } from '@/components/PlantLoader'
 import { useRef } from 'react'
 import { createPortal } from 'react-dom'
 import { useQuery } from '@tanstack/react-query'
@@ -34,7 +35,7 @@ export function MapPlantAssistant({ sightingId, onClose }: {
           mapContext={{ sightingId, speciesId: species.species_id, scientificName: species.scientific_name }}
         /> : <>
           <PlantAssistantHeader context="Map" onClose={onClose} />
-          {sightingId ? <p className="plant-assistant__limitation" role="status">{isLoading ? 'Checking the public plant record…' : 'This record cannot provide supported plant context. Select a supported public plant record.'}</p>
+          {sightingId ? <p className="plant-assistant__limitation" role="status">{isLoading ? <PlantLoader label="Checking the public plant record…" /> : 'This record cannot provide supported plant context. Select a supported public plant record.'}</p>
             : <div className="plant-assistant__map-help">
               <p>Select a supported plant in the Reports list or on the map, then open this assistant for approved botanical information.</p>
               <p>Reports opens the visible community records. Places toggles mapped places. Browse opens the places list. Legend explains the marker colours. The existing filters control which reports are shown.</p>

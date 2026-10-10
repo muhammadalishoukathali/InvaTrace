@@ -15,6 +15,8 @@ export default tseslint.config(
       'test-results/**',
       'playwright-report/**',
       'verification/**',
+      'work/**',
+      'outputs/**',
       'e2e-harness/.scratch/**',
       'backend/.venv/**',
       '.venv/**',

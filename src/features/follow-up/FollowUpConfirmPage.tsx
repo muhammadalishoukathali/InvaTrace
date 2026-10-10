@@ -1,3 +1,5 @@
+import { playFeedbackSound } from '@/services/sound-feedback'
+import { PlantLoader } from '@/components/PlantLoader'
 import { useRef, useState } from 'react'
 import { useQueryClient } from '@tanstack/react-query'
 import { Link, useParams } from 'react-router-dom'
@@ -37,6 +39,7 @@ export function FollowUpConfirmPage({
     setSubmitting(true)
     try {
       await submitFollowUp(sightingId!, location, outcome)
+      playFeedbackSound('followup')
       await Promise.all([
         queryClient.invalidateQueries({ queryKey: ['sightings'] }),
         queryClient.invalidateQueries({ queryKey: ['sighting', sightingId] }),
@@ -75,7 +78,7 @@ export function FollowUpConfirmPage({
         <p>{copy.description}</p>
         <aside className="follow-up-preview"><strong>How the marker will change</strong><p>{copy.next}</p></aside>
         <p className="follow-up-explainer">Recorded at ±{Math.round(location.accuracyM)} m accuracy. Submitting saves this as a community observation.</p>
-        <button type="button" className="follow-up-button" disabled={submitting} onClick={submit}>{submitting ? 'Recording follow-up…' : 'Record follow-up'}</button>
+        <button type="button" className="follow-up-button" disabled={submitting} onClick={submit}>{submitting ? <PlantLoader compact label="Recording follow-up…" /> : 'Record follow-up'}</button>
       </section>
     </section>
   )

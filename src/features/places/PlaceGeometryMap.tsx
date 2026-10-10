@@ -11,7 +11,7 @@ import mapLibreWorkerUrl from 'maplibre-gl/dist/maplibre-gl-worker.mjs?url'
 import 'maplibre-gl/dist/maplibre-gl.css'
 import { BASEMAP_STYLE } from '@/features/map/basemap'
 
-maplibregl.setWorkerUrl(mapLibreWorkerUrl)
+maplibregl.setWorkerUrl(`${mapLibreWorkerUrl}?module-mime=1`)
 
 export function PlaceGeometryMap({ geometry, name }: { geometry: GeoJSON.Geometry; name: string }) {
   const container = useRef<HTMLDivElement>(null)

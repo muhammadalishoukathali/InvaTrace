@@ -72,7 +72,7 @@ def test_checkin_requires_a_recent_timestamped_gps_fix() -> None:
 
 
 def test_event_router_has_non_enumerating_discovery_and_private_detail_guards() -> None:
-    source = (Path(__file__).parents[1] / "app/api/routers/events.py").read_text()
+    source = (Path(__file__).parents[1] / "app/api/routers/events.py").read_text(encoding="utf-8")
     assert 'Event.status == "published"' in source
     assert "Event.hidden.is_(False)" in source
     assert "event.host_profile_id != auth.profile.id" in source
@@ -84,7 +84,7 @@ def test_event_router_has_non_enumerating_discovery_and_private_detail_guards() 
 
 
 def test_event_router_locks_host_cap_and_activity_sensitive_changes() -> None:
-    source = (Path(__file__).parents[1] / "app/api/routers/events.py").read_text()
+    source = (Path(__file__).parents[1] / "app/api/routers/events.py").read_text(encoding="utf-8")
     cap = source.split("def _host_cap", 1)[1].split("def _serialize", 1)[0]
     assert ".with_for_update()" in cap
     patch = source.split("def patch_event", 1)[1].split("def cancel_event", 1)[0]
@@ -101,8 +101,8 @@ def test_event_router_locks_host_cap_and_activity_sensitive_changes() -> None:
 
 def test_workers_are_idempotent_and_only_auto_cancel_hidden_published_events() -> None:
     root = Path(__file__).parents[1] / "app/workers"
-    completion = (root / "event_completion.py").read_text()
-    cancellation = (root / "event_auto_cancel.py").read_text()
+    completion = (root / "event_completion.py").read_text(encoding="utf-8")
+    cancellation = (root / "event_auto_cancel.py").read_text(encoding="utf-8")
     assert 'Event.status == "published"' in completion
     assert 'event.status = "completed"' in completion
     assert 'Event.status == "published"' in cancellation
@@ -204,7 +204,7 @@ def test_land_status_rejects_disallowed_event_type_and_records_status(
 
 
 def test_publish_and_type_changes_recheck_land_status() -> None:
-    source = (Path(__file__).parents[1] / "app/api/routers/events.py").read_text()
+    source = (Path(__file__).parents[1] / "app/api/routers/events.py").read_text(encoding="utf-8")
     create = source.split("def create_event", 1)[1].split("def patch_event", 1)[0]
     patch = source.split("def patch_event", 1)[1].split("def cancel_event", 1)[0]
     assert "_assert_can_host(session, auth.profile.id)" in create
@@ -213,7 +213,7 @@ def test_publish_and_type_changes_recheck_land_status() -> None:
 
 
 def test_router_guards_terminal_edits_flags_and_join_contract() -> None:
-    source = (Path(__file__).parents[1] / "app/api/routers/events.py").read_text()
+    source = (Path(__file__).parents[1] / "app/api/routers/events.py").read_text(encoding="utf-8")
     patch = source.split("def patch_event", 1)[1].split("def cancel_event", 1)[0]
     assert '"Only draft or published events can be edited."' in patch
     assert '"event_already_ended"' in patch

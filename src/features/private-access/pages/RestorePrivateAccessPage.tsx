@@ -1,3 +1,4 @@
+import { PlantLoader } from '@/components/PlantLoader'
 import { useState } from 'react'
 import { Link, Navigate, useNavigate } from 'react-router-dom'
 import { PrivateAccessLayout } from '@/features/private-access/components/PrivateAccessLayout'
@@ -123,7 +124,7 @@ export function RestorePrivateAccessPage() {
               placeholder="XXXX-XXXX-XXXX-XXXX-XXXX-XXXX-XX"
             />
             <PrivateAccessButton type="submit" disabled={!online || restoring}>
-              {restoring ? 'Restoring access…' : 'Restore access'}
+              {restoring ? <PlantLoader compact label="Restoring access…" /> : 'Restore access'}
             </PrivateAccessButton>
           </form>
         )}

@@ -1,3 +1,5 @@
+import { PlantLoader } from '@/components/PlantLoader'
+import { playFeedbackSound } from '@/services/sound-feedback'
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { useLocation, useNavigate } from 'react-router-dom'
 import { Icon } from '@/components/Icon'
@@ -340,6 +342,7 @@ export function ScanCapturePage() {
       if (!mountedRef.current || requestId !== analysisRequestRef.current) return
 
       setResult({ ...result, reportable: Boolean(detail?.reportable ?? detail) }, detail)
+      playFeedbackSound('scan')
       // Persisting the scan to the server happens in the background and is
       // deliberately decoupled from showing the result - navigate straight
       // away so the result screen lands within the 15 second budget. The
@@ -465,7 +468,7 @@ export function ScanCapturePage() {
             <span aria-hidden className="scan-capture__corner scan-capture__corner--bl" />
             <span aria-hidden className="scan-capture__corner scan-capture__corner--br" />
             <span className="scan-capture__camera-icon" aria-hidden>
-              {checking || cameraStarting ? <Spinner /> : <Icon name="Camera" size={30} color="var(--ink)" />}
+              {checking || cameraStarting ? <PlantLoader compact label="Preparing photo…" /> : <Icon name="Camera" size={30} color="var(--ink)" />}
             </span>
             <strong>{checking ? 'Preparing photo…' : cameraStarting ? 'Starting camera…' : 'Open camera'}</strong>
             <span>{checking ? 'Checking image quality' : cameraStarting ? 'Waiting for camera access' : 'Uses your phone’s rear camera'}</span>
@@ -564,8 +567,7 @@ export function ScanCapturePage() {
           >
             {analysing ? (
               <>
-                <Spinner />
-                {modelProgress === null ? 'Preparing model…' : `Loading model… ${modelProgress}%`}
+                <PlantLoader compact label={modelProgress === null ? 'Preparing model…' : `Loading model… ${modelProgress}%`} />
               </>
             ) : (
               <>
@@ -589,14 +591,5 @@ export function ScanCapturePage() {
         </ul>
       </section>
     </div>
-  )
-}
-
-function Spinner() {
-  return (
-    <svg className="scan-capture__spinner" width="18" height="18" viewBox="0 0 18 18" aria-hidden>
-      <circle cx="9" cy="9" r="7" stroke="rgba(255,255,255,0.3)" strokeWidth="2.5" fill="none" />
-      <path d="M9 2a7 7 0 0 1 7 7" stroke="#fff" strokeWidth="2.5" strokeLinecap="round" fill="none" />
-    </svg>
   )
 }

@@ -1,3 +1,4 @@
+import { PlantLoader } from '@/components/PlantLoader'
 // Browse list of places (parks, reserves, woodlands) at /places. Deliberately
 // thin: it fetches the list once and filters client-side, because the list is
 // small and typing in a search box that round-trips to the server felt
@@ -48,7 +49,7 @@ export function PlacesPage() {
       </section>
     )
   }
-  if (query.isLoading) return <div className="places-state" role="status">Loading mapped places…</div>
+  if (query.isLoading) return <div className="places-state" role="status"><PlantLoader label="Loading mapped places…" /></div>
   if (query.isError || !query.data) {
     return <div className="places-state" role="alert">Mapped places are temporarily unavailable.</div>
   }

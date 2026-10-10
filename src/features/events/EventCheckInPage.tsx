@@ -1,3 +1,4 @@
+import { PlantLoader } from '@/components/PlantLoader'
 import { useEffect, useRef, useState } from 'react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { Link, useLocation, useNavigate, useParams } from 'react-router-dom'
@@ -116,7 +117,7 @@ export function EventCheckInPage() {
             <h3>Get your current location</h3>
             <p className="event-muted">A fresh location from your device. Coordinates cannot be typed or edited.</p>
             <button type="button" className={`event-button${location ? '' : ' event-button--primary'}`} disabled={locating || checkin.isPending} onClick={locate}>
-              <Icon name="Crosshair" size={17} />{locating ? 'Getting location…' : location ? 'Get a new location' : 'Use my current location'}
+              <Icon name="Crosshair" size={17} />{locating ? <PlantLoader compact label="Getting location…" /> : location ? 'Get a new location' : 'Use my current location'}
             </button>
             {geoError && <p className="event-inline-alert" role="alert"><strong>Location:</strong> {geoError}</p>}
             {accuracy !== null && (
@@ -134,7 +135,7 @@ export function EventCheckInPage() {
             <h3>Confirm check-in</h3>
             <p className="event-muted">We check the event time and that you are inside the event place. Checking in is not removal permission.</p>
             <button type="button" className="event-button event-button--primary" disabled={!location || !usable || locating || checkin.isPending} onClick={() => checkin.mutate()}>
-              {checkin.isPending ? 'Checking in…' : 'Confirm check-in'}
+              {checkin.isPending ? <PlantLoader compact label="Checking in…" /> : 'Confirm check-in'}
             </button>
           </div>
         </li>

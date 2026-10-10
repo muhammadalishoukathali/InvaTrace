@@ -1,3 +1,4 @@
+import { PlantLoader } from '@/components/PlantLoader'
 import { Navigate, Outlet, useLocation } from 'react-router-dom'
 import { PrivateAccessLayout } from './PrivateAccessLayout'
 import { Logo } from '@/components/Logo'
@@ -18,7 +19,7 @@ export function PrivateAccessRouteGuard() {
         <section className="access-state" aria-busy="true" aria-live="polite">
           <Logo size={52} />
           <h1>Checking this installation</h1>
-          <p>Looking for existing private access…</p>
+          <PlantLoader label="Looking for existing private access…" />
         </section>
       </PrivateAccessLayout>
     )

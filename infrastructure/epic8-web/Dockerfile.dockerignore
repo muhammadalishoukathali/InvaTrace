@@ -1,0 +1,17 @@
+.git
+.github
+node_modules
+dist
+.venv
+work
+outputs
+verification
+test-results
+playwright-report
+backend/.venv
+**/__pycache__
+.env*
+**/.env*
+*.log
+*.osm.pbf
+*.pbf

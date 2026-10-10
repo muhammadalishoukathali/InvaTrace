@@ -1,3 +1,4 @@
+import { PlantLoader } from '@/components/PlantLoader'
 import { useEffect, useRef, useState, type FormEvent, type Ref } from 'react'
 import { ArrowUp, BookOpen, ExternalLink, Info, Leaf, MessageCircle, ShieldCheck, Sprout, Trees, Wind, X } from 'lucide-react'
 import type { IdentifyResult } from '@/types'
@@ -5,15 +6,63 @@ import { api, ApiError } from '@/services/api-client'
 import { findApprovedSpecies } from '@shared/catalogue'
 import './plant-assistant.css'
 
-interface AssistantResponse {
+export interface AssistantResponse {
   status: 'answer' | 'fallback' | 'insufficient_evidence' | 'unsupported_scan'
   answerability: 'answerable' | 'insufficient_evidence'
   answer: string
   safetyBoundary: string
   coveredTopics?: string[]
   answerMode?: 'grounded' | 'general_knowledge' | 'fallback'
+  coverage?: 'fully_supported' | 'partially_supported' | 'unsupported' | 'uncertain'
+  intent?: 'botanical' | 'catalogue' | 'greeting' | 'off_topic' | 'ambiguous' | 'restricted'
+  sections?: AnswerSection[]
+  mixedDepthNotice?: string | null
   sources: Array<{ chunkId: string; sourceName: string; sourceUrl: string; jurisdiction: string;
     attribution?: string | null; sourceLicense?: string | null; sourceLicenseUrl?: string | null }>
+}
+
+export type AnswerSection = {
+  kind: 'grounded' | 'ai' | 'conversation' | 'unavailable'
+  title: string
+  answer: string
+  depth: Depth
+  sources: AssistantResponse['sources']
+  warning?: string | null
+}
+
+function ReviewedSources({ sources }: { sources: AssistantResponse['sources'] }) {
+  const unique = [...new Map(sources.map(source => [source.sourceUrl, source])).values()]
+  return unique.length > 0 && <section className="plant-assistant__sources" aria-label="Sources">
+    <h4>Sources</h4>
+    <ul>{unique.map(source => <li key={source.sourceUrl}>
+      <a className="plant-assistant__source-link" href={source.sourceUrl} target="_blank" rel="noopener noreferrer">
+        <span>{source.sourceName}</span><ExternalLink size={14} aria-hidden="true" />
+      </a>
+      {source.attribution && <p className="plant-assistant__source-meta">{source.attribution}</p>}
+      {source.sourceLicense && source.sourceLicenseUrl && <p className="plant-assistant__source-meta">
+        <a href={source.sourceLicenseUrl} target="_blank" rel="noopener noreferrer">{source.sourceLicense}</a>
+      </p>}
+    </li>)}</ul>
+  </section>
+}
+
+export function AssistantSections({ response }: { response: AssistantResponse }) {
+  return <>
+    {response.status === 'fallback' && response.intent !== 'restricted' && <p className="plant-assistant__notice" role="status">The AI explanation was unavailable or failed its evidence check. Reviewed source text is shown instead.</p>}
+    {response.intent === 'restricted' && response.status === 'fallback' && response.answerability === 'answerable' && <p className="plant-assistant__notice">The guidance rewrite was unavailable or failed its preservation check. Reviewed wording is shown instead.</p>}
+    {response.mixedDepthNotice && <p className="plant-assistant__notice">{response.mixedDepthNotice}</p>}
+    {response.sections?.map((section, index) => <section key={index}
+      className={`plant-assistant__answer-section plant-assistant__answer-section--${section.kind}`}
+      aria-label={section.title} data-section-kind={section.kind} data-section-depth={section.depth}>
+      {section.kind !== 'ai' && <h4>{section.title}</h4>}
+      {section.kind === 'ai' && <details className="plant-assistant__ai-disclosure">
+        <summary><Info size={13} aria-hidden="true" /> AI knowledge · may be inaccurate</summary>
+        <p>{section.warning || "This information was generated using AI knowledge and has not been verified against InvaTrace's reviewed sources. It may contain inaccuracies."}</p>
+      </details>}
+      <p className="plant-assistant__answer">{section.answer}</p>
+      {section.kind === 'grounded' && <ReviewedSources sources={section.sources} />}
+    </section>)}
+  </>
 }
 
 const TOPIC_LABELS: Record<string, string> = {
@@ -64,17 +113,17 @@ export type AssistantContextProps =
 export function assistantRequestFor(context: AssistantContextProps, question: string, depth: Depth) {
   if (context.mapContext) return {
     path: '/api/v1/plant-assistant/map/ask',
-    body: { sightingId: context.mapContext.sightingId, question, depth, allowGeneralKnowledge: true },
+    body: { sightingId: context.mapContext.sightingId, question, depth, allowGeneralKnowledge: true, sectionAware: true },
   }
   if (context.guideContext) return {
     path: '/api/v1/plant-assistant/guide/ask',
-    body: { speciesId: context.guideContext.speciesId, question, depth, allowGeneralKnowledge: true },
+    body: { speciesId: context.guideContext.speciesId, question, depth, allowGeneralKnowledge: true, sectionAware: true },
   }
   const species = assistantSpeciesForScan(context.result)
   return {
     path: '/api/v1/plant-assistant/ask',
     body: { speciesId: species?.species_id ?? null, classifierConfidence: context.result.confidence,
-      classifierOutcome: context.result.outcome, question, depth, allowGeneralKnowledge: true },
+      classifierOutcome: context.result.outcome, question, depth, allowGeneralKnowledge: true, sectionAware: true },
   }
 }
 
@@ -128,28 +177,26 @@ function AssistantTurnView({ turn, latest, pending, repeat, contextDescription, 
       <h3 ref={headingRef} tabIndex={-1}>
         {response.answerMode === 'general_knowledge' || response.answerability !== 'answerable'
           ? <Info size={18} aria-hidden="true" /> : <BookOpen size={18} aria-hidden="true" />}
-        {response.answerMode === 'general_knowledge' ? 'General botanical information' : response.status === 'fallback' ? 'Source information' : response.status === 'answer' ? 'Answer' : 'Evidence is insufficient'}
+        {response.intent === 'greeting' || response.intent === 'off_topic' || response.intent === 'ambiguous' ? 'Plant conversation' : response.answerMode === 'general_knowledge' ? 'General botanical information' : response.status === 'fallback' ? 'Source information' : response.status === 'answer' ? 'Answer' : 'Evidence is insufficient'}
       </h3>
-      {response.answerMode === 'general_knowledge' && <p className="plant-assistant__notice">This explanation uses general model knowledge. It has not been verified against InvaTrace sources and makes no claim about the plant {contextDescription}.</p>}
-      {unchangedDepth && <p className="plant-assistant__notice" role={latest ? 'status' : undefined}>
+      {!response.sections?.length && response.answerMode === 'general_knowledge' && <p className="plant-assistant__notice">This explanation uses general model knowledge. It has not been verified against InvaTrace sources and makes no claim about the plant {contextDescription}.</p>}
+      {unchangedDepth && response.status !== 'fallback' && <p className="plant-assistant__notice" role={latest ? 'status' : undefined}>
         {response.answerMode === 'general_knowledge'
           ? 'The explanation is unchanged at this level.'
-          : unchangedDepth === 'simpler'
-            ? 'This is already the shortest approved wording for this answer.'
-            : 'The approved sources have no further detail for this answer.'}
+          : 'The generated explanation did not change at this level.'}
       </p>}
-      <p className="plant-assistant__answer">{response.answer}</p>
+      {response.sections?.length ? <AssistantSections response={response} /> : <p className="plant-assistant__answer">{response.answer}</p>}
       {response.status === 'insufficient_evidence' && topicLabels.length > 0 &&
         <p className="plant-assistant__coverage">Available information for this species: {topicLabels.join(', ')}.</p>}
       {response.answerability === 'answerable' && (latest && !repeat ? <div className="plant-assistant__depth">
         <p>Explanation level</p>
         <div className="plant-assistant__levels" role="group" aria-label="Explanation level">
-          {DEPTHS.filter(item => response.answerMode !== 'general_knowledge' || item.depth !== 'detailed').map(({ depth: nextDepth, label, ariaLabel }) => <button key={nextDepth} type="button" aria-label={ariaLabel}
+          {DEPTHS.map(({ depth: nextDepth, label, ariaLabel }) => <button key={nextDepth} type="button" aria-label={ariaLabel}
             aria-pressed={depth === nextDepth} disabled={pending}
             onClick={() => { if (nextDepth !== depth) onDepthChange(nextDepth) }}>{label}</button>)}
         </div>
       </div> : <p className="plant-assistant__past-depth">Explanation level: {DEPTHS.find(item => item.depth === depth)?.label}</p>)}
-      {response.answerMode !== 'general_knowledge' && sources.length > 0 && <section className="plant-assistant__sources" aria-label={response.answerability === 'answerable' ? 'Sources' : 'Related sources'}>
+      {!response.sections?.length && response.answerMode !== 'general_knowledge' && sources.length > 0 && <section className="plant-assistant__sources" aria-label={response.answerability === 'answerable' ? 'Sources' : 'Related sources'}>
         <h3>{response.answerability === 'answerable' ? 'Sources' : 'Related sources'}</h3>
         {response.answerability !== 'answerable' && <p className="plant-assistant__hint">These sources cover this plant but do not answer your question.</p>}
         <ul>{sources.map(source => <li key={source.sourceUrl}>
@@ -259,12 +306,18 @@ function PlantAssistantConversation(props: AssistantContextProps) {
     setPending(true)
     const attempt = new AbortController()
     controller.current = attempt
-    const timeout = window.setTimeout(() => attempt.abort(), 25_000)
+    const timeout = window.setTimeout(() => attempt.abort(), 65_000)
     try {
       const payload = assistantRequestFor(props, trimmed, depth)
+      const conversationHistory = turns.slice(-3).flatMap(turn => [
+        { role: 'user' as const, content: turn.question.slice(0, 3000) },
+        { role: 'assistant' as const, content: turn.response.answer.slice(0, 3000) },
+      ])
+      const previousAnswer = !clarify && latestTurn?.question.toLowerCase() === trimmed.toLowerCase()
+        ? latestTurn.response.answer.slice(0, 4000) : undefined
       const next = await api<AssistantResponse>(payload.path, {
         method: 'POST', signal: attempt.signal, cache: 'no-store',
-        body: JSON.stringify(payload.body),
+        body: JSON.stringify({ ...payload.body, history: conversationHistory, previousAnswer }),
       })
       if (attempt.signal.aborted) return
       const key = trimmed.toLowerCase()
@@ -313,8 +366,8 @@ function PlantAssistantConversation(props: AssistantContextProps) {
           <details className="plant-assistant__help">
             <summary>About this assistant</summary>
             <div className="plant-assistant__intro">
-              <p>Answers about <em>{species!.scientific_name}</em> come from approved sources only. {mapContext && 'This is catalogue information for a public community record, not expert identification or proof of nearby presence.'} {guideContext && 'This is catalogue education, not identification or verification of an observed plant.'}</p>
-              <p>You can also ask about general plant concepts. General information is labelled separately and does not identify your plant. General explanations support Simpler and Standard only.</p>
+              <p>Ask about <em>{species!.scientific_name}</em>, another plant or a botanical concept. Answers can combine reviewed sources with clearly labelled AI knowledge. {mapContext && 'This is catalogue information for a public community record, not expert identification or proof of nearby presence.'} {guideContext && 'This is catalogue education, not identification or verification of an observed plant.'}</p>
+              <p>Reviewed information has source citations. AI knowledge may be inaccurate, has no reviewed citations and does not change your plant identification. Both support Simpler, Standard and More detail. Brief answers, such as a plant name, may stay similar at different levels.</p>
             </div>
           </details>
           </div>
@@ -329,19 +382,16 @@ function PlantAssistantConversation(props: AssistantContextProps) {
               onDepthChange={depth => void submitQuestion(turn.question, depth, false)} />)}
           </div>
           {repeat && <div ref={repeatMessage} className="plant-assistant__repeat" role="status">
-            <p>{answered.current.get(repeat.toLowerCase()) === 'general_knowledge' ? 'I explained this general question earlier. Would you like Simpler or Standard? Detailed general explanations are unavailable.' : 'I explained this question earlier in this conversation. Would you like a simpler or more detailed explanation?'}</p>
+            <p>I explained this question earlier in this conversation. Would you like a simpler or more detailed explanation?</p>
             <div className="plant-assistant__choices">
               <button type="button" aria-label="Simpler explanation" disabled={pending} onClick={() => void submitQuestion(repeat, 'simpler', false)}>Simpler</button>
-              {answered.current.get(repeat.toLowerCase()) === 'general_knowledge'
-                ? <button type="button" disabled={pending} onClick={() => void submitQuestion(repeat, 'standard', false)}>Standard</button>
-                : <button type="button" disabled={pending} onClick={() => void submitQuestion(repeat, 'detailed', false)}>More detail</button>}
+              <button type="button" disabled={pending} onClick={() => void submitQuestion(repeat, 'detailed', false)}>More detail</button>
             </div>
           </div>}
           {(pending || error) && <div className="plant-assistant__request">
             <div className="plant-assistant__question"><span>Your question</span><p className="plant-assistant__asked">{requestQuestion}</p></div>
             {pending && <div ref={pendingMessage} className="plant-assistant__thinking" role="status">
-              <span className="plant-assistant__thinking-dots" aria-hidden="true"><span /><span /><span /></span>
-              <span>Preparing your answer…</span>
+              <PlantLoader label="Preparing your answer…" />
             </div>}
             {error && <p ref={errorMessage} className="plant-assistant__error" role="alert">{error}</p>}
           </div>}
@@ -355,7 +405,7 @@ function PlantAssistantConversation(props: AssistantContextProps) {
             <button className="plant-assistant__primary" type="submit" disabled={pending || !question.trim()}
               aria-label={pending ? 'Preparing your answer…' : 'Ask question'}>
               <span className="plant-assistant__send-label">{pending ? 'Preparing your answer…' : 'Ask question'}</span>
-              <ArrowUp size={18} aria-hidden="true" />
+              {pending ? <PlantLoader compact label="Preparing your answer…" /> : <ArrowUp size={18} aria-hidden="true" />}
             </button>
           </div>
           <p id="plant-question-hint" className="plant-assistant__hint">English only. Leave out personal details, locations and access codes. This conversation clears when you leave this {mapContext ? 'map record' : guideContext ? 'guide' : 'scan'}.</p>

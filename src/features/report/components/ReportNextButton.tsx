@@ -1,3 +1,4 @@
+import { PlantLoader } from '@/components/PlantLoader'
 import { Icon } from '@/components/Icon'
 
 interface Props {
@@ -26,7 +27,7 @@ export function ReportNextButton({ disabled, onClick, label, loading, variant = 
       display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8,
     }}>
       {loading ? (
-        <><Spinner /><span>{label}…</span></>
+        <PlantLoader compact label={`${label}…`} />
       ) : (
         <>
           {variant === 'submit' && <Icon name="Send" size={16} color="#fff" />}
@@ -35,15 +36,5 @@ export function ReportNextButton({ disabled, onClick, label, loading, variant = 
         </>
       )}
     </button>
-  )
-}
-
-function Spinner() {
-  return (
-    <svg width="18" height="18" viewBox="0 0 18 18" style={{ animation: 'spin 0.8s linear infinite' }}>
-      <style>{`@keyframes spin { to { transform: rotate(360deg) } }`}</style>
-      <circle cx="9" cy="9" r="7" stroke="rgba(255,255,255,0.3)" strokeWidth="2.5" fill="none" />
-      <path d="M9 2a7 7 0 0 1 7 7" stroke="#fff" strokeWidth="2.5" strokeLinecap="round" fill="none" />
-    </svg>
   )
 }

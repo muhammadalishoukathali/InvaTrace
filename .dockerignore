@@ -20,3 +20,6 @@ local-data
 data-import/raw
 **/*.zip
 **/*.rar
+work/
+backups/
+.venv/

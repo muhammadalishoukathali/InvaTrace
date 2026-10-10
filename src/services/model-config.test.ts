@@ -28,6 +28,14 @@ describe('applyServerAcceptance', () => {
     expect(out.serverAccepted).toBe(true)
   })
 
+  it('accepts the bundled Student33 version without lowering the confidence gate', () => {
+    const version = 'invatrace-student33-tinyvit5m-320-fp16'
+    const config = { ...supportedConfig, modelVersion: version, supportedVersions: [version, ...supportedConfig.supportedVersions] }
+    const result = { ...targetResult, modelVersion: version, confidence: 0.99996 }
+    expect(applyServerAcceptance(result, config).outcome).toBe('target')
+    expect(applyServerAcceptance({ ...result, confidence: 0.49 }, config).outcome).toBe('uncertain')
+  })
+
   it('keeps local result when no config is available but marks it unaccepted', () => {
     // AC Iteration 1 P2 - a slow/unavailable backend must not prevent the
     // local classification from appearing. Reporting stays blocked via

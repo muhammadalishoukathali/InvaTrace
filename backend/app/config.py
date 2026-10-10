@@ -57,6 +57,7 @@ class Settings(BaseSettings):
     assistant_generation_model: str | None = None
     assistant_generation_free_tier: bool = False
     assistant_generation_enabled: bool = False
+    assistant_conversation_timeout_seconds: float = Field(default=45, ge=10, le=60)
     assistant_judge_enabled: bool = False
     assistant_judge_model: str | None = None
     assistant_judge_timeout_seconds: float = Field(default=6, ge=1, le=15)

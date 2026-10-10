@@ -1,3 +1,4 @@
+import { PlantLoader } from '@/components/PlantLoader'
 import { ENGLISH_LOCALE } from '@/utils/date-time'
 import { useEffect, useMemo, useState } from 'react'
 import { useQuery } from '@tanstack/react-query'
@@ -573,7 +574,7 @@ function GuidanceLocationContext({
     <section style={{ marginTop: 16, padding: 14, border: '1px solid var(--border)', borderRadius: 'var(--r-card)' }}>
       <h4 style={{ fontSize: 13.5 }}>Location context</h4>
       <p style={{ marginTop: 5, color: 'var(--body)', fontSize: 12.5, lineHeight: 1.5 }}>
-        {loading ? 'Checking protected-area boundary…' : context?.disclaimer
+        {loading ? <PlantLoader compact label="Checking protected-area boundary…" /> : context?.disclaimer
           ?? (error
             ? 'Boundary data could not be checked. Observe and report only.'
             : 'Check your current location before any active guidance can be shown.')}
@@ -596,7 +597,7 @@ function GuidanceLocationContext({
         disabled={loading}
         style={{ minHeight: 44, marginTop: 11, padding: '0 14px', border: '1px solid var(--control-border)', borderRadius: 'var(--r-button)', background: 'var(--surface)', color: 'var(--ink)', fontWeight: 650, cursor: 'pointer' }}
       >
-        {loading ? 'Checking…' : context ? 'Check location again' : 'Check current location'}
+        {loading ? <PlantLoader compact label="Checking…" /> : context ? 'Check location again' : 'Check current location'}
       </button>
     </section>
   )

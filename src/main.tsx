@@ -1,3 +1,4 @@
+import { installSoundFeedback } from '@/services/sound-feedback'
 import { StrictMode } from 'react'
 import { createRoot } from 'react-dom/client'
 import { RouterProvider } from 'react-router-dom'
@@ -11,6 +12,7 @@ import { installStaleShellRecovery } from '@/stale-shell-recovery'
 import './styles/global.css'
 
 installStaleShellRecovery()
+installSoundFeedback()
 
 async function start() {
   // Default to mocks in dev when the flag is unset so a fresh `npm run dev`

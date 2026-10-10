@@ -1,3 +1,4 @@
+import { PlantLoader } from '@/components/PlantLoader'
 import { Navigate } from 'react-router-dom'
 import { Logo } from '@/components/Logo'
 import { usePrivateAccess } from '@/features/private-access/private-access-store'
@@ -16,7 +17,7 @@ export function RequirePrivateAccess({ children }: { children: React.ReactNode }
       <main aria-busy="true" aria-live="polite" style={stateLayout}>
         <Logo size={46} />
         <h1 style={stateTitle}>Preparing InvaTrace</h1>
-        <p style={stateBody}>Restoring this installation…</p>
+        <p style={stateBody}><PlantLoader label="Restoring this installation…" /></p>
       </main>
     )
   }

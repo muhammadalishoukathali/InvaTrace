@@ -1,3 +1,4 @@
+import { PlantLoader } from '@/components/PlantLoader'
 import { ENGLISH_LOCALE } from '@/utils/date-time'
 /**
  * This is the main map screen at `/map`. After a user scans a plant (or if
@@ -47,7 +48,9 @@ import { BASEMAP_ATTRIBUTION, BASEMAP_FONT, BASEMAP_STYLE } from './basemap'
 // guess a URL that sits next to Vite's optimized dep file in dev, and the
 // worker isn't actually there - the map just silently doesn't paint. Doing
 // the ?url import means it works the same way in dev and prod.
-maplibregl.setWorkerUrl(mapLibreWorkerUrl)
+// Bypass the previously immutable response served with an invalid module MIME
+// type. The same revision is used by every map entry point.
+maplibregl.setWorkerUrl(`${mapLibreWorkerUrl}?module-mime=1`)
 
 const CENTRE: [number, number] = [101.6412, 3.1497]  // Bukit Kiara starting point.
 const INITIAL_ZOOM = 13
@@ -729,12 +732,6 @@ export function ThreatMapPage() {
             touchAction: 'none',   // Let MapLibre handle all the touch stuff itself.
           }}
         />
-        {isLoading && (
-          <div className="map-state map-state--loading" role="status" aria-live="polite">
-            <span className="map-state__pulse" aria-hidden />
-            Loading community reports…
-          </div>
-        )}
         {isError && (
           <div className="map-state map-state--error" role="alert">
             <Icon name="WifiOff" size={18} color="var(--red-text)" />
@@ -782,7 +779,7 @@ export function ThreatMapPage() {
         </div>
         <MapLegend />
         {showPlaces && (placesLoading || placesError || placeData.truncated || placeData.features.length === 0) && (
-          <div className="map-places-status" role={placesError ? 'alert' : 'status'} aria-live="polite">
+          <div className={placesLoading ? 'sr-only' : 'map-places-status'} role={placesError ? 'alert' : 'status'} aria-live="polite">
             {placesLoading
               ? 'Loading places in this view…'
               : placesError
@@ -1040,7 +1037,7 @@ function ReportsSheet({
           </button>
         </div>
         <div className="map-reports-sheet__body">
-          {isLoading && <p role="status">Loading community reports…</p>}
+          {isLoading && <p role="status"><PlantLoader label="Loading community reports…" /></p>}
           {isError && (
             <p role="alert">
               Community reports could not load.{' '}
@@ -1162,7 +1159,7 @@ function AccessiblePlaceList({
 }) {
   return (
     <section aria-label="Mapped places in current view" className="sr-only">
-      {isLoading && <p role="status">Loading mapped places in the current map view…</p>}
+      {isLoading && <p role="status"><PlantLoader label="Loading mapped places in the current map view…" /></p>}
       {isError && <p role="alert">Mapped places could not load for the current map view.</p>}
       {!isLoading && !isError && (
         <>

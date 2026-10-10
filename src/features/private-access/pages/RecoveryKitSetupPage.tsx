@@ -1,3 +1,4 @@
+import { PlantLoader } from '@/components/PlantLoader'
 import { useState } from 'react'
 import { Navigate, useNavigate } from 'react-router-dom'
 import { PrivateAccessLayout } from '@/features/private-access/components/PrivateAccessLayout'
@@ -168,7 +169,7 @@ export function RecoveryKitSetupPage() {
                     }
                   }}
                 >
-                  {renamingId ? 'Saving…' : 'Save'}
+                  {renamingId ? <PlantLoader compact label="Saving…" /> : 'Save'}
                 </PrivateAccessButton>
                 <PrivateAccessButton kind="quiet" onClick={() => { setEditingId(false); setPublicIdError(null) }} disabled={renamingId}>Cancel</PrivateAccessButton>
               </div>
@@ -219,7 +220,7 @@ export function RecoveryKitSetupPage() {
             <span>I have saved my recovery kit</span>
           </label>
           <PrivateAccessButton onClick={() => void continueToApp()} disabled={!codes || !acknowledged || continuing}>
-            {continuing ? 'Securing…' : 'Continue'}
+            {continuing ? <PlantLoader compact label="Securing…" /> : 'Continue'}
           </PrivateAccessButton>
           {(syncMessage || status === 'storage-error') && (
             <PrivateAccessButton kind="quiet" onClick={() => void retryPendingStorage()}>Save installation again</PrivateAccessButton>

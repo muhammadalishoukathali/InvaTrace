@@ -1,0 +1,51 @@
+/* Colour-only background layer: no new stacking contexts, overlays, or dimensions.
+   In particular, never transform map markers; MapLibre owns their positioning. */
+:is(button, a[href], [role='button'], summary, label[for], .radio-card):not(:disabled):not([aria-disabled='true']):where(:not(.maplibregl-marker):not(.maplibregl-marker *)) {
+  --interaction-tint: rgba(26, 136, 78, .115);
+  background-image: linear-gradient(90deg, var(--interaction-tint) 0%, var(--interaction-tint) 46%, transparent 52%, transparent 100%) !important;
+  background-size: 210% 100% !important;
+  background-position: 100% 0 !important;
+  background-repeat: no-repeat !important;
+  transition: background-position 360ms cubic-bezier(.2,.75,.2,1), translate 160ms ease-out, filter 140ms ease-out, opacity 140ms ease-out, background-color 180ms ease-out, border-color 180ms ease-out, color 180ms ease-out !important;
+}
+:is(.access-sign-out-button, .access-button--danger, [data-feedback-tone='danger']) {
+  --interaction-tint: rgba(185, 39, 51, .13) !important;
+}
+@media (hover: hover) and (pointer: fine) {
+  :is(button, a[href], [role='button'], summary, label[for], .radio-card):not(:disabled):not([aria-disabled='true']):hover {
+    background-position: 0 0 !important;
+  }
+  :is(button, a[href], [role='button']):not(:disabled):not([aria-disabled='true']):not(.sidebar-scan-button):not(.maplibregl-marker):not([class*='pin']):not([class*='marker']):hover {
+    translate: 0 -1px;
+  }
+}
+:is(button, a[href], [role='button'], summary, label[for], .radio-card):not(:disabled):not([aria-disabled='true']):is(:focus-visible, :active) {
+  background-position: 0 0 !important;
+}
+.plant-loader { display: inline-flex; align-items: center; justify-content: center; vertical-align: middle; color: var(--green); }
+.plant-loader svg { display: block; width: 40px; height: 40px; flex-shrink: 0; }
+.plant-loader--compact svg { width: 24px; height: 24px; }
+button .plant-loader { color: inherit; }
+.plant-loader__growth { transform-origin: 12px 15px; animation: plant-loader-grow 2.6s ease-in-out infinite; }
+.plant-loader__pot { fill: rgba(159, 108, 66, .18); }
+@keyframes plant-loader-grow { 0%,100% { transform: scale(.28,.16); opacity: .4; } 55%,80% { transform: scale(1); opacity: 1; } }
+.sound-feedback-preference { display: flex; align-items: center; gap: 10px; min-height: 44px; font-size: 13px; color: var(--body); }
+.sound-feedback-preference input { accent-color: var(--green); width: 16px; height: 16px; flex-shrink: 0; }
+/* MapLibre positions the marker wrapper. Animate only its visual child. */
+.maplibregl-marker, .maplibregl-marker :is(button, a[href], [role='button']) {
+  background-image: none !important;
+  translate: none !important;
+}
+.maplibregl-marker > :is(svg, img, div, span) {
+  transform-origin: center bottom;
+  transition: scale 160ms ease-out;
+}
+@media (hover: hover) and (pointer: fine) {
+  .maplibregl-marker:hover > :is(svg, img, div, span) { scale: 1.1; }
+}
+@media (prefers-reduced-motion: reduce) {
+  :is(button, a[href], [role='button'], summary, label[for], .radio-card):not(:disabled):not([aria-disabled='true']) { transition: none !important; }
+  .plant-loader__growth { animation: none; transform: none; opacity: 1; }
+  :is(button, a[href], [role='button']):hover { translate: none !important; }
+  .maplibregl-marker > :is(svg, img, div, span) { transition: none; scale: none !important; }
+}

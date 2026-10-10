@@ -1,3 +1,4 @@
+import { PlantLoader } from '@/components/PlantLoader'
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { createPortal } from 'react-dom'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
@@ -345,7 +346,7 @@ export function GuidedMissionPage() {
                 {watchlist.map((plant) => <PlantThumb key={plant.speciesId} plant={plant} placeId={placeId} />)}
               </ul>
               <button type="button" className="mission-button mission-button--primary mission-button--block" disabled={start.isPending || noOverlap} onClick={() => start.mutate()}>
-                {start.isPending ? 'Starting…' : 'Start guided mission'}
+                {start.isPending ? <PlantLoader compact label="Starting…" /> : 'Start guided mission'}
               </button>
               {start.error && <p className="mission-alert" role="alert">The mission could not be started. Check your connection and try again.</p>}
             </section>
@@ -456,8 +457,7 @@ function MissionState({ text, error = false, retry, back }: { text: string; erro
     <section className="mission-page mission-page--narrow">
       {back}
       <div className="mission-empty" role={error ? 'alert' : 'status'}>
-        {!error && <span className="mission-spinner" aria-hidden />}
-        <p>{text}</p>
+        {!error && /^(Loading|Opening)/.test(text) ? <PlantLoader label={text} /> : <p>{text}</p>}
         {retry && <button type="button" className="mission-button" onClick={retry}>Try again</button>}
       </div>
     </section>
@@ -600,7 +600,7 @@ function FinishDialog({ counts, reports, unsent, pending, failed, onClose, onCon
         {failed && <p className="mission-alert" role="alert">The mission could not be finished. Try again.</p>}
         <footer>
           <button type="button" data-dialog-initial className="mission-button" onClick={onClose}>Keep going</button>
-          <button type="button" className="mission-button mission-button--primary" disabled={pending || unsent > 0} onClick={onConfirm}>{pending ? 'Finishing…' : 'Finish mission'}</button>
+          <button type="button" className="mission-button mission-button--primary" disabled={pending || unsent > 0} onClick={onConfirm}>{pending ? <PlantLoader compact label="Finishing…" /> : 'Finish mission'}</button>
         </footer>
       </div>
     </div>,

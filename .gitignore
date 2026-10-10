@@ -62,3 +62,6 @@ backend/data/local-boundary/
 
 # Local screenshots from acceptance verification
 verification/
+work/
+backups/
+outputs/

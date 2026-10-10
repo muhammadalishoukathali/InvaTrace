@@ -1,3 +1,4 @@
+import { PlantLoader } from '@/components/PlantLoader'
 import { Link } from 'react-router-dom'
 import { Icon } from '@/components/Icon'
 import type { CommunityEvent } from '@/services/api/events'
@@ -72,8 +73,7 @@ export function EventCard({ event, showStatus = false, highlighted = false }: {
 export function EventState({ text, retry, error = false }: { text: string; retry?: () => void; error?: boolean }) {
   return (
     <div className="events-state" role={error ? 'alert' : 'status'}>
-      {!error && <span className="events-state__spinner" aria-hidden />}
-      <p>{text}</p>
+      {!error && /^(Loading|Opening)/.test(text) ? <PlantLoader label={text} /> : <p>{text}</p>}
       {retry && <button type="button" className="event-button" onClick={retry}>Try again</button>}
     </div>
   )

@@ -1,3 +1,5 @@
+import { PlantLoader } from '@/components/PlantLoader'
+import { SoundFeedbackPreference } from '@/components/SoundFeedbackPreference'
 import { ENGLISH_LOCALE } from '@/utils/date-time'
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { createPortal } from 'react-dom'
@@ -246,7 +248,7 @@ export function AccessManagementPage() {
                 }}
                 disabled={busy === 'public-id' || !isValidPublicId(publicIdInput) || publicIdInput === profileId}
               >
-                {busy === 'public-id' ? 'Saving…' : 'Save profile ID'}
+                {busy === 'public-id' ? <PlantLoader compact label="Saving…" /> : 'Save profile ID'}
               </PrivateAccessButton>
               <PrivateAccessButton kind="quiet" onClick={() => { setEditingPublicId(false); setPublicIdError(null) }} disabled={busy === 'public-id'}>Cancel</PrivateAccessButton>
             </div>
@@ -270,14 +272,14 @@ export function AccessManagementPage() {
           <div className="destructive-confirmation">
             <Icon name="AlertTriangle" size={22} color="var(--amber-text)" />
             <div><strong>Replace your recovery code?</strong><p>Your current code stops working the moment a new one is issued.</p></div>
-            <div><PrivateAccessButton kind="danger" onClick={() => void rotate()} disabled={busy === 'rotate'}>{busy === 'rotate' ? 'Replacing…' : 'Replace code'}</PrivateAccessButton><PrivateAccessButton kind="quiet" onClick={() => setConfirmRotate(false)}>Cancel</PrivateAccessButton></div>
+            <div><PrivateAccessButton kind="danger" onClick={() => void rotate()} disabled={busy === 'rotate'}>{busy === 'rotate' ? <PlantLoader compact label="Replacing…" /> : 'Replace code'}</PrivateAccessButton><PrivateAccessButton kind="quiet" onClick={() => setConfirmRotate(false)}>Cancel</PrivateAccessButton></div>
           </div>
         ) : (
           <div className="recovery-status-row">
             <span className="recovery-status-row__icon" aria-hidden><Icon name="KeyRound" size={20} /></span>
             <div>
-              <strong>{loading ? 'Checking recovery code…' : `${overview?.recoveryCodeCount ?? 0} recovery code${overview?.recoveryCodeCount === 1 ? '' : 's'} on file`}</strong>
-              <p>{loading ? 'One moment…' : 'Keep a copy stored off this device.'}</p>
+              <strong>{loading ? <PlantLoader compact label="Checking recovery code…" /> : `${overview?.recoveryCodeCount ?? 0} recovery code${overview?.recoveryCodeCount === 1 ? '' : 's'} on file`}</strong>
+              <p>{loading ? null : 'Keep a copy stored off this device.'}</p>
             </div>
             <PrivateAccessButton kind="secondary" icon="RefreshCw" onClick={() => setConfirmRotate(true)} disabled={!online || loading}>Replace code</PrivateAccessButton>
           </div>
@@ -286,7 +288,7 @@ export function AccessManagementPage() {
 
       <section className="access-management__section" aria-labelledby="installations-heading">
         <div className="section-heading-row"><div><h3 id="installations-heading">Active devices</h3><p>Restoring adds a device without removing the old ones.</p></div></div>
-        {loading ? <p className="access-muted" aria-live="polite">Loading devices…</p> : (
+        {loading ? <p className="access-muted" aria-live="polite"><PlantLoader label="Loading devices…" /></p> : (
           <ul className="installation-list">
             {activeInstallations.length === 0 && <li className="installation-list__empty">No active devices.</li>}
             {activeInstallations.map((item) => (
@@ -300,6 +302,7 @@ export function AccessManagementPage() {
             ))}
           </ul>
         )}
+        <SoundFeedbackPreference />
         {confirmSignOut ? (
           <div className="destructive-confirmation access-sign-out-confirmation">
             <Icon name="AlertTriangle" size={22} color="var(--red-text)" />
@@ -308,8 +311,8 @@ export function AccessManagementPage() {
               <p>This removes the local profile. You will need your profile ID and your recovery code to return.</p>
             </div>
             <div>
-              <PrivateAccessButton kind="danger" onClick={() => void handleSignOut()} disabled={busy === 'sign-out'}>
-                {busy === 'sign-out' ? 'Signing out…' : 'Yes, sign out'}
+              <PrivateAccessButton kind="danger" data-feedback-tone="danger" onClick={() => void handleSignOut()} disabled={busy === 'sign-out'}>
+                {busy === 'sign-out' ? <PlantLoader compact label="Signing out…" /> : 'Yes, sign out'}
               </PrivateAccessButton>
               <PrivateAccessButton kind="quiet" onClick={() => setConfirmSignOut(false)}>Cancel</PrivateAccessButton>
             </div>
@@ -395,7 +398,7 @@ function EditDisplayNameDialog({
           <div className="access-name-dialog__actions">
             <PrivateAccessButton type="button" kind="quiet" onClick={onClose} disabled={busy}>Cancel</PrivateAccessButton>
             <PrivateAccessButton type="submit" disabled={!online || busy}>
-              {busy ? 'Saving…' : 'Save name'}
+              {busy ? <PlantLoader compact label="Saving…" /> : 'Save name'}
             </PrivateAccessButton>
           </div>
         </form>

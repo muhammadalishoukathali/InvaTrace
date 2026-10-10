@@ -1,3 +1,4 @@
+import { PlantLoader } from '@/components/PlantLoader'
 import { useQuery } from '@tanstack/react-query'
 import { Link } from 'react-router-dom'
 import { Icon } from '@/components/Icon'
@@ -19,7 +20,7 @@ export function PlaceEventsSection({ placeId, placeName }: { placeId: string; pl
   return (
     <section className="place-events" aria-labelledby="place-events-title">
       <h3 id="place-events-title"><Icon name="CalendarDays" size={16} />Upcoming community events here</h3>
-      {events.isLoading && <p className="event-muted" role="status">Loading events…</p>}
+      {events.isLoading && <p className="event-muted" role="status"><PlantLoader label="Loading events…" /></p>}
       {events.isError && <p className="event-muted" role="alert">Events for this place could not be loaded. <button type="button" className="event-text-button" onClick={() => void events.refetch()}>Try again</button></p>}
       {events.data && (events.data.items.length ? (
         <ul>

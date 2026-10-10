@@ -7,6 +7,7 @@
 @import '@fontsource/ibm-plex-mono/latin-600.css';
 @import './tokens.css';
 @import './sheets.css';
+@import './interaction-effects.css';
 
 :root {
   /* Scan-only bottom nav: 60px button + 8px padding + 10px offset + safe-area. */

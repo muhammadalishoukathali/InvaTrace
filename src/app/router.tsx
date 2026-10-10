@@ -1,3 +1,4 @@
+import { PlantLoader } from '@/components/PlantLoader'
 import { lazy, Suspense, type ReactNode } from 'react'
 import { createBrowserRouter, Navigate } from 'react-router-dom'
 import { AppShell } from '@/components/AppShell'
@@ -54,15 +55,14 @@ const MyHostedEventsPage = lazy(() => import('@/features/events/MyHostedEventsPa
 // small helper so I don't have to wrap every single lazy route in its own
 // Suspense manually - also means one slow chunk loading doesn't block AppShell
 // or the rest of the route tree from rendering around it
-function loadRoute(content: ReactNode) {
-  return <Suspense fallback={<RouteLoadingState />}>{content}</Suspense>
+function loadRoute(content: ReactNode, showLoader = true) {
+  return <Suspense fallback={showLoader ? <RouteLoadingState /> : <span className="sr-only" role="status">Loading map…</span>}>{content}</Suspense>
 }
 
 function RouteLoadingState() {
   return (
     <section className="route-loading" role="status" aria-live="polite" aria-busy="true">
-      <span className="route-loading__indicator" aria-hidden />
-      <span>Loading this page…</span>
+      <PlantLoader label="Loading this page…" />
     </section>
   )
 }
@@ -102,7 +102,7 @@ export const router = createBrowserRouter([
     // but "/" itself now belongs to the welcome page above.
     element: <RequirePrivateAccess><AppShell /></RequirePrivateAccess>,
     children: [
-      { path: 'map', element: loadRoute(<ThreatMapPage />) },
+      { path: 'map', element: loadRoute(<ThreatMapPage />, false) },
       { path: 'profile', element: loadRoute(<AccessManagementPage />) },
       { path: 'access', element: <Navigate to="/profile" replace /> },
       { path: 'reports', element: loadRoute(<MyReportsPage />) },

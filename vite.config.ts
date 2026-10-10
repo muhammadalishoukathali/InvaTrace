@@ -124,13 +124,15 @@ export default defineConfig({
             // AC Iteration 1 P2 - server model-config gates the acceptance
             // threshold. Cache the last-known-good response so a second scan
             // after going offline still gets a server-authoritative gate
-            // rather than falling back to client-only. Revalidate in the
-            // background whenever the network returns.
+            // rather than falling back to client-only. Prefer the current
+            // server gate online so a retired cached version cannot reject a
+            // newly approved model for the entire browser session.
             urlPattern: ({ url }) => url.pathname === '/api/v1/model-config',
-            handler: 'StaleWhileRevalidate',
+            handler: 'NetworkFirst',
             method: 'GET',
             options: {
               cacheName: 'invatrace-model-config',
+              networkTimeoutSeconds: 2,
               expiration: { maxEntries: 4, maxAgeSeconds: 7 * 24 * 60 * 60 },
               cacheableResponse: { statuses: [200] },
             },

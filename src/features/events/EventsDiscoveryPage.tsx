@@ -1,3 +1,4 @@
+import { PlantLoader } from '@/components/PlantLoader'
 import { useMemo, useRef, useState } from 'react'
 import { keepPreviousData, useQuery } from '@tanstack/react-query'
 import { Link, useSearchParams } from 'react-router-dom'
@@ -137,7 +138,7 @@ export function EventsDiscoveryPage() {
 
       <div className="events-results-bar">
         <p role="status" aria-live="polite" className="events-count">
-          {events.isLoading ? 'Searching…'
+          {events.isLoading ? <PlantLoader compact label="Searching…" />
               : `${items.length} ${items.length === 1 ? 'event' : 'events'}`}
           <small className="events-count__summary">{filterSummary}</small>
           {events.isFetching && !events.isLoading && <span className="sr-only"> Updating results</span>}

@@ -1,3 +1,4 @@
+import { playFeedbackSound } from '@/services/sound-feedback'
 import { useState } from 'react'
 import { Icon } from '@/components/Icon'
 import { useReportDraft } from '@/features/report/report-draft-store'
@@ -77,6 +78,7 @@ export function ReportPreviewStep() {
         if (missionId) void queryClient.invalidateQueries({ queryKey: ['guided-mission'] })
         // AC 9.6.1: a new sighting may unlock hosting; drop the cached count.
         void queryClient.invalidateQueries({ queryKey: ['events', 'host-eligibility'] })
+        playFeedbackSound('saved')
         setOutcome({ kind: 'submitted', report: result.report })
       } else {
         setOutcome({

@@ -80,7 +80,7 @@ def test_public_and_private_map_context_use_real_visibility_query(monkeypatch):
             assert result.status_code == 200
             body = result.json()
             if status in {"screened", "removal_reported", "resolved_after_follow_up"}:
-                assert body["status"] == "fallback" and body["sources"]
+                assert body["status"] == "insufficient_evidence" and body["sources"]
             else:
                 assert body["status"] == "insufficient_evidence" and body["sources"] == []
             assert sighting_id not in body["answer"]

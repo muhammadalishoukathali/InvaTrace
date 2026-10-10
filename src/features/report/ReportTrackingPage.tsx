@@ -1,3 +1,5 @@
+import { PlantLoader } from '@/components/PlantLoader'
+import { playFeedbackSound } from '@/services/sound-feedback'
 import { ENGLISH_LOCALE } from '@/utils/date-time'
 import { useState } from 'react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
@@ -89,7 +91,7 @@ export function ReportTrackingPage() {
         body: JSON.stringify(fix),
       },
     ),
-    onSuccess: () => { void sighting.refetch(); void queryClient.invalidateQueries({ queryKey: ['sightings'] }) },
+    onSuccess: () => { playFeedbackSound('removal'); void sighting.refetch(); void queryClient.invalidateQueries({ queryKey: ['sightings'] }) },
   })
   // UT-10: a controlled way to withdraw an accidental *published* report. It
   // removes the sighting from the public map but keeps the report and its audit
@@ -151,7 +153,7 @@ export function ReportTrackingPage() {
           <span className="report-tracking__skeleton-line report-tracking__skeleton-line--title invatrace-skeleton" aria-hidden />
           <span className="report-tracking__skeleton-line invatrace-skeleton" aria-hidden />
           <span className="report-tracking__skeleton-line report-tracking__skeleton-line--medium invatrace-skeleton" aria-hidden />
-          <span className="sr-only">Loading report status…</span>
+          <PlantLoader label="Loading report status…" />
         </article>
       </section>
     )
@@ -230,7 +232,7 @@ export function ReportTrackingPage() {
                   onClick={() => adopt.mutate(adoptionPlace.data!.place!.placeId)}
                   disabled={adopt.isPending}
                 >
-                  {adopt.isPending ? 'Adding…' : 'Adopt for monitoring'}
+                  {adopt.isPending ? <PlantLoader compact label="Adding…" /> : 'Adopt for monitoring'}
                 </button>
                 <button type="button" onClick={() => setAdoptionDismissed(true)}>Not now</button>
               </div>
@@ -271,7 +273,7 @@ export function ReportTrackingPage() {
                         onClick={() => removal.mutate(removalFix)}
                         disabled={removal.isPending}
                       >
-                        {removal.isPending ? 'Submitting…' : 'Confirm removal report'}
+                        {removal.isPending ? <PlantLoader compact label="Submitting…" /> : 'Confirm removal report'}
                       </button>
                     ) : (
                       <span role="alert">Accuracy is above {REMOVAL_MAX_M} m. Move closer and request a new fix.</span>
@@ -324,7 +326,7 @@ export function ReportTrackingPage() {
                   }}
                   disabled={withdrawal.isPending}
                 >
-                  {withdrawal.isPending ? 'Submitting…' : 'Request withdrawal'}
+                  {withdrawal.isPending ? <PlantLoader compact label="Submitting…" /> : 'Request withdrawal'}
                 </button>
                 {withdrawal.isError && (
                   <p className="report-tracking__removal-error" role="alert">

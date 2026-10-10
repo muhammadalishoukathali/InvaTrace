@@ -1,3 +1,4 @@
+import { PlantLoader } from '@/components/PlantLoader'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { Link, useLocation, useParams } from 'react-router-dom'
 import { BackLink } from '@/components/BackLink'
@@ -60,7 +61,7 @@ export function EventSummaryPage() {
         <h3>Keep watching {item.placeName}</h3>
         <p>Adds it to your monitoring areas. A shared bookmark — no ownership or removal permission.</p>
         <button type="button" className="event-button event-button--primary" disabled={follow.isPending || alreadyAdopted} onClick={() => follow.mutate()}>
-          {alreadyAdopted ? <><Icon name="CircleCheck" size={17} />Adopted</> : follow.isPending ? 'Adding…' : 'Follow this area for monitoring'}
+          {alreadyAdopted ? <><Icon name="CircleCheck" size={17} />Adopted</> : follow.isPending ? <PlantLoader compact label="Adding…" /> : 'Follow this area for monitoring'}
         </button>
         {follow.error && !alreadyAdopted && <p className="event-inline-alert" role="alert">This area could not be followed. Try again.</p>}
       </section>

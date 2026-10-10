@@ -259,7 +259,8 @@ async def _request(url: str, headers: dict, payload: dict, timeout: float, provi
 
 def _record(role: Role, provider: str, model: str, result: Result, elapsed: float) -> None:
     # Fixed categories only: no payload, exception/body text, headers, IDs or keys.
-    logger.info(
+    log = logger.warning if result.failure else logger.info
+    log(
         "assistant.provider phase=%s provider=%s model=%s result=%s status=%s latency_ms=%d",
         role,
         provider,

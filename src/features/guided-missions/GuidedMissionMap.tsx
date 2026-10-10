@@ -6,7 +6,7 @@ import 'maplibre-gl/dist/maplibre-gl.css'
 import { BASEMAP_ATTRIBUTION, BASEMAP_STYLE } from '@/features/map/basemap'
 import { HABITAT_COLOURS, type HabitatCategory, type HabitatOverlay } from './habitat-data'
 
-maplibregl.setWorkerUrl(mapLibreWorkerUrl)
+maplibregl.setWorkerUrl(`${mapLibreWorkerUrl}?module-mime=1`)
 
 const EMPTY: GeoJSON.FeatureCollection = { type: 'FeatureCollection', features: [] }
 const colourExpression = ['match', ['get', 'habitat'], ...Object.entries(HABITAT_COLOURS).flat(), '#888888'] as unknown as maplibregl.ExpressionSpecification

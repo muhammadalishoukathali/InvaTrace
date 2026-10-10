@@ -6,7 +6,7 @@ import 'maplibre-gl/dist/maplibre-gl.css'
 import { BASEMAP_ATTRIBUTION, BASEMAP_STYLE } from '@/features/map/basemap'
 import type { CommunityEvent } from '@/services/api/events'
 
-maplibregl.setWorkerUrl(mapLibreWorkerUrl)
+maplibregl.setWorkerUrl(`${mapLibreWorkerUrl}?module-mime=1`)
 type Point = { latitude: number; longitude: number }
 const validPoint = (point: Point) => Number.isFinite(point.latitude) && Number.isFinite(point.longitude)
   && point.latitude >= .8 && point.latitude <= 7.5 && point.longitude >= 99.3 && point.longitude <= 119.5

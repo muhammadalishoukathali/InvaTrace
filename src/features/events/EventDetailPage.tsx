@@ -1,3 +1,4 @@
+import { PlantLoader } from '@/components/PlantLoader'
 import { useRef, useState } from 'react'
 import { createPortal } from 'react-dom'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
@@ -142,7 +143,7 @@ export function EventDetailPage() {
                 </>
               )}
               <button type="button" className="event-button event-button--block" onClick={() => withdraw.mutate()} disabled={withdraw.isPending}>
-                {withdraw.isPending ? 'Withdrawing…' : 'Withdraw'}
+                {withdraw.isPending ? <PlantLoader compact label="Withdrawing…" /> : 'Withdraw'}
               </button>
             </div>
           ) : (
@@ -216,7 +217,7 @@ function JoinConfirmDialog({ event, pending, error, onCancel, onConfirm }: {
         <footer className="event-sheet__footer">
           <button type="button" className="event-button" onClick={onCancel}>Not now</button>
           <button type="button" data-dialog-initial className="event-button event-button--primary" onClick={onConfirm} disabled={pending}>
-            {pending ? 'Joining…' : 'Join this event'}
+            {pending ? <PlantLoader compact label="Joining…" /> : 'Join this event'}
           </button>
         </footer>
       </div>

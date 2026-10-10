@@ -1,6 +1,7 @@
 .scan-flow {
-  min-height: 100dvh;
-  height: 100%;
+  min-height: 0;
+  height: 100dvh;
+  overflow: hidden;
   background: var(--bg);
   display: flex;
   flex-direction: column;
@@ -46,6 +47,7 @@
   min-height: 0;
   padding-bottom: env(safe-area-inset-bottom);
   overflow: auto;
+  overscroll-behavior-y: contain;
   flex: 1;
 }
 

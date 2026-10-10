@@ -1,3 +1,4 @@
+import { PlantLoader } from '@/components/PlantLoader'
 import { useRef, useState } from 'react'
 import { createPortal } from 'react-dom'
 import { Icon } from '@/components/Icon'
@@ -112,7 +113,7 @@ export function ReportQueueDrawer({
                   This report needs correction and will not retry automatically.
                 </div>
               )}
-              {canSubmitQueuedAsOrdinary(q) && q.ownerProfileId === activeProfileId && <button type="button" disabled={flushing || recovering !== null} onClick={() => void recover(q.id)} style={{ minHeight: 44, marginTop: 8, padding: '8px 12px' }}>{recovering === q.id ? 'Submitting…' : 'Submit as ordinary report'}</button>}
+              {canSubmitQueuedAsOrdinary(q) && q.ownerProfileId === activeProfileId && <button type="button" disabled={flushing || recovering !== null} onClick={() => void recover(q.id)} style={{ minHeight: 44, marginTop: 8, padding: '8px 12px' }}>{recovering === q.id ? <PlantLoader compact label="Submitting…" /> : 'Submit as ordinary report'}</button>}
               <button type="button" disabled={recovering !== null} onClick={() => onDiscard(q.id)} style={{
                 minHeight: 44, marginTop: 8, border: 'none', background: 'transparent', padding: '8px 0',
                 color: 'var(--red-text)', fontSize: 11.5, cursor: 'pointer',

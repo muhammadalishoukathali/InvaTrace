@@ -1,3 +1,4 @@
+import { PlantLoader } from '@/components/PlantLoader'
 import { ENGLISH_LOCALE } from '@/utils/date-time'
 // One place page: what it is, its boundary on a small map, which invasive
 // plants have been recorded there, and the button to adopt it for monitoring.
@@ -52,7 +53,7 @@ export function PlaceDetailPage() {
       {' '}<Link to="/catalogue">Open offline catalogue</Link>
     </div>
   )
-  if (place.isLoading || associations.isLoading) return <div className="places-state" role="status">Loading place evidence…</div>
+  if (place.isLoading || associations.isLoading) return <div className="places-state" role="status"><PlantLoader label="Loading place evidence…" /></div>
   if (place.isError || associations.isError || !place.data || !associations.data) {
     return <div className="places-state" role="alert"><p>This place or its occurrence data is unavailable.</p><button type="button" onClick={() => { void place.refetch(); void associations.refetch() }}>Try again</button><BackLink to="/places">Back to places</BackLink></div>
   }
@@ -73,7 +74,7 @@ export function PlaceDetailPage() {
           }}
           disabled={adopt.isPending || adopted}
         >
-          {adopted ? 'Adopted for monitoring' : adopt.isPending ? 'Adding…' : 'Adopt for monitoring'}
+          {adopted ? 'Adopted for monitoring' : adopt.isPending ? <PlantLoader compact label="Adding…" /> : 'Adopt for monitoring'}
         </button>
       </header>
       <p className="place-detail__notice">

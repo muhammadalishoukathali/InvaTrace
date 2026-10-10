@@ -1,3 +1,4 @@
+import { PlantLoader } from '@/components/PlantLoader'
 import { ENGLISH_LOCALE } from '@/utils/date-time'
 // The user's own report history at /reports. Unlike the map, this shows the
 // private view: reports that are still being screened, ones that were rejected,
@@ -160,6 +161,7 @@ export function MyReportsPage() {
 
       {online && query.isLoading && (
         <ul className="my-reports__list" aria-busy="true">
+          <li role="status"><PlantLoader label="Loading your records…" /></li>
           {[0, 1, 2].map((n) => (
             <li key={n} className="my-reports__item my-reports__item--skeleton" aria-hidden>
               <span className="invatrace-skeleton my-reports__skeleton-line" />
@@ -217,7 +219,7 @@ export function MyReportsPage() {
         <div className="my-reports__results">
           <div className="my-reports__results-heading">
             <h2>Submitted records</h2>
-            <span>{hasMoreReports ? `${count} shown` : `${count} total`}</span>
+            <span>{hasMoreReports ? `${reports.length} shown` : `${reports.length} total`}</span>
           </div>
           <ul className="my-reports__list">
             {reports.map((report) => (
@@ -231,7 +233,7 @@ export function MyReportsPage() {
               onClick={() => void query.fetchNextPage()}
               disabled={query.isFetchingNextPage}
             >
-              {query.isFetchingNextPage ? 'Loading…' : 'Load older records'}
+              {query.isFetchingNextPage ? <PlantLoader compact label="Loading…" /> : 'Load older records'}
             </button>
           )}
         </div>

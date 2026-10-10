@@ -189,6 +189,9 @@ def words(text: str) -> list[str]:
 
 def normalize_query(text: str) -> str:
     aliases = {
+        # Interrogative choice does not change the requested botanical topic.
+        # Normalise retrieval language only; judges still receive the original question.
+        "which": "what",
         "habitats": "habitat",
         "inhabit": "grow",
         "inhabits": "grows",
@@ -226,6 +229,7 @@ def stem(word: str) -> str:
 
 
 def requested_topics(question: str) -> set[str]:
+    question = normalize_query(question)
     if requests_bounded_safety(question):
         # Reuse the existing topic boost to retrieve safety, not to prove it.
         # Source-specific objects, negations and conditions decide sufficiency.

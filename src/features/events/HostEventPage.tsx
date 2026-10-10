@@ -1,3 +1,4 @@
+import { PlantLoader } from '@/components/PlantLoader'
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { createPortal } from 'react-dom'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
@@ -257,7 +258,7 @@ export function HostEventPage() {
               ) : (
                 <>
                   <input id="place-search" type="search" value={placeSearch} placeholder="Search parks, forests and woodlands" onChange={(event) => setPlaceSearch(event.target.value)} aria-invalid={Boolean(errors.placeId)} disabled={locked} />
-                  {places.isLoading && <small role="status">Loading mapped places…</small>}
+                  {places.isLoading && <small role="status"><PlantLoader compact label="Loading mapped places…" /></small>}
                   {places.isError && <small role="alert">Mapped places could not be loaded. <button type="button" className="event-text-button" onClick={() => void places.refetch()}>Try again</button></small>}
                   {places.data && (
                     <ul className="host-place-results" aria-label="Matching places">
@@ -388,11 +389,11 @@ export function HostEventPage() {
         {step < LAST_STEP
           ? <button type="button" className="event-button event-button--primary" onClick={next}>Continue</button>
           : edit && existing.data?.status !== 'draft'
-            ? <button type="button" className="event-button event-button--primary" disabled={save.isPending} onClick={() => submit(false)}>{save.isPending ? 'Saving…' : 'Save changes'}</button>
+            ? <button type="button" className="event-button event-button--primary" disabled={save.isPending} onClick={() => submit(false)}>{save.isPending ? <PlantLoader compact label="Saving…" /> : 'Save changes'}</button>
             : (
               <>
                 <button type="button" className="event-button" disabled={save.isPending} onClick={() => submit(false)}>Save draft</button>
-                <button type="button" className="event-button event-button--primary" disabled={save.isPending} onClick={() => submit(true)}>{save.isPending ? 'Publishing…' : 'Publish event'}</button>
+                <button type="button" className="event-button event-button--primary" disabled={save.isPending} onClick={() => submit(true)}>{save.isPending ? <PlantLoader compact label="Publishing…" /> : 'Publish event'}</button>
               </>
             )}
       </div>
@@ -439,7 +440,7 @@ function landStatusLabel(status: PlaceLandStatus | undefined) {
 
 /** AC 9.6.7: what the mapped protected-area data says about the chosen place. */
 function LandStatusCard({ status, loading, failed }: { status?: PlaceLandStatus; loading: boolean; failed: boolean }) {
-  if (loading) return <p className="host-land-status" role="status">Checking the mapped land status of this place…</p>
+  if (loading) return <p className="host-land-status" role="status"><PlantLoader label="Checking the mapped land status of this place…" /></p>
   const value = failed || !status ? 'uncertain' : status.landStatus
   const title = value === 'protected'
     ? `Protected area${status?.protectedAreaName ? `: ${status.protectedAreaName}` : ''}`

@@ -1,0 +1,38 @@
+# Always combine with compose.yaml and the unique project name below.
+# No existing environment, provider credential or Docker volume is reused.
+name: invatrace-epic8-rag-flow
+services:
+  seed:
+    # Include the repository's existing small public-place seed in local setup.
+    command: ["sh", "-c", "python -m app.cli seed && python -m app.cli seed-featured-places"]
+  db:
+    ports: !override
+      - "127.0.0.1:55433:5432"
+  minio:
+    ports: !override
+      - "127.0.0.1:19000:9000"
+      - "127.0.0.1:19001:9001"
+    environment:
+      MINIO_API_CORS_ALLOW_ORIGIN: http://localhost:5175
+  api:
+    env_file:
+      - path: ./backend/.env.gemini.local
+        required: false
+    ports: !override
+      - "127.0.0.1:18000:8000"
+    environment:
+      CORS_ORIGINS: '["http://localhost:5175"]'
+      S3_PUBLIC_ENDPOINT_URL: http://localhost:19000
+      E1_MODEL_VERSIONS: invatrace-student33-tinyvit5m-320-fp16,oe_v4_31class_web_fp16
+  worker:
+    environment:
+      E1_MODEL_VERSIONS: invatrace-student33-tinyvit5m-320-fp16,oe_v4_31class_web_fp16
+  web:
+    build:
+      context: .
+      dockerfile: infrastructure/epic8-web/Dockerfile
+    ports:
+      - "127.0.0.1:5175:5173"
+    depends_on:
+      api:
+        condition: service_healthy

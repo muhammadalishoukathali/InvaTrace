@@ -1,3 +1,4 @@
+import { PlantLoader } from '@/components/PlantLoader'
 import { createContext, useContext, useState, type MouseEvent } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import { usePrivateAccess } from '@/features/private-access/private-access-store'
@@ -56,7 +57,7 @@ function StartButton({ tone, className }: { tone: 'green' | 'light' | 'outline';
       onClick={() => void start()}
       aria-busy={starting || undefined}
     >
-      {starting ? 'Starting…' : 'Start privately'}
+      {starting ? <PlantLoader compact label="Starting…" /> : 'Start privately'}
     </button>
   )
 }
