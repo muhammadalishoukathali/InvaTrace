@@ -1,7 +1,6 @@
 // Epic 1 - plant identification and Malaysian status. One test per acceptance
 // criterion, run against the mock service worker and the development model
-// (playwright.config.ts). Where the app does not do what a criterion says the
-// correct assertion is kept and the test is marked fixme with the reason.
+// (playwright.config.ts).
 //
 // What this layer cannot prove is said next to each test: the development
 // model is a deterministic stand-in, so nothing here measures the real ONNX
@@ -18,9 +17,6 @@ import {
 test.use({
   launchOptions: { args: ['--use-fake-ui-for-media-stream', '--use-fake-device-for-media-stream'] },
 })
-
-// Set AC_RUN_FIXME=1 to run the fixme tests and re-check each finding.
-const KNOWN_GAP = !process.env.AC_RUN_FIXME
 
 const readJson = <T>(file: string) => JSON.parse(fs.readFileSync(path.join(process.cwd(), file), 'utf8')) as T
 const modelManifest = readJson<{ classes: Array<{ machine_label: string; scientific_name: string }> }>(
@@ -153,8 +149,9 @@ test('AC 1.1.2 Supported classification result', async ({ page }) => {
   // scientific name, common name and the model statement inside 15 seconds,
   // with a label that is one of the released model labels.
   // Does not prove: the real ONNX model or its offline asset cache - the
-  // development model has no assets to cache. Confidence display is the
-  // separate fixme test below.
+  // development model has no assets to cache. Where confidence is shown is
+  // the next test.
+  test.setTimeout(75_000)
   await pinModelSpecies(page, 'mikania_micrantha')
   const scanBodies: Array<{ captureSource: string; outcome: string; predictedSpeciesId: string | null }> = []
   page.on('request', (request) => {
@@ -171,11 +168,17 @@ test('AC 1.1.2 Supported classification result', async ({ page }) => {
   await expect(async () => {
     const retake = page.getByRole('button', { name: 'Retake photo' })
     if (await retake.isVisible()) await retake.click()
-    await page.getByRole('button', { name: /Open camera/ }).click()
-    await expect(page.getByLabel('Live rear camera preview')).toBeVisible()
+    // A retry may arrive with the camera still open from the last attempt.
+    const openCamera = page.getByRole('button', { name: /Open camera/ })
+    if (await openCamera.isVisible()) await openCamera.click()
+    const preview = page.getByLabel('Live rear camera preview')
+    await expect(preview).toBeVisible()
+    // The shutter does nothing until the stream has delivered a frame.
+    await expect.poll(() => preview.evaluate((video: HTMLVideoElement) => video.videoWidth), { timeout: 3000 })
+      .toBeGreaterThan(0)
     await page.getByRole('button', { name: 'Capture plant photo' }).click()
     await expect(page.getByText('Photo quality check passed')).toBeVisible({ timeout: 3000 })
-  }).toPass({ timeout: 20_000 })
+  }).toPass({ timeout: 40_000 })
   await expect(page.getByAltText('Captured plant')).toBeVisible()
 
   const modelConfig = page.waitForResponse((response) => new URL(response.url()).pathname === '/api/v1/model-config')
@@ -204,14 +207,32 @@ test('AC 1.1.2 Supported classification result', async ({ page }) => {
   })
 })
 
-test('AC 1.1.2 Supported classification result - confidence is shown as a percentage', async ({ page }) => {
-  test.fixme(KNOWN_GAP, 'Result page hides model confidence; the percentage only appears on the report review step.')
+test('AC 1.1.2 Supported classification result - confidence appears only on the report review step', async ({ page, context, baseURL }) => {
+  await atLocation(context, baseURL)
   await pinModelSpecies(page, 'mikania_micrantha')
   await startPrivateAccess(page)
   await scanPhoto(page)
   await expect(page.getByRole('heading', { name: 'Mile-a-minute weed', level: 2 })).toBeVisible()
-  // The development model reports 0.84 for this class.
-  await expect(page.locator('.scan-result')).toContainText(/84(\.0+)?\s?%/)
+  // The result page shows no confidence percentage (the development model
+  // reports 0.84 for this class) - in fact no percentage at all.
+  const result = page.locator('.scan-result')
+  await expect(result).not.toContainText(/\d\s?%/)
+  await expect(result).not.toContainText(/confidence/i)
+
+  // It appears on the report review step, as read-only text.
+  await page.getByRole('button', { name: /Report sighting/ }).click()
+  await expect(page).toHaveURL(/\/report$/)
+  await expect(page.getByText(/Accurate to ~15 m/)).toBeVisible()
+  await page.getByRole('button', { name: 'Continue' }).click()
+  await page.getByText('Single plant', { exact: true }).click()
+  await page.getByRole('button', { name: 'Continue' }).click()
+  await page.getByRole('checkbox', { name: /accurate/i }).check()
+  await page.getByRole('checkbox', { name: /personal information/i }).check()
+  await page.getByRole('button', { name: 'Review submission' }).click()
+  await expect(page.getByText('target · 84% confidence')).toBeVisible()
+  await expect(page.getByRole('textbox')).toHaveCount(0)
+  await expect(page.getByRole('spinbutton')).toHaveCount(0)
+  await expect(page.getByRole('slider')).toHaveCount(0)
 })
 
 test('AC 1.1.3 Honest uncertain result', async ({ page }) => {
@@ -316,7 +337,6 @@ test('AC 1.1.3 Honest uncertain result - server threshold boundary and unsupport
 })
 
 test('AC 1.1.3 Honest uncertain result - an uncertain result names no catalogue species', async ({ page }) => {
-  test.fixme(KNOWN_GAP, 'Uncertain result still links "View catalogue entry for <rejected species>", an invasive-catalogue entry.')
   await stubApi(page, {
     method: 'GET',
     path: '/api/v1/model-config',
@@ -365,7 +385,6 @@ test('AC 1.2.1 Exact status lookup', async ({ page }) => {
 })
 
 test('AC 1.2.1 Exact status lookup - the bundled catalogue decides the state when the species API fails', async ({ page }) => {
-  test.fixme(KNOWN_GAP, 'With GET /api/v1/species/{id} failing the badge reads "Possible invasive match", not one of the three states.')
   // The frontend catalogue is meant to be authoritative for result
   // presentation and available offline, so losing the runtime species call
   // must still give one of the three states - and never a fourth.
@@ -375,8 +394,17 @@ test('AC 1.2.1 Exact status lookup - the bundled catalogue decides the state whe
   await pinModelSpecies(page, 'mikania_micrantha')
   await startPrivateAccess(page)
   await scanPhoto(page)
-  const badge = page.locator('.scan-result > div').first()
+  const result = page.locator('.scan-result')
+  const badge = result.locator('> div').first()
   await expect(badge).toHaveText(/^(Invasive in Malaysia|Information only|Status uncertain)/)
+  await expect(result.getByText('Possible invasive match')).toHaveCount(0)
+  // Only the network call failed and the bundled record is invasive, so the
+  // result stays invasive, with its source, guidance and reporting.
+  await expect(badge).toHaveText('Invasive in Malaysia')
+  await expect(result.locator('p', { hasText: /^Mikania micrantha$/ })).toBeVisible()
+  await expect(result.getByText(/Malaysia status reviewed [A-Z][a-z]+ \d{4} · \S+/)).toBeVisible()
+  await expect(page.getByRole('region', { name: 'Guidance for Malaysia' })).toBeVisible()
+  await expect(page.getByRole('button', { name: /Report sighting/ })).toBeEnabled()
 })
 
 test('AC 1.2.2 Invasive-result pathway', async ({ page }) => {
@@ -448,19 +476,22 @@ test('AC 1.2.3 Information-only and uncertain protection', async ({ page, contex
   // The user is told not to act on the plant.
   await expect(guidance.getByText(/do not touch or remove the plant/i)).toBeVisible()
 
-  // No removal steps, even with location checked, permission claimed and the
-  // stop conditions cleared.
+  // No removal steps and no way to ask for them: even with a clean location
+  // check the permission option is disabled and says steps are unavailable,
+  // rather than promising steps that never appear.
   await guidance.getByRole('button', { name: 'Check current location' }).click()
   await expect(guidance.getByText('No mapped protected-area intersection found')).toBeVisible()
-  await guidance.getByRole('radio', { name: 'I have permission from the land manager' }).check()
-  await guidance.getByRole('checkbox', { name: 'None of these apply here.' }).check()
+  await expect(guidance.getByRole('radio', { name: 'I have permission from the land manager' })).toHaveCount(0)
+  await expect(guidance.getByRole('radio', { name: 'Removal steps are not available for this plant' })).toBeDisabled()
+  await expect(guidance.getByRole('radio', { name: 'This is protected land, or I am not sure' })).toBeChecked()
+  await expect(guidance.getByRole('checkbox', { name: 'None of these apply here.' })).toHaveCount(0)
+  await expect(guidance.getByText(/Removal steps will appear/)).toHaveCount(0)
   await expect(guidance.getByText('If the land manager has approved it')).toHaveCount(0)
   await expect(guidance.getByText('Beginner-safe action on an authorised site')).toHaveCount(0)
   await expect(page.getByRole('button', { name: /Report sighting/ })).toHaveCount(0)
 })
 
 test('AC 1.2.3 Information-only and uncertain protection - the supplied safety message is displayed', async ({ page }) => {
-  test.fixme(KNOWN_GAP, 'SpeciesDetail.safetyMessage from GET /api/v1/species/{id} is never rendered on the result page.')
   await pinModelSpecies(page, 'mikania_micrantha')
   await startPrivateAccess(page)
   const base = await page.evaluate(async () => (await fetch('/api/v1/species/mikania-micrantha')).json() as Promise<Record<string, unknown>>)

@@ -18,6 +18,11 @@ AI_WARNING = (
     "InvaTrace's reviewed sources. It may contain inaccuracies."
 )
 REDIRECT = "I can help with plants. Ask about their appearance, habitats or botanical concepts."
+AI_DETAILED_UNAVAILABLE = (
+    "More detail is available only for information from reviewed sources. The reviewed sources "
+    "do not cover this question, so no detailed AI explanation is shown. "
+    "Choose Simpler or Standard for an AI-generated explanation."
+)
 
 logger = logging.getLogger(__name__)
 
@@ -72,9 +77,19 @@ def sources(chunks):
 def response(sections, *, intent="botanical", coverage="unsupported"):
     reviewed = [s for s in sections if s["kind"] == "grounded"]
     ai = any(s["kind"] == "ai" for s in sections)
+    for item in sections:
+        if item["kind"] == "ai":
+            item["title"] = (
+                "Additional AI-generated information"
+                if reviewed
+                else "AI-generated botanical information"
+            )
+    # A greeting, redirect, clarification or refusal is a reply, not an answered
+    # question: it has no explanation depth and may simply be asked again.
+    answered = bool(reviewed) or ai or intent == "catalogue"
     return {
         "status": "answer",
-        "answerability": "answerable",
+        "answerability": "answerable" if answered else "insufficient_evidence",
         "intent": intent,
         "coverage": coverage,
         "answer_mode": "grounded" if reviewed else "general_knowledge" if ai else "grounded",
@@ -94,7 +109,7 @@ def section(kind, answer, depth, chunks=None):
         "depth": depth,
         "title": {
             "grounded": "From reviewed sources",
-            "ai": "AI knowledge",
+            "ai": "AI-generated botanical information",
             "conversation": "Plant conversation",
             "unavailable": "Information unavailable",
         }[kind],
@@ -492,6 +507,20 @@ async def answer_conversation(
         return None
     has_reviewed = any(s["kind"] == "grounded" for s in output)
     has_ai = any(s["kind"] == "ai" for s in output)
+    if depth == "detailed" and has_ai and not has_reviewed:
+        # Detailed is for reviewed evidence. An AI-only draft is withheld rather
+        # than delivered or quietly relabelled at another depth.
+        logger.warning("assistant.conversation ai_only_detailed_rejected")
+        return {
+            "status": "insufficient_evidence",
+            "answerability": "insufficient_evidence",
+            "intent": "botanical",
+            "coverage": "unsupported",
+            "answer_mode": "fallback",
+            "sources": [],
+            "sections": [section("unavailable", AI_DETAILED_UNAVAILABLE, "standard")],
+            "answer": AI_DETAILED_UNAVAILABLE,
+        }
     result = response(
         output,
         intent="greeting" if route == "social" else "botanical",

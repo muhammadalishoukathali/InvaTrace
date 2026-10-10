@@ -182,7 +182,6 @@ test('AC 7.4.2 Mission scanner access: Scan a plant opens the scanner with camer
 })
 
 test('AC 7.4.2 Mission scanner access: the sidebar Scan a plant button used inside an active mission also records the mission ID', async ({ page }) => {
-  test.fixme(true, 'FINDING: from an active mission the sidebar Scan a plant opens the scanner with Return to mission, but POST /api/v1/scans is sent without missionId.')
   await pinModelSpecies(page, MIKANIA)
   const mission = await startMission(page)
   await page.locator('.sidebar-scan-button').click()
@@ -232,7 +231,6 @@ test('AC 7.4.3 Report from mission: a sighting reported during the mission is co
 })
 
 test('AC 7.4.3 Report from mission: Return to mission on the scan result screen goes back to the mission', async ({ page }) => {
-  test.fixme(true, 'FINDING: on /scan/result, Return to mission lands on the empty capture screen (/scan) instead of the mission.')
   await pinModelSpecies(page, MIKANIA)
   await startMission(page)
   await scanFromMission(page)

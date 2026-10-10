@@ -281,17 +281,34 @@ test('AC 4.1.2 GPS and time capture: coordinates outside Malaysia keep submissio
   await expect(page.getByRole('button', { name: 'Continue' })).toBeDisabled()
 })
 
-test('AC 4.1.2 GPS and time capture: accuracy above the limit keeps submission disabled', async ({ page, context, baseURL }) => {
-  test.fixme(true, 'FINDING: the location step only warns about coarse accuracy; Continue and Submit report stay enabled at ±500 m.')
-  // The AC says 250 m; the code limit is temporarily 350 m. 500 m is above both.
+test('AC 4.1.2 GPS and time capture: accuracy worse than 350 m warns but does not disable submission, and screening returns needs_rescan', async ({ page, context, baseURL }) => {
   await atLocation(context, baseURL, { ...KL_FIX, accuracy: 500 })
   await pinModelSpecies(page, MIKANIA)
+  const session = followSession(page)
   await startPrivateAccess(page)
   await openReportForm(page)
 
+  // The form warns that the report is likely to come back for another scan...
   await expect(page.getByText(/Accurate to ~500 m/)).toBeVisible()
+  await expect(page.getByText('GPS accuracy is worse than 350 m')).toBeVisible()
+  await expect(page.getByText(/Automated screening sends reports with accuracy above 350 m back for a rescan\./)).toBeVisible()
   await expect(page.getByRole('button', { name: 'Re-locate me' })).toBeVisible()
-  await expect(page.getByRole('button', { name: 'Continue' })).toBeDisabled()
+  // ...but a non-negative accuracy inside Malaysia keeps submission enabled.
+  await expect(page.getByRole('button', { name: 'Continue' })).toBeEnabled()
+
+  await fillWizardToPreview(page)
+  await expect(page.getByRole('note')).toContainText('GPS accuracy is ±500 m. Reports above 350 m are sent back for a rescan')
+  await expect(page.getByRole('button', { name: 'Submit report' })).toBeEnabled()
+  const { status, sent, report } = await submitReport(page)
+  expect(status).toBe(201)
+  expect(sent.locationAccuracyM).toBe(500)
+
+  // Server-side screening returns it as needs_rescan; it is never published.
+  await expect(page.getByRole('heading', { name: 'A better GPS fix is needed' })).toBeVisible({ timeout: 8000 })
+  const screened = await getJson<{ status: string; validation: { reasonCodes: string[] } }>(page, `/api/v1/reports/${report.id}`, session.current())
+  expect(screened.status).toBe('needs_rescan')
+  expect(screened.validation.reasonCodes.length).toBeGreaterThan(0)
+  await expect(page.getByRole('heading', { name: 'Report published' })).toHaveCount(0)
 })
 
 test('AC 4.1.3 Relational report persistence: presign, upload and report run in order and the response carries the ID, coordinates and processing status', async ({ page, context, baseURL }) => {
@@ -519,7 +536,6 @@ test('AC 4.2.1 Public report markers: one community-report marker per returned s
 })
 
 test('AC 4.2.1 Public report markers: a record with another or a missing status is not rendered', async ({ page }) => {
-  test.fixme(true, 'FINDING: the map draws every item GET /api/v1/sightings returns; it has no client-side status guard (3 markers for 1 screened record).')
   const base = {
     speciesId: 'mikania-micrantha', speciesName: 'Mikania micrantha', latinName: 'Mikania micrantha', risk: 'high',
     precisionReduced: false, reportCount: 1, lastReportedAt: new Date().toISOString(),
@@ -656,18 +672,42 @@ test('AC 4.2.3 Species filter and accessible fallback: one plant filters markers
   await expect(pins).toHaveCount(total)
 })
 
-test('AC 4.2.3 Species filter and accessible fallback: several species can be selected and are sent as repeated species parameters', async ({ page }) => {
-  test.fixme(true, 'FINDING: the Plant filter is a single-choice select, so two species cannot be active together and species is never repeated.')
+test('AC 4.2.3 Species filter and accessible fallback: one species is selected at a time and sent as a single species parameter', async ({ page }) => {
   await startPrivateAccess(page)
+  await expect(page.locator('.map-pin').first()).toBeVisible()
   await page.getByRole('button', { name: /Open reports list/ }).click()
   const sheet = page.getByRole('dialog', { name: 'Community reports list' })
-  const filtered = page.waitForResponse((response) => {
-    const url = new URL(response.url())
-    return url.pathname === '/api/v1/sightings' && url.searchParams.getAll('species').length === 2
+  const plant = sheet.getByLabel('Plant')
+  // A single-choice control.
+  expect(await plant.evaluate((element) => (element as HTMLSelectElement).multiple)).toBe(false)
+
+  const speciesRequests: string[][] = []
+  page.on('request', (request) => {
+    const url = new URL(request.url())
+    if (url.pathname === '/api/v1/sightings' && url.searchParams.has('species')) speciesRequests.push(url.searchParams.getAll('species'))
   })
-  await sheet.getByLabel('Plant').selectOption([{ label: 'Mile-a-minute weed' }, { label: 'Siam weed' }])
-  expect(new URL((await filtered).url()).searchParams.getAll('species').sort())
-    .toEqual(['chromolaena-odorata', 'mikania-micrantha'])
+  for (const choice of [
+    { label: 'Mile-a-minute weed', speciesId: 'mikania-micrantha', latin: 'Mikania micrantha' },
+    { label: 'Siam weed', speciesId: 'chromolaena-odorata', latin: 'Chromolaena odorata' },
+  ]) {
+    const filtered = page.waitForResponse((response) => {
+      const url = new URL(response.url())
+      return url.pathname === '/api/v1/sightings' && url.searchParams.get('species') === choice.speciesId
+    })
+    await plant.selectOption({ label: choice.label })
+    const matching = (await (await filtered).json() as { items: Array<{ speciesId: string }> }).items
+    expect(matching.length).toBeGreaterThan(0)
+    // The new choice replaces the previous one everywhere.
+    await expect(plant).toHaveValue(choice.speciesId)
+    await expect(page.locator('.map-pin')).toHaveCount(matching.length)
+    await expect(sheet.locator('.map-reports-sheet__item')).toHaveCount(matching.length)
+    for (const name of await sheet.locator('.map-reports-sheet__item-name').allInnerTexts()) expect(name).toContain(choice.latin)
+    await expect(page.getByRole('button', { name: /Open reports list/ }))
+      .toHaveAttribute('aria-label', new RegExp(`^Showing ${matching.length} reports? \\(1 filter active\\)`))
+  }
+  // Every filtered request carried exactly one species.
+  expect(speciesRequests.length).toBeGreaterThanOrEqual(2)
+  for (const sent of speciesRequests) expect(sent).toHaveLength(1)
 })
 
 test('AC 4.3.1 Nearest-feature lookup: the stored feature type, name and distance are shown and the coordinates are unchanged', async ({ page, context }) => {

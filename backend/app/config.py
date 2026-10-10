@@ -131,6 +131,12 @@ class Settings(BaseSettings):
     # it must show the same 300 m threshold as the server so a user who
     # submits at 350 m does not first hear about the policy after screening.
     screening_location_accuracy_max_m: int = Field(default=350, ge=10, le=10_000)
+    # AC 3.3.4 / Data Management Plan 3.5.2 - the protected-area boundary check
+    # has its own, stricter limit. A fix worse than 250 m cannot place a plant
+    # against a mapped boundary, so the location context is "boundary
+    # uncertain". Deliberately separate from the report screening limit above:
+    # raising that one for field testing must not loosen this safety gate.
+    location_context_accuracy_max_m: int = Field(default=250, ge=10, le=10_000)
     # Turn off exact + perceptual duplicate-image checks so usability testers
     # can reuse the same reference photo across scans/reports without hitting
     # replay rejection. Off by default in prod; flip to true in the test env.

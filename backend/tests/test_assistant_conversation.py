@@ -212,7 +212,18 @@ def test_offtopic_questions_and_statements_redirect(conversation, message):
     state["route"] = "off_topic"
     result = run(conversation, message)
     assert result["intent"] == "off_topic" and "plant" in result["answer"].lower()
+    # AC 8.1.6: a redirect is a reply, not an answered question.
+    assert result["answerability"] == "insufficient_evidence"
     assert len(state["calls"]) == 1
+
+
+def test_social_and_clarify_replies_are_not_answered_questions(conversation):
+    state, _ = conversation
+    for route, intent in [("social", "greeting"), ("clarify", "ambiguous")]:
+        state["route"] = route
+        result = run(conversation, "hello")
+        assert result["intent"] == intent
+        assert result["answerability"] == "insufficient_evidence"
 
 
 def test_failed_model_does_not_blame_clear_question(conversation):
@@ -238,9 +249,33 @@ def test_general_ai_question_works_without_selected_plant_evidence(conversation)
     state, _ = conversation
     state["target"] = None
     state["reviewed"] = False
-    result = run(conversation, "How does transpiration work?", "detailed")
+    result = run(conversation, "How does transpiration work?")
     assert result["answer_mode"] == "general_knowledge" and result["sources"] == []
+    assert result["answerability"] == "answerable"
+    assert [s["title"] for s in result["sections"]] == ["AI-generated botanical information"]
     assert state["calls"][1]["reviewed_evidence"] == []
+
+
+def test_ai_only_detailed_is_rejected_without_relabelling(conversation):
+    # AC 8.1.3 / 8.4.4: Detailed is for reviewed evidence only.
+    state, _ = conversation
+    state["target"] = None
+    state["reviewed"] = False
+    result = run(conversation, "How does transpiration work?", "detailed")
+    assert result["status"] == "insufficient_evidence"
+    assert result["answerability"] == "insufficient_evidence"
+    assert result["sources"] == [] and result["answer"] == engine.AI_DETAILED_UNAVAILABLE
+    assert [s["kind"] for s in result["sections"]] == ["unavailable"]
+    assert router.AskResponse.model_validate(result).sections[0].warning is None
+
+
+def test_mixed_answer_names_the_additional_ai_section(conversation):
+    result = run(conversation, "Explain its roots", "detailed")
+    assert [s["title"] for s in result["sections"]] == [
+        "From reviewed sources",
+        "Additional AI-generated information",
+    ]
+    assert result["sections"][1]["sources"] == []
 
 
 def test_level_change_has_previous_answer_and_distinct_explanations(conversation):

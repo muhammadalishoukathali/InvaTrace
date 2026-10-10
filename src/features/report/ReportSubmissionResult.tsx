@@ -8,6 +8,7 @@ import { useScan } from '@/features/scan/scan-store'
 import { api } from '@/services/api-client'
 import type { Report } from '@/types'
 import { humanizeReason, onlyLocationFailed } from './rescan-reasons'
+import { ReportAdoptionPrompt } from './components/ReportAdoptionPrompt'
 import './report-submission-result.css'
 
 /**
@@ -92,6 +93,12 @@ export function ReportSubmissionResult() {
       : `/reports/${outcome.report.id}`)
     : null
 
+  // AC 6.1.2: once the report is accepted, the confirmation itself offers to
+  // adopt the supported place it was made in (same rule as the tracking page).
+  const adoptionPrompt = initialReport && sightingId
+    ? <ReportAdoptionPrompt reportId={initialReport.id} location={initialReport.submission.location} />
+    : null
+
   if (submitted && status === 'screened') {
     return (
       <main className="report-submission-result">
@@ -104,6 +111,7 @@ export function ReportSubmissionResult() {
               View on map
             </button>
           </div>
+          {adoptionPrompt}
         </section>
       </main>
     )
@@ -149,6 +157,7 @@ export function ReportSubmissionResult() {
               </button>
             )}
           </div>
+          {adoptionPrompt}
         </section>
       </main>
     )

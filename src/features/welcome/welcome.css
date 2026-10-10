@@ -283,6 +283,7 @@
 }
 .welcome-why__photo figcaption { margin-top: 24px; color: var(--body); font-size: 13.5px; line-height: 1.5; }
 .welcome-credit { display: block; margin-top: 18px; color: var(--muted); font-size: 12.5px; }
+.welcome-credit + .welcome-credit { margin-top: 4px; }
 .welcome-credit a { color: inherit; text-underline-offset: 2px; }
 .welcome-why__intro p:not(.welcome-eyebrow) {
   max-width: 70ch;

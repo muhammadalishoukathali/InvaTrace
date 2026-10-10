@@ -9,7 +9,7 @@ import { resolveResultPathway, type ResultPathway } from '@/features/scan/malays
 import { findPlantGuidance } from '@/data/plant-guidance'
 import { findModelSpecies, modelReferenceImageUrl } from '@/data/model-species-catalogue'
 import type { IdentifyResult, SpeciesDetail } from '@/types'
-import { findApprovedSpecies } from '@shared/catalogue'
+import { catalogueSourceById, findApprovedSpecies, findPlantStatus } from '@shared/catalogue'
 import './scan-result.css'
 import { referenceImageSrc } from '@/data/reference-image-src'
 
@@ -92,10 +92,28 @@ export function ScanResultPage() {
   const guidanceActionEligible = pathway.canAction
     ? speciesDetail?.actionEligible
     : false
-  const approvedSpecies = findApprovedSpecies({
+  // AC 1.1.3 - an uncertain result names no species, so it gets no catalogue
+  // link either: every catalogue entry is an invasive record, and pointing at
+  // one would be an invasive claim by another route.
+  const approvedSpecies = result.outcome === 'uncertain' ? null : findApprovedSpecies({
     speciesId: result.speciesId,
     scientificName: result.scientificName,
   })
+  // AC 1.2.1 / 1.2.2 - when the species call failed, the status source and
+  // review date still come from the bundled catalogue record.
+  const bundledStatus = !speciesDetail && pathway.pathway === 'invasive_reportable'
+    ? findPlantStatus({ speciesId: result.speciesId ?? null, scientificName: result.scientificName ?? null })
+    : null
+  const statusReviewedAt = speciesDetail?.statusReviewedAt ?? bundledStatus?.status_reviewed_at
+  const statusSourceId = speciesDetail?.statusSourceId ?? bundledStatus?.status_source_ids[0]
+  // AC 1.2.3 - the server's own safety message is shown whenever it withholds
+  // action or reporting, or the status is not plainly invasive.
+  const serverSafetyMessage = speciesDetail?.safetyMessage
+    && (pathway.pathway !== 'invasive_reportable'
+      || speciesDetail.actionEligible === false
+      || speciesDetail.reportEligible === false)
+    ? speciesDetail.safetyMessage
+    : null
 
   return (
     <div className={canReport ? 'scan-result scan-result--with-report' : 'scan-result'}>
@@ -131,10 +149,7 @@ export function ScanResultPage() {
         <TargetResult result={result} detail={speciesDetail} imageUrl={imageUrl} />
       )}
       {pathway.pathway === 'invasive_reportable' && !speciesDetail && (
-        <UnsupportedTargetResult result={result} />
-      )}
-      {pathway.pathway === 'invasive_unsupported' && (
-        <UnsupportedTargetResult result={result} />
+        <CatalogueTargetResult result={result} />
       )}
       {pathway.pathway === 'information_only' && (
         <InformationOnlyResult result={result} />
@@ -156,6 +171,18 @@ export function ScanResultPage() {
         </div>
       )}
 
+      {serverSafetyMessage && (
+        <div role="note" style={{
+          marginTop: 16, padding: '12px 14px', borderRadius: 'var(--r-input)',
+          background: '#FEF3E2', border: '1px solid #F0D9A8',
+        }}>
+          <div style={{ fontSize: 12.5, fontWeight: 700, color: 'var(--amber)' }}>Safety message</div>
+          <p style={{ marginTop: 4, fontSize: 12.5, color: 'var(--body)', lineHeight: 1.55 }}>
+            {serverSafetyMessage}
+          </p>
+        </div>
+      )}
+
       <PlantAssistantPanel key={`${captureId ?? 'scan'}:${result.speciesId ?? result.scientificName ?? 'unknown'}:${result.outcome}:${result.confidence}`} result={result} />
 
       {result.outcome !== 'uncertain' && !statusUncertain && (
@@ -173,15 +200,15 @@ export function ScanResultPage() {
       )}
 
       {/* Keep review metadata secondary to the identification result. */}
-      {(speciesDetail?.statusReviewedAt || speciesDetail?.statusSourceId) && (
+      {(statusReviewedAt || statusSourceId) && (
         <p style={{
           marginTop: 10,
           fontSize: 11.5, color: 'var(--muted)', lineHeight: 1.55,
           wordBreak: 'break-word',
         }}>
-          {speciesDetail.statusReviewedAt && `Malaysia status reviewed ${humanReviewedDate(speciesDetail.statusReviewedAt)}`}
-          {speciesDetail.statusReviewedAt && speciesDetail.statusSourceId && ' · '}
-          {speciesDetail.statusSourceId}
+          {statusReviewedAt && `Malaysia status reviewed ${humanReviewedDate(statusReviewedAt)}`}
+          {statusReviewedAt && statusSourceId && ' · '}
+          {statusSourceId}
         </p>
       )}
 
@@ -240,7 +267,6 @@ const PATHWAY_CONFIG: Record<ResultPathway, {
   label: string; bg: string; border: string; color: string; icon: string
 }> = {
   invasive_reportable: { label: 'Invasive in Malaysia', bg: 'var(--red-light)', border: 'var(--red-border)', color: 'var(--red)', icon: 'AlertTriangle' },
-  invasive_unsupported: { label: 'Possible invasive match', bg: '#FEF3E2', border: '#F0D9A8', color: 'var(--amber)', icon: 'AlertTriangle' },
   information_only: { label: 'Information only', bg: '#EEF3F7', border: '#D5DEE7', color: '#2F5F86', icon: 'Info' },
   status_uncertain: { label: 'Status uncertain. Take another photo.', bg: '#FEF3E2', border: '#F0D9A8', color: 'var(--amber)', icon: 'HelpCircle' },
   other_plant: { label: 'Not a target species', bg: 'var(--green-light)', border: 'var(--green-border)', color: 'var(--green)', icon: 'Check' },
@@ -559,12 +585,18 @@ function RetakeResult({ result }: { result: IdentifyResult }) {
   )
 }
 
-function UnsupportedTargetResult({ result }: { result: IdentifyResult }) {
-  const displayName = result.speciesName ?? result.scientificName ?? 'Possible invasive plant'
-  const scientific = result.scientificName && result.scientificName !== displayName ? result.scientificName : null
-  // Even when there's no detailed guidance card for this plant, a catalogue
-  // reference photo is still worth showing so the user has something to
-  // compare against.
+/** AC 1.2.1 - the invasive result drawn from the bundled catalogue alone, for
+ *  when GET /api/v1/species/{id} could not be reached. Same status and same
+ *  actions as the full result; only the server-held extras (traits, native
+ *  look-alike) are missing, and the user is told why. */
+function CatalogueTargetResult({ result }: { result: IdentifyResult }) {
+  const record = findPlantStatus({
+    speciesId: result.speciesId ?? null,
+    scientificName: result.scientificName ?? null,
+  })
+  const displayName = record?.common_name ?? result.speciesName ?? result.scientificName ?? 'Identified plant'
+  const scientificName = record?.scientific_name ?? result.scientificName
+  const scientific = scientificName && scientificName !== displayName ? scientificName : null
   const guidance = findPlantGuidance({
     scientificName: result.scientificName ?? null,
     modelLabel: result.speciesName ?? null,
@@ -577,11 +609,18 @@ function UnsupportedTargetResult({ result }: { result: IdentifyResult }) {
   const referenceImage = guidance?.reference_image
     ?? (modelSpecies ? modelReferenceImageUrl(modelSpecies) : null)
   const referenceCredit = guidance?.reference_image_credit ?? 'Species reference image'
+  const source = record?.status_source_ids[0] ? catalogueSourceById(record.status_source_ids[0]) : undefined
   return (
-    <div style={{ marginTop: 16, padding: '16px 18px', borderRadius: 'var(--r-card)', background: 'var(--amber-light)' }}>
-      <h2 style={{ fontSize: 18, fontWeight: 650 }}>{displayName}</h2>
+    <div style={{ marginTop: 16 }}>
+      <h2 style={{ fontSize: 20, fontWeight: 700 }}>{displayName}</h2>
       {scientific && (
-        <p style={{ color: 'var(--muted)', fontSize: 12.5, fontStyle: 'italic', marginTop: 2 }}>{scientific}</p>
+        <p style={{ fontSize: 13, color: 'var(--muted)', fontStyle: 'italic' }}>{scientific}</p>
+      )}
+      {record?.general_information && (
+        <p style={{ marginTop: 8, color: 'var(--body)', fontSize: 13.5, lineHeight: 1.6 }}>
+          {record.general_information}
+          {source && <> Source: {source.title}.</>}
+        </p>
       )}
       {referenceImage && (
         <figure style={{ margin: '10px 0 0' }}>
@@ -599,11 +638,8 @@ function UnsupportedTargetResult({ result }: { result: IdentifyResult }) {
           </figcaption>
         </figure>
       )}
-      {/* Kept this summary short on purpose - the full guidance is further down. */}
-      <p style={{ marginTop: 8, color: 'var(--body)', fontSize: 13.5, lineHeight: 1.6 }}>
-        The model suggested this catalogue species, but the photo has not been
-        verified. Compare it with the reference image and seek a second
-        identification before reporting or removing the plant.
+      <p role="status" style={{ marginTop: 8, color: 'var(--muted)', fontSize: 12, lineHeight: 1.5 }}>
+        Extra species details could not be loaded, so this result is shown from the plant catalogue saved on this device.
       </p>
     </div>
   )

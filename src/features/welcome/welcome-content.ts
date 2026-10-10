@@ -60,7 +60,14 @@ export const INVASIVE_PLANT = {
     commonName: 'Giant salvinia',
     scientificName: 'Salvinia molesta',
     story:
-      'covered the whole surface in 2019. After a community-led control effort, open water had returned by 2021. Giant salvinia is also listed as invasive in Malaysia.',
+      'covered the whole surface in 2019. After a community-led control effort, open water had returned by 2021.',
+  },
+  // Same form as EXAMPLE_STATUS. Salvinia molesta is in the reviewed catalogue
+  // with GRIIS Malaysia record 91786 as its status source.
+  status: {
+    label: 'Listed as invasive in Malaysia',
+    sourceLabel: 'GRIIS Malaysia',
+    href: 'https://doi.org/10.15468/j9xkz3',
   },
   caseSource: {
     label: 'García-López et al. · Water (MDPI), 2023, Figure 2',

@@ -21,7 +21,9 @@ test('AC 10.1.1 Landing page first view: a first-time visitor can read the welco
     await expect(page.getByRole('heading', { level: 3, name: feature, exact: true })).toBeVisible()
   }
   await expect(page.getByText('Labis, Johor, Malaysia')).toBeVisible()
-  await expect(page.getByText('Listed as invasive in Malaysia', { exact: true })).toBeVisible()
+  // Shown for both plant examples: the hero scan preview and the giant salvinia photo.
+  await expect(page.getByText('Listed as invasive in Malaysia', { exact: true })).toHaveCount(2)
+  await expect(page.getByText('Listed as invasive in Malaysia', { exact: true }).first()).toBeVisible()
 })
 
 test('How it works moves to the five steps', async ({ page }) => {

@@ -313,6 +313,7 @@ export function PlantGuidancePanel({
           stopConditionsClear={stopConditionsClear}
           setStopConditionsClear={setStopConditionsClear}
           locationActionEligible={protectedContext.data?.actionEligible === true}
+          serverActionEligible={actionEligible !== false}
         />
       )}
 
@@ -358,7 +359,7 @@ export function PlantGuidancePanel({
         />
       )}
 
-      {plant.actions && !activePathAllowed && permission === 'explicit_permission' && (
+      {plant.actions && !activePathAllowed && permission === 'explicit_permission' && actionEligible !== false && (
         <div
           role="note"
           style={{
@@ -612,6 +613,7 @@ function PermissionGate({
   stopConditionsClear,
   setStopConditionsClear,
   locationActionEligible,
+  serverActionEligible,
 }: {
   plant: PlantGuidance
   permission: PermissionChoice
@@ -621,9 +623,14 @@ function PermissionGate({
   stopConditionsClear: boolean
   setStopConditionsClear: (value: boolean) => void
   locationActionEligible: boolean
+  /** False when the species record itself withholds action (AC 1.2.3). */
+  serverActionEligible: boolean
 }) {
-  const canActEver = plant.guidance_mode === 'active_guidance'
+  const modeAllowsAction = plant.guidance_mode === 'active_guidance'
     || plant.guidance_mode === 'site_manager_confirmation_required'
+  // A server veto is final for this result, exactly like a report_only record:
+  // the option stays disabled rather than promising steps that never appear.
+  const canActEver = modeAllowsAction && serverActionEligible
   const canActHere = canActEver && locationActionEligible
   const stopConditions = plant.actions?.authorised_site.stop_conditions ?? []
 
@@ -666,7 +673,9 @@ function PermissionGate({
               ? 'I have permission from the land manager'
               : canActEver
                 ? 'Check location before active guidance'
-                : 'Removal is not allowed for this species'
+                : modeAllowsAction
+                  ? 'Removal steps are not available for this plant'
+                  : 'Removal is not allowed for this species'
           }
         />
       </div>

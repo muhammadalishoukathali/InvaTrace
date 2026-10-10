@@ -74,15 +74,27 @@ test('AC 10.1.1 Landing page first view: the name, purpose, Malaysian problem st
   expect(identityCalls).toEqual([])
 })
 
-test('AC 10.1.1, AC 10.2.3 Landing page navigation: the navigation shows the logo and Restore access only', async ({ page }) => {
-  test.fixme(true, 'FINDING: the navigation holds the logo only; Restore access is a sentence link in the hero ("Already use InvaTrace? Restore access"), not a navigation item.')
+test('AC 10.1.1, AC 10.2.3 Landing page navigation: the navigation shows the logo only and Restore access is a link in the hero and the closing section', async ({ page }) => {
   await page.goto('/')
+  // Navigation: the logo, and nothing that repeats a hero action.
   await expect(nav(page).getByLabel('InvaTrace')).toBeVisible()
-  const links = nav(page).getByRole('link')
-  await expect(links).toHaveCount(1)
-  await expect(links).toHaveText(/Restore access/)
-  await expect(links).toHaveAttribute('href', '/private-access/restore')
+  await expect(nav(page).getByRole('link')).toHaveCount(0)
   await expect(nav(page).getByRole('button')).toHaveCount(0)
+
+  // Restore access is offered in the hero and in the closing section, and nowhere else.
+  const heroRestore = hero(page).getByRole('link', { name: 'Already use InvaTrace? Restore access' })
+  const closingRestore = closing(page).getByRole('link', { name: 'Restore an existing profile' })
+  await expect(heroRestore).toBeInViewport()
+  await expect(heroRestore).toHaveAttribute('href', '/private-access/restore')
+  await expect(closingRestore).toHaveAttribute('href', '/private-access/restore')
+  await expect(page.locator('a[href="/private-access/restore"]')).toHaveCount(2)
+
+  await closingRestore.click()
+  await expect(page).toHaveURL(/\/private-access\/restore$/)
+  await page.goBack()
+  await heroRestore.click()
+  await expect(page).toHaveURL(/\/private-access\/restore$/)
+  await expect(page.getByLabel('Recovery code')).toBeVisible()
 })
 
 test('AC 10.1.2 Problem explanation: a definition, a credited infestation photograph and the three impacts', async ({ page }) => {
@@ -206,16 +218,24 @@ test('AC 10.1.4 Image credit and plant status: every photograph is credited and 
   expect(listed).toContain('Salvinia molesta')
   expect(listed).toContain('Asclepias curassavica')
   await expect(hero(page).locator('figure.welcome-example img')).toHaveAttribute('alt', /Tropical milkweed, marked Invasive in Malaysia/)
-  await expect(infestation.locator('figcaption')).toContainText('Giant salvinia is also listed as invasive in Malaysia.')
+  await expect(infestation.locator('figcaption')).toContainText('Listed as invasive in Malaysia · Status source: GRIIS Malaysia')
 })
 
 test('AC 10.1.4 Image credit and plant status: every plant example names its status source', async ({ page }) => {
-  test.fixme(true, 'FINDING: the giant salvinia example says it is "also listed as invasive in Malaysia" but names no status source; only the scan preview has a "Status source" line.')
   await page.goto('/')
   await expect(hero(page).locator('figure.welcome-example figcaption')).toContainText('Status source: GRIIS Malaysia')
   const salvinia = problem(page).locator('figure.welcome-why__photo figcaption')
-  await expect(salvinia).toContainText('listed as invasive in Malaysia')
-  await expect(salvinia).toContainText(/Status source:\s*\S+/)
+  await expect(salvinia).toContainText('Giant salvinia')
+  await expect(salvinia).toContainText('Listed as invasive in Malaysia · Status source: GRIIS Malaysia')
+  // The named source is the one the reviewed catalogue records for Salvinia molesta.
+  const catalogue = JSON.parse(fs.readFileSync(path.join(process.cwd(), 'shared/catalogue/approved-species.json'), 'utf8')) as {
+    records: Array<{ scientific_name: string; evidence_source_ids: string[] }>
+    sources: Array<{ source_id: string; publisher: string; url: string }>
+  }
+  const record = catalogue.records.find((item) => item.scientific_name === 'Salvinia molesta')!
+  const source = catalogue.sources.find((item) => record.evidence_source_ids.includes(item.source_id) && item.publisher === 'GRIIS')!
+  await expect(salvinia.getByRole('link', { name: 'GRIIS Malaysia' })).toHaveAttribute('href', source.url)
+  await expect(salvinia.getByRole('link', { name: 'GRIIS Malaysia' })).toHaveAttribute('target', '_blank')
 })
 
 test('AC 10.2.1 App workflow explanation: How it works is five ordered steps that fit phone and desktop layouts', async ({ page }) => {
@@ -245,15 +265,23 @@ test('AC 10.2.1 App workflow explanation: How it works is five ordered steps tha
   expect([...tops].sort((a, b) => a - b)).toEqual(tops)
 })
 
-test('AC 10.2.1 App workflow explanation: the steps are Discover places, Start a guided mission, Scan a plant, Follow safe guidance, Report and revisit', async ({ page }) => {
-  test.fixme(true, 'FINDING: the page shows Discover what to look for, Identify a plant, Follow safe guidance, Report a sighting, Monitor places over time; no step names a guided mission.')
+test('AC 10.2.1 App workflow explanation: the steps are Discover what to look for, Identify a plant, Follow safe guidance, Report a sighting, Monitor places over time', async ({ page }) => {
   await page.goto('/')
-  await expect(howItWorks(page).locator('ol.welcome-steps > li').getByRole('heading', { level: 3 })).toHaveText([
-    'Discover places',
-    'Start a guided mission',
-    'Scan a plant',
+  const steps = howItWorks(page).locator('ol.welcome-steps > li')
+  await expect(steps.getByRole('heading', { level: 3 })).toHaveText([
+    'Discover what to look for',
+    'Identify a plant',
     'Follow safe guidance',
-    'Report and revisit',
+    'Report a sighting',
+    'Monitor places over time',
+  ])
+  // Each step explains itself: places, identification, safety, reporting, revisiting.
+  await expect(steps.locator('p')).toHaveText([
+    'Explore mapped places and the plants recorded there.',
+    'Photograph a plant to get a suggested identification.',
+    'Read the safety guidance before you touch anything.',
+    'Record what you saw and where you saw it.',
+    'Return later to check the same spot for regrowth.',
   ])
 })
 

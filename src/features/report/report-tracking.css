@@ -151,19 +151,6 @@
 .report-tracking__removal-success { color: var(--green-dark) !important; font-weight: 600; }
 .report-tracking__removal-error { color: var(--red-text) !important; }
 
-.report-tracking__adoption {
-  margin-top: 24px;
-  padding: 18px;
-  border: 1px solid var(--green-border);
-  border-radius: var(--r-card);
-  background: var(--green-light);
-}
-.report-tracking__adoption h2 { font-size: 17px; }
-.report-tracking__adoption > p { margin-top: 8px; color: var(--body); font-size: 13.5px; line-height: 1.55; }
-.report-tracking__adoption > div { margin-top: 14px; display: flex; flex-wrap: wrap; gap: 9px; }
-.report-tracking__adoption button { min-height: 44px; padding: 0 14px; border: 0; border-radius: var(--r-button); background: var(--green); color: white; font-weight: 650; cursor: pointer; }
-.report-tracking__adoption button + button { background: transparent; color: var(--body); }
-
 .report-tracking__actions {
   margin-top: 32px;
   display: flex;

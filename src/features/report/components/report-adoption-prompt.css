@@ -1,0 +1,15 @@
+/* Shared by the report confirmation screen and the report tracking page. The
+   element classes keep these rules ahead of each host page's own `p` and
+   `button` styling. */
+.report-adoption-prompt {
+  margin-top: 24px;
+  padding: 18px;
+  border: 1px solid var(--green-border);
+  border-radius: var(--r-card);
+  background: var(--green-light);
+}
+.report-adoption-prompt h2 { font-size: 17px; }
+.report-adoption-prompt .report-adoption-prompt__text { margin-top: 8px; color: var(--body); font-size: 13.5px; line-height: 1.55; }
+.report-adoption-prompt__actions { margin-top: 14px; display: flex; flex-wrap: wrap; gap: 9px; }
+.report-adoption-prompt__actions button { min-height: 44px; padding: 0 14px; border: 0; border-radius: var(--r-button); background: var(--green); color: white; font: inherit; font-weight: 650; cursor: pointer; }
+.report-adoption-prompt__actions button + button { background: transparent; color: var(--body); }

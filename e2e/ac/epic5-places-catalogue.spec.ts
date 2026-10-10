@@ -180,11 +180,13 @@ async function goOffline(page: Page) {
     window.dispatchEvent(new Event('offline'))
   })
 }
+/** Client-side navigation through the History API, which the router listens
+ *  to. (Importing the app's router module from the test can hand back a second
+ *  module instance when the dev server has hot-updated a file.) */
 async function navigateInApp(page: Page, destination: string) {
-  await page.evaluate(async (target) => {
-    const modulePath = '/src/app/router.tsx'
-    const { router } = await import(/* @vite-ignore */ modulePath)
-    await router.navigate(target)
+  await page.evaluate((target) => {
+    window.history.pushState(null, '', target)
+    window.dispatchEvent(new PopStateEvent('popstate'))
   }, destination)
 }
 
@@ -242,8 +244,8 @@ test('AC 5.1.1 Supported place selection', async ({ page }) => {
   await expect(page.getByRole('heading', { level: 2, name: 'Kota Damansara Community Forest' })).toBeVisible()
   await expect(page.getByLabel('Mapped geometry for Kota Damansara Community Forest').locator('canvas')).toBeVisible()
 
-  // A trail's page renders its line geometry when opened by id. (Reaching it
-  // from the map or search is the fixme test below.)
+  // A trail's page renders its line geometry when opened by id. (That trails
+  // are deliberately not listed is the next test.)
   const trailLoaded = page.waitForResponse((response) => pathOf(response.url()) === `/api/v1/places/${TAMAN_TUGU_TRAIL}`)
   await page.goto(`/places/${TAMAN_TUGU_TRAIL}`)
   expect(await (await trailLoaded).json()).toMatchObject({ placeId: TAMAN_TUGU_TRAIL, placeType: 'trail', geometry: { type: 'LineString' } })
@@ -252,17 +254,56 @@ test('AC 5.1.1 Supported place selection', async ({ page }) => {
   await expect(page.getByLabel('Mapped geometry for Taman Tugu Trail').locator('canvas')).toBeVisible()
 })
 
-test('AC 5.1.1 Supported place selection - a mapped trail can be selected from the map or place search', async ({ page }) => {
-  test.fixme(true, 'Trails are filtered out of the discovery map markers and of Browse places; a trail is only reachable by its direct /places/:id URL.')
+test('AC 5.1.1 Supported place selection - trails are not listed but still open from their direct link', async ({ page }) => {
   await startPrivateAccess(page)
+
+  // The discovery map lists parks, forests and woodlands in view - never the trail.
   const mapped = page.getByRole('region', { name: 'Mapped places in current view' })
   await expect(mapped.getByRole('button', { name: /Bukit Kiara/ })).toBeAttached({ timeout: 10_000 })
-  await expect(mapped.getByRole('button', { name: /Taman Tugu Trail.*View plants recorded nearby/ })).toBeAttached()
+  // Widen the view until a place further out than the trail is listed, so the
+  // trail's absence is not just the starting viewport.
+  await page.evaluate(() => {
+    (window as unknown as { __map: { fitBounds: (bounds: number[][], options: { duration: number }) => void } }).__map
+      .fitBounds([[101.57, 3.11], [101.72, 3.19]], { duration: 0 })
+  })
+  await expect(mapped.getByRole('button', { name: /Taman Tasik Titiwangsa/ })).toBeAttached({ timeout: 10_000 })
+  await expect(mapped.getByRole('button', { name: /Rimba Ilmu Woodland/ })).toBeAttached()
+  await expect(mapped.getByRole('button', { name: /Taman Tugu/ })).toHaveCount(0)
+  await expect(mapped.getByRole('button', { name: /trail/i })).toHaveCount(0)
 
+  // Browse places: the API still returns the trail, the list does not show it...
+  const listLoaded = page.waitForResponse((response) => pathOf(response.url()) === '/api/v1/places')
   await page.goto('/places')
-  await page.getByPlaceholder('Search park, forest or woodland').fill('Taman Tugu')
-  await expect(page.locator('.places-list').getByRole('link', { name: /Taman Tugu Trail/ }))
-    .toHaveAttribute('href', `/places/${TAMAN_TUGU_TRAIL}`)
+  const listed = await (await listLoaded).json() as { items: Array<{ placeId: string; placeType: string }> }
+  expect(listed.items.map((item) => item.placeId)).toContain(TAMAN_TUGU_TRAIL)
+  const rows = page.locator('.places-list li')
+  await expect(rows).toHaveCount(listed.items.filter((item) => item.placeType !== 'trail').length)
+  await expect(page.locator(`.places-list a[href="/places/${TAMAN_TUGU_TRAIL}"]`)).toHaveCount(0)
+  await expect(page.locator('.places-list small', { hasText: /trail/i })).toHaveCount(0)
+  // ...including when it is searched for by name or by type.
+  const search = page.getByPlaceholder('Search park, forest or woodland')
+  for (const term of ['Taman Tugu Trail', 'tugu', 'trail']) {
+    await search.fill(term)
+    await expect(page.locator('.places-state')).toContainText('No mapped places match this search.')
+    await expect(rows).toHaveCount(0)
+  }
+  // A woodland, by contrast, is found and offers the action.
+  await search.fill('woodland')
+  await expect(rows).toHaveCount(1)
+  await expect(rows.locator('strong').first()).toHaveText('Rimba Ilmu Woodland')
+  await expect(rows.locator('small')).toHaveText('wood')
+  await expect(rows.locator('.places-list__action')).toHaveText('View plants recorded nearby')
+
+  // The trail still opens from its direct link and shows its line geometry.
+  const trailLoaded = page.waitForResponse((response) => pathOf(response.url()) === `/api/v1/places/${TAMAN_TUGU_TRAIL}`)
+  await page.goto(`/places/${TAMAN_TUGU_TRAIL}`)
+  const trail = await (await trailLoaded).json() as { placeType: string; geometry: { type: string; coordinates: number[][] } }
+  expect(trail.placeType).toBe('trail')
+  expect(trail.geometry.type).toBe('LineString')
+  expect(trail.geometry.coordinates.length).toBeGreaterThan(1)
+  await expect(page.getByRole('heading', { level: 2, name: 'Taman Tugu Trail' })).toBeVisible()
+  await expect(page.locator('.place-detail header p')).toContainText('trail ·')
+  await expect(page.getByLabel('Mapped geometry for Taman Tugu Trail').locator('canvas')).toBeVisible()
 })
 
 test('AC 5.1.2 Direct and nearby spatial association', async ({ page }) => {

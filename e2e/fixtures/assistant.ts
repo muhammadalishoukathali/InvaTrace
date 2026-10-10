@@ -101,7 +101,7 @@ export const HAZARD_TEXT = 'Milky sap can irritate skin.'
 export const RHIZOME_TEXT = 'A rhizome is a horizontal underground stem that can produce new shoots.'
 
 const TITLES: Record<Section['kind'], string> = {
-  grounded: 'From reviewed sources', ai: 'AI knowledge',
+  grounded: 'From reviewed sources', ai: 'AI-generated botanical information',
   conversation: 'Plant conversation', unavailable: 'Information unavailable',
 }
 
@@ -114,12 +114,19 @@ export function section(kind: Section['kind'], answer: string, depth: Depth = 's
 }
 
 /** Same derivation as assistant_conversation.response(): the mode, top-level
- *  sources and coverage follow from the sections, never set independently. */
-export function answered(sections: Section[], overrides: Partial<AskResponse> = {}): AskResponse {
-  const reviewed = sections.filter(item => item.kind === 'grounded')
-  const ai = sections.some(item => item.kind === 'ai')
+ *  sources, coverage, AI section title and answerability follow from the
+ *  sections and intent, never set independently. A reply with no reviewed or
+ *  AI content (greeting, redirect, clarification) is not an answered question. */
+export function answered(input: Section[], overrides: Partial<AskResponse> = {}): AskResponse {
+  const reviewed = input.filter(item => item.kind === 'grounded')
+  const ai = input.some(item => item.kind === 'ai')
+  const sections = input.map(item => item.kind === 'ai'
+    ? { ...item, title: reviewed.length ? 'Additional AI-generated information' : 'AI-generated botanical information' }
+    : item)
+  const intent = overrides.intent ?? 'botanical'
   return {
-    status: 'answer', answerability: 'answerable', intent: 'botanical',
+    status: 'answer', intent,
+    answerability: reviewed.length || ai || intent === 'catalogue' ? 'answerable' : 'insufficient_evidence',
     coverage: reviewed.length && ai ? 'partially_supported' : reviewed.length ? 'fully_supported' : 'unsupported',
     answerMode: reviewed.length ? 'grounded' : ai ? 'general_knowledge' : 'grounded',
     sources: reviewed.flatMap(item => item.sources),

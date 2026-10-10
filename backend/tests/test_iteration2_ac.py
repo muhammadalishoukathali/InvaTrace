@@ -119,6 +119,21 @@ def test_boundary_failure_is_never_treated_as_outside() -> None:
     assert response.permission_confirmation_required is True
 
 
+def test_location_context_accuracy_limit_is_250_metres() -> None:
+    """AC 3.3.4 - exactly 250 m is still usable; anything worse is uncertain.
+    The limit is the protected-area one, not the 350 m report screening one."""
+    from app.api.routers.location import _accuracy_too_low
+    from app.config import get_settings
+
+    settings = get_settings()
+    assert settings.location_context_accuracy_max_m == 250
+    assert settings.screening_location_accuracy_max_m == 350
+    assert _accuracy_too_low(250) is False
+    assert _accuracy_too_low(250.001) is True
+    assert _accuracy_too_low(251) is True
+    assert _accuracy_too_low(300) is True
+
+
 def test_removal_distance_gate_uses_metres() -> None:
     assert _distance_metres(3.14, 101.69, 3.14, 101.69) == 0
     radius_m = 6_371_008.8

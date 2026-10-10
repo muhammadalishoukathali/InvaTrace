@@ -441,7 +441,6 @@ test('AC 4.6.1 Removal reported marker appearance: a grey marker labelled Remova
 })
 
 test('AC 4.6.1 Removal reported marker appearance: the grey marker is drawn with reduced opacity', async ({ page }) => {
-  test.fixme(true, 'FINDING: the grey marker renders at full opacity; MapLibre resets the 0.7 the pin element is created with (computed opacity is 1).')
   await startPrivateAccess(page)
   const marker = pin(page, REMOVED)
   await expect(marker.locator('svg path')).toHaveAttribute('fill', '#66736D')

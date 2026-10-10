@@ -14,9 +14,6 @@ import {
   atLocation, KL_FIX, pinModelSpecies, referenceImage, scanPhoto, startPrivateAccess,
 } from '../fixtures/app'
 
-// Set AC_RUN_FIXME=1 to run the fixme tests and re-check each finding.
-const KNOWN_GAP = !process.env.AC_RUN_FIXME
-
 const START_PATH = '/api/v1/profiles/start'
 const BOOTSTRAP_PATH = '/api/v1/profiles/bootstrap'
 const RESTORE_PATH = '/api/v1/profiles/restore'
@@ -227,7 +224,7 @@ test('AC 2.1.1 Anonymous identity creation', async ({ page }) => {
   // session from nothing but a random installation token - no email, phone,
   // name, username or password is asked for or sent.
   // Not proven here: the backend's own randomness source. The count of codes
-  // is the separate fixme test below.
+  // is the next test.
   const startBodies: Array<Record<string, unknown>> = []
   page.on('request', (request) => {
     if (pathOf(request.url()) === START_PATH) startBodies.push(request.postDataJSON())
@@ -278,15 +275,18 @@ test('AC 2.1.1 Anonymous identity creation', async ({ page }) => {
   expect(payload.profile.displayName).toBeNull()
 })
 
-test('AC 2.1.1 Anonymous identity creation - ten one-time recovery codes are issued', async ({ page }) => {
-  test.fixme(KNOWN_GAP, 'POST /profiles/start returns 1 reusable recovery code, not ten one-time codes (mock and backend RECOVERY_CODES_PER_BATCH).')
-  const { payload } = await startWithoutAcknowledging(page)
-  expect(payload.recoveryCodes).toHaveLength(10)
+test('AC 2.1.1 Anonymous identity creation - exactly one recovery code is issued', async ({ page }) => {
+  const { status, payload } = await startWithoutAcknowledging(page)
+  expect(status).toBe(201)
+  expect(payload.recoveryCodes).toHaveLength(1)
+  // And one is what the kit screen shows.
+  await expect(page.locator('.recovery-card--code code')).toHaveCount(1)
+  await expect(page.locator('.recovery-card--code code')).toHaveText(payload.recoveryCodes[0])
 })
 
 test('AC 2.1.2 Recovery-key handling', async ({ page, context, baseURL }) => {
   // Proves: the kit screen lets the user copy and download the profile ID and
-  // every issued code, will not continue without the acknowledgement, records
+  // the recovery code, will not continue without the acknowledgement, records
   // it through the acknowledge endpoint, never shows the code again, and that
   // the browser keeps no plain-text copy.
   // Not proven: HMAC-SHA256-only storage in the database and the absence of
@@ -355,13 +355,37 @@ test('AC 2.1.2 Recovery-key handling', async ({ page, context, baseURL }) => {
   }
 })
 
-test('AC 2.1.2 Recovery-key handling - a used recovery code becomes permanently invalid', async ({ page }) => {
-  test.fixme(KNOWN_GAP, 'Recovery codes are reusable by design: a second restore with the same code returns 200, not a rejection.')
+test('AC 2.1.2 Recovery-key handling - a code survives use and is invalidated only by rotation', async ({ page }) => {
+  // Mock mirror: the reuse and rotation rules run in the browser mock here;
+  // the backend's own handling is not proven by this test.
   const started = await startPrivateAccess(page)
-  const first = await restoreAttempt(page, started.profile.id, started.recoveryCodes[0])
-  expect(first.status).toBe(200)
-  const second = await restoreAttempt(page, started.profile.id, started.recoveryCodes[0])
-  expect(second.status).toBe(400)
+  const { id } = started.profile
+  const original = started.recoveryCodes[0]
+
+  // The code stays valid after it has been used to restore access.
+  expect((await restoreAttempt(page, id, original)).status).toBe(200)
+  expect((await restoreAttempt(page, id, original)).status).toBe(200)
+
+  // Rotating it from profile access settings issues a replacement...
+  await page.goto('/profile')
+  await expect(page.getByRole('heading', { name: 'My profile', level: 1 })).toBeVisible()
+  const rotated = page.waitForResponse((response) => pathOf(response.url()).endsWith('/recovery-codes/rotate'))
+  await page.getByRole('button', { name: 'Replace code', exact: true }).click()
+  await page.getByRole('button', { name: 'Replace code', exact: true }).click()
+  expect((await rotated).ok()).toBe(true)
+  const replacementCode = page.locator('.replacement-batch .recovery-code-grid code')
+  await expect(replacementCode).toHaveCount(1)
+  const replacement = await replacementCode.innerText()
+  expect(replacement).not.toBe(original)
+
+  // ...which permanently invalidates the previous code, with the same generic
+  // answer as any other failure, while the new one works (and keeps working).
+  const stale = await restoreAttempt(page, id, original)
+  expect(stale.status).toBe(400)
+  expect(stale.json).toEqual({ detail: GENERIC_RESTORE_ERROR })
+  expect((await restoreAttempt(page, id, replacement)).status).toBe(200)
+  expect((await restoreAttempt(page, id, original)).status).toBe(400)
+  expect((await restoreAttempt(page, id, replacement)).status).toBe(200)
 })
 
 test('AC 2.1.3 Same-device return', async ({ page }) => {

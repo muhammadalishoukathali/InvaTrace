@@ -23,8 +23,8 @@ const placesPage = readFileSync(
   fileURLToPath(new URL('../places/PlacesPage.tsx', import.meta.url)),
   'utf8',
 )
-const reportTracking = readFileSync(
-  fileURLToPath(new URL('../report/ReportTrackingPage.tsx', import.meta.url)),
+const reportAdoptionPrompt = readFileSync(
+  fileURLToPath(new URL('../report/components/ReportAdoptionPrompt.tsx', import.meta.url)),
   'utf8',
 )
 
@@ -77,8 +77,6 @@ describe('trail-clutter presentation-safe patch', () => {
   })
 
   it('the report adoption prompt is gated on placeType !== "trail"', () => {
-    expect(reportTracking).toContain(
-      "adoptionPlace.data.place.placeType !== 'trail'",
-    )
+    expect(reportAdoptionPrompt).toContain("place.placeType === 'trail'")
   })
 })

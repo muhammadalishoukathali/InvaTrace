@@ -103,39 +103,46 @@ const adoption = (profileId: string, placeId: string, adoptedAt = '2026-08-15T03
   adoptedAt,
 })
 
+// The app keeps its session token in memory only, so the tests learn it the way
+// the server does: from the Authorization header of the app's own API calls. A
+// reload re-bootstraps the session and rotates the token; the latest one wins.
+const sessionTokens = new WeakMap<Page, string>()
+test.beforeEach(({ page }) => {
+  page.on('request', (request) => {
+    const authorization = request.headers().authorization
+    if (authorization?.startsWith('Bearer ') && pathOf(request.url()).startsWith('/api/v1/')) {
+      sessionTokens.set(page, authorization.slice('Bearer '.length))
+    }
+  })
+})
+const liveToken = (page: Page) => sessionTokens.get(page) ?? ''
+
 /** An API call made with the app's live session token, as a second tab or a retry would make it. */
 async function appFetch<T>(page: Page, path: string, init: { method?: string; body?: unknown } = {}) {
-  return page.evaluate(async ({ path, method, body }) => {
-    const modulePath = '/src/services/api-client.ts'
-    const { getAccessToken } = await import(/* @vite-ignore */ modulePath)
+  return page.evaluate(async ({ path, method, body, token }) => {
     const response = await fetch(path, {
       method,
-      headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${getAccessToken()}` },
+      headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
       body: body === undefined ? undefined : JSON.stringify(body),
     })
     const text = await response.text()
     return { status: response.status, body: text ? JSON.parse(text) : null }
-  }, { path, method: init.method ?? 'GET', body: init.body }) as Promise<{ status: number; body: T }>
+  }, { path, method: init.method ?? 'GET', body: init.body, token: liveToken(page) }) as Promise<{ status: number; body: T }>
 }
-
-/** The session token the app is using right now; a reload re-bootstraps the session and rotates it. */
-const liveToken = (page: Page) => page.evaluate(async () => {
-  const modulePath = '/src/services/api-client.ts'
-  const { getAccessToken } = await import(/* @vite-ignore */ modulePath)
-  return getAccessToken() as string
-})
 
 /** The activity filter selects are wrapped by their label, whose text therefore includes every option. */
 const filterSelect = (page: Page, label: 'Plant' | 'Status' | 'Period') => (
   page.locator('.activity-filters label').filter({ hasText: new RegExp(`^${label}`) }).locator('select')
 )
 
-/** Client-side navigation: a full reload would drop the mock's in-memory reports. */
+/** Client-side navigation through the History API, which the router listens
+ *  to. (Importing the app's router module from the test can hand back a second
+ *  module instance when the dev server has hot-updated a file.) A full reload
+ *  would drop the mock's in-memory reports. */
 async function navigateInApp(page: Page, destination: string) {
-  await page.evaluate(async (target) => {
-    const modulePath = '/src/app/router.tsx'
-    const { router } = await import(/* @vite-ignore */ modulePath)
-    await router.navigate(target)
+  await page.evaluate((target) => {
+    window.history.pushState(null, '', target)
+    window.dispatchEvent(new PopStateEvent('popstate'))
   }, destination)
 }
 
@@ -204,7 +211,7 @@ test('AC 6.1.1 Adopt from an area', async ({ page }) => {
   await startPrivateAccess(page)
   await page.goto(`/places/${BUKIT_KIARA}`)
   await expect(page.getByRole('heading', { name: 'Bukit Kiara' })).toBeVisible()
-  const token = await liveToken(page)
+  const token = liveToken(page)
   expect(token).toBeTruthy()
   const adoptRequests: Array<{ body: unknown; authorization: string | undefined }> = []
   page.on('request', (request) => {
@@ -263,9 +270,8 @@ test('AC 6.1.2 Post-report adoption prompt', async ({ page, context, baseURL }) 
   })
   const report = await submitReport(page)
 
-  // The prompt is on the report's own confirmation page, one tap from the
-  // submission screen. (That it is missing from the submission screen itself is
-  // the fixme test below.)
+  // The report's own page carries the prompt; the submission confirmation
+  // screen is the next test.
   await navigateInApp(page, `/reports/${report.id}`)
   await expect(page.getByRole('heading', { name: 'Report published' })).toBeVisible({ timeout: 8000 })
   const prompt = page.getByRole('region', { name: 'Adopt this area for monitoring?' })
@@ -293,15 +299,95 @@ test('AC 6.1.2 Post-report adoption prompt', async ({ page, context, baseURL }) 
 })
 
 test('AC 6.1.2 Post-report adoption prompt - offered on the submission confirmation screen', async ({ page, context, baseURL }) => {
-  test.fixme(true, 'The "Report submitted / Report published" confirmation screen has no adoption prompt; it only appears on /reports/:id after "View report".')
   await atLocation(context, baseURL, KL_FIX)
   await pinModelSpecies(page, 'mikania_micrantha')
   await startPrivateAccess(page)
-  await submitReport(page)
+  const adoptRequests: string[] = []
+  page.on('request', (request) => {
+    if (pathOf(request.url()).startsWith(ADOPTIONS_PATH) && request.method() !== 'GET') adoptRequests.push(request.method())
+  })
+  const report = await submitReport(page)
   const confirmation = page.locator('.report-submission-result')
   await expect(confirmation.getByRole('heading', { name: 'Report published' })).toBeVisible({ timeout: 8000 })
   await expect(confirmation.getByText(/Adopt this area for monitoring/)).toBeVisible()
-  await expect(confirmation.getByText('Bukit Kiara')).toBeVisible()
+  // It names the place that will be saved, with the non-ownership wording.
+  const prompt = confirmation.getByRole('region', { name: 'Adopt this area for monitoring?' })
+  await expect(prompt.locator('strong')).toHaveText('Bukit Kiara')
+  await expect(prompt).toContainText('Your report is inside or along Bukit Kiara.')
+  await expect(prompt).toContainText('non-exclusive monitoring bookmark')
+  await expect(prompt).toContainText('does not grant ownership, responsibility, access rights or removal permission')
+  await expect(prompt.getByRole('button', { name: 'Adopt for monitoring' })).toBeVisible()
+
+  // Declining: the prompt goes, nothing is adopted, the report stays published.
+  await prompt.getByRole('button', { name: 'Not now' }).click()
+  await expect(prompt).toHaveCount(0)
+  await expect(confirmation.getByRole('heading', { name: 'Report published' })).toBeVisible()
+  await expect(confirmation.getByRole('button', { name: 'View on map' })).toBeVisible()
+  expect(adoptRequests).toEqual([])
+  expect(await storedAdoptions(page)).toEqual([])
+  const stored = await appFetch<{ status: string; sightingId: string | null }>(page, `/api/v1/reports/${report.id}`)
+  expect(stored.body.status).toBe('screened')
+  expect(stored.body.sightingId).toBeTruthy()
+})
+
+test('AC 6.1.2 Post-report adoption prompt - accepting on the confirmation screen saves the named place', async ({ page, context, baseURL }) => {
+  await atLocation(context, baseURL, KL_FIX)
+  await pinModelSpecies(page, 'mikania_micrantha')
+  const session = await startPrivateAccess(page)
+  const report = await submitReport(page)
+  const confirmation = page.locator('.report-submission-result')
+  const prompt = confirmation.getByRole('region', { name: 'Adopt this area for monitoring?' })
+  await expect(prompt.locator('strong')).toHaveText('Bukit Kiara', { timeout: 8000 })
+
+  const created = page.waitForResponse((response) => (
+    pathOf(response.url()) === ADOPTIONS_PATH && response.request().method() === 'POST'
+  ))
+  await prompt.getByRole('button', { name: 'Adopt for monitoring' }).click()
+  const response = await created
+  expect(response.request().postDataJSON()).toEqual({ placeId: BUKIT_KIARA })
+  expect(response.status()).toBe(201)
+  await expect(prompt.getByRole('status')).toHaveText('Bukit Kiara is adopted for monitoring.')
+  await expect(prompt.getByRole('button', { name: 'Adopt for monitoring' })).toHaveCount(0)
+  expect(await storedAdoptions(page)).toEqual([
+    expect.objectContaining({ profileId: session.profile.id, placeId: BUKIT_KIARA }),
+  ])
+
+  // Already adopted now, so the report's own page no longer offers it.
+  await navigateInApp(page, `/reports/${report.id}`)
+  await expect(page.getByRole('heading', { name: 'Report published' })).toBeVisible()
+  await expect(page.locator('.report-tracking__meta')).toBeVisible()
+  await expect(page.getByText(/Adopt this area for monitoring/)).toHaveCount(0)
+})
+
+test('AC 6.1.2 Post-report adoption prompt - not offered for an already adopted area', async ({ page, context, baseURL }) => {
+  await atLocation(context, baseURL, KL_FIX)
+  await pinModelSpecies(page, 'mikania_micrantha')
+  const session = await startPrivateAccess(page)
+  await seedAdoptions(page, [adoption(session.profile.id, BUKIT_KIARA)])
+  const placeLookup = page.waitForResponse((response) => pathOf(response.url()) === '/api/v1/places/at-location')
+  const adoptionsLoaded = page.waitForResponse((response) => pathOf(response.url()) === ADOPTIONS_PATH)
+  await submitReport(page)
+  const confirmation = page.locator('.report-submission-result')
+  await expect(confirmation.getByRole('heading', { name: 'Report published' })).toBeVisible({ timeout: 8000 })
+  // The place was resolved and the user's adoptions were read; only then is "no prompt" meaningful.
+  expect((await (await placeLookup).json() as { place: { placeId: string } }).place.placeId).toBe(BUKIT_KIARA)
+  await adoptionsLoaded
+  await expect(confirmation.getByRole('button', { name: 'View on map' })).toBeVisible()
+  await expect(confirmation.getByText(/Adopt this area for monitoring/)).toHaveCount(0)
+})
+
+test('AC 6.1.2 Post-report adoption prompt - not offered outside a supported place', async ({ page, context, baseURL }) => {
+  // More than 2 km from every mapped place in the mock.
+  await atLocation(context, baseURL, { latitude: 3.3, longitude: 101.5, accuracy: 15 })
+  await pinModelSpecies(page, 'mikania_micrantha')
+  await startPrivateAccess(page)
+  const placeLookup = page.waitForResponse((response) => pathOf(response.url()) === '/api/v1/places/at-location')
+  await submitReport(page)
+  const confirmation = page.locator('.report-submission-result')
+  await expect(confirmation.getByRole('heading', { name: 'Report published' })).toBeVisible({ timeout: 8000 })
+  expect((await (await placeLookup).json() as { place: unknown }).place).toBeNull()
+  await expect(confirmation.getByRole('button', { name: 'View on map' })).toBeVisible()
+  await expect(confirmation.getByText(/Adopt this area for monitoring/)).toHaveCount(0)
 })
 
 test('AC 6.1.3 Non-exclusive adoption', async ({ page }) => {
@@ -363,7 +449,7 @@ test('AC 6.1.5 Remove an adoption', async ({ page }) => {
   await page.goto('/adopted-areas')
   const card = page.locator('.areas-list article').filter({ hasText: 'Bukit Kiara' })
   await expect(card).toHaveCount(1)
-  const token = await liveToken(page)
+  const token = liveToken(page)
   expect(token).toBeTruthy()
   const deletes: Array<{ path: string; authorization: string | undefined }> = []
   page.on('request', (request) => {
@@ -590,19 +676,20 @@ test('AC 6.2.5 Sorting and navigation', async ({ page, context, baseURL }) => {
   const forest = adoption(session.profile.id, KOTA_DAMANSARA)
   const lake = adoption(session.profile.id, TITIWANGSA)
   await seedAdoptions(page, [forest, lake, kiara])
-  const report = await submitReport(page)
-  await navigateInApp(page, `/reports/${report.id}`)
-  await expect(page.getByRole('heading', { name: 'Report published' })).toBeVisible({ timeout: 8000 })
-
   const sorts: string[] = []
   page.on('request', (request) => {
     const url = new URL(request.url())
     if (url.pathname === ADOPTIONS_PATH && request.method() === 'GET') sorts.push(url.searchParams.get('sort') ?? '')
   })
-  const names = page.locator('.areas-list article h3')
+  // The confirmation screen reads the adoption list itself once the report is
+  // published (for its adoption prompt), and the list page reuses that fresh
+  // result - so the recent-activity response is captured from here.
   const recentLoaded = page.waitForResponse((response) => response.url().includes(`${ADOPTIONS_PATH}?sort=recent_activity`))
-  await navigateInApp(page, '/adopted-areas')
+  await submitReport(page)
+  await expect(page.locator('.report-submission-result').getByRole('heading', { name: 'Report published' })).toBeVisible({ timeout: 8000 })
   const recent = await (await recentLoaded).json() as { items: AreaCard[] }
+  const names = page.locator('.areas-list article h3')
+  await navigateInApp(page, '/adopted-areas')
 
   // Recent activity is the default: newest report first, the area with no reports last.
   await expect(page.getByLabel('Sort by')).toHaveValue('recent_activity')

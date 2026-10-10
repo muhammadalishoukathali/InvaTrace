@@ -7,20 +7,20 @@ const base: AssistantResponse = { status: 'answer', answerability: 'answerable',
 const warning = "This information was generated using AI knowledge and has not been verified against InvaTrace's reviewed sources. It may contain inaccuracies."
 
 describe('section-aware assistant rendering', () => {
-  it('describes hybrid conversation and all explanation levels in the help', () => {
+  it('describes hybrid conversation and the levels each kind of information supports in the help', () => {
     const markup = renderToStaticMarkup(<PlantAssistantPanel initiallyOpen
       guideContext={{ speciesId: 'arachis-pintoi', scientificName: 'Arachis pintoi' }} />)
     expect(markup).toContain('another plant or a botanical concept')
-    expect(markup).toContain('Both support Simpler, Standard and More detail')
+    expect(markup).toContain('Reviewed information supports Simpler, Standard and More detail; AI-generated information supports Simpler and Standard only.')
     expect(markup).not.toContain('mixed answers can use Detailed for reviewed content')
   })
-  it('keeps the AI notice compact and the full disclosure collapsed', () => {
+  it('labels the AI section and shows its warning without a disclosure (AC 8.3.6, AC 8.4.3)', () => {
     const markup = renderToStaticMarkup(<AssistantSections response={{ ...base, sections: [
-      { kind: 'ai', title: 'AI knowledge', answer: 'A botanical explanation.', warning, sources: [], depth: 'detailed' },
+      { kind: 'ai', title: 'AI-generated botanical information', answer: 'A botanical explanation.', warning, sources: [], depth: 'standard' },
     ] }} />)
-    expect(markup).toContain('AI knowledge · may be inaccurate')
-    expect(markup).toContain('<details class="plant-assistant__ai-disclosure">')
-    expect(markup).not.toContain('<details open')
+    expect(markup).toContain('<h4>AI-generated botanical information</h4>')
+    expect(markup).toContain('class="plant-assistant__ai-warning"')
+    expect(markup).not.toContain('<details')
     expect(markup).not.toContain('class="plant-assistant__notice"')
     expect(markup).toContain(warning.replaceAll("'", '&#x27;'))
   })

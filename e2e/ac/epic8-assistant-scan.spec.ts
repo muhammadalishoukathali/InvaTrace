@@ -17,9 +17,6 @@ import {
   providerFailure, recordAssistant, scanPanel, section,
 } from '../fixtures/assistant'
 
-// Set AC_RUN_FIXME=1 to run the fixme tests and re-check each finding.
-const KNOWN_GAP = !process.env.AC_RUN_FIXME
-
 const SUGGESTIONS = [
   'What does this plant look like?', 'Where does it grow?', 'What are its impacts?',
   'How does it spread?', 'How should I respond safely?',
@@ -128,7 +125,7 @@ test('AC 8.1.2 Explain the scan result', async ({ page, context }) => {
 })
 
 test('AC 8.1.3 Change the explanation level', async ({ page, context }) => {
-  const mixedNotice = 'Reviewed content uses Detailed; AI knowledge uses Standard.'
+  const mixedNotice = 'Reviewed content uses Detailed; additional AI-generated information uses Standard.'
   const calls = await recordAssistant(context, ({ body }) => {
     if (body.question.includes('rhizome')) {
       return body.depth === 'detailed'
@@ -277,11 +274,11 @@ test('AC 8.1.6 Clarify a repeated question', async ({ page, context }) => {
 })
 
 test('AC 8.1.6 A redirected off-topic question is not treated as already answered', async ({ page, context }) => {
-  test.fixme(KNOWN_GAP, 'Off-topic redirects come back answerability=answerable, so the panel says "I explained this question earlier" instead of re-asking')
   // The redirect is the literal shape assistant_conversation.response() builds for route=off_topic.
   const calls = await recordAssistant(context, () => conversation(REDIRECT, 'off_topic'))
   await scanAndOpen(page)
   await ask(page, 'Who won the football last night?')
+  await expect(levels(page)).toHaveCount(0)
   await page.getByLabel('Your question', { exact: true }).fill('who won the football last night?')
   await page.getByRole('button', { name: 'Ask question', exact: true }).click()
   await expect.poll(() => calls.length).toBe(2)
@@ -329,6 +326,7 @@ test('AC 8.2.2 Ask a question in the user’s own words', async ({ page, context
 
   // An ambiguous question is shown as a clarification, not as a cited answer.
   await ask(page, 'that thing?')
+  await expect(levels(page)).toHaveCount(0)
   await expect(latestTurn(page).getByRole('heading', { name: 'Plant conversation', level: 3 })).toBeVisible()
   await expect(latestTurn(page).locator('.plant-assistant__answer')).toHaveText(clarify)
   await expect(latestTurn(page).locator('a')).toHaveCount(0)
@@ -383,7 +381,7 @@ test('AC 8.2.4 Maintain evidence provenance in answers', async ({ page, context 
   // The AI claim sits in its own labelled section with no citation of any kind.
   await expect(aiSection(page)).toHaveCount(1)
   await expect(aiSection(page).locator('.plant-assistant__answer')).toHaveText(RHIZOME_TEXT)
-  await expect(aiSection(page).locator('summary')).toContainText('AI knowledge')
+  await expect(aiSection(page).getByRole('heading', { name: 'Additional AI-generated information', exact: true })).toBeVisible()
   await expect(aiSection(page).locator('a')).toHaveCount(0)
   await expect(aiSection(page).getByRole('region', { name: 'Sources' })).toHaveCount(0)
   // No turn-level source list exists for the AI text to borrow from.
@@ -599,12 +597,12 @@ test('AC 8.3.6 Separate evidence-backed and AI-generated portions', async ({ pag
   await expect(groundedSection(page).getByRole('heading', { name: 'From reviewed sources', exact: true })).toBeVisible()
   await expect(groundedSection(page).locator('.plant-assistant__answer')).toHaveText(HABITAT_TEXT)
   await expect(groundedSection(page).getByRole('link', { name: HABITAT_SOURCE.sourceName })).toHaveAttribute('href', HABITAT_SOURCE.sourceUrl)
-  await expect(groundedSection(page).locator('details')).toHaveCount(0)
+  await expect(groundedSection(page).locator('.plant-assistant__ai-warning')).toHaveCount(0)
 
-  // A separate AI section: flagged as possibly inaccurate, with no citation.
+  // A separate, named AI section: its inaccuracy warning is on screen without
+  // expanding anything, and it has no citation.
   await expect(aiSection(page).locator('.plant-assistant__answer')).toHaveText(RHIZOME_TEXT)
-  await expect(aiSection(page).locator('summary')).toHaveText('AI knowledge · may be inaccurate')
-  await aiSection(page).locator('summary').click()
+  await expect(aiSection(page).getByRole('heading', { name: 'Additional AI-generated information', exact: true })).toBeVisible()
   await expect(aiSection(page).getByText(AI_WARNING, { exact: true })).toBeVisible()
   await expect(aiSection(page).locator('a')).toHaveCount(0)
 
@@ -616,7 +614,6 @@ test('AC 8.3.6 Separate evidence-backed and AI-generated portions', async ({ pag
 })
 
 test('AC 8.3.6 AC 8.4.3 AI sections carry the labels and visible warning the criteria name', async ({ page, context }) => {
-  test.fixme(KNOWN_GAP, 'AI sections are labelled "AI knowledge · may be inaccurate" and the full warning is collapsed; the AC wording is not shown')
   await recordAssistant(context, ({ body }) => body.question.includes('grow') ? mixed() : aiOnly())
   await scanAndOpen(page)
   await ask(page, 'Where does it grow and what is a rhizome?')
@@ -646,7 +643,7 @@ test('AC 8.4.2 Keep consequential and restricted claims outside model-only answe
     await expect(turn).toHaveAttribute('data-mode', 'limitation')
     await expect(turn.locator('.plant-assistant__answer')).toHaveText(text)
     await expect(turn.locator('[data-section-kind="ai"]')).toHaveCount(0)
-    await expect(turn.locator('details')).toHaveCount(0)
+    await expect(turn.locator('.plant-assistant__ai-warning')).toHaveCount(0)
     await expect(turn.locator('a')).toHaveCount(0)
     await expect(levels(page)).toHaveCount(0)
     await expect(turn.locator('.plant-assistant__safety')).toHaveText(SAFETY_BOUNDARY)
@@ -666,15 +663,15 @@ test('AC 8.4.3 Label AI knowledge without verified citations', async ({ page, co
   await scanAndOpen(page)
   await ask(page, 'What is a rhizome?')
 
-  // AI-only: marked as general model knowledge that may be inaccurate, with
-  // the full unverified-source warning one disclosure away.
+  // AI-only: labelled as AI-generated, with the full unverified-source
+  // warning on screen, not behind a disclosure.
   const turn = latestTurn(page)
   await expect(turn).toHaveAttribute('data-mode', 'general')
   await expect(turn.getByRole('heading', { name: 'General botanical information', exact: true })).toBeVisible()
-  await expect(aiSection(page).locator('summary')).toHaveText('AI knowledge · may be inaccurate')
-  await aiSection(page).locator('summary').click()
-  await expect(aiSection(page).locator('details p')).toHaveText(AI_WARNING)
-  await expect(aiSection(page).locator('details p')).toContainText("has not been verified against InvaTrace's reviewed sources")
+  await expect(aiSection(page).getByRole('heading', { name: 'AI-generated botanical information', exact: true })).toBeVisible()
+  await expect(aiSection(page).locator('.plant-assistant__ai-warning')).toBeVisible()
+  await expect(aiSection(page).locator('.plant-assistant__ai-warning')).toHaveText(AI_WARNING)
+  await expect(aiSection(page).locator('.plant-assistant__ai-warning')).toContainText("has not been verified against InvaTrace's reviewed sources")
   // No citation, source list, source ID or catalogue link anywhere in the reply.
   await expect(turn.locator('a')).toHaveCount(0)
   await expect(turn.getByRole('region', { name: /sources/i })).toHaveCount(0)
@@ -685,15 +682,16 @@ test('AC 8.4.3 Label AI knowledge without verified citations', async ({ page, co
 
   // Mixed: the warning belongs to the AI section; the reviewed one has only its citation.
   await ask(page, 'Where does it grow and what is a rhizome?')
-  await expect(latestTurn(page).locator('details')).toHaveCount(1)
-  await expect(aiSection(page).locator('details')).toHaveCount(1)
+  await expect(latestTurn(page).locator('.plant-assistant__ai-warning')).toHaveCount(1)
+  await expect(aiSection(page).locator('.plant-assistant__ai-warning')).toHaveText(AI_WARNING)
+  await expect(aiSection(page).getByRole('heading', { name: 'Additional AI-generated information', exact: true })).toBeVisible()
   await expect(aiSection(page).locator('a')).toHaveCount(0)
   await expect(groundedSection(page).getByRole('link')).toHaveText([HABITAT_SOURCE.sourceName])
   await expect(latestTurn(page).locator('a')).toHaveCount(1)
 })
 
 test('AC 8.4.4 Preserve truthful depth distinctions', async ({ page, context }) => {
-  const mixedNotice = 'Reviewed content uses Detailed; AI knowledge uses Standard.'
+  const mixedNotice = 'Reviewed content uses Detailed; additional AI-generated information uses Standard.'
   const detailed = `${HABITAT_TEXT} It scrambles over whatever supports it.`
   const calls = await recordAssistant(context, ({ body }) => body.depth === 'detailed'
     ? answered([section('grounded', detailed, 'detailed', [HABITAT_SOURCE]), section('ai', RHIZOME_TEXT, 'standard')], { mixedDepthNotice: mixedNotice })
@@ -719,13 +717,22 @@ test('AC 8.4.4 Preserve truthful depth distinctions', async ({ page, context }) 
 })
 
 test('AC 8.1.3 AC 8.4.4 Direct AI-only Detailed is not offered', async ({ page, context }) => {
-  test.fixme(KNOWN_GAP, 'An AI-only answer still shows an enabled "More detail" level, and choosing it requests depth=detailed')
-  const calls = await recordAssistant(context, ({ body }) => aiOnly(RHIZOME_TEXT, body.depth))
+  const calls = await recordAssistant(context, ({ body }) => aiOnly(`${RHIZOME_TEXT} (${body.depth})`, body.depth))
   await scanAndOpen(page)
   await ask(page, 'What is a rhizome?')
   await expect(latestTurn(page)).toHaveAttribute('data-mode', 'general')
   await expect(levels(page).getByRole('button')).toHaveText(['Simpler', 'Standard'])
-  expect(calls.every(call => call.body.depth !== 'detailed')).toBe(true)
+  await expect(levels(page).getByRole('button', { name: 'More detail' })).toHaveCount(0)
+  // The effective depth is the pressed level, and Simpler still works.
+  await expect(levels(page).getByRole('button', { name: 'Standard explanation' })).toHaveAttribute('aria-pressed', 'true')
+  await levels(page).getByRole('button', { name: 'Simpler explanation' }).click()
+  await expect(latestTurn(page)).toHaveAttribute('data-depth', 'simpler')
+  await expect(aiSection(page)).toHaveAttribute('data-section-depth', 'simpler')
+  await expect(levels(page).getByRole('button')).toHaveText(['Simpler', 'Standard'])
+  expect(calls.map(call => call.body.depth)).toEqual(['standard', 'simpler'])
+  // The panel's own help no longer promises Detailed for AI information.
+  await scanPanel(page).getByText('About this assistant', { exact: true }).click()
+  await expect(scanPanel(page).locator('.plant-assistant__intro')).toContainText('AI-generated information supports Simpler and Standard only.')
 })
 
 test('AC 8.4.5 Clarify repeated general questions', async ({ page, context }) => {
@@ -749,7 +756,7 @@ test('AC 8.4.5 Clarify repeated general questions', async ({ page, context }) =>
   expect(calls[1].body).toMatchObject({ depth: 'simpler', speciesId: 'mikania-micrantha' })
   await expect(page.locator('.plant-assistant__turn')).toHaveCount(1)
   await expect(groundedSection(page).getByRole('link', { name: HABITAT_SOURCE.sourceName })).toHaveAttribute('href', HABITAT_SOURCE.sourceUrl)
-  await expect(aiSection(page).locator('summary')).toHaveText('AI knowledge · may be inaccurate')
+  await expect(aiSection(page).locator('.plant-assistant__ai-warning')).toHaveText(AI_WARNING)
   await expect(aiSection(page).locator('a')).toHaveCount(0)
 
   // A refused request is not "answered": repeating it sends it again.
@@ -761,8 +768,7 @@ test('AC 8.4.5 Clarify repeated general questions', async ({ page, context }) =>
 })
 
 test('AC 8.4.5 A repeated AI-only question offers only Simpler or Standard', async ({ page, context }) => {
-  test.fixme(KNOWN_GAP, 'The repeat prompt offers "Simpler" and "More detail" whatever the answer mode, so an AI-only repeat can request Detailed')
-  await recordAssistant(context, ({ body }) => aiOnly(RHIZOME_TEXT, body.depth))
+  const calls = await recordAssistant(context, ({ body }) => aiOnly(`${RHIZOME_TEXT} (${body.depth})`, body.depth))
   await scanAndOpen(page)
   await ask(page, 'What is a rhizome?')
   await page.getByLabel('Your question', { exact: true }).fill(' what is a RHIZOME? ')
@@ -770,6 +776,13 @@ test('AC 8.4.5 A repeated AI-only question offers only Simpler or Standard', asy
   const repeat = scanPanel(page).locator('.plant-assistant__repeat')
   await expect(repeat).toBeVisible()
   await expect(repeat.getByRole('button')).toHaveText(['Simpler', 'Standard'])
+  await repeat.getByRole('button', { name: 'Simpler explanation' }).click()
+  await expect(latestTurn(page)).toHaveAttribute('data-depth', 'simpler')
+  expect(calls.map(call => call.body.depth)).toEqual(['standard', 'simpler'])
+  // The repeated AI answer keeps its label and warning and gains no citation.
+  await expect(aiSection(page).getByRole('heading', { name: 'AI-generated botanical information', exact: true })).toBeVisible()
+  await expect(aiSection(page).locator('.plant-assistant__ai-warning')).toHaveText(AI_WARNING)
+  await expect(latestTurn(page).locator('a')).toHaveCount(0)
 })
 
 test('AC 8.4.6 Handle provider or output failure honestly', async ({ page, context }) => {
@@ -828,8 +841,10 @@ test('AC 8.6.1 Respond naturally to greetings', async ({ page, context }) => {
   await expect(turn.locator('[data-section-kind="conversation"] .plant-assistant__answer')).toHaveText(greeting)
   await expect(turn.getByRole('heading', { name: /^(Answer|Evidence is insufficient|Source information)$/ })).toHaveCount(0)
   await expect(turn.locator('a')).toHaveCount(0)
-  await expect(turn.locator('details')).toHaveCount(0)
+  await expect(turn.locator('.plant-assistant__ai-warning')).toHaveCount(0)
   await expect(turn.getByRole('region', { name: /sources/i })).toHaveCount(0)
+  // A greeting is not an explanation, so there is no level to choose.
+  await expect(levels(page)).toHaveCount(0)
   // The conversation stays open for a plant question.
   await expect(page.getByLabel('Your question', { exact: true })).toBeEditable()
   await expect(page.getByLabel('Your question', { exact: true })).toHaveValue('')
@@ -849,6 +864,7 @@ test('AC 8.6.2 Redirect unrelated questions', async ({ page, context }) => {
   await expect(turn.getByRole('region', { name: /sources/i })).toHaveCount(0)
   await expect(turn.locator('[data-section-kind="ai"]')).toHaveCount(0)
   await expect(turn.locator('[data-section-kind="grounded"]')).toHaveCount(0)
+  await expect(levels(page)).toHaveCount(0)
 })
 
 test('AC 8.6.3 Enforce full-message safety for mixed intent', async ({ page, context }) => {

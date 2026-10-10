@@ -14,9 +14,6 @@ import {
   atLocation, KL_FIX, pinModelSpecies, scanPhoto, startPrivateAccess,
 } from '../fixtures/app'
 
-// Set AC_RUN_FIXME=1 to run the fixme tests and re-check each finding.
-const KNOWN_GAP = !process.env.AC_RUN_FIXME
-
 interface SourcedItem { text: string; source_ids: string[] }
 interface ActionPath { title: string; steps: SourcedItem[]; stop_conditions: SourcedItem[]; disposal: SourcedItem[] }
 interface PlantGuidance {
@@ -656,7 +653,7 @@ test('AC 3.3.4 Uncertain or unavailable boundary', async ({ page, context, baseU
   // service all show "Boundary unavailable or uncertain", observe-and-report
   // only, and never the "no intersection" state.
   // Not proven: the backend's own handling of a failed boundary dataset or of
-  // coordinates outside coverage. The 250 m rule is the fixme test below.
+  // coordinates outside coverage. The 250 m boundary is the next test.
   await atLocation(context, baseURL, { ...KL_FIX, accuracy: 400 })
   await startPrivateAccess(page)
   const plant = plantRecord('mikania_micrantha')
@@ -707,17 +704,37 @@ test('AC 3.3.4 Uncertain or unavailable boundary', async ({ page, context, baseU
 })
 
 test('AC 3.3.4 Uncertain or unavailable boundary - GPS accuracy worse than 250 metres is uncertain', async ({ page, context, baseURL }) => {
-  test.fixme(KNOWN_GAP, 'Accuracy limit is 350 m (mock MSW_LOCATION_ACCURACY_MAX_M; backend screening_location_accuracy_max_m): a 300 m fix returns "no intersection".')
-  await atLocation(context, baseURL, { ...KL_FIX, accuracy: 300 })
+  // The protected-area check has its own 250 m limit, separate from the 350 m
+  // report screening limit. Here the mock applies it; the backend's copy of
+  // the rule is unit-tested in backend/tests/test_iteration2_ac.py.
+  await atLocation(context, baseURL, { ...KL_FIX, accuracy: 251 })
   await pinModelSpecies(page, 'mikania_micrantha')
   await startPrivateAccess(page)
   await scanPhoto(page)
   const guidance = guidancePanel(page)
-  await checkLocation(guidance)
   const card = locationCard(guidance)
-  await expect(card.getByRole('status').getByText('Boundary unavailable or uncertain', { exact: true })).toBeVisible()
+  const status = card.getByRole('status')
+
+  // 251 m: uncertain, observe and report only.
+  await checkLocation(guidance)
+  await expect(status.getByText('Boundary unavailable or uncertain', { exact: true })).toBeVisible()
+  await expect(card).toContainText('GPS accuracy: ±251 m')
   await expect(card.getByText('No mapped protected-area intersection found')).toHaveCount(0)
   await expect(guidance.getByRole('radio', { name: HAS_PERMISSION })).toHaveCount(0)
+  await expect(guidance.getByRole('radio').nth(1)).toBeDisabled()
+
+  // 300 m - inside the report screening limit - is still uncertain here.
+  await context.setGeolocation({ ...KL_FIX, accuracy: 300 })
+  await checkLocation(guidance)
+  await expect(card).toContainText('GPS accuracy: ±300 m')
+  await expect(status.getByText('Boundary unavailable or uncertain', { exact: true })).toBeVisible()
+
+  // Exactly 250 m is not "greater than 250 metres": the boundary can be read.
+  await context.setGeolocation({ ...KL_FIX, accuracy: 250 })
+  await checkLocation(guidance)
+  await expect(card).toContainText('GPS accuracy: ±250 m')
+  await expect(status.getByText('No mapped protected-area intersection found', { exact: true })).toBeVisible()
+  await expect(guidance.getByRole('radio', { name: HAS_PERMISSION })).toBeEnabled()
 })
 
 test('AC 3.3.5 Visible source information', async ({ page, context, baseURL }) => {

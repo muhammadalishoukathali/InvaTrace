@@ -54,11 +54,12 @@ export function AssistantSections({ response }: { response: AssistantResponse })
     {response.sections?.map((section, index) => <section key={index}
       className={`plant-assistant__answer-section plant-assistant__answer-section--${section.kind}`}
       aria-label={section.title} data-section-kind={section.kind} data-section-depth={section.depth}>
-      {section.kind !== 'ai' && <h4>{section.title}</h4>}
-      {section.kind === 'ai' && <details className="plant-assistant__ai-disclosure">
-        <summary><Info size={13} aria-hidden="true" /> AI knowledge · may be inaccurate</summary>
-        <p>{section.warning || "This information was generated using AI knowledge and has not been verified against InvaTrace's reviewed sources. It may contain inaccuracies."}</p>
-      </details>}
+      <h4>{section.title}</h4>
+      {/* The warning is part of the AI section itself, never behind a disclosure. */}
+      {section.kind === 'ai' && <p className="plant-assistant__ai-warning">
+        <Info size={13} aria-hidden="true" />
+        <span>{section.warning || "This information was generated using AI knowledge and has not been verified against InvaTrace's reviewed sources. It may contain inaccuracies."}</span>
+      </p>}
       <p className="plant-assistant__answer">{section.answer}</p>
       {section.kind === 'grounded' && <ReviewedSources sources={section.sources} />}
     </section>)}
@@ -77,6 +78,10 @@ const DEPTHS: Array<{ depth: Depth; label: string; ariaLabel?: string }> = [
   { depth: 'standard', label: 'Standard', ariaLabel: 'Standard explanation' },
   { depth: 'detailed', label: 'More detail' },
 ]
+// More detail comes from reviewed evidence. A direct AI-only answer has none,
+// so it is offered at Simpler or Standard only.
+const depthsFor = (mode: AssistantResponse['answerMode']) =>
+  mode === 'general_knowledge' ? DEPTHS.filter(item => item.depth !== 'detailed') : DEPTHS
 const SPREAD_QUESTION = 'How does it spread?'
 const SUGGESTIONS = [
   'What does this plant look like?',
@@ -191,7 +196,7 @@ function AssistantTurnView({ turn, latest, pending, repeat, contextDescription, 
       {response.answerability === 'answerable' && (latest && !repeat ? <div className="plant-assistant__depth">
         <p>Explanation level</p>
         <div className="plant-assistant__levels" role="group" aria-label="Explanation level">
-          {DEPTHS.map(({ depth: nextDepth, label, ariaLabel }) => <button key={nextDepth} type="button" aria-label={ariaLabel}
+          {depthsFor(response.answerMode).map(({ depth: nextDepth, label, ariaLabel }) => <button key={nextDepth} type="button" aria-label={ariaLabel}
             aria-pressed={depth === nextDepth} disabled={pending}
             onClick={() => { if (nextDepth !== depth) onDepthChange(nextDepth) }}>{label}</button>)}
         </div>
@@ -232,6 +237,7 @@ function PlantAssistantConversation(props: AssistantContextProps) {
   const [pending, setPending] = useState(false)
   const [requestQuestion, setRequestQuestion] = useState('')
   const [repeat, setRepeat] = useState<string | null>(null)
+  const [repeatAiOnly, setRepeatAiOnly] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const standardAnswers = useRef(new Map<string, string>())
   const answered = useRef(new Map<string, AssistantResponse['answerMode']>())
@@ -298,6 +304,8 @@ function PlantAssistantConversation(props: AssistantContextProps) {
     if (!trimmed || pending) return
     setError(null)
     if (clarify && answered.current.has(trimmed.toLowerCase())) {
+      // An AI-only answer can be repeated at Simpler or Standard, never Detailed.
+      setRepeatAiOnly(answered.current.get(trimmed.toLowerCase()) === 'general_knowledge')
       setRepeat(trimmed)
       return
     }
@@ -367,7 +375,7 @@ function PlantAssistantConversation(props: AssistantContextProps) {
             <summary>About this assistant</summary>
             <div className="plant-assistant__intro">
               <p>Ask about <em>{species!.scientific_name}</em>, another plant or a botanical concept. Answers can combine reviewed sources with clearly labelled AI knowledge. {mapContext && 'This is catalogue information for a public community record, not expert identification or proof of nearby presence.'} {guideContext && 'This is catalogue education, not identification or verification of an observed plant.'}</p>
-              <p>Reviewed information has source citations. AI knowledge may be inaccurate, has no reviewed citations and does not change your plant identification. Both support Simpler, Standard and More detail. Brief answers, such as a plant name, may stay similar at different levels.</p>
+              <p>Reviewed information has source citations. AI-generated information may be inaccurate, has no reviewed citations and does not change your plant identification. Reviewed information supports Simpler, Standard and More detail; AI-generated information supports Simpler and Standard only. Brief answers, such as a plant name, may stay similar at different levels.</p>
             </div>
           </details>
           </div>
@@ -382,10 +390,12 @@ function PlantAssistantConversation(props: AssistantContextProps) {
               onDepthChange={depth => void submitQuestion(turn.question, depth, false)} />)}
           </div>
           {repeat && <div ref={repeatMessage} className="plant-assistant__repeat" role="status">
-            <p>I explained this question earlier in this conversation. Would you like a simpler or more detailed explanation?</p>
+            <p>I explained this question earlier in this conversation. Would you like {repeatAiOnly ? 'a simpler or standard' : 'a simpler or more detailed'} explanation?</p>
             <div className="plant-assistant__choices">
               <button type="button" aria-label="Simpler explanation" disabled={pending} onClick={() => void submitQuestion(repeat, 'simpler', false)}>Simpler</button>
-              <button type="button" disabled={pending} onClick={() => void submitQuestion(repeat, 'detailed', false)}>More detail</button>
+              {repeatAiOnly
+                ? <button type="button" aria-label="Standard explanation" disabled={pending} onClick={() => void submitQuestion(repeat, 'standard', false)}>Standard</button>
+                : <button type="button" disabled={pending} onClick={() => void submitQuestion(repeat, 'detailed', false)}>More detail</button>}
             </div>
           </div>}
           {(pending || error) && <div className="plant-assistant__request">
