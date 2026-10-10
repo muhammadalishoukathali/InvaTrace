@@ -38,13 +38,9 @@ export function MapLegend() {
       </button>
       {open && createPortal(
         <>
-          <button
-            type="button"
-            onClick={close}
-            aria-hidden
-            tabIndex={-1}
-            className="map-legend-scrim"
-          />
+          {/* A div like every other backdrop: a <button> would pick up the
+              global hover/pressed button effects across the whole screen. */}
+          <div onClick={close} aria-hidden className="map-legend-scrim" />
           <div
             ref={dialogRef}
             tabIndex={-1}

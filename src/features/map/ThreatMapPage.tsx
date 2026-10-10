@@ -1009,13 +1009,7 @@ function ReportsSheet({
   return (
     <>
       {open && (
-        <button
-          type="button"
-          className="map-reports-sheet__scrim"
-          aria-hidden
-          tabIndex={-1}
-          onClick={onClose}
-        />
+        <div className="map-reports-sheet__scrim" aria-hidden onClick={onClose} />
       )}
       <aside
         id="map-reports-sheet"
