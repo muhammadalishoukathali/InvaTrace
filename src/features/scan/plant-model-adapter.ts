@@ -2,6 +2,7 @@ import type { BBox, QualityResult, IdentifyResult } from '@/types'
 import { modelSpeciesCatalogue } from '@/data/model-species-catalogue'
 import { hashBitmap } from './image-processing'
 import { PulihModel } from './pulih-model'
+import { applyPlantNetVerification, shouldAskPlantNet } from './plantnet-handover'
 import { verifyWithPlantNet } from './plantnet-verify'
 
 /**
@@ -209,15 +210,13 @@ class PulihAdapter implements ModelAdapter {
     // owns the "Invasive" verdict for anything in the 32-species catalogue.
     // When it comes back uncertain, we cross-check the same photo with
     // PlantNet via the backend proxy so the UI can show a tentative species
-    // suggestion or ask for another photo.
-    if (result.outcome !== 'uncertain') return result
-    // Extreme low certainty: the local model already flagged the photo as
-    // unrecoverable. Spending a PlantNet call here would burn free-tier quota
-    // on a frame that won't produce a useful cross-check; hand the user a
-    // retake CTA in the UI instead.
-    if (result.retakeAdvice) return result
+    // suggestion or ask for another photo. That includes the low-certainty
+    // tier: a plant outside the catalogue scores low on every catalogue
+    // class, so skipping PlantNet there would skip exactly the plants the
+    // second opinion exists for.
+    if (!shouldAskPlantNet(result)) return result
     const verification = await verifyWithPlantNet(image)
-    return { ...result, verification }
+    return applyPlantNetVerification(result, verification)
   }
 }
 
