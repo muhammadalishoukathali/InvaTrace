@@ -332,6 +332,13 @@ function PlantAssistantConversation(props: AssistantContextProps) {
       if (depth === 'standard') standardAnswers.current.set(key, next.answer)
       const unchangedDepth = depth !== 'standard' && standardAnswers.current.get(key) === next.answer ? depth : null
       const replacing = !clarify && latestTurn?.question.toLowerCase() === key
+      if (replacing && next.answerability !== 'answerable' && latestTurn.response.answerability === 'answerable') {
+        // A refused depth change must not wipe the answer the user already
+        // has, or the level buttons that let them pick another depth.
+        setError(next.answer)
+        setRequestQuestion('')
+        return
+      }
       const turn: AssistantTurn = { id: replacing ? latestTurn.id : ++nextTurnId.current, question: trimmed, depth, response: next, unchangedDepth }
       setTurns(previous => replacing ? [...previous.slice(0, -1), turn] : [...previous, turn])
       setQuestion('')

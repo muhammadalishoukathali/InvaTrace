@@ -735,6 +735,20 @@ test('AC 8.1.3 AC 8.4.4 Direct AI-only Detailed is not offered', async ({ page, 
   await expect(scanPanel(page).locator('.plant-assistant__intro')).toContainText('AI-generated information supports Simpler and Standard only.')
 })
 
+test('AC 8.4.4 A refused Detailed request keeps the answer and its level choices', async ({ page, context }) => {
+  const refusal = 'More detail is available only for information from reviewed sources. Choose Simpler or Standard for an AI-generated explanation.'
+  await recordAssistant(context, ({ body }) => body.depth === 'detailed' ? limitation('insufficient_evidence', refusal) : grounded())
+  await scanAndOpen(page)
+  await ask(page, 'Where does it grow?')
+  await levels(page).getByRole('button', { name: 'More detail', exact: true }).click()
+  // The refusal is announced, and the Standard answer is still on screen with
+  // the buttons the refusal tells the user to pick from.
+  await expect(scanPanel(page).getByRole('alert')).toHaveText(refusal)
+  await expect(latestTurn(page)).toHaveAttribute('data-depth', 'standard')
+  await expect(groundedSection(page).locator('.plant-assistant__answer')).toHaveText(HABITAT_TEXT)
+  await expect(levels(page).getByRole('button')).toHaveText(['Simpler', 'Standard', 'More detail'])
+})
+
 test('AC 8.4.5 Clarify repeated general questions', async ({ page, context }) => {
   const calls = await recordAssistant(context, ({ body }) => body.question.toLowerCase().includes('eat')
     ? limitation('insufficient_evidence', 'I cannot say whether this plant is edible.', { intent: 'restricted' })

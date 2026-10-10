@@ -5,7 +5,7 @@ import { useScan } from '@/features/scan/scan-store'
 import { useReportDraft } from '@/features/report/report-draft-store'
 import { PlantGuidancePanel } from '@/features/scan/PlantGuidancePanel'
 import { PlantAssistantPanel } from '@/features/scan/PlantAssistantPanel'
-import { resolveResultPathway, type ResultPathway } from '@/features/scan/malaysia-status'
+import { deriveMalaysiaStatusState, resolveResultPathway, type ResultPathway } from '@/features/scan/malaysia-status'
 import { findPlantGuidance } from '@/data/plant-guidance'
 import { findModelSpecies, modelReferenceImageUrl } from '@/data/model-species-catalogue'
 import type { IdentifyResult, SpeciesDetail } from '@/types'
@@ -89,13 +89,18 @@ export function ScanResultPage() {
   // I don't want an information-only or status-uncertain record ever reaching
   // the in-panel removal/containment flow, even if a stale server flag claims
   // actionEligible is true - the pathway check here overrides that.
-  const guidanceActionEligible = pathway.canAction
-    ? speciesDetail?.actionEligible
+  // Without the species record there is no server verdict on action (seasonal
+  // report-only guidance, a withdrawn guide), and the bundled catalogue carries
+  // none, so removal stays withheld until the record can be read.
+  const guidanceActionEligible = pathway.canAction && speciesDetail
+    ? speciesDetail.actionEligible
     : false
   // AC 1.1.3 - an uncertain result names no species, so it gets no catalogue
   // link either: every catalogue entry is an invasive record, and pointing at
   // one would be an invasive claim by another route.
-  const approvedSpecies = result.outcome === 'uncertain' ? null : findApprovedSpecies({
+  // A conflicting lookup (Status uncertain) is held to the same rule.
+  const namesNoSpecies = result.outcome === 'uncertain' || pathway.pathway === 'status_uncertain'
+  const approvedSpecies = namesNoSpecies ? null : findApprovedSpecies({
     speciesId: result.speciesId,
     scientificName: result.scientificName,
   })
@@ -104,11 +109,14 @@ export function ScanResultPage() {
   const bundledStatus = !speciesDetail && pathway.pathway === 'invasive_reportable'
     ? findPlantStatus({ speciesId: result.speciesId ?? null, scientificName: result.scientificName ?? null })
     : null
-  const statusReviewedAt = speciesDetail?.statusReviewedAt ?? bundledStatus?.status_reviewed_at
-  const statusSourceId = speciesDetail?.statusSourceId ?? bundledStatus?.status_source_ids[0]
+  const statusReviewedAt = namesNoSpecies ? undefined : speciesDetail?.statusReviewedAt ?? bundledStatus?.status_reviewed_at
+  const statusSourceId = namesNoSpecies ? undefined : speciesDetail?.statusSourceId ?? bundledStatus?.status_source_ids[0]
   // AC 1.2.3 - the server's own safety message is shown whenever it withholds
-  // action or reporting, or the status is not plainly invasive.
-  const serverSafetyMessage = speciesDetail?.safetyMessage
+  // action or reporting, or the status is not plainly invasive. A conflicting
+  // lookup is the exception: the page already says the status is uncertain,
+  // and a server message written for an invasive record would contradict it.
+  const conflictingLookup = pathway.pathway === 'status_uncertain' && deriveMalaysiaStatusState(result) === 'invasive'
+  const serverSafetyMessage = speciesDetail?.safetyMessage && !conflictingLookup
     && (pathway.pathway !== 'invasive_reportable'
       || speciesDetail.actionEligible === false
       || speciesDetail.reportEligible === false)

@@ -112,7 +112,7 @@ export function PlantGuidancePanel({
     () => decisionContextId ? getGuidanceDecision(decisionContextId) : null,
     [decisionContextId],
   )
-  const [permission, setPermission] = useState<PermissionChoice>(() => decisionToPermission(initialDecision))
+  const [permission, setPermission] = useState<PermissionChoice>(() => actionEligible === false ? 'unknown' : decisionToPermission(initialDecision))
   const [savedDecision, setSavedDecision] = useState<GuidanceDecision | null>(initialDecision)
   const [saveFailed, setSaveFailed] = useState(false)
   const [siteManagerConfirmed, setSiteManagerConfirmed] = useState(false)
@@ -152,12 +152,15 @@ export function PlantGuidancePanel({
   }
 
   useEffect(() => {
-    setPermission(decisionToPermission(initialDecision))
+    // A permission choice saved earlier is not restored once the server has
+    // withdrawn removal for this plant; the option is disabled, so leaving it
+    // selected would show a choice the user can no longer change.
+    setPermission(actionEligible === false ? 'unknown' : decisionToPermission(initialDecision))
     setSavedDecision(initialDecision)
     setSaveFailed(false)
     setSiteManagerConfirmed(false)
     setStopConditionsClear(false)
-  }, [initialDecision])
+  }, [initialDecision, actionEligible])
 
   if (!plant) {
     // Even if there's no reviewed guidance card for this plant, I still want to
