@@ -226,13 +226,9 @@ async def answer_conversation(
     ):
         logger.warning("assistant.conversation invalid_plan_values")
         return None
-    if route == "identity":
-        answer = f"This plant is {current.scientific_name}."
-        if current.common_name:
-            answer += f" Its common name is {current.common_name}."
-        record_section = section("conversation", answer, depth)
-        record_section["title"] = "Current plant record"
-        return response([record_section], coverage="fully_supported")
+    # Identity is context for generation, never a fixed answer to the user's request.
+    if route == "identity" and species_id not in targets:
+        targets = [species_id, *targets][:3]
     if route == "catalogue":
         names = sorted(
             f"{r.common_name} ({r.scientific_name})" if r.common_name else r.scientific_name
@@ -301,7 +297,12 @@ async def answer_conversation(
     draft = await call(
         "You are a natural, helpful plant conversation assistant, able to discuss ANY plant or "
         "botanical concept. The catalogue limits reviewed evidence, not your conversational scope. "
-        "Answer the resolved request or "
+        "Answer the complete original message as well as its resolved request. For naming "
+        "questions distinguish the recorded scientific/common name from additional synonyms, "
+        "regional names or translations; do not replace a request for other names with only "
+        "the primary name. Use current_plant for the known catalogue identity, without "
+        "claiming to verify an observed plant. Additional names may use labelled AI knowledge "
+        "when allowed; explain uncertainty if you cannot support them. Answer the request or "
         "respond to a plant statement, using recent history. You may ask a relevant follow-up. "
         "Answer only the plant-related part of mixed messages and gently redirect other content. "
         "Use reviewed evidence as factual anchors, not wording templates or a ceiling on detail. "

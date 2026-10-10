@@ -146,14 +146,22 @@ def run(
         "What is this called?",
         "Name?",
         "What organism am I looking at?",
+        "What other names does this plant have?",
+        "Are there local names or synonyms?",
+        "There must be more names",
     ],
 )
 def test_identity_interpretation_uses_server_context(conversation, species, message):
     state, _ = conversation
     state["route"] = "identity"
+    state["target"] = None
     result = run(conversation, message, species=species)
-    assert get_retriever().species[species].scientific_name in result["answer"]
-    assert result["sources"] == [] and len(state["calls"]) == 1
+    assert result is not None
+    assert len(state["calls"]) == 3
+    assert state["calls"][1]["message"] == message
+    assert state["calls"][1]["current_plant"]["scientific_name"] == get_retriever().species[species].scientific_name
+    assert state["calls"][1]["reviewed_evidence"]
+    assert all(section["title"] != "Current plant record" for section in result["sections"])
 
 
 @pytest.mark.parametrize("species", list(get_retriever().species))
