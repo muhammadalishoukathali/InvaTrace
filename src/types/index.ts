@@ -128,9 +128,9 @@ export interface IdentifyResult {
    * Present when the on-device model's max core-class probability is below the
    * `retakeThreshold` in the runtime manifest, or an obvious quality gate
    * (image too small) fails. The scan result screen renders a retake CTA in
-   * this case and the adapter skips the PlantNet fallback - there's no point
-   * spending quota on a photo the model already labelled as too weak to
-   * classify.
+   * this case. A low-certainty result is still cross-checked with PlantNet
+   * first (an out-of-catalogue plant scores just as low as a bad photo), and
+   * the advice is dropped when PlantNet names a species.
    */
   retakeAdvice?: {
     reason: 'low_certainty' | 'image_too_small'
