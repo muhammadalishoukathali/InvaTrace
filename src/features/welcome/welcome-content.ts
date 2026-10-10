@@ -23,9 +23,55 @@ export const HERO_IMAGE = {
 }
 
 export const HERO_PHOTO_CREDIT = {
+  location: 'Labis, Johor, Malaysia',
   author: 'Ihsan Adityawarman',
   source: 'Pexels',
   href: 'https://www.pexels.com/photo/sunlight-filtering-through-forest-in-labis-34937417/',
+}
+
+// Status line under the example result card. The plant must be listed as
+// invasive in Malaysia; GRIIS Malaysia record for Asclepias curassavica.
+export const EXAMPLE_STATUS = {
+  label: 'Listed as invasive in Malaysia',
+  sourceLabel: 'GRIIS Malaysia',
+  href: 'https://www.gbif.org/species/160892655',
+}
+
+export const INVASIVE_PLANT = {
+  definition:
+    'Invasive plants are those which are alien to a location and whose growth adversely affects the surroundings, the economy and the well-being of the population.',
+  // Same place photographed from above, before and after control. Each half
+  // is cropped from Figure 2 of the article credited below.
+  photos: [{
+    src: '/welcome/salvinia-before-1200.webp',
+    width: 1200,
+    height: 545,
+    label: 'September 2019',
+    alt: 'Aerial view of Las Curias Reservoir in 2019, its surface completely covered by a green mat of giant salvinia',
+  }, {
+    src: '/welcome/salvinia-after-1200.webp',
+    width: 1200,
+    height: 545,
+    label: 'October 2021',
+    alt: 'The same view of Las Curias Reservoir in 2021, with open water after the giant salvinia was brought under control',
+  }],
+  caption: {
+    place: 'Las Curias Reservoir, Puerto Rico.',
+    commonName: 'Giant salvinia',
+    scientificName: 'Salvinia molesta',
+    story:
+      'covered the whole surface in 2019. After a community-led control effort, open water had returned by 2021. Giant salvinia is also listed as invasive in Malaysia.',
+  },
+  caseSource: {
+    label: 'García-López et al. · Water (MDPI), 2023, Figure 2',
+    href: 'https://www.mdpi.com/2073-4441/15/22/3966',
+  },
+  credit: {
+    author: 'García-López et al.',
+    source: 'Water (MDPI), 2023, Figure 2, cropped',
+    licence: 'CC BY',
+    href: 'https://www.mdpi.com/2073-4441/15/22/3966',
+  },
 }
 
 export const SCREENS = {
@@ -55,6 +101,20 @@ export const SCREENS = {
     width: 585,
     height: 1195,
     alt: 'InvaTrace sighting marked Follow-up needed after a reported removal, with a Start follow-up button',
+    placeholder: false,
+  },
+  scan: {
+    src: '/welcome/screen-scan.webp',
+    width: 390,
+    height: 825,
+    alt: 'InvaTrace scan screen: take a photo of a plant or choose one from the gallery',
+    placeholder: false,
+  },
+  prevent: {
+    src: '/welcome/screen-prevent.webp',
+    width: 390,
+    height: 825,
+    alt: 'InvaTrace catalogue page for mile-a-minute weed: documented impacts and safe response guidance',
     placeholder: false,
   },
 } satisfies Record<string, WelcomeImage>
@@ -94,16 +154,32 @@ export const FACT_SOURCES = [
 
 export const FEATURES = [
   {
+    id: 'scan',
+    title: 'Scan and report',
+    detail: 'Photograph a plant to see what it is likely to be and whether it is invasive in Malaysia, then report where you found it.',
+    screen: SCREENS.scan,
+  },
+  {
+    id: 'prevent',
+    title: 'Learn how to prevent and stop spread',
+    detail: 'Look up each plant to see how it spreads, what not to do and when to leave removal to the land manager.',
+    screen: SCREENS.prevent,
+  },
+  {
+    id: 'community',
+    title: 'Work together as a community',
+    detail: 'Join or host a survey event and see what others in your community have reported nearby.',
+    screen: SCREENS.events,
+  },
+] as const
+
+// Two larger rows after the feature cards: before a walk and after it.
+export const SPOTLIGHTS = [
+  {
     id: 'know',
     title: 'Know what to look for',
     detail: 'Choose a mapped place and check its invasive plant watchlist before you set out.',
     screen: SCREENS.mission,
-  },
-  {
-    id: 'visit',
-    title: 'Make your visit count',
-    detail: 'Follow safety guidance, report a sighting or join a community event to observe with others.',
-    screen: SCREENS.events,
   },
   {
     id: 'changes',

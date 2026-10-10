@@ -5,7 +5,8 @@ import { usePrivateAccess } from '@/features/private-access/private-access-store
 import { Icon } from '@/components/Icon'
 import { LogoWordmark } from '@/components/Logo'
 import {
-  FACT_SOURCES, FEATURES, HERO_IMAGE, HERO_PHOTO_CREDIT, IMPACTS, SCREENS, SDG, STEPS,
+  EXAMPLE_STATUS, FACT_SOURCES, FEATURES, HERO_IMAGE, HERO_PHOTO_CREDIT, IMPACTS, INVASIVE_PLANT, SCREENS, SDG,
+  SPOTLIGHTS, STEPS,
 } from './welcome-content'
 import './welcome.css'
 
@@ -16,7 +17,7 @@ const HOW_ID = 'how-it-works'
  *  private-access page to fall back to, so when starting is not possible
  *  (offline, blocked storage, an error) the reason is shown in the hero via
  *  StartNotice and the button can simply be pressed again. */
-function StartButton({ tone, className }: { tone: 'green' | 'light' | 'outline'; className?: string }) {
+function StartButton({ tone, className, showFist = false }: { tone: 'green' | 'light'; className?: string; showFist?: boolean }) {
   const navigate = useNavigate()
   const status = usePrivateAccess((state) => state.status)
   const profile = usePrivateAccess((state) => state.profile)
@@ -57,7 +58,11 @@ function StartButton({ tone, className }: { tone: 'green' | 'light' | 'outline';
       onClick={() => void start()}
       aria-busy={starting || undefined}
     >
-      {starting ? <PlantLoader compact label="Starting…" /> : 'Start privately'}
+      {starting ? <PlantLoader compact label="Starting…" /> : <>{showFist && (
+        <svg width="24" height="28" viewBox="0 0 100 120" fill="currentColor" aria-hidden="true" focusable="false">
+          <path d="M15 29C10 18 8 8 16 5L23 3C31 1 34 9 36 22L26 31Z M40 21L39 6C39 1 44 0 50 1C57 1 59 5 58 12L57 26Z M61 26L63 10C64 4 70 4 76 6C83 8 83 13 81 20L77 32Z M81 34L84 17C86 11 92 13 96 16C101 20 98 29 96 36C94 42 90 43 83 40Z M15 40L39 25L74 37C72 47 67 50 57 47L48 44L44 55C41 65 30 66 21 61C17 56 15 48 15 40Z M23 68C39 76 49 65 51 55C66 62 74 58 79 48L91 52L82 81H31Z M31 85H82L99 116H71L55 120L40 116H9Z" />
+        </svg>
+      )}Start privately</>}
     </button>
   )
 }
@@ -132,21 +137,17 @@ export function WelcomePage() {
           />
         </picture>
 
-        <nav className="welcome-nav" aria-label="Welcome">
+        {/* Logo only: the hero below already holds every action. */}
+        <div className="welcome-nav">
           <LogoWordmark />
-          <div className="welcome-nav__links">
-            <a href={`#${HOW_ID}`} onClick={goToHowItWorks}>How it works</a>
-            <StartButton tone="outline" />
-          </div>
-        </nav>
+        </div>
 
         <div className="welcome-hero__content">
           <div className="welcome-hero__copy">
             <p className="welcome-eyebrow">For Malaysia’s parks and trails</p>
             <h1>Spot invasive plants. Care for the places you love.</h1>
             <p className="welcome-hero__lede">
-              An unfamiliar plant could be changing a park or trail you love in Malaysia. InvaTrace helps you recognise
-              invasive plants, record what you find and return to see what changes.
+              There may be an invasive plant species that is affecting your favourite spot in Malaysia. Using InvaTrace, you can identify the invasives, document findings and return to see how things have changed.
             </p>
             <div className="welcome-actions">
               <StartButton tone="light" />
@@ -161,27 +162,76 @@ export function WelcomePage() {
               {SDG.badge}
             </p>
           </div>
+          <p className="welcome-hero__credit">
+            <span><Icon name="MapPin" size={13} /> {HERO_PHOTO_CREDIT.location}</span>
+            <span>
+              Photo by{' '}
+              <a href={HERO_PHOTO_CREDIT.href} target="_blank" rel="noopener noreferrer">
+                {HERO_PHOTO_CREDIT.author} · {HERO_PHOTO_CREDIT.source}
+              </a>
+            </span>
+          </p>
           {/* A real result card, so the first screen already shows a named plant. */}
-          <img
-            className="welcome-example"
-            src={SCREENS.identify.src}
-            width={SCREENS.identify.width}
-            height={SCREENS.identify.height}
-            alt={SCREENS.identify.alt}
-          />
+          <figure className="welcome-example">
+            <img
+              src={SCREENS.identify.src}
+              width={SCREENS.identify.width}
+              height={SCREENS.identify.height}
+              alt={SCREENS.identify.alt}
+            />
+            <figcaption>
+              <strong>{EXAMPLE_STATUS.label}</strong>
+              <span>
+                Status source:{' '}
+                <a href={EXAMPLE_STATUS.href} target="_blank" rel="noopener noreferrer">{EXAMPLE_STATUS.sourceLabel}</a>
+              </span>
+            </figcaption>
+          </figure>
         </div>
       </header>
 
       <main id="welcome-main">
         <section className="welcome-section welcome-why" aria-labelledby="welcome-why-title">
+          <figure className="welcome-why__photo">
+            <div className="welcome-why__pair">
+              {INVASIVE_PLANT.photos.map((shot) => (
+                <div key={shot.label} className="welcome-why__shot">
+                  <img
+                    src={shot.src}
+                    width={shot.width}
+                    height={shot.height}
+                    alt={shot.alt}
+                    loading="lazy"
+                    decoding="async"
+                  />
+                  <span className="welcome-why__date">{shot.label}</span>
+                </div>
+              ))}
+            </div>
+            <figcaption>
+              {INVASIVE_PLANT.caption.place} {INVASIVE_PLANT.caption.commonName}{' '}
+              (<em>{INVASIVE_PLANT.caption.scientificName}</em>) {INVASIVE_PLANT.caption.story}{' '}
+              <span className="welcome-credit">
+                Source:{' '}
+                <a href={INVASIVE_PLANT.caseSource.href} target="_blank" rel="noopener noreferrer">
+                  {INVASIVE_PLANT.caseSource.label}
+                </a>. Photo:{' '}
+                <a href={INVASIVE_PLANT.credit.href} target="_blank" rel="noopener noreferrer">
+                  {INVASIVE_PLANT.credit.author}, {INVASIVE_PLANT.credit.source} ({INVASIVE_PLANT.credit.licence})
+                </a>
+              </span>
+            </figcaption>
+          </figure>
           <div className="welcome-why__intro">
-            <h2 id="welcome-why-title">Why your observation matters</h2>
+            <p className="welcome-eyebrow welcome-eyebrow--green">Why it matters</p>
+            <h2 id="welcome-why-title">What is an invasive plant?</h2>
+            <p>{INVASIVE_PLANT.definition}</p>
             <p>
-              Invasive plants can crowd out native vegetation and change the natural spaces
-              communities enjoy. A careful observation is a practical first step.
+              Without control, an invasive plant can dominate a location. When people become aware of the problem and start reporting it, monitoring it and controlling it, they can help restore that place. Observation is the first realistic step.
             </p>
           </div>
           <div className="welcome-why__facts">
+            <h2 className="welcome-why__impacts-title">How invasive plants harm the environment</h2>
             <ul className="welcome-impacts">
               {IMPACTS.map((impact) => (
                 <li key={impact.title}>
@@ -216,25 +266,26 @@ export function WelcomePage() {
           </div>
         </section>
 
-        <section className="welcome-features" aria-label="What you can do with InvaTrace">
-          {FEATURES.map((feature) => (
-            <article key={feature.id} className="welcome-feature">
-              <div className="welcome-feature__text">
-                <h2>{feature.title}</h2>
+        <section className="welcome-features" aria-labelledby="welcome-features-title">
+          <h2 id="welcome-features-title">What you can do with InvaTrace</h2>
+          <div className="welcome-features__grid">
+            {[...FEATURES, ...SPOTLIGHTS].map((feature) => (
+              <article key={feature.id} className="welcome-feature">
+                <div className="welcome-feature__stage">
+                  <img
+                    src={feature.screen.src}
+                    width={feature.screen.width}
+                    height={feature.screen.height}
+                    alt={feature.screen.alt}
+                    loading="lazy"
+                    decoding="async"
+                  />
+                </div>
+                <h3>{feature.title}</h3>
                 <p>{feature.detail}</p>
-              </div>
-              <div className="welcome-feature__stage">
-                <img
-                  src={feature.screen.src}
-                  width={feature.screen.width}
-                  height={feature.screen.height}
-                  alt={feature.screen.alt}
-                  loading="lazy"
-                  decoding="async"
-                />
-              </div>
-            </article>
-          ))}
+              </article>
+            ))}
+          </div>
         </section>
 
         <section className="welcome-how" id={HOW_ID} aria-labelledby={`${HOW_ID}-title`}>
@@ -254,8 +305,8 @@ export function WelcomePage() {
         </section>
 
         <section className="welcome-closing" aria-labelledby="welcome-closing-title">
-          <h2 id="welcome-closing-title">Take your next walk with InvaTrace.</h2>
-          <StartButton tone="light" />
+          <h2 id="welcome-closing-title"><span>Stand firm.</span><span>Defend against invasive plants.</span></h2>
+          <StartButton tone="light" showFist />
           <p>No email or password required. <Link to="/private-access/restore">Restore an existing profile</Link></p>
         </section>
       </main>
@@ -265,9 +316,13 @@ export function WelcomePage() {
           Identifications are suggestions from an image-recognition model, not expert confirmation.
         </p>
         <p>
-          Photo:{' '}
+          Photos:{' '}
           <a href={HERO_PHOTO_CREDIT.href} target="_blank" rel="noopener noreferrer">
             {HERO_PHOTO_CREDIT.author} · {HERO_PHOTO_CREDIT.source}
+          </a>
+          {' · '}
+          <a href={INVASIVE_PLANT.credit.href} target="_blank" rel="noopener noreferrer">
+            {INVASIVE_PLANT.credit.author} · Water (MDPI)
           </a>
         </p>
       </footer>
