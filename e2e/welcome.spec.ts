@@ -16,6 +16,12 @@ test('a first-time visitor can read the welcome page without an identity', async
     await expect(page.getByRole('heading', { level: 3, name: step, exact: true })).toBeVisible()
   }
   await expect(page.getByRole('link', { name: /MyIAS/ })).toHaveAttribute('href', 'https://www.mybis.gov.my/ias/')
+  await expect(page.getByRole('heading', { name: 'What is an invasive plant?' })).toBeVisible()
+  for (const feature of ['Scan and report', 'Learn how to prevent and stop spread', 'Work together as a community']) {
+    await expect(page.getByRole('heading', { level: 3, name: feature, exact: true })).toBeVisible()
+  }
+  await expect(page.getByText('Labis, Johor, Malaysia')).toBeVisible()
+  await expect(page.getByText('Listed as invasive in Malaysia', { exact: true })).toBeVisible()
 })
 
 test('How it works moves to the five steps', async ({ page }) => {
