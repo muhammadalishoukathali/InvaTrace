@@ -63,7 +63,7 @@ export const INVASIVE_PLANT = {
     commonName: 'Cabomba',
     scientificName: 'Cabomba furcata',
     story:
-      'and other aquatic weeds have repeatedly carpeted Malaysia’s second-largest natural lake, blocking light and starving native lotus and fish of oxygen. Sustained removal and community monitoring have restored stretches of open water where lotus and wildlife are returning.',
+      'and other aquatic weeds have carpeted Malaysia’s second-largest natural freshwater lake, blocking light and crowding out the famous native lotus. Researchers, authorities and local Orang Asli communities have been working to clear the weed and restore the lake.',
   },
   // Status line under the caption, same form as EXAMPLE_STATUS. Cabomba furcata
   // is in the GRIIS Malaysia reviewed catalogue.
