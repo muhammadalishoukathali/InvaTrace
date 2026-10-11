@@ -29,9 +29,12 @@ _DISCLAIMER_MARKERS = re.compile(
     re.IGNORECASE,
 )
 _BOILERPLATE_WORDS = frozenset(
-    "and has not been verified against reviewed sources invatrace s this information "
-    "response answer content my may contain inaccuracies be accurate language model "
-    "i should mention that knowledge".split()
+    [
+        "and", "has", "not", "been", "verified", "against", "reviewed", "sources",
+        "invatrace", "s", "this", "information", "response", "answer", "content", "my",
+        "may", "contain", "inaccuracies", "be", "accurate", "language", "model", "i",
+        "should", "mention", "that", "knowledge",
+    ]
 )
 # Split on sentence terminators while keeping each sentence with its own
 # punctuation. Allows us to drop a disclaimer sentence without eating the

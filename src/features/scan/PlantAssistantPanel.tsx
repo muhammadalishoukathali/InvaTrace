@@ -78,7 +78,6 @@ const DEPTHS: Array<{ depth: Depth; label: string; ariaLabel?: string }> = [
   { depth: 'standard', label: 'Standard', ariaLabel: 'Standard explanation' },
   { depth: 'detailed', label: 'More detail' },
 ]
-const depthsFor = (_mode: AssistantResponse['answerMode']) => DEPTHS
 const SPREAD_QUESTION = 'How does it spread?'
 const SUGGESTIONS = [
   'What does this plant look like?',
@@ -193,7 +192,7 @@ function AssistantTurnView({ turn, latest, pending, repeat, contextDescription, 
       {response.answerability === 'answerable' && (latest && !repeat ? <div className="plant-assistant__depth">
         <p>Explanation level</p>
         <div className="plant-assistant__levels" role="group" aria-label="Explanation level">
-          {depthsFor(response.answerMode).map(({ depth: nextDepth, label, ariaLabel }) => <button key={nextDepth} type="button" aria-label={ariaLabel}
+          {DEPTHS.map(({ depth: nextDepth, label, ariaLabel }) => <button key={nextDepth} type="button" aria-label={ariaLabel}
             aria-pressed={depth === nextDepth} disabled={pending}
             onClick={() => { if (nextDepth !== depth) onDepthChange(nextDepth) }}>{label}</button>)}
         </div>
