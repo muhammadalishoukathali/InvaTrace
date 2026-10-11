@@ -326,7 +326,7 @@ export function WelcomePage() {
           </a>
           {' · '}
           <a href={INVASIVE_PLANT.credit.href} target="_blank" rel="noopener noreferrer">
-            {INVASIVE_PLANT.credit.author} · Water (MDPI)
+            {INVASIVE_PLANT.credit.author} · {INVASIVE_PLANT.credit.source}
           </a>
         </p>
       </footer>

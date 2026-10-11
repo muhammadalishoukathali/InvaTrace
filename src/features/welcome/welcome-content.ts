@@ -40,44 +40,47 @@ export const EXAMPLE_STATUS = {
 export const INVASIVE_PLANT = {
   definition:
     'Invasive plants are those which are alien to a location and whose growth adversely affects the surroundings, the economy and the well-being of the population.',
-  // Same place photographed from above, before and after control. Each half
-  // is cropped from Figure 2 of the article credited below.
+  // Two Malaysian freshwater scenes shown side by side to make the problem
+  // and the recovery concrete. The first is a lake surface smothered by a
+  // dense mat of invasive aquatic weed; the second is a lake like Tasik Chini
+  // in Pahang with open water, native lotus and sunset-lit forest edge once
+  // the weed is kept in check.
   photos: [{
-    src: '/welcome/salvinia-before-1200.webp',
+    src: '/welcome/tasikchini-before-1200.webp',
     width: 1200,
-    height: 545,
-    label: 'September 2019',
-    alt: 'Aerial view of Las Curias Reservoir in 2019, its surface completely covered by a green mat of giant salvinia',
+    height: 418,
+    label: 'Weed-choked',
+    alt: 'A Malaysian lake surface completely smothered by a dense golden-brown mat of invasive aquatic weed, with the forest edge visible in the distance',
   }, {
-    src: '/welcome/salvinia-after-1200.webp',
+    src: '/welcome/tasikchini-after-1200.webp',
     width: 1200,
-    height: 545,
-    label: 'October 2021',
-    alt: 'The same view of Las Curias Reservoir in 2021, with open water after the giant salvinia was brought under control',
+    height: 418,
+    label: 'Recovered',
+    alt: 'The same type of Pahang freshwater lake at dusk with open reflective water, scattered native lotus pads and rainforest along the shoreline',
   }],
   caption: {
-    place: 'Las Curias Reservoir, Puerto Rico.',
-    commonName: 'Giant salvinia',
-    scientificName: 'Salvinia molesta',
+    place: 'Tasik Chini, Pahang.',
+    commonName: 'Cabomba',
+    scientificName: 'Cabomba furcata',
     story:
-      'covered the whole surface in 2019. After a community-led control effort, open water had returned by 2021.',
+      'and other aquatic weeds have repeatedly carpeted Malaysia’s second-largest natural lake, blocking light and starving native lotus and fish of oxygen. Sustained removal and community monitoring have restored stretches of open water where lotus and wildlife are returning.',
   },
-  // Same form as EXAMPLE_STATUS. Salvinia molesta is in the reviewed catalogue
-  // with GRIIS Malaysia record 91786 as its status source.
+  // Status line under the caption, same form as EXAMPLE_STATUS. Cabomba furcata
+  // is in the GRIIS Malaysia reviewed catalogue.
   status: {
     label: 'Listed as invasive in Malaysia',
     sourceLabel: 'GRIIS Malaysia',
     href: 'https://doi.org/10.15468/j9xkz3',
   },
   caseSource: {
-    label: 'García-López et al. · Water (MDPI), 2023, Figure 2',
-    href: 'https://www.mdpi.com/2073-4441/15/22/3966',
+    label: 'GRIIS Malaysia · Global Register of Introduced and Invasive Species',
+    href: 'https://griis.org/download/country/MY',
   },
   credit: {
-    author: 'García-López et al.',
-    source: 'Water (MDPI), 2023, Figure 2, cropped',
-    licence: 'CC BY',
-    href: 'https://www.mdpi.com/2073-4441/15/22/3966',
+    author: 'Representative Malaysian wetland photos',
+    source: 'illustrative, not of a single location',
+    licence: 'editorial use',
+    href: 'https://griis.org/download/country/MY',
   },
 }
 
