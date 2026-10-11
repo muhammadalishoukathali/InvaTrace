@@ -125,11 +125,10 @@ test('AC 8.1.2 Explain the scan result', async ({ page, context }) => {
 })
 
 test('AC 8.1.3 Change the explanation level', async ({ page, context }) => {
-  const mixedNotice = 'Reviewed content uses Detailed; additional AI-generated information uses Standard.'
   const calls = await recordAssistant(context, ({ body }) => {
     if (body.question.includes('rhizome')) {
       return body.depth === 'detailed'
-        ? mixed('detailed', 'standard', { mixedDepthNotice: mixedNotice })
+        ? answered([section('grounded', `${HABITAT_TEXT} Additional detail.`, 'detailed', [HABITAT_SOURCE]), section('ai', `${RHIZOME_TEXT} Additional botanical detail.`, 'detailed')])
         : mixed(body.depth)
     }
     return grounded(`${HABITAT_TEXT} (${body.depth})`, body.depth)
@@ -157,14 +156,13 @@ test('AC 8.1.3 Change the explanation level', async ({ page, context }) => {
   expect(calls[2].body).toMatchObject({ question: 'Where does it grow?', depth: 'simpler' })
   await expect(groundedSection(page).locator('.plant-assistant__answer')).toHaveText(`${HABITAT_TEXT} (simpler)`)
 
-  // Mixed Detailed: the reviewed part is Detailed, the AI part stays Standard,
-  // and the difference is stated rather than hidden behind one pressed button.
+  // Mixed replies apply Detailed to both provenance sections.
   await ask(page, 'Where does it grow and what is a rhizome?')
   await levels(page).getByRole('button', { name: 'More detail', exact: true }).click()
   await expect(latestTurn(page)).toHaveAttribute('data-depth', 'detailed')
   await expect(groundedSection(page)).toHaveAttribute('data-section-depth', 'detailed')
-  await expect(aiSection(page)).toHaveAttribute('data-section-depth', 'standard')
-  await expect(latestTurn(page).getByText(mixedNotice, { exact: true })).toBeVisible()
+  await expect(aiSection(page)).toHaveAttribute('data-section-depth', 'detailed')
+  await expect(latestTurn(page).locator('.plant-assistant__notice')).toHaveCount(0)
 })
 
 test('AC 8.1.4 Preserve the scan result', async ({ page, context }) => {
@@ -247,7 +245,7 @@ test('AC 8.1.6 Clarify a repeated question', async ({ page, context }) => {
   await page.getByRole('button', { name: 'Ask question', exact: true }).click()
   const repeat = scanPanel(page).locator('.plant-assistant__repeat')
   await expect(repeat).toContainText('I explained this question earlier in this conversation.')
-  await expect(repeat.getByRole('button')).toHaveText(['Simpler', 'More detail'])
+  await expect(repeat.getByRole('button')).toHaveText(['Simpler', 'Standard', 'More detail'])
   expect(calls).toHaveLength(1)
   await expect(page.locator('.plant-assistant__turn')).toHaveCount(1)
 
@@ -691,10 +689,9 @@ test('AC 8.4.3 Label AI knowledge without verified citations', async ({ page, co
 })
 
 test('AC 8.4.4 Preserve truthful depth distinctions', async ({ page, context }) => {
-  const mixedNotice = 'Reviewed content uses Detailed; additional AI-generated information uses Standard.'
   const detailed = `${HABITAT_TEXT} It scrambles over whatever supports it.`
   const calls = await recordAssistant(context, ({ body }) => body.depth === 'detailed'
-    ? answered([section('grounded', detailed, 'detailed', [HABITAT_SOURCE]), section('ai', RHIZOME_TEXT, 'standard')], { mixedDepthNotice: mixedNotice })
+    ? answered([section('grounded', detailed, 'detailed', [HABITAT_SOURCE]), section('ai', `${RHIZOME_TEXT} Additional botanical detail.`, 'detailed')])
     : mixed(body.depth))
   await scanAndOpen(page)
   await ask(page, 'Where does it grow and what is a rhizome?')
@@ -704,35 +701,36 @@ test('AC 8.4.4 Preserve truthful depth distinctions', async ({ page, context }) 
   await levels(page).getByRole('button', { name: 'More detail', exact: true }).click()
   await expect(latestTurn(page)).toHaveAttribute('data-depth', 'detailed')
   expect(calls[1].body).toMatchObject({ depth: 'detailed', question: 'Where does it grow and what is a rhizome?' })
-  // The AI part stayed at Standard, and the reply says so in words.
+  // Both parts use the requested Detailed level.
   await expect(groundedSection(page)).toHaveAttribute('data-section-depth', 'detailed')
-  await expect(aiSection(page)).toHaveAttribute('data-section-depth', 'standard')
-  await expect(latestTurn(page).locator('.plant-assistant__notice')).toHaveText([mixedNotice])
+  await expect(aiSection(page)).toHaveAttribute('data-section-depth', 'detailed')
+  await expect(latestTurn(page).locator('.plant-assistant__notice')).toHaveCount(0)
   await expect(groundedSection(page).locator('.plant-assistant__answer')).toHaveText(detailed)
-  // The AI text was not lengthened to look Detailed.
-  await expect(aiSection(page).locator('.plant-assistant__answer')).toHaveText(RHIZOME_TEXT)
+  // The AI explanation can add detail while keeping its provenance.
+  await expect(aiSection(page).locator('.plant-assistant__answer')).toHaveText(`${RHIZOME_TEXT} Additional botanical detail.`)
   // The reviewed part keeps its citation and the AI part still has none.
   await expect(groundedSection(page).getByRole('link', { name: HABITAT_SOURCE.sourceName })).toHaveAttribute('href', HABITAT_SOURCE.sourceUrl)
   await expect(aiSection(page).locator('a')).toHaveCount(0)
 })
 
-test('AC 8.1.3 AC 8.4.4 Direct AI-only Detailed is not offered', async ({ page, context }) => {
+test('AC 8.1.3 AC 8.4.4 Direct AI-only answers support all explanation levels', async ({ page, context }) => {
   const calls = await recordAssistant(context, ({ body }) => aiOnly(`${RHIZOME_TEXT} (${body.depth})`, body.depth))
   await scanAndOpen(page)
   await ask(page, 'What is a rhizome?')
   await expect(latestTurn(page)).toHaveAttribute('data-mode', 'general')
-  await expect(levels(page).getByRole('button')).toHaveText(['Simpler', 'Standard'])
-  await expect(levels(page).getByRole('button', { name: 'More detail' })).toHaveCount(0)
+  await expect(levels(page).getByRole('button')).toHaveText(['Simpler', 'Standard', 'More detail'])
+  await levels(page).getByRole('button', { name: 'More detail' }).click()
+  await expect(aiSection(page)).toHaveAttribute('data-section-depth', 'detailed')
   // The effective depth is the pressed level, and Simpler still works.
-  await expect(levels(page).getByRole('button', { name: 'Standard explanation' })).toHaveAttribute('aria-pressed', 'true')
+  await expect(levels(page).getByRole('button', { name: 'More detail' })).toHaveAttribute('aria-pressed', 'true')
   await levels(page).getByRole('button', { name: 'Simpler explanation' }).click()
   await expect(latestTurn(page)).toHaveAttribute('data-depth', 'simpler')
   await expect(aiSection(page)).toHaveAttribute('data-section-depth', 'simpler')
-  await expect(levels(page).getByRole('button')).toHaveText(['Simpler', 'Standard'])
-  expect(calls.map(call => call.body.depth)).toEqual(['standard', 'simpler'])
-  // The panel's own help no longer promises Detailed for AI information.
+  await expect(levels(page).getByRole('button')).toHaveText(['Simpler', 'Standard', 'More detail'])
+  expect(calls.map(call => call.body.depth)).toEqual(['standard', 'detailed', 'simpler'])
+  // The panel explains the available levels.
   await scanPanel(page).getByText('About this assistant', { exact: true }).click()
-  await expect(scanPanel(page).locator('.plant-assistant__intro')).toContainText('AI-generated information supports Simpler and Standard only.')
+  await expect(scanPanel(page).locator('.plant-assistant__intro')).toContainText('Both reviewed and AI-generated information support Simpler, Standard and More detail.')
   // It also names the provider and what is and is not sent to it.
   await expect(scanPanel(page).locator('.plant-assistant__intro')).toContainText('Google Gemini, with Groq as a backup')
   await expect(scanPanel(page).locator('.plant-assistant__intro')).toContainText('It does not receive your photo, your location or your profile')
@@ -784,7 +782,7 @@ test('AC 8.4.5 Clarify repeated general questions', async ({ page, context }) =>
   await expect(repeat).toHaveCount(0)
 })
 
-test('AC 8.4.5 A repeated AI-only question offers only Simpler or Standard', async ({ page, context }) => {
+test('AC 8.4.5 A repeated AI-only question offers all explanation levels', async ({ page, context }) => {
   const calls = await recordAssistant(context, ({ body }) => aiOnly(`${RHIZOME_TEXT} (${body.depth})`, body.depth))
   await scanAndOpen(page)
   await ask(page, 'What is a rhizome?')
@@ -792,7 +790,7 @@ test('AC 8.4.5 A repeated AI-only question offers only Simpler or Standard', asy
   await page.getByRole('button', { name: 'Ask question', exact: true }).click()
   const repeat = scanPanel(page).locator('.plant-assistant__repeat')
   await expect(repeat).toBeVisible()
-  await expect(repeat.getByRole('button')).toHaveText(['Simpler', 'Standard'])
+  await expect(repeat.getByRole('button')).toHaveText(['Simpler', 'Standard', 'More detail'])
   await repeat.getByRole('button', { name: 'Simpler explanation' }).click()
   await expect(latestTurn(page)).toHaveAttribute('data-depth', 'simpler')
   expect(calls.map(call => call.body.depth)).toEqual(['standard', 'simpler'])

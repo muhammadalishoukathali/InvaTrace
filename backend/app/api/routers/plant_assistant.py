@@ -296,7 +296,7 @@ async def answer_for_species(
     history: list[dict] | None = None,
     previous_answer: str | None = None,
 ) -> AskResponse:
-    """All clients use the conversation engine; no legacy routing or rollout switch."""
+    """Use the shared engine and preserve provenance for older clients."""
     # Privacy applies even when the provider is disabled or unavailable.
     if contains_private_details(question):
         return AskResponse(
@@ -318,6 +318,27 @@ async def answer_for_species(
         # not a failed generation; it still gets the related excerpts below.
         reviewed_only = result is not None and result.get("answer") == REVIEWED_ONLY_UNAVAILABLE
         if result is not None and not reviewed_only:
+            # Legacy clients render one answer with one citation list. Never
+            # attach reviewed citations to unverified AI text in that format.
+            if (
+                not section_aware
+                and any(s["kind"] == "grounded" for s in result["sections"])
+                and any(s["kind"] == "ai" for s in result["sections"])
+            ):
+                sections = [s for s in result["sections"] if s["kind"] != "ai"]
+                notice = (
+                    "Additional AI-generated information requires an updated app that "
+                    "displays reviewed and AI information separately."
+                )
+                sections.append({
+                    "kind": "unavailable", "title": "Information unavailable",
+                    "answer": notice, "depth": depth, "sources": [], "warning": None,
+                })
+                result = {
+                    **result, "sections": sections,
+                    "answer": "\n\n".join(s["answer"] for s in sections),
+                    "coverage": "partially_supported",
+                }
             return AskResponse.model_validate(result)
     except (TimeoutError, RuntimeError, ValueError, TypeError, KeyError, OSError):
         reviewed_only = False

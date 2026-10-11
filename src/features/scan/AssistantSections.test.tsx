@@ -11,7 +11,7 @@ describe('section-aware assistant rendering', () => {
     const markup = renderToStaticMarkup(<PlantAssistantPanel initiallyOpen
       guideContext={{ speciesId: 'arachis-pintoi', scientificName: 'Arachis pintoi' }} />)
     expect(markup).toContain('another plant or a botanical concept')
-    expect(markup).toContain('Reviewed information supports Simpler, Standard and More detail; AI-generated information supports Simpler and Standard only.')
+    expect(markup).toContain('Both reviewed and AI-generated information support Simpler, Standard and More detail.')
     expect(markup).not.toContain('mixed answers can use Detailed for reviewed content')
   })
   it('labels the AI section and shows its warning without a disclosure (AC 8.3.6, AC 8.4.3)', () => {

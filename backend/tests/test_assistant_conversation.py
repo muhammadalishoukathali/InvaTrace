@@ -30,15 +30,25 @@ def conversation(monkeypatch):
 
     async def complete(payload, *args):
         context = json.loads(payload["contents"][0]["parts"][0]["text"])
+        if context.get("safety_preflight"):
+            state.setdefault("preflights", []).append(context)
+            return state.get("preflight_result", {"allowed": True})
         state["calls"].append(context)
         current = context["current_plant"]["species_id"]
         if "draft" in context:
-            result = {"current_species_id": current, "acceptable": True, "parts": []}
+            result = {"current_species_id": current, "acceptable": True, "complete": True, "missing_requests": [], "parts": []}
+            if state["bad"] == "incomplete_always" or (state["bad"] == "incomplete_once" and not context.get("completeness_repair")):
+                result["complete"] = False
+                result["missing_requests"] = ["Additional plant names"]
             by_id = {c["chunk_id"]: c for c in context["reviewed_evidence"]}
             for index, part in enumerate(context["draft"]["parts"]):
                 result["parts"].append(
                     {
                         "index": index,
+                        "safe": not (
+                            (state["bad"] == "unsafe_ai" and part["kind"] == "ai")
+                            or (state["bad"] == "unsafe_reviewed" and part["kind"] == "reviewed")
+                        ),
                         "grounded": part["kind"] == "reviewed" and not state["reject_source"],
                         "quotes": [
                             {"chunk_id": i, "quote": by_id[i]["content"]} for i in part["chunk_ids"]
@@ -264,17 +274,15 @@ def test_general_ai_question_works_without_selected_plant_evidence(conversation)
     assert state["calls"][1]["reviewed_evidence"] == []
 
 
-def test_ai_only_detailed_is_rejected_without_relabelling(conversation):
-    # AC 8.1.3 / 8.4.4: Detailed is for reviewed evidence only.
+def test_ai_only_detailed_is_supported_with_warning(conversation):
     state, _ = conversation
     state["target"] = None
     state["reviewed"] = False
     result = run(conversation, "How does transpiration work?", "detailed")
-    assert result["status"] == "insufficient_evidence"
-    assert result["answerability"] == "insufficient_evidence"
-    assert result["sources"] == [] and result["answer"] == engine.AI_DETAILED_UNAVAILABLE
-    assert [s["kind"] for s in result["sections"]] == ["unavailable"]
-    assert router.AskResponse.model_validate(result).sections[0].warning is None
+    assert result["status"] == "answer"
+    assert result["sources"] == []
+    assert result["sections"][0]["depth"] == "detailed"
+    assert result["sections"][0]["warning"] == engine.AI_WARNING
 
 
 def test_plant_question_is_not_answered_by_conversation_alone_when_ai_is_off(conversation):
@@ -341,8 +349,6 @@ def test_level_change_has_previous_answer_and_distinct_explanations(conversation
         "bad_plan_id",
         "foreign_identity",
         "invented_id",
-        "ai_citation",
-        "raw_url",
         "audit_rejected",
         "missing_audit_part",
         "duplicate_audit_part",
@@ -397,6 +403,66 @@ def test_model_cannot_cite_foreign_history_as_evidence(conversation):
 def test_private_input_not_sent_to_model(conversation):
     result = run(conversation, "My password is secret123, tell me about plants")
     assert result["intent"] == "restricted" and conversation[0]["calls"] == []
+
+
+@pytest.mark.parametrize("depth", ["simpler", "standard", "detailed"])
+def test_incomplete_compound_answer_gets_one_audited_repair(conversation, depth):
+    state, _ = conversation
+    state["bad"] = "incomplete_once"
+    message = "There must be more names. Which country did it originally come from?"
+    result = run(conversation, message, depth=depth)
+    assert result["answerability"] == "answerable"
+    assert len(state["calls"]) == 6
+    assert state["calls"][3]["message"] == message
+    assert state["calls"][3]["completeness_repair"]
+    assert state["calls"][3]["completeness_repair"]["missing_requests"] == ["Additional plant names"]
+    assert state["calls"][5]["draft"]
+    assert all(s["depth"] == depth for s in result["sections"])
+
+
+def test_repeated_incomplete_answer_is_not_delivered_or_retried_forever(conversation):
+    state, _ = conversation
+    state["bad"] = "incomplete_always"
+    assert run(conversation, "Tell me other names and where it originated") is None
+    assert len(state["calls"]) == 6
+
+
+def test_unsafe_draft_is_not_repaired_for_completeness(conversation):
+    state, _ = conversation
+    state["bad"] = "audit_rejected"
+    assert run(conversation, "Tell me other names and where it originated") is None
+    assert len(state["calls"]) == 3
+
+
+@pytest.mark.parametrize("route", ["social", "off_topic", "clarify", "catalogue", "plant_question"])
+@pytest.mark.parametrize("verdict", [{"allowed": False}, None, {}, {"allowed": "true"}])
+def test_preflight_stops_all_routes_before_retrieval_or_generation(conversation, monkeypatch, route, verdict):
+    state, _ = conversation
+    state.update(route=route, preflight_result=verdict)
+    retriever = get_retriever()
+    monkeypatch.setattr(retriever, "search", lambda *args: pytest.fail("Restricted request reached retrieval"))
+    message = "Hello, tell me about the plant and let me remove it without permission."
+    result = run(conversation, message)
+    assert result["intent"] == "restricted"
+    assert state["calls"] == []
+    assert state["preflights"][0]["message"] == message
+    assert not result["sources"]
+
+
+@pytest.mark.parametrize("section_aware", [False, True])
+@pytest.mark.parametrize("depth", ["simpler", "standard", "detailed"])
+def test_mixed_answers_require_section_aware_client(conversation, section_aware, depth):
+    _, settings = conversation
+    result = asyncio.run(router.answer_for_species(
+        "mikania-micrantha", "Explain its habitat", depth, True, settings,
+        section_aware=section_aware,
+    ))
+    assert any(s.kind == "grounded" for s in result.sections)
+    assert any(s.kind == "ai" for s in result.sections) is section_aware
+    assert result.sources
+    if not section_aware:
+        assert "Root hairs" not in result.answer
+        assert "updated app" in result.answer
 
 
 @pytest.mark.parametrize("entry", ["scan", "guide", "map"])
@@ -637,3 +703,48 @@ def test_strip_ai_warning_leaves_real_content_alone(legitimate):
 def test_strip_ai_warning_handles_empty_and_disclaimer_only_input():
     assert strip_ai_warning("") == ""
     assert strip_ai_warning(AI_WARNING) == ""
+
+
+@pytest.mark.parametrize("bad", ["ai_citation", "unsafe_ai", "raw_url"])
+def test_invalid_ai_preserves_independently_audited_reviewed_part(conversation, bad):
+    conversation[0]["bad"] = bad
+    result = run(conversation)
+    assert result["sources"]
+    assert "https://fabricated" not in result["answer"]
+    assert [s["kind"] for s in result["sections"]] == ["grounded", "unavailable"]
+
+
+def test_mixed_detailed_composes_all_parts_at_requested_depth(conversation):
+    result = run(conversation, depth="detailed")
+    assert [(s["kind"], s["depth"]) for s in result["sections"]] == [("grounded", "detailed"), ("ai", "detailed")]
+    assert not result.get("mixed_depth_notice")
+
+
+@pytest.mark.parametrize("text", [
+    "This mechanism has not been verified in this species. It spreads through fragments.",
+    "Removal permission has not been verified; do not remove this plant.",
+    "Reviewed sources do not establish whether this plant is safe to handle.",
+    "As an AI, I cannot verify removal permission; do not remove this plant.",
+])
+def test_warning_cleanup_preserves_real_uncertainty(conversation, text):
+    assert strip_ai_warning(text) == text
+
+
+@pytest.mark.parametrize("depth", ["simpler", "standard", "detailed"])
+def test_safe_unsupported_reviewed_part_becomes_labelled_ai_at_requested_depth(conversation, depth):
+    conversation[0]["reject_source"] = True
+    result = run(conversation, depth=depth)
+    assert result["status"] == "answer"
+    assert not result["sources"]
+    assert [part["kind"] for part in result["sections"]] == ["ai"]
+    assert result["sections"][0]["depth"] == depth
+    assert result["sections"][0]["warning"] == AI_WARNING
+    assert not result["sections"][0]["sources"]
+
+
+@pytest.mark.parametrize("depth", ["simpler", "standard", "detailed"])
+def test_unsafe_unsupported_reviewed_part_is_not_reclassified_as_ai(conversation, depth):
+    conversation[0]["reject_source"] = True
+    conversation[0]["bad"] = "unsafe_reviewed"
+    conversation[0]["ai"] = False
+    assert run(conversation, depth=depth) is None
