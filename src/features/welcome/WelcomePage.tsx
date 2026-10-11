@@ -216,13 +216,16 @@ export function WelcomePage() {
                 <a href={INVASIVE_PLANT.status.href} target="_blank" rel="noopener noreferrer">{INVASIVE_PLANT.status.sourceLabel}</a>
               </span>
               <span className="welcome-credit">
-                Source:{' '}
-                <a href={INVASIVE_PLANT.caseSource.href} target="_blank" rel="noopener noreferrer">
-                  {INVASIVE_PLANT.caseSource.label}
-                </a>. Photo:{' '}
-                <a href={INVASIVE_PLANT.credit.href} target="_blank" rel="noopener noreferrer">
-                  {INVASIVE_PLANT.credit.author}, {INVASIVE_PLANT.credit.source} ({INVASIVE_PLANT.credit.licence})
-                </a>
+                Photos:{' '}
+                {INVASIVE_PLANT.photos.map((shot, index) => (
+                  <span key={shot.src}>
+                    {index > 0 && ' · '}
+                    {shot.label}:{' '}
+                    <a href={shot.credit.href} target="_blank" rel="noopener noreferrer">
+                      {shot.credit.author}, {shot.credit.source} ({shot.credit.licence})
+                    </a>
+                  </span>
+                ))}
               </span>
             </figcaption>
           </figure>
@@ -324,10 +327,14 @@ export function WelcomePage() {
           <a href={HERO_PHOTO_CREDIT.href} target="_blank" rel="noopener noreferrer">
             {HERO_PHOTO_CREDIT.author} · {HERO_PHOTO_CREDIT.source}
           </a>
-          {' · '}
-          <a href={INVASIVE_PLANT.credit.href} target="_blank" rel="noopener noreferrer">
-            {INVASIVE_PLANT.credit.author} · {INVASIVE_PLANT.credit.source}
-          </a>
+          {INVASIVE_PLANT.photos.map((shot) => (
+            <span key={shot.src}>
+              {' · '}
+              <a href={shot.credit.href} target="_blank" rel="noopener noreferrer">
+                {shot.credit.author} · {shot.credit.source}
+              </a>
+            </span>
+          ))}
         </p>
       </footer>
     </div>

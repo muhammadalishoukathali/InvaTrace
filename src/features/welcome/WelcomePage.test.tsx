@@ -68,21 +68,23 @@ describe('public welcome page', () => {
     expect(hero).toContain(HERO_PHOTO_CREDIT.author)
     expect(hero).toContain(EXAMPLE_STATUS.label)
     expect(hero).toContain(`href="${EXAMPLE_STATUS.href}"`)
-    expect(html).toContain(INVASIVE_PLANT.credit.author)
-    expect(html).toContain(`href="${INVASIVE_PLANT.credit.href}"`)
+    for (const shot of INVASIVE_PLANT.photos) {
+      expect(html).toContain(shot.credit.author)
+      expect(html).toContain(`href="${shot.credit.href}"`)
+    }
   })
 
-  it('shows the original reservoir comparison before and after control', () => {
+  it('shows two credited Malaysian scenes: an invaded pond and an open wetland', () => {
     expect(INVASIVE_PLANT.photos).toHaveLength(2)
     for (const shot of INVASIVE_PLANT.photos) {
       expect(html).toContain(shot.src)
       expect(html).toContain(shot.label)
     }
     expect(html.indexOf(INVASIVE_PLANT.photos[0].src)).toBeLessThan(html.indexOf(INVASIVE_PLANT.photos[1].src))
-    expect(html).toContain(`href="${INVASIVE_PLANT.caseSource.href}"`)
-    expect(html).toContain('open water had returned by 2021')
+    expect(html).toContain('Universiti Putra Malaysia')
+    expect(html).toContain('Tasik Chini')
     expect(html).not.toContain('Tungog Lake')
-    expect(html).toContain('Las Curias')
+    expect(html).not.toContain('Las Curias')
   })
 
   it('explains what an invasive plant is and shows the three main features', () => {

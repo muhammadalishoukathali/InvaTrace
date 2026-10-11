@@ -109,16 +109,16 @@ test('AC 10.1.2 Problem explanation: a definition, a credited infestation photog
 
   // At least one photograph of a heavy infestation, with species name, caption and credit.
   const figure = section.locator('figure.welcome-why__photo')
-  const infestation = figure.getByRole('img', { name: /completely covered by a green mat of giant salvinia/ })
+  const infestation = figure.getByRole('img', { name: /completely covered by Salvinia molesta/ })
   await expect(infestation).toHaveCount(1)
   await expectLoaded(infestation)
   const caption = figure.locator('figcaption')
   await expect(caption).toContainText('Giant salvinia')
   await expect(caption.locator('em')).toHaveText('Salvinia molesta')
-  await expect(caption).toContainText('covered the whole surface in 2019')
-  await expect(caption).toContainText('Photo: García-López et al., Water (MDPI), 2023, Figure 2, cropped (CC BY)')
-  await expect(caption.getByRole('link', { name: /García-López et al\., Water \(MDPI\)/ }))
-    .toHaveAttribute('href', 'https://www.mdpi.com/2073-4441/15/22/3966')
+  await expect(caption).toContainText('Kolam Sepat at Universiti Putra Malaysia')
+  await expect(caption).toContainText('Wee Hong, Wikimedia Commons (CC BY-SA 4.0)')
+  await expect(caption.getByRole('link', { name: /Wee Hong, Wikimedia Commons/ }))
+    .toHaveAttribute('href', 'https://commons.wikimedia.org/wiki/File:Bukit_Ekspo_(Kolam_5),_UPM.jpg')
 
   // Three impact cards: native vegetation displaced, habitat and food for
   // wildlife reduced, natural places used by communities degraded.
@@ -187,10 +187,11 @@ test('AC 10.1.4 Image credit and plant status: every photograph is credited and 
   await expect(preview.locator('span')).toHaveText('Status source: GRIIS Malaysia')
   await expect(preview.getByRole('link', { name: 'GRIIS Malaysia' })).toHaveAttribute('href', /^https:\/\/www\.gbif\.org\/species\//)
 
-  // The infestation photographs: photographer, source and the known location.
+  // The infestation photographs: each has its own photographer, source and licence.
   const infestation = problem(page).locator('figure.welcome-why__photo')
-  await expect(infestation.locator('figcaption')).toContainText('Las Curias Reservoir, Puerto Rico.')
-  await expect(infestation.locator('figcaption')).toContainText('Photo: García-López et al., Water (MDPI), 2023, Figure 2, cropped (CC BY)')
+  await expect(infestation.locator('figcaption')).toContainText('Across Malaysia.')
+  await expect(infestation.locator('figcaption')).toContainText('Wee Hong, Wikimedia Commons (CC BY-SA 4.0)')
+  await expect(infestation.locator('figcaption')).toContainText('Rubenjoker, Wikimedia Commons (CC BY-SA 4.0)')
 
   // Those are all the photographs on the page: every other image is a product
   // screenshot or the logo. A photograph added later has to come with its own credit here.
@@ -201,14 +202,15 @@ test('AC 10.1.4 Image credit and plant status: every photograph is credited and 
   const photographs = images.filter((image) => !/\/welcome\/screen-|\/invatrace-logo/.test(image.src))
   expect(photographs.map((image) => image.src).sort()).toEqual([
     expect.stringMatching(/^\/welcome\/hero-/),
-    '/welcome/salvinia-after-1200.webp',
-    '/welcome/salvinia-before-1200.webp',
+    '/welcome/malaysia-salvinia-upm-1200.webp',
+    '/welcome/malaysia-wetland-chini-1200.webp',
   ])
   for (const photograph of photographs) expect(photograph.creditedFigure).toBe(true)
-  // The footer repeats photographer and source for both.
+  // The footer repeats photographer and source for every pair photo.
   const footer = page.locator('footer.welcome-footer')
   await expect(footer).toContainText('Ihsan Adityawarman · Pexels')
-  await expect(footer).toContainText('García-López et al. · Water (MDPI)')
+  await expect(footer).toContainText('Wee Hong · Wikimedia Commons')
+  await expect(footer).toContainText('Rubenjoker · Wikimedia Commons')
 
   // Every plant example is a species the app's own reviewed catalogue lists as invasive in Malaysia.
   const catalogue = JSON.parse(fs.readFileSync(path.join(process.cwd(), 'shared/catalogue/approved-species.json'), 'utf8')) as {

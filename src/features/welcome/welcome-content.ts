@@ -40,27 +40,41 @@ export const EXAMPLE_STATUS = {
 export const INVASIVE_PLANT = {
   definition:
     'Invasive plants are those which are alien to a location and whose growth adversely affects the surroundings, the economy and the well-being of the population.',
-  // Same place photographed from above, before and after control. Each half
-  // is cropped from Figure 2 of the article credited below.
+  // Two Malaysian scenes shown side by side. The first is a pond at UPM
+  // (Serdang, Selangor) smothered by Salvinia molesta; the second is Tasik
+  // Chini in Pahang kept clear and open. Each image carries its own
+  // photographer, source and licence so the credit matches what is shown.
   photos: [{
-    src: '/welcome/salvinia-before-1200.webp',
+    src: '/welcome/malaysia-salvinia-upm-1200.webp',
     width: 1200,
-    height: 545,
-    label: 'September 2019',
-    alt: 'Aerial view of Las Curias Reservoir in 2019, its surface completely covered by a green mat of giant salvinia',
+    height: 418,
+    label: 'Weed-choked',
+    alt: 'Kolam Sepat pond at Universiti Putra Malaysia, Serdang, Selangor, its surface completely covered by Salvinia molesta',
+    credit: {
+      author: 'Wee Hong',
+      source: 'Wikimedia Commons',
+      licence: 'CC BY-SA 4.0',
+      href: 'https://commons.wikimedia.org/wiki/File:Bukit_Ekspo_(Kolam_5),_UPM.jpg',
+    },
   }, {
-    src: '/welcome/salvinia-after-1200.webp',
+    src: '/welcome/malaysia-wetland-chini-1200.webp',
     width: 1200,
-    height: 545,
-    label: 'October 2021',
-    alt: 'The same view of Las Curias Reservoir in 2021, with open water after the giant salvinia was brought under control',
+    height: 418,
+    label: 'Open water',
+    alt: 'Tasik Chini in Pahang, Malaysia with open water, floating native vegetation and forested shoreline',
+    credit: {
+      author: 'Rubenjoker',
+      source: 'Wikimedia Commons',
+      licence: 'CC BY-SA 4.0',
+      href: 'https://commons.wikimedia.org/wiki/File:Tasik_chini_03.jpg',
+    },
   }],
   caption: {
-    place: 'Las Curias Reservoir, Puerto Rico.',
+    place: 'Across Malaysia.',
     commonName: 'Giant salvinia',
     scientificName: 'Salvinia molesta',
     story:
-      'covered the whole surface in 2019. After a community-led control effort, open water had returned by 2021.',
+      'forms thick floating mats that smother ponds, lakes and slow rivers — like Kolam Sepat at Universiti Putra Malaysia (left). Where invasive aquatic weeds are kept out, Malaysian waterbodies such as Tasik Chini in Pahang (right) stay open, oxygenated and alive.',
   },
   // Same form as EXAMPLE_STATUS. Salvinia molesta is in the reviewed catalogue
   // with GRIIS Malaysia record 91786 as its status source.
@@ -68,16 +82,6 @@ export const INVASIVE_PLANT = {
     label: 'Listed as invasive in Malaysia',
     sourceLabel: 'GRIIS Malaysia',
     href: 'https://doi.org/10.15468/j9xkz3',
-  },
-  caseSource: {
-    label: 'García-López et al. · Water (MDPI), 2023, Figure 2',
-    href: 'https://www.mdpi.com/2073-4441/15/22/3966',
-  },
-  credit: {
-    author: 'García-López et al.',
-    source: 'Water (MDPI), 2023, Figure 2, cropped',
-    licence: 'CC BY',
-    href: 'https://www.mdpi.com/2073-4441/15/22/3966',
   },
 }
 
