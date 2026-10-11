@@ -17,6 +17,23 @@ AI_WARNING = (
     "This information was generated using AI knowledge and has not been verified against "
     "InvaTrace's reviewed sources. It may contain inaccuracies."
 )
+# The warning is already attached to AI sections as a header; the model
+# occasionally echoes the same sentence at the top of its own answer text,
+# so strip the boilerplate (and a few close paraphrases) before display.
+_AI_WARNING_VARIANTS = (
+    AI_WARNING,
+    "This information was generated using AI knowledge and has not been verified against "
+    "InvaTrace reviewed sources. It may contain inaccuracies.",
+    "This information was generated using AI knowledge and may contain inaccuracies.",
+)
+
+
+def strip_ai_warning(text):
+    out = text
+    for variant in _AI_WARNING_VARIANTS:
+        out = out.replace(variant, "")
+    return re.sub(r"\n{3,}", "\n\n", out).strip()
+
 REDIRECT = "I can help with plants. Ask about their appearance, habitats or botanical concepts."
 AI_DETAILED_UNAVAILABLE = (
     "More detail is available only for information from reviewed sources. The reviewed sources "
@@ -353,6 +370,8 @@ async def answer_conversation(
         "into an AI part rather than citing a related passage for the entire explanation. "
         "Conversation parts contain only social responses, clarification or follow-up questions, "
         "not uncited botanical facts. Do not repeat the same fact between parts. "
+        "Do not include the AI-knowledge disclaimer (\"This information was generated using AI "
+        "knowledge...\") in any part's text; the UI already attaches that warning to AI sections. "
         "Simpler normally uses one or two short sentences in everyday words, selecting essential "
         "facts and a small number of familiar examples instead of reproducing technical wording "
         "or the full source list. Preserve every relevant prohibition or permission condition even "
@@ -513,7 +532,10 @@ async def answer_conversation(
                 failed_source = True
                 if not allow_ai:
                     continue
-                next_section = section("ai", part["text"], depth)
+                stripped = strip_ai_warning(part["text"])
+                if not stripped:
+                    continue
+                next_section = section("ai", stripped, depth)
             else:
                 next_section = section(
                     "grounded", part["text"], depth, [by_id[i] for i in part["chunk_ids"]]
@@ -521,7 +543,10 @@ async def answer_conversation(
         else:
             if check["grounded"] or check["quotes"]:
                 return None
-            next_section = section(kind, part["text"], depth)
+            text = strip_ai_warning(part["text"]) if kind == "ai" else part["text"]
+            if kind == "ai" and not text:
+                continue
+            next_section = section(kind, text, depth)
         # Adjacent parts of the same provenance read as a paragraph rather than
         # repeatedly showing headings, badges and source lists.
         if output and output[-1]["kind"] == next_section["kind"]:

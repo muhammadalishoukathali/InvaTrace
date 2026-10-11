@@ -12,7 +12,7 @@ from app.config import Settings, get_settings
 from app.core.rate_limit import rate_limiter
 from app.domain.plant_assistant import get_retriever
 from app.services import assistant_conversation as engine
-from app.services.assistant_conversation import AI_WARNING
+from app.services.assistant_conversation import AI_WARNING, strip_ai_warning
 
 
 @pytest.fixture
@@ -582,3 +582,24 @@ def test_retrieval_keeps_species_and_source_boundaries(species, topic):
     chunks = retriever.search(species, topic)
     assert all(c["species_id"] == species and c["sources"] for c in chunks)
     assert all(c["sources"][0]["url"].startswith("https://") for c in chunks)
+
+
+def test_strip_ai_warning_removes_boilerplate_the_model_echoed():
+    text = AI_WARNING + " Mikania micrantha is not considered edible for humans."
+    assert strip_ai_warning(text) == "Mikania micrantha is not considered edible for humans."
+
+
+def test_strip_ai_warning_handles_mid_text_and_variants():
+    paraphrased = (
+        "Mikania micrantha climbs vigorously. "
+        "This information was generated using AI knowledge and may contain inaccuracies. "
+        "It smothers native plants."
+    )
+    cleaned = strip_ai_warning(paraphrased)
+    assert "AI knowledge" not in cleaned
+    assert "climbs vigorously" in cleaned and "smothers native plants" in cleaned
+
+
+def test_strip_ai_warning_leaves_normal_text_alone():
+    text = "Mikania micrantha spreads quickly in open ground."
+    assert strip_ai_warning(text) == text
