@@ -1,6 +1,5 @@
 import { expect, test, type Page } from '@playwright/test'
 
-test.skip(process.env.PLAYWRIGHT_EPIC9 !== '1', 'Requires the local iteration-3 API.')
 // Event stubs use context.route() and the dev MSW event mocks are switched off,
 // so these also run under the default mocked config (where page.route() cannot
 // see requests answered by the MSW service worker).
@@ -52,7 +51,7 @@ for (const width of [390, 1440]) {
   })
 }
 
-test('join confirmation can be declined without creating participation', async ({ page }) => {
+test('AC 9.2.4 join confirmation can be declined without creating participation', async ({ page }) => {
   let joined = false
   await page.context().route('**/api/v1/events/audit-event', route => route.fulfill({ json: item }))
   await page.context().route('**/api/v1/events/audit-event/participants', route => {
@@ -61,16 +60,27 @@ test('join confirmation can be declined without creating participation', async (
   })
   await access(page)
   await page.goto('/events/audit-event')
+  // The same wording sits on the event detail and on the join confirmation,
+  // each with the permission and protected-area guidance one tap away.
+  const WORDING = 'Joining an event is not permission to remove any plant or to enter restricted land.'
+  const PER_PERSON = /Any removal still depends on the InvaTrace permission and protected-area checks, which run for each person at each location on the day/
+  const onDetail = page.locator('.event-detail__main .event-safety')
+  await expect(onDetail).toContainText(WORDING)
+  await expect(onDetail).toContainText(PER_PERSON)
+  await expect(onDetail.getByRole('link', { name: 'Open safe-response guidance in the plant catalogue' })).toHaveAttribute('href', '/catalogue')
   await page.getByRole('button', { name: 'Join this event', exact: true }).click()
   const confirm = page.getByRole('dialog', { name: /Join/ })
   await expect(confirm).toContainText('is not permission to remove any plant')
+  await expect(confirm).toContainText(WORDING)
+  await expect(confirm).toContainText(PER_PERSON)
+  await expect(confirm.getByRole('link', { name: 'Open safe-response guidance in the plant catalogue' })).toBeVisible()
   await confirm.getByRole('button', { name: 'Not now' }).click()
   await expect(confirm).toHaveCount(0)
   expect(joined).toBe(false)
   await expect(page.getByRole('button', { name: 'Join this event', exact: true })).toBeVisible()
 })
 
-test('discovery labels the host and filters a whole-day custom range', async ({ page }) => {
+test('AC 9.1.1 AC 9.1.3 discovery labels the host and filters a whole-day custom range', async ({ page }) => {
   const queries: string[] = []
   await page.context().route('**/api/v1/events?**', route => {
     queries.push(route.request().url())
@@ -80,6 +90,11 @@ test('discovery labels the host and filters a whole-day custom range', async ({ 
   await access(page)
   await page.goto('/events')
   await expect(page.getByText('Hosted by Community host')).toBeVisible()
+  // AC 9.1.3: the card names the event type and says it is a community activity.
+  const card = page.locator('.event-card')
+  await expect(card.locator('.event-type')).toHaveText('Community survey')
+  await expect(card.locator('.event-community')).toHaveText('Community activity')
+  await expect(page.getByText('Volunteer outings hosted by community members — not official or government operations.')).toBeVisible()
   await page.getByRole('button', { name: 'Custom dates' }).click()
   await expect(page.locator('.events-range input')).toHaveCount(0)
   await page.getByRole('button', { name: 'Next month' }).click()
@@ -134,7 +149,7 @@ test('a real seeded follow-up records an unable attempt and retains the needed s
   expect(after.followUpHistory.every(entry => Object.keys(entry).sort().join(',') === 'createdAt,eventType')).toBe(true)
 })
 
-test('a rejected offline event report keeps its photo and offers explicit ordinary recovery', async ({ page }) => {
+test('AC 9.4.5 a rejected offline event report keeps its photo and offers explicit ordinary recovery', async ({ page }) => {
   await access(page)
   const captureId = 'offline-event-audit'
   const queueId = 'aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee'
@@ -186,7 +201,7 @@ test('a rejected offline event report keeps its photo and offers explicit ordina
   expect(body).not.toHaveProperty('capturedAt')
 })
 
-test('host management offers restoration only for eligible hidden events', async ({ page }) => {
+test('AC 9.7.5 host management offers restoration only for eligible hidden events', async ({ page }) => {
   await page.context().route('**/api/v1/events/mine', route => route.fulfill({ json: { items: [
     { ...item, event_id: 'automatic-cancel', title: 'Automatic cancellation', hidden: true, status: 'cancelled', can_restore: true },
     { ...item, event_id: 'manual-cancel', title: 'Intentional cancellation', hidden: true, status: 'cancelled', can_restore: false },

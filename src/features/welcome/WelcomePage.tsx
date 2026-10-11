@@ -212,6 +212,10 @@ export function WelcomePage() {
               {INVASIVE_PLANT.caption.place} {INVASIVE_PLANT.caption.commonName}{' '}
               (<em>{INVASIVE_PLANT.caption.scientificName}</em>) {INVASIVE_PLANT.caption.story}{' '}
               <span className="welcome-credit">
+                <strong>{INVASIVE_PLANT.status.label}</strong> · Status source:{' '}
+                <a href={INVASIVE_PLANT.status.href} target="_blank" rel="noopener noreferrer">{INVASIVE_PLANT.status.sourceLabel}</a>
+              </span>
+              <span className="welcome-credit">
                 Source:{' '}
                 <a href={INVASIVE_PLANT.caseSource.href} target="_blank" rel="noopener noreferrer">
                   {INVASIVE_PLANT.caseSource.label}

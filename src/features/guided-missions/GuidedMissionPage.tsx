@@ -191,6 +191,19 @@ export function GuidedMissionPage() {
     },
   })
 
+  // AC 7.4.2: a scan opened from the app's own Scan a plant button while this
+  // mission is on screen belongs to it too, so the mission is recorded as soon
+  // as it is active here, and dropped once this place has no active mission.
+  const missionSettled = mission.isSuccess && !mission.isFetching
+  useEffect(() => {
+    const context = missionContextStore.getSnapshot()
+    if (missionId && profileId) {
+      if (context?.missionId !== missionId || context.profileId !== profileId) missionContextStore.set({ missionId, placeId, profileId })
+    } else if (missionSettled && !missionId && context?.placeId === placeId) {
+      missionContextStore.clear()
+    }
+  }, [missionId, missionSettled, placeId, profileId])
+
   const scan = () => {
     if (!missionId) return
     if (profileId) missionContextStore.set({ missionId, placeId, profileId })

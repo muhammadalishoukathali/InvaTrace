@@ -2,6 +2,7 @@ import { describe, it, expect } from 'vitest'
 import type { IdentifyResult } from '@/types'
 import { plantStatusDataset } from '@shared/catalogue'
 import {
+  bundledReportEligible,
   deriveMalaysiaStatusState,
   resolveResultPathway,
   isReportEligible,
@@ -81,13 +82,27 @@ describe('resolveResultPathway', () => {
     })
   })
 
-  it('routes a catalogue-invasive but non-reportable label through invasive_unsupported', () => {
+  it('treats a catalogue-invasive but non-reportable label as a conflict: status uncertain, never a fourth state', () => {
     const pathway = resolveResultPathway(makeResult({
       speciesId: 'bidens-pilosa', scientificName: 'Bidens pilosa', reportable: false,
     }))
-    expect(pathway.pathway).toBe('invasive_unsupported')
+    expect(pathway.pathway).toBe('status_uncertain')
+    expect(pathway.statusState).toBe('status_uncertain')
     expect(pathway.canReport).toBe(false)
     expect(pathway.canAction).toBe(false)
+  })
+
+  it('takes report eligibility from the bundled catalogue when the species API is unavailable', () => {
+    expect(bundledReportEligible(makeResult({
+      speciesId: 'bidens-pilosa', scientificName: 'Bidens pilosa',
+    }))).toBe(true)
+    // An unknown label, or an uncertain result with no label, is never eligible.
+    expect(bundledReportEligible(makeResult({
+      speciesId: 'not-in-catalogue', scientificName: 'Planta ignota',
+    }))).toBe(false)
+    expect(bundledReportEligible(makeResult({
+      outcome: 'uncertain', speciesId: undefined, scientificName: undefined, speciesName: undefined,
+    }))).toBe(false)
   })
 
   it('routes an unapproved legacy species with no action/report affordances', () => {

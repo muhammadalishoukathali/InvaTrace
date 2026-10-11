@@ -13,5 +13,10 @@ export const LOCATION_ACCURACY_MAX_M = 350
 export const LOCATION_ACCURACY_INSUFFICIENT_MESSAGE =
   `Location accuracy must be within ${LOCATION_ACCURACY_MAX_M} metres.`
 
+/** Protected-area location context (AC 3.3.4): a fix worse than this is
+ *  "Boundary unavailable or uncertain". Its own limit, not the report one above.
+ *  Mirrors `location_context_accuracy_max_m` in `backend/app/config.py`. */
+export const LOCATION_CONTEXT_ACCURACY_MAX_M = 250
+
 /** Removal reports: max GPS accuracy and max distance from the marker. Mirrors REMOVAL_MAX_M in backend reports.py. */
 export const REMOVAL_MAX_M = 350

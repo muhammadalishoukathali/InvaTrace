@@ -106,6 +106,12 @@ def _uncertain_context(
     )
 
 
+def _accuracy_too_low(accuracy_m: float) -> bool:
+    """AC 3.3.4 - a fix worse than the protected-area limit (250 m by default)
+    is uncertain. This is not the report screening limit."""
+    return accuracy_m > get_settings().location_context_accuracy_max_m
+
+
 @router.post("", response_model=ProtectedLocationContextResponse)
 def protected_location_context(
     body: ProtectedLocationContextRequest,
@@ -122,7 +128,7 @@ def protected_location_context(
     )
     if dataset is None:
         return _uncertain_context(body, dataset)
-    if body.accuracy_m > get_settings().screening_location_accuracy_max_m:
+    if _accuracy_too_low(body.accuracy_m):
         return _uncertain_context(body, dataset, UNCERTAIN_ACCURACY)
     try:
         point = func.ST_SetSRID(func.ST_MakePoint(body.longitude, body.latitude), 4326)

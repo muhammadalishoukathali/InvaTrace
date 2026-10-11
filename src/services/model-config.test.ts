@@ -67,6 +67,17 @@ describe('applyServerAcceptance', () => {
     expect(out.serverAccepted).toBe(true)
   })
 
+  it('drops the rejected prediction\'s names along with its id (AC 1.1.3)', () => {
+    const out = applyServerAcceptance({
+      outcome: 'target' as const, confidence: 0.2, modelVersion: 'unlisted-model-version',
+      speciesId: 'mikania-micrantha', speciesName: 'Mikania micrantha', scientificName: 'Mikania micrantha',
+    }, { modelVersion: 'm', supportedVersions: ['m'], acceptanceThreshold: 0.5, thresholdVersion: 'm@0.5', configVersion: 'm@0.5' })
+    expect(out.outcome).toBe('uncertain')
+    expect(out.speciesId).toBeNull()
+    expect(out.speciesName).toBeUndefined()
+    expect(out.scientificName).toBeUndefined()
+  })
+
   it('forces uncertain when the model version is not supported', () => {
     const out = applyServerAcceptance(
       { ...targetResult, modelVersion: 'ancient-model' },

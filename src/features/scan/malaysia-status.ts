@@ -1,6 +1,7 @@
 import type { IdentifyResult, MalaysiaStatusState } from '@/types'
 import {
   findApprovedSpecies,
+  findPlantStatus,
   plantStatusDataset,
   type ApprovedSpeciesRecord,
 } from '@shared/catalogue'
@@ -33,7 +34,6 @@ const CATALOGUE_MODEL_VERSION = plantStatusDataset.model_version
 
 export type ResultPathway =
   | 'invasive_reportable'
-  | 'invasive_unsupported'
   | 'information_only'
   | 'status_uncertain'
   | 'other_plant'
@@ -99,18 +99,34 @@ export function resolveResultPathway(result: IdentifyResult): ResolvedPathway {
   }
   const statusState = deriveMalaysiaStatusState(result)
   if (statusState === 'invasive') {
-    // Only a catalogue record that's actually marked reportable gets to offer
-    // action or reporting - unsupported target classes fall through to the
-    // unsupported pathway below instead.
     if (result.reportable) {
       return { pathway: 'invasive_reportable', statusState, canReport: true, canAction: true }
     }
-    return { pathway: 'invasive_unsupported', statusState, canReport: false, canAction: false }
+    // AC 1.2.1 - the catalogue says invasive but the record is not reportable
+    // (the server or the bundled record disagrees). That is a conflicting
+    // lookup, and a conflict is Status uncertain: there is no fourth state.
+    return { pathway: 'status_uncertain', statusState: 'status_uncertain', canReport: false, canAction: false }
   }
   if (statusState === 'information_only') {
     return { pathway: 'information_only', statusState, canReport: false, canAction: false }
   }
   return { pathway: 'status_uncertain', statusState: 'status_uncertain', canReport: false, canAction: false }
+}
+
+/**
+ * AC 1.2.1 - whether the bundled catalogue alone makes this result reportable.
+ * Used when GET /api/v1/species/{id} could not be reached: the frontend
+ * catalogue is the authority for result presentation and has to work offline,
+ * so a species it lists as invasive and report-eligible stays that way. Any
+ * missing or non-invasive record answers false, never a permissive default.
+ */
+export function bundledReportEligible(result: IdentifyResult): boolean {
+  if (!resolveCatalogueRecord(result)) return false
+  const record = findPlantStatus({
+    speciesId: result.speciesId ?? null,
+    scientificName: result.scientificName ?? null,
+  })
+  return record?.ui_state === 'invasive' && record.report_eligible === true
 }
 
 function resolveCatalogueRecord(result: IdentifyResult): ApprovedSpeciesRecord | null {

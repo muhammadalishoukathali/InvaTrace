@@ -3,9 +3,12 @@ import { defineConfig, devices } from '@playwright/test'
 /** Runs complete browser journeys against an isolated Vite development server.
  *  Explicit mock flags prevent an existing real-API server from changing the
  *  test environment. The mock service worker handles API calls in the page. */
+// PLAYWRIGHT_PORT lets two runs share a machine without fighting over the port.
+const port = Number(process.env.PLAYWRIGHT_PORT ?? 5176)
+
 export default defineConfig({
   testDir: './e2e',
-  testIgnore: ['real-backend.spec.ts', 'real-removal-cycle.spec.ts', 'pwa.spec.ts'],
+  testIgnore: ['real-backend.spec.ts', 'real-removal-cycle.spec.ts', 'pwa.spec.ts', 'ac-real/**'],
   // The development API keeps one shared mock session, so parallel tests could
   // change the same profile or recovery code at the same time.
   fullyParallel: false,
@@ -14,13 +17,13 @@ export default defineConfig({
   workers: 1,
   reporter: 'list',
   use: {
-    baseURL: 'http://localhost:5176',
+    baseURL: `http://localhost:${port}`,
     trace: 'retain-on-failure',
     screenshot: 'only-on-failure',
   },
   webServer: {
-    command: 'npm run dev -- --port 5176 --strictPort',
-    url: 'http://localhost:5176',
+    command: `npm run dev -- --port ${port} --strictPort`,
+    url: `http://localhost:${port}`,
     env: { VITE_ENABLE_MOCKS: 'true', VITE_ENABLE_FAKE_MODEL: 'true' },
     reuseExistingServer: false,
     timeout: 60_000,
@@ -30,6 +33,7 @@ export default defineConfig({
       name: 'chromium',
       testIgnore: [
         '**/real-backend.spec.ts',
+        '**/ac-real/**',
         '**/real-removal-cycle.spec.ts',
         '**/pwa.spec.ts',
         '**/mobile-robustness.spec.ts',

@@ -311,6 +311,8 @@ export function ThreatMapPage() {
       }
       return fetchForFollowUp(followUpNeeded ? 'needed' : resolvedSightings ? 'resolved' : 'any')
     },
+    // AC 4.2.1: pins, list and counts only ever see records with a known public status.
+    select: (result) => ({ items: result.items.filter(hasPublicStatus) }),
     staleTime: 60_000,
     refetchOnMount: 'always',
     refetchInterval: 15_000,
@@ -657,7 +659,9 @@ export function ThreatMapPage() {
     for (const s of filtered) {
       const el = pinElement(s)
       el.addEventListener('click', () => select(s.id))
-      const marker = new maplibregl.Marker({ element: el, anchor: 'bottom' })
+      // MapLibre owns the element's opacity, so the grey states are faded
+      // through the Marker option rather than an inline style (AC 4.6.1).
+      const marker = new maplibregl.Marker({ element: el, anchor: 'bottom', opacity: GREY_TIERS.has(pinTier(s)) ? '0.7' : '1' })
         .setLngLat([s.location.lng, s.location.lat])
         .addTo(map.current!)
       markers.current.push(marker)
@@ -1190,6 +1194,13 @@ export const PIN_TIERS: Record<PinTier, { fill: string; label: string }> = {
   'followup-needed': { fill: '#66736D', label: 'Follow-up needed' },
 }
 
+const GREY_TIERS: ReadonlySet<PinTier> = new Set(['removed', 'followup-needed'])
+
+/** Statuses the public map draws. Anything else (still processing, rejected,
+ *  withdrawn, or a record with no status at all) is not rendered (AC 4.2.1). */
+const PUBLIC_STATUSES: ReadonlySet<string> = new Set(['screened', 'removed', 'removal_reported', 'resolved_after_follow_up'])
+const hasPublicStatus = (s: Pick<Sighting, 'status'>) => PUBLIC_STATUSES.has(s.status)
+
 export function pinTier(s: Pick<Sighting, 'status' | 'reportCount' | 'followUpState'>): PinTier {
   if (s.followUpState === 'needed') return 'followup-needed'
   if (s.followUpState === 'resolved' || s.status === 'resolved_after_follow_up' || s.status === 'removed' || s.status === 'removal_reported') return 'removed'
@@ -1226,7 +1237,7 @@ function pinElement(s: Sighting): HTMLElement {
   el.dataset.sightingId = s.id
   el.dataset.tier = tier
   el.className = 'map-pin'
-  const isRemoved = tier === 'removed' || tier === 'followup-needed'
+  const isRemoved = GREY_TIERS.has(tier)
   el.innerHTML = `
     <svg width="26" height="34" viewBox="0 0 26 34" xmlns="http://www.w3.org/2000/svg" style="display:block;filter:drop-shadow(0 2px 3px rgba(0,0,0,0.3));">
       <path d="M13 33 C 13 33 24 20 24 11 A 11 11 0 1 0 2 11 C 2 20 13 33 13 33 Z"
@@ -1235,7 +1246,7 @@ function pinElement(s: Sighting): HTMLElement {
     </svg>`
   el.style.cssText = `
     width: 26px; height: 34px; padding: 0; background: transparent;
-    border: none; cursor: pointer; opacity: ${isRemoved ? 0.7 : 1};
+    border: none; cursor: pointer;
     -webkit-tap-highlight-color: transparent;
   `
   return el

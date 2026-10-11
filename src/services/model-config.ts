@@ -66,6 +66,8 @@ export interface ClassifierResult {
   confidence: number
   modelVersion: string
   speciesId?: string | null
+  speciesName?: string
+  scientificName?: string
   serverAccepted?: boolean
   serverGateUnavailable?: boolean
 }
@@ -85,7 +87,13 @@ export function applyServerAcceptance<T extends ClassifierResult>(
   const confidentEnough = result.confidence >= config.acceptanceThreshold
   const hasLabel = result.outcome === 'target' ? Boolean(result.speciesId) : true
   if (!versionOk || !confidentEnough || !hasLabel) {
-    return { ...result, outcome: 'uncertain', speciesId: null, serverAccepted: false, serverGateUnavailable: false }
+    // AC 1.1.3 - a rejected prediction is not an identification, so its names
+    // go with its id. Left in place they resurfaced on the uncertain result
+    // (a "View catalogue entry for <species>" link) and in scan history.
+    return {
+      ...result, outcome: 'uncertain', speciesId: null, speciesName: undefined, scientificName: undefined,
+      serverAccepted: false, serverGateUnavailable: false,
+    }
   }
   return { ...result, serverAccepted: true, serverGateUnavailable: false }
 }

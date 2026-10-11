@@ -39,7 +39,13 @@ export function ScanFlowLayout() {
             <button
               type="button"
               className="scan-flow__mission-return"
-              onClick={() => { reset(); navigate(scanReturnPath(location.state), { replace: true }) }}
+              onClick={() => {
+                // Leave first and clear the scan once the route has changed:
+                // clearing it while still on /scan/result makes that page
+                // redirect to /scan, which wins over this navigation.
+                navigate(scanReturnPath(location.state), { replace: true })
+                window.setTimeout(reset, 150)
+              }}
             >
               Return to mission
             </button>

@@ -47,7 +47,7 @@ test('preview, filter, habitat details, progress, resume and careful summary (US
   await expect(page.getByText(/not walking routes, access has not been verified, and local signs, closures and restrictions take priority/)).toBeVisible()
   await page.getByRole('button', { name: 'Start guided mission' }).click()
 
-  // AC 7.2.1/7.2.2: the legend lists only the visible compatible categories.
+  // AC 7.2.1, AC 7.2.2: the legend lists only the visible compatible categories.
   const legend = page.getByLabel('Map legend')
   await expect(legend.getByText('Water edge')).toBeVisible()
   await expect(legend.getByText('Open grassland or shrubland')).toBeVisible()
@@ -68,7 +68,7 @@ test('preview, filter, habitat details, progress, resume and careful summary (US
   await expect(details.getByText('Suggested area to search - plant presence is not confirmed.')).toBeVisible()
   await expect(details.getByRole('link', { name: /Water hyacinth/ })).toBeVisible()
 
-  // AC 7.5.1/7.5.2: progress per plant and careful no-find wording.
+  // AC 7.5.1, AC 7.5.2: progress per plant and careful no-find wording.
   await page.getByRole('radiogroup', { name: 'Progress for Siam weed' }).getByRole('radio', { name: 'Looked for' }).click()
   await page.getByRole('button', { name: 'No target plant found' }).click()
   await expect(page.getByText('This does not confirm the plant is absent from the place.', { exact: false })).toBeVisible()
@@ -78,14 +78,14 @@ test('preview, filter, habitat details, progress, resume and careful summary (US
   await page.getByRole('link', { name: 'Resume mission' }).click()
   await expect(page.getByRole('radiogroup', { name: 'Progress for Siam weed' }).getByRole('radio', { name: 'Looked for' })).toHaveAttribute('aria-checked', 'true')
 
-  // AC 7.6.1/7.6.3: summary separates outcomes and never claims the place is clear.
+  // AC 7.6.1, AC 7.6.3: summary separates outcomes and never claims the place is clear.
   await page.getByRole('button', { name: 'Finish mission' }).click()
   await page.getByRole('dialog').getByRole('button', { name: 'Finish mission' }).click()
   await expect(page.getByText('No target plants reported during this mission.', { exact: false })).toBeVisible()
   await expect(page.getByText(/place is clear|recovered|free of invasive/i)).toHaveCount(0)
 })
 
-test('catalogue opened from a mission returns to it, and the scanner offers camera, gallery and a way back (AC 7.4.1, 7.4.2)', async ({ page }) => {
+test('catalogue opened from a mission returns to it, and the scanner offers camera, gallery and a way back (AC 7.4.1, AC 7.4.2)', async ({ page }) => {
   await startPrivateAccess(page)
   await page.goto(`/places/${SUPPORTED}/mission`)
   await page.getByRole('button', { name: 'Start guided mission' }).click()

@@ -6,6 +6,7 @@ import { Icon } from '@/components/Icon'
 import { captureScanLocation, useScan } from '@/features/scan/scan-store'
 import { resizeImage } from '@/features/scan/image-processing'
 import { getAdapter } from '@/features/scan/plant-model-adapter'
+import { bundledReportEligible } from '@/features/scan/malaysia-status'
 import { api, ApiError } from '@/services/api-client'
 import { missionIdForScan } from '@/features/guided-missions/mission-context'
 import { scanReturnPath } from '@/features/scan/scan-navigation'
@@ -341,7 +342,12 @@ export function ScanCapturePage() {
       const { result, detail } = await Promise.race([flow, deadline])
       if (!mountedRef.current || requestId !== analysisRequestRef.current) return
 
-      setResult({ ...result, reportable: Boolean(detail?.reportable ?? detail) }, detail)
+      // AC 1.2.1 - with no species detail (the call failed, or the app is
+      // offline) eligibility comes from the bundled catalogue instead of
+      // defaulting to "not reportable", which used to demote a catalogue
+      // invasive to a "possible match".
+      const reportable = detail ? Boolean(detail.reportable ?? true) : bundledReportEligible(result)
+      setResult({ ...result, reportable }, detail)
       playFeedbackSound('scan')
       // Persisting the scan to the server happens in the background and is
       // deliberately decoupled from showing the result - navigate straight

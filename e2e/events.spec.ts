@@ -12,11 +12,10 @@ async function startPrivateAccess(page: import('@playwright/test').Page) {
 // These exercise the actual event API paths but stay opt-in until Epic 9’s
 // server/migration stack is available in every development environment.
 test.describe('Epic 9 events', () => {
-  test.skip(process.env.PLAYWRIGHT_EPIC9 !== '1', 'Set PLAYWRIGHT_EPIC9=1 when the Epic 9 API is available')
   // These specs stub the API with page.route(); switch off the dev MSW event mocks.
   test.beforeEach(async ({ page }) => { await page.addInitScript(() => localStorage.setItem('invatrace.mock.community', 'off')) })
 
-  test('shows the empty discovery state without inventing sample events', async ({ page }) => {
+  test('AC 9.1.5 shows the empty discovery state without inventing sample events', async ({ page }) => {
     await page.context().route('**/api/v1/events**', async (route) => {
       await route.fulfill({ contentType: 'application/json', body: JSON.stringify({ items: [] }) })
     })
@@ -24,6 +23,11 @@ test.describe('Epic 9 events', () => {
     await page.goto('/events')
     await expect(page.getByRole('heading', { name: 'Upcoming community events' })).toBeVisible()
     await expect(page.getByRole('heading', { name: 'No upcoming survey events found here' })).toBeVisible()
+    // No placeholder cards, no claim that the area is clear, and both onward actions.
+    await expect(page.locator('.event-card')).toHaveCount(0)
+    await expect(page.getByText('This does not mean the area is free of invasive plants.')).toBeVisible()
+    await expect(page.getByRole('link', { name: 'Browse the plant catalogue' })).toHaveAttribute('href', '/catalogue')
+    await expect(page.getByRole('link', { name: 'Adopt an area' })).toHaveAttribute('href', '/places')
   })
 
   test('filters and opens an event served by the real events path', async ({ page }) => {

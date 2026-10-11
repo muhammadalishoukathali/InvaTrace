@@ -1,0 +1,17 @@
+# Settings the per-AC real-stack specs (e2e/ac-real) need on top of compose.yaml:
+#   docker compose -f compose.yaml -f compose.ac.yaml up --build --detach
+#   REAL_EVENT_LIFECYCLE=1 npm run test:e2e:real
+# Local test stack only. The per-token report limit stays at its default of
+# ten, because AC 2.3.3 is tested against it.
+services:
+  seed:
+    # Places with real geometry, for the place, adopted-area and event rules.
+    command: ["sh", "-c", "python -m app.cli seed && python -m app.cli seed-featured-places"]
+  api:
+    environment:
+      # Every spec shares one address, so the per-address limit would trip
+      # long before the suite ends.
+      REPORT_CREATE_IP_BURST_LIMIT: 10000
+      # AC 9.7.4: lets an ended event complete while a test waits for it.
+      RUN_WORKERS_IN_API: "true"
+      EVENT_COMPLETION_INTERVAL_SECONDS: 60

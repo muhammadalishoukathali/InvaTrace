@@ -1,8 +1,6 @@
 import { expect, test, type Page } from '@playwright/test'
 import path from 'node:path'
 
-test.skip(process.env.RUN_INVATRACE_IT3_E2E !== '1' && process.env.PLAYWRIGHT_EPIC9 !== '1', 'Set RUN_INVATRACE_IT3_E2E=1 or PLAYWRIGHT_EPIC9=1 for iteration-3 browser coverage.')
-
 async function startPrivateAccess(page: Page) {
   await page.goto('/')
   await page.getByRole('button', { name: 'Start privately' }).first().click()
@@ -26,7 +24,7 @@ async function reachReportPreview(page: Page) {
   await page.getByRole('button', { name: 'Review submission' }).click()
 }
 
-test('event rejection keeps the scan and permits an ordinary report submission', async ({ page, context }) => {
+test('AC 9.4.1 AC 9.4.5 event rejection keeps the scan and permits an ordinary report submission', async ({ page, context }) => {
   await context.grantPermissions(['geolocation'])
   await context.setGeolocation({ latitude: 3.1442, longitude: 101.6438, accuracy: 10 })
   // The dev mock service worker answers API calls before page.route can see
@@ -43,6 +41,7 @@ test('event rejection keeps the scan and permits an ordinary report submission',
   await page.evaluate(({ profileId, startAt, endAt }) => localStorage.setItem('invatrace.active-event.v1', JSON.stringify({ eventId: 'event-1', profileId, startAt, endAt, checkedInAt: new Date().toISOString() })), { profileId, startAt: new Date(now.getTime() - 60 * 60_000).toISOString(), endAt: new Date(now.getTime() + 60 * 60_000).toISOString() })
   await reachReportPreview(page)
   await expect(page.getByRole('button', { name: 'Submit to this event' })).toBeVisible()
+  // AC 9.4.1: scanning and classifying inside an event has created no report yet.
   expect(await reportEventIds()).toEqual([])
   await page.getByRole('button', { name: 'Submit to this event' }).click()
   await expect(page.getByText(/scan is kept/i)).toBeVisible()

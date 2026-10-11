@@ -5,10 +5,11 @@ import { useState } from 'react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { Link, useNavigate, useParams } from 'react-router-dom'
 import { api, ApiError } from '@/services/api-client'
-import type { PlaceDetail, RemovalReportResponse, Report, ReportStatus, SightingDetail, WithdrawalReportResponse } from '@/types'
+import type { RemovalReportResponse, Report, ReportStatus, SightingDetail, WithdrawalReportResponse } from '@/types'
 import { usePrivateAccess } from '@/features/private-access/private-access-store'
 import { humanizeReason as humanize } from './rescan-reasons'
 import { REMOVAL_MAX_M } from './gps-policy'
+import { ReportAdoptionPrompt } from './components/ReportAdoptionPrompt'
 import './report-tracking.css'
 
 const COPY: Record<ReportStatus, { title: string; body: string }> = {
@@ -64,7 +65,6 @@ export function ReportTrackingPage() {
     capturedAt: string
   } | null>(null)
   const [locationError, setLocationError] = useState<string | null>(null)
-  const [adoptionDismissed, setAdoptionDismissed] = useState(false)
   const [withdrawReason, setWithdrawReason] = useState('')
   const query = useQuery({
     queryKey: ['report', profileId, reportId],
@@ -102,24 +102,6 @@ export function ReportTrackingPage() {
       { method: 'POST', body: JSON.stringify({ reason }) },
     ),
     onSuccess: () => { void sighting.refetch(); void query.refetch(); void queryClient.invalidateQueries({ queryKey: ['sightings'] }); void queryClient.invalidateQueries({ queryKey: ['my-reports'] }) },
-  })
-  const adoptionPlace = useQuery({
-    queryKey: ['report-adoption-place', reportId, query.data?.submission.location],
-    queryFn: () => api<{ place: PlaceDetail | null }>(
-      `/api/v1/places/at-location?lat=${query.data!.submission.location.lat}&lon=${query.data!.submission.location.lng}`,
-    ),
-    enabled: Boolean(
-      query.data
-      && (query.data.status === 'screened' || query.data.status === 'merged')
-      && query.data.sightingId,
-    ),
-  })
-  const adopt = useMutation({
-    mutationFn: (placeId: string) => api<{ adoptionId: string }>(
-      '/api/v1/adopted-areas',
-      { method: 'POST', body: JSON.stringify({ placeId }) },
-    ),
-    onSuccess: () => queryClient.invalidateQueries({ queryKey: ['adopted-areas'] }),
   })
 
   const captureRemovalLocation = () => {
@@ -209,35 +191,8 @@ export function ReportTrackingPage() {
           </section>
         )}
 
-        {(report.status === 'screened' || report.status === 'merged')
-          && adoptionPlace.data?.place
-          // Presentation-safe: trails are no longer offered for new
-          // adoptions. Existing trail adoptions remain visible on the user's
-          // My Adopted Areas page — this only hides the prompt for a new one.
-          && adoptionPlace.data.place.placeType !== 'trail'
-          && !adoptionDismissed && (
-          <section className="report-tracking__adoption" aria-labelledby="report-adoption-heading">
-            <h2 id="report-adoption-heading">Adopt this area for monitoring?</h2>
-            <p>
-              Your report is inside or along <strong>{adoptionPlace.data.place.displayName}</strong>.
-              Save it as a non-exclusive monitoring bookmark. This does not grant ownership,
-              responsibility, access rights or removal permission.
-            </p>
-            {adopt.isSuccess ? (
-              <p role="status">{adoptionPlace.data.place.displayName} is adopted for monitoring.</p>
-            ) : (
-              <div>
-                <button
-                  type="button"
-                  onClick={() => adopt.mutate(adoptionPlace.data!.place!.placeId)}
-                  disabled={adopt.isPending}
-                >
-                  {adopt.isPending ? <PlantLoader compact label="Adding…" /> : 'Adopt for monitoring'}
-                </button>
-                <button type="button" onClick={() => setAdoptionDismissed(true)}>Not now</button>
-              </div>
-            )}
-          </section>
+        {(report.status === 'screened' || report.status === 'merged') && report.sightingId && (
+          <ReportAdoptionPrompt reportId={report.id} location={report.submission.location} />
         )}
 
         {(report.status === 'screened' || report.status === 'merged')

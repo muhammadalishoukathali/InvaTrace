@@ -10,7 +10,7 @@
 //
 // Kept in one file because the state is shared across endpoints and splitting it
 // meant passing the same maps around everywhere.
-import { REMOVAL_MAX_M } from '@/features/report/gps-policy'
+import { LOCATION_CONTEXT_ACCURACY_MAX_M, REMOVAL_MAX_M } from '@/features/report/gps-policy'
 import { http, HttpResponse, passthrough, type JsonBodyType } from 'msw'
 import type {
   AppNotification, Report, ReportSubmission, Sighting,
@@ -719,7 +719,9 @@ export const handlers = [
       || typeof body.accuracyM !== 'number' || body.accuracyM < 0) {
       return HttpResponse.json({ code: 'invalid_location', detail: 'Location context is invalid.' }, { status: 422 })
     }
-    const uncertain = body.accuracyM > MSW_LOCATION_ACCURACY_MAX_M
+    // AC 3.3.4 - the protected-area limit (250 m), not the report screening
+    // one (MSW_LOCATION_ACCURACY_MAX_M), same as the backend router.
+    const uncertain = body.accuracyM > LOCATION_CONTEXT_ACCURACY_MAX_M
     return HttpResponse.json({
       contextState: uncertain ? 'boundary_uncertain' : 'no_protected_area_intersection',
       insideProtectedArea: uncertain ? null : false,

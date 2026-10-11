@@ -61,3 +61,22 @@ def test_frontend_gps_policy_pins_the_same_threshold() -> None:
     assert "within ${LOCATION_ACCURACY_MAX_M} metres" in text, (
         "The insufficient-accuracy message must interpolate the shared constant, not a literal."
     )
+
+
+def test_location_context_limit_is_separate_and_250_metres() -> None:
+    """AC 3.3.4 - the protected-area check keeps its own 250 m limit, in the
+    backend setting, the router, and the frontend constant the mock uses."""
+    config = _read("app/config.py")
+    match = re.search(
+        r"location_context_accuracy_max_m\s*:\s*int\s*=\s*Field\(\s*default=(\d+)",
+        config,
+    )
+    assert match, "location_context_accuracy_max_m must be declared with a Field default."
+    assert match.group(1) == "250"
+    router = _read("app/api/routers/location.py")
+    assert "location_context_accuracy_max_m" in router
+    assert "screening_location_accuracy_max_m" not in router, (
+        "The protected-area check must not reuse the report screening limit."
+    )
+    frontend = (REPO_ROOT.parent / "src/features/report/gps-policy.ts").read_text(encoding="utf-8")
+    assert "LOCATION_CONTEXT_ACCURACY_MAX_M = 250" in frontend
