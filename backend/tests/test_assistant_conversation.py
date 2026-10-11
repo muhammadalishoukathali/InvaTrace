@@ -84,6 +84,14 @@ def conversation(monkeypatch):
                         "chunk_ids": [],
                     }
                 ]
+            if state["bad"] == "ai_despite_off":
+                parts.append(
+                    {"kind": "ai", "text": "Root hairs absorb water from soil.", "chunk_ids": []}
+                )
+            if state["bad"] == "ai_only_despite_off":
+                parts = [
+                    {"kind": "ai", "text": "Root hairs absorb water from soil.", "chunk_ids": []}
+                ]
             result = {"current_species_id": current, "parts": parts}
             if state["bad"] == "foreign_identity":
                 result["current_species_id"] = "invented-species"
@@ -292,6 +300,19 @@ def test_reviewed_answer_and_small_talk_still_work_when_ai_is_off(conversation):
     assert greeting["status"] == "answer" and greeting["intent"] == "greeting"
 
 
+def test_ai_part_drafted_while_ai_is_off_is_dropped_not_reported_as_a_failure(conversation):
+    state, _ = conversation
+    state["bad"] = "ai_despite_off"
+    kept = run(conversation, allow_ai=False)
+    assert kept["answerability"] == "answerable"
+    assert [s["kind"] for s in kept["sections"]] == ["grounded"]
+    assert "Root hairs" not in kept["answer"]
+    state["bad"] = "ai_only_despite_off"
+    limited = run(conversation, allow_ai=False)
+    assert limited["status"] == "insufficient_evidence"
+    assert limited["answer"] == engine.REVIEWED_ONLY_UNAVAILABLE
+
+
 def test_mixed_answer_names_the_additional_ai_section(conversation):
     result = run(conversation, "Explain its roots", "detailed")
     assert [s["title"] for s in result["sections"]] == [
@@ -359,7 +380,10 @@ def test_uncited_elaboration_respects_ai_opt_out(conversation):
     state, _ = conversation
     state["reject_source"] = True
     state["ai"] = False
-    assert run(conversation, allow_ai=False) is None
+    # The limit is stated; it is not reported as a generation failure.
+    result = run(conversation, allow_ai=False)
+    assert result["status"] == "insufficient_evidence"
+    assert result["answer"] == engine.REVIEWED_ONLY_UNAVAILABLE
 
 
 def test_model_cannot_cite_foreign_history_as_evidence(conversation):
@@ -420,6 +444,27 @@ def test_history_payload_reaches_new_engine_in_every_entry(
     assert result.status_code == 200 and result.json()["answerability"] == "answerable"
     assert state["calls"][0]["history"] == body["history"]
     assert state["calls"][1]["previous_answer"] == body["previousAnswer"]
+
+
+def test_reviewed_only_limit_is_worded_as_a_limit_and_keeps_related_excerpts(conversation):
+    state, settings = conversation
+    state["bad"] = "ai_only_despite_off"
+    result = asyncio.run(
+        router.answer_for_species(
+            "mikania-micrantha",
+            "Where does it grow?",
+            "standard",
+            False,
+            settings,
+            section_aware=True,
+        )
+    )
+    assert result.status == "insufficient_evidence"
+    assert result.answer == engine.REVIEWED_ONLY_UNAVAILABLE
+    assert "try again" not in result.answer
+    assert [s.kind for s in result.sections] == ["unavailable", "grounded"]
+    assert result.sections[0].title == "Information unavailable"
+    assert result.sections[1].title == "Related source excerpts" and result.sources
 
 
 def test_provider_failure_does_not_start_second_model_pipeline(conversation, monkeypatch):

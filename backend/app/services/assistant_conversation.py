@@ -78,6 +78,19 @@ def sources(chunks):
     return records
 
 
+def reviewed_only_unavailable():
+    return {
+        "status": "insufficient_evidence",
+        "answerability": "insufficient_evidence",
+        "intent": "botanical",
+        "coverage": "unsupported",
+        "answer_mode": "fallback",
+        "sources": [],
+        "sections": [section("unavailable", REVIEWED_ONLY_UNAVAILABLE, "standard")],
+        "answer": REVIEWED_ONLY_UNAVAILABLE,
+    }
+
+
 def response(sections, *, intent="botanical", coverage="unsupported"):
     reviewed = [s for s in sections if s["kind"] == "grounded"]
     ai = any(s["kind"] == "ai" for s in sections)
@@ -367,6 +380,15 @@ async def answer_conversation(
     parts = draft["parts"]
     if not isinstance(parts, list) or not 1 <= len(parts) <= 10:
         return None
+    if not allow_ai:
+        # The model sometimes drafts an AI part although AI knowledge is off.
+        # Drop it and keep the rest: that is a limit of this request, not a
+        # failed generation, and it must not be reported as "try again".
+        parts = [p for p in parts if not (isinstance(p, dict) and p.get("kind") == "ai")]
+        if not parts:
+            logger.warning("assistant.conversation ai_part_withheld")
+            return reviewed_only_unavailable()
+        draft = {**draft, "parts": parts}
     for part in parts:
         if not isinstance(part, dict) or set(part) != {"kind", "text", "chunk_ids"}:
             return None
@@ -508,7 +530,8 @@ async def answer_conversation(
         else:
             output.append(next_section)
     if not output:
-        return None
+        # Only reached when AI knowledge is off and no reviewed part held up.
+        return reviewed_only_unavailable() if not allow_ai else None
     has_reviewed = any(s["kind"] == "grounded" for s in output)
     has_ai = any(s["kind"] == "ai" for s in output)
     if depth == "detailed" and has_ai and not has_reviewed:
@@ -530,16 +553,7 @@ async def answer_conversation(
         # plant question answered by conversation parts alone is unlabelled
         # model knowledge. State the limit instead of delivering it.
         logger.warning("assistant.conversation unlabelled_answer_withheld")
-        return {
-            "status": "insufficient_evidence",
-            "answerability": "insufficient_evidence",
-            "intent": "botanical",
-            "coverage": "unsupported",
-            "answer_mode": "fallback",
-            "sources": [],
-            "sections": [section("unavailable", REVIEWED_ONLY_UNAVAILABLE, "standard")],
-            "answer": REVIEWED_ONLY_UNAVAILABLE,
-        }
+        return reviewed_only_unavailable()
     result = response(
         output,
         intent="greeting" if route == "social" else "botanical",
