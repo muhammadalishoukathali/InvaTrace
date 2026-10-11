@@ -733,6 +733,9 @@ test('AC 8.1.3 AC 8.4.4 Direct AI-only Detailed is not offered', async ({ page, 
   // The panel's own help no longer promises Detailed for AI information.
   await scanPanel(page).getByText('About this assistant', { exact: true }).click()
   await expect(scanPanel(page).locator('.plant-assistant__intro')).toContainText('AI-generated information supports Simpler and Standard only.')
+  // It also names the provider and what is and is not sent to it.
+  await expect(scanPanel(page).locator('.plant-assistant__intro')).toContainText('Google Gemini, with Groq as a backup')
+  await expect(scanPanel(page).locator('.plant-assistant__intro')).toContainText('It does not receive your photo, your location or your profile')
 })
 
 test('AC 8.4.4 A refused Detailed request keeps the answer and its level choices', async ({ page, context }) => {

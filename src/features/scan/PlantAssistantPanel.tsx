@@ -383,6 +383,7 @@ function PlantAssistantConversation(props: AssistantContextProps) {
             <div className="plant-assistant__intro">
               <p>Ask about <em>{species!.scientific_name}</em>, another plant or a botanical concept. Answers can combine reviewed sources with clearly labelled AI knowledge. {mapContext && 'This is catalogue information for a public community record, not expert identification or proof of nearby presence.'} {guideContext && 'This is catalogue education, not identification or verification of an observed plant.'}</p>
               <p>Reviewed information has source citations. AI-generated information may be inaccurate, has no reviewed citations and does not change your plant identification. Reviewed information supports Simpler, Standard and More detail; AI-generated information supports Simpler and Standard only. Brief answers, such as a plant name, may stay similar at different levels.</p>
+              <p>Answers are worded by an external AI service: Google Gemini, with Groq as a backup. It receives your question, up to eight recent messages from this conversation, the plant’s names and the reviewed source snippets selected for it. It does not receive your photo, your location or your profile, and the conversation is not stored.</p>
             </div>
           </details>
           </div>
