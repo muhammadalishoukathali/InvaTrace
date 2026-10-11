@@ -23,6 +23,10 @@ AI_DETAILED_UNAVAILABLE = (
     "do not cover this question, so no detailed AI explanation is shown. "
     "Choose Simpler or Standard for an AI-generated explanation."
 )
+REVIEWED_ONLY_UNAVAILABLE = (
+    "The reviewed sources do not cover this question, and AI-generated explanations are not "
+    "enabled for this request."
+)
 
 logger = logging.getLogger(__name__)
 
@@ -520,6 +524,21 @@ async def answer_conversation(
             "sources": [],
             "sections": [section("unavailable", AI_DETAILED_UNAVAILABLE, "standard")],
             "answer": AI_DETAILED_UNAVAILABLE,
+        }
+    if route == "plant_question" and not allow_ai and not has_reviewed:
+        # With AI knowledge switched off the draft cannot use an AI part, so a
+        # plant question answered by conversation parts alone is unlabelled
+        # model knowledge. State the limit instead of delivering it.
+        logger.warning("assistant.conversation unlabelled_answer_withheld")
+        return {
+            "status": "insufficient_evidence",
+            "answerability": "insufficient_evidence",
+            "intent": "botanical",
+            "coverage": "unsupported",
+            "answer_mode": "fallback",
+            "sources": [],
+            "sections": [section("unavailable", REVIEWED_ONLY_UNAVAILABLE, "standard")],
+            "answer": REVIEWED_ONLY_UNAVAILABLE,
         }
     result = response(
         output,
