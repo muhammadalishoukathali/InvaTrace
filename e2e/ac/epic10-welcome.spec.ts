@@ -109,16 +109,16 @@ test('AC 10.1.2 Problem explanation: a definition, a credited infestation photog
 
   // At least one photograph of a heavy infestation, with species name, caption and credit.
   const figure = section.locator('figure.welcome-why__photo')
-  const infestation = figure.getByRole('img', { name: /completely covered by Salvinia molesta/ })
+  const infestation = figure.getByRole('img', { name: /dense carpet of giant salvinia/ })
   await expect(infestation).toHaveCount(1)
   await expectLoaded(infestation)
   const caption = figure.locator('figcaption')
   await expect(caption).toContainText('Giant salvinia')
   await expect(caption.locator('em')).toHaveText('Salvinia molesta')
-  await expect(caption).toContainText('Kolam Sepat at Universiti Putra Malaysia')
-  await expect(caption).toContainText('Wee Hong, Wikimedia Commons (CC BY-SA 4.0)')
-  await expect(caption.getByRole('link', { name: /Wee Hong, Wikimedia Commons/ }))
-    .toHaveAttribute('href', 'https://commons.wikimedia.org/wiki/File:Bukit_Ekspo_(Kolam_5),_UPM.jpg')
+  await expect(caption).toContainText('Tungog Lake, Sabah, Malaysia')
+  await expect(caption).toContainText('Borneo Lake Restoration Programme')
+  await expect(caption.getByRole('link', { name: /Borneo Lake Restoration Programme/ }))
+    .toHaveAttribute('href', 'https://www.crowdfunder.co.uk/p/borneo-lake-restoration-programme')
 
   // Three impact cards: native vegetation displaced, habitat and food for
   // wildlife reduced, natural places used by communities degraded.
@@ -187,11 +187,11 @@ test('AC 10.1.4 Image credit and plant status: every photograph is credited and 
   await expect(preview.locator('span')).toHaveText('Status source: GRIIS Malaysia')
   await expect(preview.getByRole('link', { name: 'GRIIS Malaysia' })).toHaveAttribute('href', /^https:\/\/www\.gbif\.org\/species\//)
 
-  // The infestation photographs: each has its own photographer, source and licence.
+  // Each lake photograph has its published attribution and source.
   const infestation = problem(page).locator('figure.welcome-why__photo')
-  await expect(infestation.locator('figcaption')).toContainText('Across Malaysia.')
-  await expect(infestation.locator('figcaption')).toContainText('Wee Hong, Wikimedia Commons (CC BY-SA 4.0)')
-  await expect(infestation.locator('figcaption')).toContainText('Rubenjoker, Wikimedia Commons (CC BY-SA 4.0)')
+  await expect(infestation.locator('figcaption')).toContainText('Tungog Lake, Sabah, Malaysia.')
+  await expect(infestation.locator('figcaption')).toContainText('Sticky Rice Travel, Community-based tourism article')
+  await expect(infestation.locator('figcaption')).toContainText('Borneo Lake Restoration Programme, Crowdfunder')
 
   // Those are all the photographs on the page: every other image is a product
   // screenshot or the logo. A photograph added later has to come with its own credit here.
@@ -202,15 +202,15 @@ test('AC 10.1.4 Image credit and plant status: every photograph is credited and 
   const photographs = images.filter((image) => !/\/welcome\/screen-|\/invatrace-logo/.test(image.src))
   expect(photographs.map((image) => image.src).sort()).toEqual([
     expect.stringMatching(/^\/welcome\/hero-/),
-    '/welcome/malaysia-salvinia-upm-1200.webp',
-    '/welcome/malaysia-wetland-chini-1200.webp',
+    '/welcome/tungog-invaded.jpg',
+    '/welcome/tungog-open-water.jpg',
   ])
   for (const photograph of photographs) expect(photograph.creditedFigure).toBe(true)
   // The footer repeats photographer and source for every pair photo.
   const footer = page.locator('footer.welcome-footer')
   await expect(footer).toContainText('Ihsan Adityawarman · Pexels')
-  await expect(footer).toContainText('Wee Hong · Wikimedia Commons')
-  await expect(footer).toContainText('Rubenjoker · Wikimedia Commons')
+  await expect(footer).toContainText('Sticky Rice Travel · Community-based tourism article')
+  await expect(footer).toContainText('Borneo Lake Restoration Programme · Crowdfunder')
 
   // Every plant example is a species the app's own reviewed catalogue lists as invasive in Malaysia.
   const catalogue = JSON.parse(fs.readFileSync(path.join(process.cwd(), 'shared/catalogue/approved-species.json'), 'utf8')) as {

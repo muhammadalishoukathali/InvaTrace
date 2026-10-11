@@ -81,9 +81,9 @@ describe('public welcome page', () => {
       expect(html).toContain(shot.label)
     }
     expect(html.indexOf(INVASIVE_PLANT.photos[0].src)).toBeLessThan(html.indexOf(INVASIVE_PLANT.photos[1].src))
-    expect(html).toContain('Universiti Putra Malaysia')
-    expect(html).toContain('Tasik Chini')
-    expect(html).not.toContain('Tungog Lake')
+    expect(html).toContain('Tungog Lake')
+    expect(html).toContain('after community control work')
+    expect(html).not.toContain('Tasik Chini')
     expect(html).not.toContain('Las Curias')
   })
 

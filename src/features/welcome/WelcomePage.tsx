@@ -192,7 +192,7 @@ export function WelcomePage() {
 
       <main id="welcome-main">
         <section className="welcome-section welcome-why" aria-labelledby="welcome-why-title">
-          <figure className="welcome-why__photo">
+          <figure id="welcome-lake-comparison" className="welcome-why__photo">
             <div className="welcome-why__pair">
               {INVASIVE_PLANT.photos.map((shot) => (
                 <div key={shot.label} className="welcome-why__shot">
@@ -222,7 +222,7 @@ export function WelcomePage() {
                     {index > 0 && ' · '}
                     {shot.label}:{' '}
                     <a href={shot.credit.href} target="_blank" rel="noopener noreferrer">
-                      {shot.credit.author}, {shot.credit.source} ({shot.credit.licence})
+                      {shot.credit.author}, {shot.credit.source}{shot.credit.licence ? ` (${shot.credit.licence})` : ''}
                     </a>
                   </span>
                 ))}

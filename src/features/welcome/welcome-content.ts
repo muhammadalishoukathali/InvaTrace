@@ -40,41 +40,39 @@ export const EXAMPLE_STATUS = {
 export const INVASIVE_PLANT = {
   definition:
     'Invasive plants are those which are alien to a location and whose growth adversely affects the surroundings, the economy and the well-being of the population.',
-  // Two Malaysian scenes shown side by side. The first is a pond at UPM
-  // (Serdang, Selangor) smothered by Salvinia molesta; the second is Tasik
-  // Chini in Pahang kept clear and open. Each image carries its own
-  // photographer, source and licence so the credit matches what is shown.
+  // Two documented views of Tungog Lake. The open-water photograph was
+  // taken after control work, so it must not be labelled pre-invasion.
   photos: [{
-    src: '/welcome/malaysia-salvinia-upm-1200.webp',
-    width: 1200,
-    height: 418,
-    label: 'Weed-choked',
-    alt: 'Kolam Sepat pond at Universiti Putra Malaysia, Serdang, Selangor, its surface completely covered by Salvinia molesta',
+    src: '/welcome/tungog-open-water.jpg',
+    width: 638,
+    height: 377,
+    label: 'Open water after control',
+    alt: 'Open water and forest reflections at Tungog Lake, Sabah, after salvinia control work',
     credit: {
-      author: 'Wee Hong',
-      source: 'Wikimedia Commons',
-      licence: 'CC BY-SA 4.0',
-      href: 'https://commons.wikimedia.org/wiki/File:Bukit_Ekspo_(Kolam_5),_UPM.jpg',
+      author: 'Sticky Rice Travel',
+      source: 'Community-based tourism article',
+      licence: '',
+      href: 'https://stickyricetravel.com/traveling-like-a-local-the-building-blocks-of-community-based-tourism/',
     },
   }, {
-    src: '/welcome/malaysia-wetland-chini-1200.webp',
-    width: 1200,
-    height: 418,
-    label: 'Open water',
-    alt: 'Tasik Chini in Pahang, Malaysia with open water, floating native vegetation and forested shoreline',
+    src: '/welcome/tungog-invaded.jpg',
+    width: 800,
+    height: 279,
+    label: 'Smothered by giant salvinia',
+    alt: 'A dense carpet of giant salvinia covering the surface of Tungog Lake, Sabah',
     credit: {
-      author: 'Rubenjoker',
-      source: 'Wikimedia Commons',
-      licence: 'CC BY-SA 4.0',
-      href: 'https://commons.wikimedia.org/wiki/File:Tasik_chini_03.jpg',
+      author: 'Borneo Lake Restoration Programme',
+      source: 'Crowdfunder',
+      licence: '',
+      href: 'https://www.crowdfunder.co.uk/p/borneo-lake-restoration-programme',
     },
   }],
   caption: {
-    place: 'Across Malaysia.',
+    place: 'Tungog Lake, Sabah, Malaysia.',
     commonName: 'Giant salvinia',
     scientificName: 'Salvinia molesta',
     story:
-      'forms thick floating mats that smother ponds, lakes and slow rivers — like Kolam Sepat at Universiti Putra Malaysia (left). Where invasive aquatic weeds are kept out, Malaysian waterbodies such as Tasik Chini in Pahang (right) stay open, oxygenated and alive.',
+      'can cover a lake with a dense floating mat. The photographs show Tungog Lake with open water after community control work (left) and smothered by salvinia (right). Ongoing maintenance helps keep the weed under control.',
   },
   // Same form as EXAMPLE_STATUS. Salvinia molesta is in the reviewed catalogue
   // with GRIIS Malaysia record 91786 as its status source.
