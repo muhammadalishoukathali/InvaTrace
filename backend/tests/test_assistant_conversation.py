@@ -269,6 +269,29 @@ def test_ai_only_detailed_is_rejected_without_relabelling(conversation):
     assert router.AskResponse.model_validate(result).sections[0].warning is None
 
 
+def test_plant_question_is_not_answered_by_conversation_alone_when_ai_is_off(conversation):
+    # With AI knowledge off the draft has no AI part to use, so a conversation
+    # part is the only place unreviewed facts could go. It is withheld.
+    state, _ = conversation
+    state["target"] = None
+    state["reviewed"] = False
+    result = run(conversation, "How does transpiration work?", allow_ai=False)
+    assert result["status"] == "insufficient_evidence"
+    assert result["answerability"] == "insufficient_evidence"
+    assert result["sources"] == [] and result["answer"] == engine.REVIEWED_ONLY_UNAVAILABLE
+    assert [s["kind"] for s in result["sections"]] == ["unavailable"]
+
+
+def test_reviewed_answer_and_small_talk_still_work_when_ai_is_off(conversation):
+    state, _ = conversation
+    grounded = run(conversation, allow_ai=False)
+    assert grounded["answerability"] == "answerable"
+    assert [s["kind"] for s in grounded["sections"]] == ["grounded"]
+    state["route"] = "social"
+    greeting = run(conversation, "How are you?", allow_ai=False)
+    assert greeting["status"] == "answer" and greeting["intent"] == "greeting"
+
+
 def test_mixed_answer_names_the_additional_ai_section(conversation):
     result = run(conversation, "Explain its roots", "detailed")
     assert [s["title"] for s in result["sections"]] == [
