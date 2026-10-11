@@ -21,7 +21,11 @@ from app.domain.plant_assistant import (
     eligible_evidence,
     get_retriever,
 )
-from app.services.assistant_conversation import AI_WARNING, answer_conversation
+from app.services.assistant_conversation import (
+    AI_WARNING,
+    REVIEWED_ONLY_UNAVAILABLE,
+    answer_conversation,
+)
 
 router = APIRouter(prefix="/api/v1/plant-assistant", tags=["plant-assistant"])
 
@@ -310,18 +314,23 @@ async def answer_for_species(
             history=history or [],
             previous_answer=previous_answer,
         )
-        if result is not None:
+        # A reviewed-only request the sources do not cover is a stated limit,
+        # not a failed generation; it still gets the related excerpts below.
+        reviewed_only = result is not None and result.get("answer") == REVIEWED_ONLY_UNAVAILABLE
+        if result is not None and not reviewed_only:
             return AskResponse.model_validate(result)
     except (TimeoutError, RuntimeError, ValueError, TypeError, KeyError, OSError):
-        pass
+        reviewed_only = False
     message = (
-        "The AI explanation could not be completed. Please try again. "
+        REVIEWED_ONLY_UNAVAILABLE
+        if reviewed_only
+        else "The AI explanation could not be completed. Please try again. "
         "This does not mean your question is unclear or unrelated to plants."
     )
     sections = [
         AnswerSection(
             kind="unavailable",
-            title="AI explanation unavailable",
+            title="Information unavailable" if reviewed_only else "AI explanation unavailable",
             answer=message,
             depth=depth,
         )
@@ -348,5 +357,5 @@ async def answer_for_species(
         answer=message,
         sections=sections,
         sources=stored_sources(chunks),
-        coverage="uncertain",
+        coverage="unsupported" if reviewed_only else "uncertain",
     )
