@@ -17,22 +17,50 @@ AI_WARNING = (
     "This information was generated using AI knowledge and has not been verified against "
     "InvaTrace's reviewed sources. It may contain inaccuracies."
 )
-# The warning is already attached to AI sections as a header; the model
-# occasionally echoes the same sentence at the top of its own answer text,
-# so strip the boilerplate (and a few close paraphrases) before display.
-_AI_WARNING_VARIANTS = (
-    AI_WARNING,
-    "This information was generated using AI knowledge and has not been verified against "
-    "InvaTrace reviewed sources. It may contain inaccuracies.",
-    "This information was generated using AI knowledge and may contain inaccuracies.",
+# The warning is already attached to AI sections as a header. Models trained
+# to prepend disclaimers often echo the same caveat at the top (or inside) of
+# the answer body, so the reader sees it twice. Exact-string replace is too
+# brittle because the model paraphrases freely, so detect disclaimer *shapes*
+# instead: any sentence that is self-referential about AI/uncertainty or
+# about InvaTrace's reviewed sources is treated as boilerplate and dropped.
+_DISCLAIMER_MARKERS = re.compile(
+    r"""
+    \b AI (?:[-\s] (?:generated|knowledge|model|assistant))? \b
+    | \b generated \s+ (?:using|by|with) \s+ AI \b
+    | \b as \s+ an \s+ AI \b
+    | \b I \s*(?:'m|am) \s+ an \s+ AI \b
+    | \b language \s+ model \b
+    | \b reviewed \s+ sources? \b
+    | \b (?:has \s+ )? not \s+ been \s+ verified \b
+    | \b may \s+ contain \s+ inaccuracies \b
+    | \b may \s+ not \s+ be \s+ accurate \b
+    | \b InvaTrace (?:'s|\s+)? \s* reviewed \b
+    """,
+    re.IGNORECASE | re.VERBOSE,
 )
+# Split on sentence terminators while keeping each sentence with its own
+# punctuation. Allows us to drop a disclaimer sentence without eating the
+# surrounding real content.
+_SENTENCE_SPLIT = re.compile(r"(?<=[.!?])\s+")
 
 
 def strip_ai_warning(text):
-    out = text
-    for variant in _AI_WARNING_VARIANTS:
-        out = out.replace(variant, "")
-    return re.sub(r"\n{3,}", "\n\n", out).strip()
+    """Remove sentences that are AI self-disclaimers from body text.
+
+    The AI_WARNING is attached to AI sections as a header, so no AI part
+    should repeat it. This is wording-agnostic: any sentence containing a
+    disclaimer marker (AI self-reference, reviewed-sources language,
+    not-verified / may-contain-inaccuracies phrasing) is dropped.
+    """
+    kept = []
+    for raw in _SENTENCE_SPLIT.split(text or ""):
+        sentence = raw.strip()
+        if not sentence:
+            continue
+        if _DISCLAIMER_MARKERS.search(sentence):
+            continue
+        kept.append(sentence)
+    return re.sub(r"\n{3,}", "\n\n", " ".join(kept)).strip()
 
 REDIRECT = "I can help with plants. Ask about their appearance, habitats or botanical concepts."
 AI_DETAILED_UNAVAILABLE = (
