@@ -155,6 +155,33 @@ def run(
     )
 
 
+def test_existing_scan_metadata_reaches_preflight_draft_audit_and_repair(conversation):
+    state, _ = conversation
+    state["bad"] = "incomplete_once"
+    scan = {"species_id": "mikania-micrantha", "classifier_confidence": 0.873,
+            "classifier_outcome": "accepted"}
+    result = run(conversation, message="How confident is this scan?", scan_context=scan)
+    assert result is not None
+    assert len(state["preflights"]) == 2
+    assert all(c["scan_result"] == scan for c in state["preflights"] + state["calls"])
+
+
+def test_catalogue_conversation_does_not_invent_scan_metadata(conversation):
+    assert run(conversation, message="What is this plant?") is not None
+    state, _ = conversation
+    assert all(c["scan_result"] is None for c in state["preflights"] + state["calls"])
+
+
+def test_audited_scan_context_answer_keeps_explanation_levels(conversation):
+    state, _ = conversation
+    state.update(reviewed=False, ai=False)
+    result = run(conversation, message="Explain the scan score", allow_ai=False,
+                 scan_context={"species_id": "mikania-micrantha", "classifier_confidence": 0.873,
+                               "classifier_outcome": "target"})
+    assert result["answerability"] == "answerable"
+    assert result["sources"] == []
+
+
 @pytest.mark.parametrize("species", list(get_retriever().species))
 @pytest.mark.parametrize(
     "message",

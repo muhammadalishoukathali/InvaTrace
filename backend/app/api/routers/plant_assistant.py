@@ -207,6 +207,11 @@ async def ask(
         section_aware=body.section_aware,
         history=[m.model_dump() for m in body.history],
         previous_answer=body.previous_answer,
+        scan_context={
+            "species_id": species_id,
+            "classifier_confidence": body.classifier_confidence,
+            "classifier_outcome": body.classifier_outcome,
+        },
     )
 
 
@@ -295,6 +300,7 @@ async def answer_for_species(
     section_aware: bool = False,
     history: list[dict] | None = None,
     previous_answer: str | None = None,
+    scan_context: dict | None = None,
 ) -> AskResponse:
     """Use the shared engine and preserve provenance for older clients."""
     # Privacy applies even when the provider is disabled or unavailable.
@@ -313,6 +319,7 @@ async def answer_for_species(
             settings,
             history=history or [],
             previous_answer=previous_answer,
+            scan_context=scan_context,
         )
         # A reviewed-only request the sources do not cover is a stated limit,
         # not a failed generation; it still gets the related excerpts below.
