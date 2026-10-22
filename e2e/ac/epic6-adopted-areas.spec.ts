@@ -1007,3 +1007,26 @@ test('AC 6.3.6 No activity state', async ({ page }) => {
   const text = await page.locator('.activity-page').innerText()
   expect(text).not.toMatch(/no invasive|free (of|from)|absent|absence|clear of|not present/i)
 })
+
+test('AC 6.3.1 Activity map reachable on a phone', async ({ page }) => {
+  // Below 820px the summary stacks above the map. The page must grow with that
+  // summary; a fixed height with overflow hidden clipped the map out of reach.
+  await page.setViewportSize({ width: 375, height: 812 })
+  const session = await startPrivateAccess(page)
+  const kiara = adoption(session.profile.id, BUKIT_KIARA)
+  await seedAdoptions(page, [kiara])
+  await openActivity(page, kiara.adoptionId)
+
+  const section = page.locator('.activity-page')
+  const clipped = await section.evaluate((element) => element.scrollHeight - element.clientHeight)
+  expect(clipped).toBeLessThanOrEqual(1)
+
+  const map = page.getByLabel('Community activity map')
+  await map.scrollIntoViewIfNeeded()
+  const box = await map.boundingBox()
+  const nav = await page.locator('nav.bottom-tabs').boundingBox()
+  expect(box).not.toBeNull()
+  expect(box!.height).toBeGreaterThan(300)
+  expect(box!.y).toBeGreaterThanOrEqual(0)
+  if (nav) expect(box!.y).toBeLessThan(nav.y)
+})
